@@ -82,6 +82,16 @@ beforeEach(() => {
 });
 
 describe('exportToSevDesk — idempotency (no duplicate drafts)', () => {
+  // Der SevDesk-Weg ist seit 2026-08-17 standardmaessig AUS ("rechnung nur in
+  // avycloud nicht in sevdesk", lib/auto-invoice-gate.js). Diese Tests
+  // beschreiben genau diesen Weg — sie muessen ihn also einschalten.
+  const altPush = process.env.INVOICE_SEVDESK_PUSH;
+  beforeEach(() => { process.env.INVOICE_SEVDESK_PUSH = 'on'; });
+  afterEach(() => {
+    if (altPush === undefined) delete process.env.INVOICE_SEVDESK_PUSH;
+    else process.env.INVOICE_SEVDESK_PUSH = altPush;
+  });
+
   it('skips entirely when the invoice already has a sevdeskId', async () => {
     currentInvoice = { sevdeskId: 'SD-EXISTING', invoiceNumber: 'RE-2044', orderId: null, customer: { name: 'X' } };
 

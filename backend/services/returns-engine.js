@@ -264,7 +264,16 @@ async function processReturn({
   }
 
   // Create Storno / Gutschrift in SevDesk (non-blocking)
-  if (refundType !== 'none' && ret.orderId) {
+  //
+  // STANDARDMAESSIG AUS (Betreiber-Anweisung 2026-08-17): "rechnungen,
+  // gutschriften, retoure, stornos etc werden ueber die marktplaetze bereits
+  // kalkuliert in den marktplatz reports". Der Retouren-Dialog uebergibt seit
+  // dem Abschalten des eigenen Erstattungswegs ohnehin fest refundType:'none',
+  // dieser Zweig ist also schon heute unerreichbar — das Gate haelt ihn auch
+  // dann geschlossen, wenn ein Aufrufer spaeter wieder einen Betrag mitgibt.
+  // Siehe lib/auto-invoice-gate.js.
+  const { autoInvoiceEnabled } = require('../lib/auto-invoice-gate');
+  if (refundType !== 'none' && ret.orderId && autoInvoiceEnabled()) {
     setImmediate(async () => {
       try {
         const { createCorrectionInvoice } = require('./invoice-engine');

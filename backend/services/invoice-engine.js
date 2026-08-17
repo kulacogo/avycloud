@@ -178,8 +178,13 @@ async function generateInvoice({
   // Load company settings + SevDesk token + logo
   const company = await getCompanySettings(tenantId);
   company._logoBuffer = await fetchLogoBuffer(company.logoUrl);
+  // Token nur holen, wenn er auch gebraucht wird — im Normalbetrieb geht die
+  // Rechnung gar nicht nach SevDesk (siehe unten).
+  const { invoiceSevdeskPushEnabled: _pushAn } = require('../lib/auto-invoice-gate');
   const { getIntegrationSecret } = require('./integration-store');
-  const token = await getIntegrationSecret('SEVDESK_API_TOKEN').catch(() => null);
+  const token = _pushAn()
+    ? await getIntegrationSecret('SEVDESK_API_TOKEN').catch(() => null)
+    : null;
 
   // Calculate amounts — always derive from items
   const items = order.items || [];
@@ -213,11 +218,33 @@ async function generateInvoice({
     return { invoiceId: null, invoiceNumber: null, pdfUrl: null, skipped: true, reason: 'no_amount_or_customer' };
   }
 
-  // ── Create invoice in SevDesk first to get the official invoice number ──
+  // ── Rechnungsnummer besorgen ──────────────────────────────────────────
+  //
+  // STANDARD SEIT 2026-08-17 (Betreiber-Anweisung): die Rechnung bleibt IN
+  // AVYCLOUD. Sie ist ein Beleg fuer den Kunden, keine Buchung. Die Nummer
+  // kommt aus dem lokalen Nummernkreis (`RE-<Jahr>-<0001>`), der nicht mit
+  // den SevDesk-Nummern (`RE-1636`, ohne Jahresteil) kollidiert.
+  //
+  // WARUM NICHT MEHR NACH SEVDESK: zahlt der Marktplatz 2.000 € aus und
+  // stehen daneben Rechnungen ueber dieselben 2.000 €, die als bezahlt
+  // markiert werden, weist SevDesk 4.000 € Umsatz aus. Jeder Vorgang steht
+  // bereits in den Transaktionsberichten der Marktplaetze.
+  //
+  // Der alte Weg (SevDesk praegt die Nummer) bleibt vollstaendig erhalten und
+  // laesst sich mit INVOICE_SEVDESK_PUSH='on' wieder einschalten — ein
+  // Betreiber mit B2B-Anteil braucht ihn.
   let invoiceNumber = null;
   let sevdeskId = null;
 
-  if (token) {
+  const { invoiceSevdeskPushEnabled } = require('../lib/auto-invoice-gate');
+  const nachSevdesk = invoiceSevdeskPushEnabled();
+
+  if (!nachSevdesk) {
+    const seq = await getNextNumber({ tenantId, type: 'invoice' });
+    invoiceNumber = seq.formatted;
+  }
+
+  if (nachSevdesk && token) {
     try {
       const userId = await getSevdeskUserId(token);
       const headers = { Authorization: token, 'Content-Type': 'application/json' };
@@ -335,11 +362,14 @@ async function generateInvoice({
     }
   }
 
-  // SevDesk is the single source of truth for the invoice number. If it did not
-  // assign one (API down / error), we DEFER instead of inventing a local number.
-  // Previously a local "RE-2026-xxxx" was issued and later pushed to SevDesk,
-  // creating the non-sequential numbers. Releasing the claim lets a later run
-  // (next pick/ship trigger or the cron) retry once SevDesk is healthy again.
+  // NUR IM SEVDESK-MODUS: dort ist SevDesk die Quelle der Wahrheit fuer die
+  // Nummer. Vergibt es keine (API down / Fehler), wird VERSCHOBEN statt eine
+  // lokale Ersatznummer zu erfinden — frueher entstanden genau so die nicht
+  // fortlaufenden Nummern. Die Freigabe des Claims laesst einen spaeteren Lauf
+  // erneut versuchen.
+  //
+  // Im Normalbetrieb (ohne SevDesk) ist die Nummer oben bereits atomar aus dem
+  // lokalen Nummernkreis gezogen — dieser Zweig ist dann unerreichbar.
   if (!invoiceNumber) {
     await orderRef.set({ invoiceClaimedAt: null }, { merge: true }).catch(() => {});
     throw new Error(`SevDesk hat keine Rechnungsnummer vergeben (order ${orderId}) — Rechnung verschoben statt mit lokaler Ersatznummer ausgestellt.`);
@@ -783,6 +813,12 @@ function toSevdeskNetUnitPrice(priceBrutto, vatFactor) {
  */
 async function exportToSevDesk({ invoiceId }) {
   try {
+    // STANDARDMAESSIG AUS (Betreiber-Anweisung 2026-08-17): "rechnung nur in
+    // avycloud nicht in sevdesk". Kein Fehler — der Normalfall.
+    const { invoiceSevdeskPushEnabled } = require('../lib/auto-invoice-gate');
+    if (!invoiceSevdeskPushEnabled()) {
+      return { ok: true, skipped: true, reason: 'invoice_sevdesk_push_disabled' };
+    }
     const db = getDb();
     const snap = await db.collection(INVOICES_COLLECTION).doc(invoiceId).get();
     if (!snap.exists) throw new Error('Rechnung nicht gefunden');
@@ -967,10 +1003,21 @@ function formatDate(dateStr) {
  * Generate invoices for all picked/packed/shipped/delivered/completed orders that don't have one yet.
  * Idempotent — skips orders with an existing invoiceId.
  *
- * @param {{ tenantId?: string }} opts
- * @returns {Promise<{ generated: number, skipped: number, errors: Array }>}
+ * STANDARDMAESSIG AUS (Betreiber-Anweisung 2026-08-17, B2C): dieser Lauf hat
+ * die 467 faelligen Rechnungen erzeugt. Er sucht ohne Datumsgrenze ueber fuenf
+ * Auftragsstatus, also ueber die gesamte Historie. Das Gate sitzt zusaetzlich
+ * ZU dem in index.js — ein Massen-Praeger darf nicht an genau einer Stelle
+ * haengen. `force: true` ist der Ausweg fuer eine ausdrueckliche
+ * Betreiber-Entscheidung (Script/CLI), nicht fuer Automatik.
+ *
+ * @param {{ tenantId?: string, force?: boolean }} opts
+ * @returns {Promise<{ generated: number, skipped: number, errors: Array, reason?: string }>}
  */
-async function bulkGenerateForShippedOrders({ tenantId = 'default' } = {}) {
+async function bulkGenerateForShippedOrders({ tenantId = 'default', force = false } = {}) {
+  const { autoInvoiceEnabled } = require('../lib/auto-invoice-gate');
+  if (!force && !autoInvoiceEnabled()) {
+    return { generated: 0, skipped: 0, errors: [], skipped_run: true, reason: 'auto_invoice_disabled' };
+  }
   const db = getDb();
   const eligibleStatuses = ['picked', 'packed', 'shipped', 'delivered', 'completed'];
   const seen = new Set();
@@ -1078,8 +1125,23 @@ async function importFromSevDesk({ tenantId = 'default' } = {}) {
     const status = STATUS_MAP[String(sdInv.status)] || 'entwurf';
 
     // Match to order by gross amount (within €1) — consume matched order so we don't double-assign
+    //
+    // NUR MIT AUTO_INVOICE (Betreiber-Anweisung 2026-08-17): diese Zuordnung
+    // ist eine RATERUNDE — sie nimmt den erstbesten Auftrag ohne Rechnung, der
+    // betragsmaessig auf 1 EUR passt, und schreibt ihm invoiceId/invoiceNumber
+    // zurueck. Bei abgeschalteter Automatik ist das aktiv schaedlich: nach dem
+    // Aufraeum-Lauf (scripts/purge-invoices.js) blieben in SevDesk nur die
+    // NICHT loeschbaren Belege uebrig, und dieser Cron — er laeuft 5 Minuten
+    // nach JEDEM Neustart — haengte sie an willkuerliche Auftraege. Der Lauf
+    // haette sich selbst teilweise rueckgaengig gemacht.
+    //
+    // Der Import selbst bleibt: er spiegelt SevDesk in die Rechnungsliste und
+    // praegt nichts. Rechnungen aus dem Knopf "Rechnung erstellen" sind davon
+    // unberuehrt — generateInvoice legt deren Firestore-Doc samt sevdeskId
+    // selbst an, der Import ueberspringt sie als bereits bekannt.
+    const { autoInvoiceEnabled } = require('../lib/auto-invoice-gate');
     let matchedOrderId = null;
-    if (grossAmount > 0) {
+    if (grossAmount > 0 && autoInvoiceEnabled()) {
       for (let i = 0; i < unmatchedOrders.length; i++) {
         const order = unmatchedOrders[i];
         const orderTotal = order.totalAmount || 0;
@@ -1165,6 +1227,14 @@ async function createCorrectionInvoice({ orderId, tenantId = 'default', type = '
   // Idempotency: skip if already corrected with this type
   if (invoice.correctionId && invoice.correctionType === type) {
     return { ok: true, correctionId: invoice.correctionId, skipped: true };
+  }
+
+  // STANDARDMAESSIG AUS (Betreiber-Anweisung 2026-08-17): Stornos und
+  // Gutschriften stehen bereits in den Transaktionsberichten der Marktplaetze.
+  // Eine zweite Spur in SevDesk verfaelscht das Gesamtbild.
+  const { invoiceSevdeskPushEnabled } = require('../lib/auto-invoice-gate');
+  if (!invoiceSevdeskPushEnabled()) {
+    return { ok: false, skipped: true, reason: 'invoice_sevdesk_push_disabled' };
   }
 
   const { getIntegrationSecret } = require('./integration-store');

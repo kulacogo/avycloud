@@ -732,8 +732,13 @@ router.post('/orders/:orderId/complete', requirePermission('orders', 'pick'), as
     });
 
     // Auto-generate invoice + SevDesk export on pick (non-blocking)
+    //
+    // STANDARDMAESSIG AUS (Betreiber-Anweisung 2026-08-17, B2C): der Knopf
+    // "Rechnung erstellen" im Auftrag bleibt der Weg fuer Kaeufer, die eine
+    // Rechnung wollen. Siehe lib/auto-invoice-gate.js.
     const _tenantId = req.user?.tenantId || 'default';
-    setImmediate(async () => {
+    const { autoInvoiceEnabled: _autoInvoiceOnComplete } = require('../lib/auto-invoice-gate');
+    if (_autoInvoiceOnComplete()) setImmediate(async () => {
       try {
         const { generateInvoice, exportToSevDesk } = require('../services/invoice-engine');
         const orderSnap = await require('../lib/firestore').firestore.collection('orders').doc(orderId).get();
@@ -1116,7 +1121,13 @@ router.post('/orders/:orderId/transition', requirePermission('orders', 'write'),
       pushCancellationToMarketplace({ orderId, reason: note || 'other' })
         .catch((err) => console.warn(`[transition] cancel marketplace push failed: ${err.message}`));
       // Auto-create Stornorechnung if order had an invoice
-      setImmediate(async () => {
+      //
+      // STANDARDMAESSIG AUS (Betreiber-Anweisung 2026-08-17): Stornos und
+      // Gutschriften rechnen eBay und Kaufland in ihren eigenen Reports ab.
+      // Eine zweite Storno-Spur in SevDesk zaehlt denselben Vorgang doppelt.
+      // Siehe lib/auto-invoice-gate.js.
+      const { autoInvoiceEnabled: _autoStornoOnCancel } = require('../lib/auto-invoice-gate');
+      if (_autoStornoOnCancel()) setImmediate(async () => {
         try {
           const { createCorrectionInvoice } = require('../services/invoice-engine');
           await createCorrectionInvoice({ orderId, tenantId, type: 'storno', reason: note || 'Stornierung' });
@@ -1146,7 +1157,11 @@ router.post('/orders/:orderId/transition', requirePermission('orders', 'write'),
     }
 
     // Auto-generate invoice + SevDesk export when order is picked (commissioned)
-    if (toStatus === 'picked') {
+    //
+    // STANDARDMAESSIG AUS (Betreiber-Anweisung 2026-08-17, B2C).
+    // Siehe lib/auto-invoice-gate.js.
+    const { autoInvoiceEnabled: _autoInvoiceOnPick } = require('../lib/auto-invoice-gate');
+    if (toStatus === 'picked' && _autoInvoiceOnPick()) {
       setImmediate(async () => {
         try {
           const { generateInvoice, exportToSevDesk } = require('../services/invoice-engine');

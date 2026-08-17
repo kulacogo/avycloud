@@ -246,13 +246,21 @@ async function transitionOrder({ tenantId = 'default', orderId, toStatus, actor,
   // Post-transition side effects (fire-and-forget)
   if (result.ok && toStatus === 'shipped') {
     // Auto-generate invoice when order ships (FEAT-ORD-06)
-    try {
-      const { generateInvoice } = require('./invoice-engine');
-      generateInvoice({ orderId, tenantId, actor }).catch((err) => {
-        console.warn(`[order-state-machine] Auto-invoice for ${orderId} failed: ${err.message}`);
-      });
-    } catch (err) {
-      console.warn(`[order-state-machine] Auto-invoice import failed: ${err.message}`);
+    //
+    // STANDARDMAESSIG AUS (Betreiber-Anweisung 2026-08-17): TrendOcean ist
+    // B2C-Haendler und muss keine Rechnung ausstellen. Wer eine will, bekommt
+    // sie ueber den Knopf "Rechnung erstellen" im Auftrag. Siehe
+    // lib/auto-invoice-gate.js.
+    const { autoInvoiceEnabled } = require('../lib/auto-invoice-gate');
+    if (autoInvoiceEnabled()) {
+      try {
+        const { generateInvoice } = require('./invoice-engine');
+        generateInvoice({ orderId, tenantId, actor }).catch((err) => {
+          console.warn(`[order-state-machine] Auto-invoice for ${orderId} failed: ${err.message}`);
+        });
+      } catch (err) {
+        console.warn(`[order-state-machine] Auto-invoice import failed: ${err.message}`);
+      }
     }
 
     // Decrement physical stock + sync to all marketplaces (oversell prevention)

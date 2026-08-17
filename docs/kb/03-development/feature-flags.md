@@ -206,6 +206,19 @@ Beide **default OFF** → exakt heutiges Verhalten. Rollback = Flag auf `false`.
 
 > Hintergrund: 2026-06-22 fror der Sync bei 305 aktiv ein, obwohl eBay nur 106 hatte (199 bewusst beendet = 65% Rückgang → über der 60%-Schwelle → als „kaputter Abruf" fehlinterpretiert). Verwandter Incident 2026-05-26.
 
+## Automatische Rechnungserstellung (B2C)
+
+| ENV | Default | Wirkung | Anker |
+|-----|---------|---------|-------|
+| `INVOICE_SEVDESK_PUSH` | *(leer = AUS)* | **Nur `on`.** Aus = eine Rechnung landet NIE in SevDesk — sie bleibt in AvyCloud (PDF + Firestore) und ist ein Beleg für den Kunden, keine Buchung. Nummer dann aus `number-sequence.js` Typ `invoice` (`RE-<Jahr>-<0001>`, kollidiert nicht mit SevDesks `RE-1636`). Gatet den Prägeblock in `generateInvoice`, `exportToSevDesk` und die SevDesk-Aufrufe in `createCorrectionInvoice`. **Andere Frage als `AUTO_INVOICE`:** *darf AvyCloud von selbst?* vs. *darf es überhaupt nach SevDesk?* Der Knopf im Auftrag = ja / nein. | [lib/auto-invoice-gate.js](../../../backend/lib/auto-invoice-gate.js) (`invoiceSevdeskPushEnabled`), [services/invoice-engine.js](../../../backend/services/invoice-engine.js) |
+| `AUTO_INVOICE` | *(leer = AUS)* | **Nur der exakte Wert `on` schaltet ein** — `true`/`1`/`yes` bewusst NICHT. Aus = AvyCloud erzeugt von sich aus keine Rechnung, Gutschrift oder Stornorechnung mehr. Betroffen: der `bulkGenerateForShippedOrders`-Cron, der `refund-sync`-Cron, der Auto-Beleg beim Übergang auf `shipped`/`picked`, der Auto-Storno beim Stornieren, die Korrekturrechnung bei Retouren, der Massen-Endpunkt `POST /api/invoices/bulk-generate` **und** die Betrags-Zuordnung (±1 €) in `importFromSevDesk`. **Nicht** betroffen (immer erreichbar): `POST /api/orders/:orderId/invoice` (Knopf „Rechnung erstellen" im Auftrag), `POST /api/invoices/:invoiceId/export-sevdesk`, der Lieferschein und das reine Spiegeln von SevDesk. | [lib/auto-invoice-gate.js](../../../backend/lib/auto-invoice-gate.js) (`autoInvoiceEnabled`), [services/invoice-engine.js](../../../backend/services/invoice-engine.js), [services/order-state-machine.js](../../../backend/services/order-state-machine.js), [routes/orders.js](../../../backend/routes/orders.js), [routes/invoices.js](../../../backend/routes/invoices.js), [index.js](../../../backend/index.js) |
+
+> Hintergrund (Betreiber-Anweisung 2026-08-17): TrendOcean ist B2C-Händler und muss keine Rechnung ausstellen; Rechnungen, Gutschriften, Retouren und Stornos rechnen eBay und Kaufland in ihren eigenen Reports ab. Gemessen im SevDesk-Bestand: **467 fällige Rechnungen über 18.158,48 €**, EBIT-Kachel −17.626,30 €, UStVA verzerrt. Ursache war vor allem `bulkGenerateForShippedOrders` — es durchsucht fünf Auftragsstatus **ohne Datumsgrenze**, 5 Minuten nach *jedem* Prozessstart und danach alle 24 h; jeder Cloud-Run-Neustart war ein Volldurchlauf über die gesamte Historie.
+>
+> **Vier weitere Automatik-Wege** (SendCloud-Webhook, eBay-Abgleich, Kaufland-Abgleich, SendCloud-Paket-Sync) lösen die Rechnung nicht selbst aus, sondern über `transitionOrder(… 'shipped')` — sie sind durch das eine Gate in der State-Machine mit abgedeckt.
+>
+> **Vor jedem Flip auf `on` lesen:** `generateInvoice` verwendet `order.invoiceSevdeskId` als „schon geprägt"-Marker **wieder** ([invoice-engine.js:285](../../../backend/services/invoice-engine.js#L285), Schutz gegen den Doppel-Rechnungs-Vorfall vom 20.07.2026). Zeigt das Feld auf einen in SevDesk gelöschten Beleg, läuft jeder Versuch gegen eine tote ID und der Auftrag bekommt **nie wieder** eine Rechnung. Deshalb räumt [scripts/purge-invoices.js](../../../backend/scripts/purge-invoices.js) SevDesk und Firestore immer zusammen auf.
+
 ## Hinweise
 
 - **ENV-Var-Rename** ist verboten, wenn sie in CI/CD referenziert wird (Punkt 4 [CLAUDE.md](../../../CLAUDE.md)).

@@ -115,6 +115,22 @@ router.post('/invoices/import-sevdesk', requirePermission('invoices', 'write'), 
  */
 router.post('/invoices/bulk-generate', requirePermission('invoices', 'write'), async (req, res) => {
   try {
+    // STANDARDMAESSIG AUS (Betreiber-Anweisung 2026-08-17, B2C): dieser
+    // Endpunkt praegt in EINEM Aufruf eine Rechnung fuer JEDEN versendeten
+    // Auftrag ohne Rechnung — genau der Mechanismus hinter den 467 faelligen
+    // Rechnungen. Er haengt an keiner Schaltflaeche in der Oberflaeche.
+    // Einzelne Rechnungen laufen ueber POST /api/orders/:orderId/invoice
+    // (Knopf "Rechnung erstellen" im Auftrag), der bleibt immer erreichbar.
+    const { autoInvoiceEnabled } = require('../lib/auto-invoice-gate');
+    if (!autoInvoiceEnabled()) {
+      return res.status(409).json({
+        ok: false,
+        error: {
+          code: 'AUTO_INVOICE_DISABLED',
+          message: 'Massen-Rechnungserstellung ist abgeschaltet (B2C). Einzelne Rechnungen über den Knopf „Rechnung erstellen" im Auftrag erzeugen.',
+        },
+      });
+    }
     const tenantId = req.user?.tenantId || 'default';
     const { generateInvoice, exportToSevDesk } = require('../services/invoice-engine');
 
