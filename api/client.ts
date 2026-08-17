@@ -4110,7 +4110,7 @@ export async function cancelShippingLabel(orderId: string): Promise<void> {
 export async function assignTracking(
   orderId: string,
   opts: { trackingNumber: string; carrier?: string; trackingUrl?: string }
-): Promise<{ message: string; trackingNumber: string }> {
+): Promise<{ message: string; trackingNumber: string; statusChanged?: boolean; statusError?: string | null }> {
   const res = await fetchApi(`${BACKEND_URL}/api/orders/${encodeURIComponent(orderId)}/tracking`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

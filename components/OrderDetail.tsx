@@ -1264,7 +1264,7 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
                               onClick={async () => {
                                 setSavingTracking(true);
                                 try {
-                                  await assignTracking(orderId, {
+                                  const res = await assignTracking(orderId, {
                                     trackingNumber: manualTrackingNumber.trim(),
                                     carrier: manualCarrier || undefined,
                                   });
@@ -1273,6 +1273,19 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
                                   setManualCarrier("");
                                   await loadData();
                                   onStatusChange?.();
+                                  // Der Auftrag kann trotz gespeicherter Nummer im
+                                  // alten Status haengen bleiben — dann ist der
+                                  // Bestand nicht abgebucht, und das muss man sehen.
+                                  if ((res as any)?.statusChanged === false) {
+                                    toast.warning(res.message || "Tracking gespeichert, Status nicht geändert.");
+                                  } else {
+                                    toast.success("Tracking-Nummer hinterlegt.");
+                                  }
+                                } catch (err: any) {
+                                  // Frueher fehlte dieser Zweig ganz: schlug das
+                                  // Speichern fehl, blieb das Formular stumm stehen
+                                  // und niemand erfuhr, warum nichts passierte.
+                                  toast.error(err?.message || "Tracking konnte nicht gespeichert werden.");
                                 } finally {
                                   setSavingTracking(false);
                                 }

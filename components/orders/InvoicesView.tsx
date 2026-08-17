@@ -3,12 +3,16 @@ import { fetchInvoices, updateInvoiceStatus, downloadInvoicePdfBlob, type Invoic
 import { EmptyState } from "../ui/EmptyState";
 import { useToast } from "../../context/ToastContext";
 import { PageTitle } from "../ui/PageTitle";
+import { classifyInvoiceTab, istUeberfaellig, OPEN_INVOICE_STATUSES } from "../../utils/invoiceTabs";
 
 /* ─── Helpers ─── */
 const grossAmt = (inv: any): number => inv.amountGross ?? inv.amountBrutto ?? 0;
 const nettoAmt = (inv: any): number => inv.amountNet ?? inv.amountNetto ?? 0;
 
-const OPEN_STATUSES = new Set(["offen", "erstellt", "gesendet"]);
+// Einordnung + Faelligkeit liegen gemeinsam in utils/invoiceTabs.ts — der
+// Reiter "Ueberfaellig" und die Kennzahl darueber rechneten frueher
+// unterschiedlich, weshalb der Reiter garantiert leer blieb.
+const OPEN_STATUSES = OPEN_INVOICE_STATUSES;
 
 function normalizeStatus(status: string | undefined): { label: string; cls: string } {
   if (!status) return { label: "—", cls: "bg-app-elevated text-txt-muted" };
@@ -97,14 +101,7 @@ export const InvoicesView: React.FC = () => {
   };
 
   /* ─── Tab classification ─── */
-  const classifyTab = (inv: any): TabKey => {
-    if ((inv as any).type === "storno" || (inv as any).type === "gutschrift" || inv.status === "storniert") return "storniert";
-    if (inv.status === "bezahlt") return "bezahlt";
-    if (inv.status === "ueberfaellig") return "ueberfaellig";
-    if (inv.status === "entwurf") return "entwurf";
-    if (OPEN_STATUSES.has(inv.status || "")) return "offen";
-    return "offen"; // default for unknown
-  };
+  const classifyTab = (inv: any): TabKey => classifyInvoiceTab(inv) as TabKey;
 
   const tabCounts = useMemo(() => {
     const c: Record<TabKey | "alle", number> = { alle: 0, offen: 0, bezahlt: 0, ueberfaellig: 0, storniert: 0, entwurf: 0 };
@@ -177,11 +174,7 @@ export const InvoicesView: React.FC = () => {
     const openInvs = main.filter((inv) => OPEN_STATUSES.has(inv.status || ""));
     // Client-time is acceptable here: dueDate has day granularity, so ±1h timezone skew is irrelevant
     const today = Date.now();
-    const overdue = main.filter((inv) => {
-      if (inv.status === "bezahlt" || inv.status === "storniert") return false;
-      const due = (inv as any).dueDate ? new Date((inv as any).dueDate).getTime() : 0;
-      return due > 0 && due < today;
-    });
+    const overdue = main.filter((inv) => istUeberfaellig(inv as any, today));
     const totalGross = main.reduce((s, inv) => s + grossAmt(inv), 0);
     return {
       total: invoices.length,
@@ -278,7 +271,10 @@ export const InvoicesView: React.FC = () => {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <KpiCard label="Gesamt Rechnungen" value={kpis.total} tone="text-accent" />
         <KpiCard label="Offene Rechnungen" value={kpis.open} tone="text-info" />
-        <KpiCard label="Überfällig" value={kpis.overdue} tone={kpis.overdue > 0 ? "text-danger" : "text-txt-muted"} />
+        {/* "davon" statt "Überfällig": die überfälligen sind eine Teilmenge der
+            offenen. Ohne das Wort lesen sich 552 offene und 256 überfällige
+            wie zwei getrennte Stapel. */}
+        <KpiCard label="davon überfällig" value={kpis.overdue} tone={kpis.overdue > 0 ? "text-danger" : "text-txt-muted"} />
         <KpiCard label="Gesamtumsatz (Brutto)" value={`${kpis.totalGross} €`} tone="text-success" />
       </div>
 

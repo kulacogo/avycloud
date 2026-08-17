@@ -1668,17 +1668,32 @@ router.post('/orders/:orderId/tracking', requirePermission('orders', 'write'), a
     }
 
     // Transition to shipped if not already
+    //
+    // Frueher stand hier ein nacktes `await transitionOrder(...)` ohne Blick
+    // auf das Ergebnis. transitionOrder wirft bei einem unerlaubten Uebergang
+    // nicht, es gibt {ok:false} zurueck — und erlaubt ist nur packed→shipped.
+    // Genau der Zweck dieses Knopfs (ausserhalb des Systems verschickte Ware
+    // nachtragen) trifft aber Auftraege in Kommissionierung/Gepickt/Verpacken.
+    // Fuer die passierte nichts: Status blieb stehen, _onOrderShipped lief
+    // nicht, der Bestand wurde nicht abgebucht (CLAUDE.md Punkt 11).
     const currentStatus = order.omsStatus || order.status;
+    let shipTransition = { ok: true, forced: false, error: null };
     if (currentStatus && !['shipped', 'delivered', 'completed', 'cancelled'].includes(currentStatus)) {
       const { transitionOrder } = require('../services/order-state-machine');
-      await transitionOrder({
+      const { markiereAlsVersendet } = require('../lib/order-ship-transition');
+      shipTransition = await markiereAlsVersendet({
+        transitionOrder,
         tenantId,
         orderId,
-        toStatus: 'shipped',
         actor: { uid: req.user?.uid || 'system', email: req.user?.email || 'api' },
         note: `Tracking manuell hinterlegt: ${trackingNumber.trim()}`,
         timestamps: { shippedAt: new Date().toISOString() },
       });
+      if (!shipTransition.ok) {
+        console.error(
+          `[POST /api/orders/${orderId}/tracking] Statuswechsel auf "versendet" abgelehnt: ${shipTransition.error}`
+        );
+      }
     }
 
     // Push tracking to marketplace
@@ -1695,7 +1710,20 @@ router.post('/orders/:orderId/tracking', requirePermission('orders', 'write'), a
       }
     }
 
-    res.json({ ok: true, data: { message: 'Tracking-Nummer hinterlegt.', trackingNumber: trackingNumber.trim() } });
+    // Ehrliche Rueckmeldung: bleibt der Auftrag trotz allem im alten Status,
+    // muss das der Mensch sehen — sonst haelt er ihn fuer versendet, waehrend
+    // der Bestand nicht abgebucht ist.
+    res.json({
+      ok: true,
+      data: {
+        message: shipTransition.ok
+          ? 'Tracking-Nummer hinterlegt.'
+          : `Tracking-Nummer hinterlegt — der Auftrag konnte aber NICHT auf "Versendet" gesetzt werden (${shipTransition.error}). Bestand wurde nicht abgebucht.`,
+        trackingNumber: trackingNumber.trim(),
+        statusChanged: shipTransition.ok,
+        statusError: shipTransition.ok ? null : shipTransition.error,
+      },
+    });
   } catch (err) {
     console.error(`[POST /api/orders/:orderId/tracking] ${err.message}`, err);
     res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
