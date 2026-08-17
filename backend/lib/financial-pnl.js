@@ -130,6 +130,12 @@ function buildPnl({
   // mehr gerechnet: der Umweg netto→brutto rundet, und Briefporto der Deutschen
   // Post ist umsatzsteuerfrei — ein pauschales x1,19 waere dort schlicht falsch.
   shippingBrutto = null,
+  // Retouren, die zu STORNIERTEN Auftraegen gehoeren. Sie werden hier NICHT
+  // abgezogen (ihr Umsatz war nie gebucht), muessen aber sichtbar bleiben —
+  // sonst zeigt das Dashboard einen Retouren-Betrag, den der Bediener auf der
+  // Retouren-Seite nirgends wiederfindet.
+  returnsCancelledValue = 0,
+  returnsCancelledCount = 0,
   cogs = 0,
   // NEU (alle optional — Alt-Aufrufe verhalten sich unverändert sinnvoll):
   feeResolution = null, // vorberechnetes Ergebnis aus resolveFees() (Report kennt die Payouts je Marktplatz)
@@ -197,6 +203,9 @@ function buildPnl({
     auszahlungSource: st.auszahlungIst != null ? (realPayoutSource || 'sevdesk') : 'rates',
     versandBrutto,
     retouren,
+    retourenStorno: round2(num(returnsCancelledValue)),
+    retourenStornoAnzahl: Number(returnsCancelledCount) || 0,
+    retourenGesamt: round2(retouren + num(returnsCancelledValue)),
     cogs: cogsValue,
     rohgewinn,
     margePct,

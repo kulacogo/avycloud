@@ -506,6 +506,12 @@ async function getFinancialReport({ preset = null, fromDate = null, toDate = nul
     realPayout,
     realPayoutSource,
     returnsValue: returns.value,
+    // Die Luecke muss sichtbar sein: der Bediener sieht auf der Retouren-Seite
+    // ALLE Vorgaenge, hier wird aber nur abgezogen, was nicht schon ueber den
+    // Storno aus dem Umsatz gefallen ist. Ohne diese Zahlen steht im Dashboard
+    // ein Betrag, den er nirgends wiederfindet.
+    returnsCancelledCount: returns.cancelledSkipped || 0,
+    returnsCancelledValue: returns.cancelledSkippedValue || 0,
     shippingNetto: shipping ? shipping.netto : null,
     shippingBrutto: shipping ? (shipping.brutto != null ? shipping.brutto : null) : null,
     cogs: agg.cogs,
@@ -545,6 +551,9 @@ async function getFinancialReport({ preset = null, fromDate = null, toDate = nul
       payoutErwartet,
       offeneAuszahlung: realPay != null ? round2(payoutErwartet - realPay) : null,
       retouren: ret,
+      retourenStorno: returns.cancelledSkippedValue || 0,
+      retourenStornoAnzahl: returns.cancelledSkipped || 0,
+      retourenGesamt: round2(num(ret) + num(returns.cancelledSkippedValue || 0)),
       cogs: m.cogs,
     };
   }

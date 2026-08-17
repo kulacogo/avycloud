@@ -301,6 +301,13 @@ export const AdminFinancials: React.FC = () => {
     // aus. Gemessen im August: 270 Sendungen, 0 € gezeigt, Marge 71,8 %.
     const versandOffen = pnl.versandBrutto == null;
     const versand = pnl.versandBrutto ?? 0;
+    // Retouren an STORNIERTEN Auftraegen werden nicht abgezogen (ihr Umsatz war
+    // nie gebucht). Sie muessen aber sichtbar bleiben: auf der Retouren-Seite
+    // sieht der Bediener ALLE Vorgaenge, hier stand bisher nur der Rest — eine
+    // Zahl, die er nirgends wiederfand.
+    const retourenStorno = pnl.retourenStorno ?? 0;
+    const retourenStornoAnzahl = pnl.retourenStornoAnzahl ?? 0;
+    const retourenGesamt = pnl.retourenGesamt ?? (retouren + retourenStorno);
     const gebuehren = pnl.marketplaceFees ?? 0;
 
     // Kompatibilität im Deploy-Fenster: das Frontend kann vor dem Backend live sein.
@@ -316,7 +323,7 @@ export const AdminFinancials: React.FC = () => {
         : null;
 
     const feeApprox = pnl.feeSource === "rates" || pnl.feeSource === "mixed";
-    return { umsatz, retouren, gebuehren, ware, versand, versandOffen, gewinn, marge, feeApprox, approx: feeApprox || cogsModelActive };
+    return { umsatz, retouren, retourenStorno, retourenStornoAnzahl, retourenGesamt, gebuehren, ware, versand, versandOffen, gewinn, marge, feeApprox, approx: feeApprox || cogsModelActive };
   }, [report, pnl, cogsModelActive]);
 
   // Geldeingang: Erwartung (accrual) gegen Bank-Ist. Eigene Größe, KEIN Balkensegment —
@@ -509,6 +516,15 @@ export const AdminFinancials: React.FC = () => {
                 </div>
                 {view.gewinn < 0 ? (
                   <p className="mt-2 text-xs text-danger">Die Kosten übersteigen den Umsatz in diesem Zeitraum.</p>
+                ) : null}
+                {view.retourenStorno > 0 ? (
+                  <p className="mt-2 text-xs text-txt-muted">
+                    Auf der Retouren-Seite stehen {fmtCur(view.retourenGesamt, cur, true)} —
+                    {" "}{fmtCur(view.retourenStorno, cur, true)} davon ({view.retourenStornoAnzahl}{" "}
+                    {view.retourenStornoAnzahl === 1 ? "Vorgang" : "Vorgänge"}) gehören zu stornierten
+                    Aufträgen. Deren Umsatz ist bereits herausgerechnet, sie werden hier deshalb nicht
+                    noch einmal abgezogen.
+                  </p>
                 ) : null}
                 {view.versandOffen && report?.shipping?.parcelCount ? (
                   <p className="mt-2 text-xs text-warning">

@@ -710,6 +710,16 @@ export interface FinancialReportRange {
 
 export interface FinancialReportPnl {
   umsatzBrutto: number;
+  /**
+   * Retouren an STORNIERTEN Auftraegen. Sie werden vom Umsatz nicht abgezogen
+   * (ihr Umsatz war nie gebucht), muessen aber sichtbar bleiben: auf der
+   * Retouren-Seite sieht der Bediener ALLE Vorgaenge, im Finanzbericht stand
+   * bisher nur der Rest — eine Zahl, die er nirgends wiederfand.
+   * Optional, damit ein aelteres Backend im Deploy-Fenster typkonform bleibt.
+   */
+  retourenStorno?: number;
+  retourenStornoAnzahl?: number;
+  retourenGesamt?: number;
   // Gemessen/modelliert — NIE `Umsatz − Retouren − Auszahlung` (das misst über einem
   // offenen Fenster den Settlement-Lag, nicht Gebühren). Siehe Incident 2026-07-28.
   marketplaceFees: number;
