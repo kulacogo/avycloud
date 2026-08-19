@@ -155,7 +155,35 @@ function getTableSyncedAt() {
   return loadTable().syncedAt;
 }
 
+/**
+ * Zustaende, die dieses Konto NICHT setzen darf.
+ *
+ * Gemessen 20.08.2026 ueber einen Vollabruf der eBay-Metadata-API (alle 14.917
+ * Kategorien): die vier Refurbished-Zustaende kommen KEIN EINZIGES Mal vor —
+ * auch nicht in Kategorien wie Handys oder Laptops, wo Refurbished ueblich ist.
+ * eBay gibt sie nur an Haendler heraus, die fuer das Refurbished-Programm
+ * freigeschaltet sind.
+ *
+ * Sie stehen deshalb nicht mehr in der Rueckfall-AUSWAHL. Die NAMEN bleiben
+ * vollstaendig (GENERIC_CONDITION_NAMES), damit resolveConditionName() auch
+ * Altbestaende beschriften kann, in denen so ein Wert noch steht.
+ *
+ * Sobald das Konto freigeschaltet ist, liefert der Katalog-Abgleich die
+ * Zustaende automatisch — diese Liste betrifft nur den Rueckfall fuer
+ * Kategorien, die gar nicht im Katalog stehen.
+ */
+const NICHT_FREIGESCHALTETE_CONDITION_IDS = new Set(['2000', '2010', '2020', '2030']);
+
+/** Rueckfall-Auswahl fuer Kategorien ohne Katalog-Eintrag. */
+function getGenericConditionOptions() {
+  return Object.entries(GENERIC_CONDITION_NAMES)
+    .filter(([id]) => !NICHT_FREIGESCHALTETE_CONDITION_IDS.has(String(id)))
+    .map(([id, name]) => ({ id: String(id), name }));
+}
+
 module.exports = {
+  getGenericConditionOptions,
+  NICHT_FREIGESCHALTETE_CONDITION_IDS,
   DEFAULT_CONDITION_ID,
   GENERIC_CONDITION_NAMES,
   getConditionsForCategory,

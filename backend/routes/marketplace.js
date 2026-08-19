@@ -377,7 +377,7 @@ router.get('/ebay/conditions', requirePermission('products', 'read'), async (req
   try {
     const {
       getConditionsForCategory,
-      GENERIC_CONDITION_NAMES,
+      getGenericConditionOptions,
       DEFAULT_CONDITION_ID,
       getTableSyncedAt,
     } = require('../lib/ebay-conditions');
@@ -390,7 +390,11 @@ router.get('/ebay/conditions', requirePermission('products', 'read'), async (req
     // kategoriegenau geprueft ist.
     let conditions = result.conditions.length
       ? result.conditions
-      : Object.entries(GENERIC_CONDITION_NAMES).map(([id, name]) => ({ id, name }));
+      // Rueckfall OHNE die Refurbished-Zustaende: eBay gibt sie diesem Konto
+      // nirgends heraus (Vollabruf 20.08.2026, 0 Vorkommen in 14.917
+      // Kategorien). Anzubieten, was garantiert zurueckgewiesen wird, erzeugt
+      // nur vermeidbare Fehlversuche beim Einstellen.
+      : getGenericConditionOptions();
 
     // Bewiesene Ablehnungen ausblenden: eBays Metadaten bieten in manchen
     // Kategorien Zustaende an, die die Angebots-API dann zurueckweist

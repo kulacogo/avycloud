@@ -3407,6 +3407,14 @@ export interface EbayConditionsResult {
   required: boolean;
   defaultConditionId: string;
   conditions: EbayConditionOption[];
+  /**
+   * Zustaende, die eBay in dieser Kategorie zwar fuehrt, beim Einstellen aber
+   * abgelehnt hat (Fehler 21555). AvyCloud blendet sie danach aus — ohne diesen
+   * Hinweis verschwinden sie wortlos und man sucht den Fehler bei sich.
+   */
+  rejected?: string[];
+  /** Wann der Zustands-Katalog zuletzt von eBay geholt wurde. */
+  syncedAt?: string | null;
 }
 
 /**
@@ -3433,6 +3441,11 @@ export const fetchEbayConditions = async (categoryId?: string): Promise<EbayCond
     required: Boolean(result?.required),
     defaultConditionId: String(result?.defaultConditionId || '1000'),
     conditions: Array.isArray(result?.conditions) ? result.conditions : [],
+    // Der Server sagt mit, welcher Zustand warum fehlt — das wurde bisher
+    // weggeworfen. Ohne diese Information verschwindet ein Zustand wortlos und
+    // der Bediener sucht den Fehler bei sich (gemeldet 20.08.2026).
+    rejected: Array.isArray(result?.rejected) ? result.rejected.map(String) : [],
+    syncedAt: typeof result?.syncedAt === 'string' ? result.syncedAt : null,
   };
 };
 

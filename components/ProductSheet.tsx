@@ -42,6 +42,7 @@ import {
 } from '../utils/product';
 import { useInventoryContext } from '../context/InventoryContext';
 import { useAuth } from '../context/AuthContext';
+import { rejectedConditionNotice, catalogAgeNotice } from "../utils/conditionNotice";
 
 interface ProductSheetProps {
   product: Product;
@@ -227,6 +228,10 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   const [conditionOptions, setConditionOptions] = useState<EbayConditionOption[]>([]);
   const [conditionRequired, setConditionRequired] = useState(false);
   const [conditionCategoryKnown, setConditionCategoryKnown] = useState(false);
+  // Welcher Zustand von eBay abgelehnt wurde und wie alt die Liste ist —
+  // beides kam schon vom Server, wurde aber nie angezeigt.
+  const [conditionRejected, setConditionRejected] = useState<string[]>([]);
+  const [conditionSyncedAt, setConditionSyncedAt] = useState<string | null>(null);
 
   const [assigningInventory, setAssigningInventory] = useState(false);
   const [inventoryMessage, setInventoryMessage] = useState<string | null>(null);
@@ -1316,6 +1321,8 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
         setConditionOptions(res.conditions);
         setConditionRequired(res.required);
         setConditionCategoryKnown(res.known);
+        setConditionRejected(res.rejected || []);
+        setConditionSyncedAt(res.syncedAt || null);
       })
       .catch(() => {
         // Kein Fehlerbanner: ohne Liste bleibt das Feld einfach bei der
@@ -1323,6 +1330,8 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
         if (!active) return;
         setConditionOptions([]);
         setConditionCategoryKnown(false);
+        setConditionRejected([]);
+        setConditionSyncedAt(null);
       });
     return () => {
       active = false;
@@ -1845,6 +1854,19 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                     </select>
                     {conditionCategoryKnown && conditionOptions.length === 0 && (
                       <span className="text-[10px] text-txt-muted">Diese Kategorie führt keinen Artikelzustand.</span>
+                    )}
+                    {/* Fehlt ein Zustand, weil eBay ihn abgelehnt hat, muss das
+                        dastehen. Sonst verschwindet er wortlos und man sucht den
+                        Fehler bei sich (gemeldet 20.08.2026). */}
+                    {conditionRejected.length > 0 && (
+                      <span className="block text-[10px] text-warning leading-relaxed">
+                        {rejectedConditionNotice(conditionRejected)}
+                      </span>
+                    )}
+                    {conditionSyncedAt && (
+                      <span className="block text-[10px] text-txt-muted">
+                        {catalogAgeNotice(conditionSyncedAt)}
+                      </span>
                     )}
                     {!conditionCategoryKnown && activeCategoryId && (
                       <span className="text-[10px] text-txt-muted">Allgemeine Liste — für diese Kategorie liegen keine eBay-Vorgaben vor.</span>
