@@ -992,6 +992,8 @@ export interface EbayListingRow {
   listingType?: string | null;
   listingStatus?: string | null;
   active?: boolean;
+  /** Laenderseite aus der viewItemUrl-Domain (z. B. "ebay.de", "ebay.fr"); Belgien-Subdomains kollabiert zu "ebay.be". */
+  site?: string | null;
   primaryCategoryId?: string | null;
   productId?: string | null;
   matchStatus?: 'matched' | 'ambiguous' | 'unmatched' | string;

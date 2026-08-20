@@ -1,17 +1,19 @@
 /**
  * Entscheidet, ob eine Marktplatz-Listing-Zeile ein auf dem Marktplatz
- * EXISTIERENDES Angebot repraesentiert (Incident 2026-08-20).
+ * EXISTIERENDES Angebot repraesentiert (Incident 2026-08-20, praezisiert
+ * 2026-08-21).
  *
- * Hintergrund: Das Publish-Modal schloss "bereits gelistet" ueber
- * `l.status === "active" | "live" | "indexing" | "invalid"` aus. Das
- * matchte in der Praxis NIE:
- *   - eBay-Zeilen (/api/ebay/listings) tragen GAR KEIN status-Feld,
- *     nur `active: boolean` + `listingStatus` (meist null, der
- *     Light-Sync-Ingest liefert es nicht).
- *   - Kaufland-Zeilen liefern den Status seit dem Ghost-Row-Fix
- *     GROSSGESCHRIEBEN ("LIVE"), der Vergleich war lowercase.
- * Ergebnis: die SKU/EAN-Ausschlussliste war leer und bereits gelistete
- * Artikel erschienen weiter auf der "zu listenden"-Liste.
+ * Robust gegen BEIDE Zeilen-Formen:
+ *   - ROHE eBay-Zeilen (/api/ebay/listings) tragen KEIN status-Feld, nur
+ *     `active: boolean` (+ `listingStatus`, meist null — der Light-Sync-
+ *     Ingest liefert es nicht) → active===true zaehlt.
+ *   - ROHE Kaufland-Zeilen liefern den Status seit dem Ghost-Row-Fix
+ *     GROSSGESCHRIEBEN ("LIVE") → Vergleich case-insensitiv.
+ *   - NORMALISIERTE Zeilen (MarketplaceListingsView) haben lowercase-Status
+ *     ("active"/"live"/"indexing"/"invalid") → Status-Set matcht.
+ * (Historische Einordnung: Das Publish-Modal arbeitete schon immer auf den
+ * normalisierten Zeilen — dort versagte 2026-08-20 nicht der Vergleich,
+ * sondern die ops.listingStatus-Kette + das 6000er-Fetch-Limit.)
  *
  * "invalid"/"indexing" zaehlen bewusst als existent: die Unit ist beim
  * Marktplatz angelegt (auch wenn nicht kaufbar) — ein erneutes Publish

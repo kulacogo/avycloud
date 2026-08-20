@@ -106,9 +106,12 @@ describe('recordPublishedListingLinkage — Publish verankert das Listing sofort
     expect(mirrorWrites[0].opts).toEqual({ merge: true });
     // Neues Doc → firstSeenAt wird gesetzt
     expect(mirrorWrites[0].payload.firstSeenAt).toBeDefined();
+    // Neues Doc → Default-Site-URL (Publish geht immer auf ebay.de/Site 77),
+    // damit die Site-Spalte sofort stimmt statt ≤15 min 'Unbekannt'.
+    expect(mirrorWrites[0].payload.viewItemUrl).toBe('https://www.ebay.de/itm/800539945637');
   });
 
-  it('ueberschreibt firstSeenAt eines VORHANDENEN Spiegel-Docs nicht', async () => {
+  it('ueberschreibt firstSeenAt und viewItemUrl eines VORHANDENEN Spiegel-Docs nicht', async () => {
     mirrorDocExists = true;
     await recordPublishedListingLinkage({
       productId: 'prod-1',
@@ -117,6 +120,7 @@ describe('recordPublishedListingLinkage — Publish verankert das Listing sofort
     });
     expect(mirrorWrites.length).toBe(1);
     expect(mirrorWrites[0].payload.firstSeenAt).toBeUndefined();
+    expect(mirrorWrites[0].payload.viewItemUrl).toBeUndefined();
   });
 
   it('setzt ops.listingStatus.ebay=active auf dem Produkt (merge, additiv)', async () => {

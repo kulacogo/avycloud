@@ -48,6 +48,7 @@ const {
   resolveDefaultDispatchTimeMax,
 } = require('./ebay-trading-api');
 const { decodeHtmlEntitiesDeep } = require('./html-entities');
+const { displaySiteFromViewItemUrl } = require('./ebay-sites');
 
 const EBAY_LISTINGS_COLLECTION = 'ebayListingsLive';
 const EBAY_LINKS_COLLECTION = 'ebayListingLinks';
@@ -2225,6 +2226,10 @@ async function listLiveListings({
         listingType: listing.listingType || null,
         listingStatus: listing.listingStatus || null,
         active: Boolean(listing.active),
+        // Site (Laenderseite) compute-on-read aus der viewItemUrl-Domain —
+        // einzige Site-Quelle im ActiveList-Feed (lib/ebay-sites.js). Kein
+        // Ingest-Write, kein Backfill, snapshotHash unberuehrt.
+        site: displaySiteFromViewItemUrl(listing.viewItemUrl),
         primaryCategoryId: listing.primaryCategoryId || null,
         productId: link?.productId || null,
         matchStatus: link?.status || 'unmatched',
@@ -5255,6 +5260,12 @@ async function recordPublishedListingLinkage({ productId, itemId, sku = null, ti
       skuIndex: skuClean ? [skuClean] : undefined,
       title: safeString(title) || undefined,
       active: true,
+      // Nur fuer NEUE Docs: der Publish geht immer auf die Default-Site
+      // (EBAY_TRADING_SITE_ID, 77 = ebay.de) — damit hat das Listing sofort
+      // eine Site fuer Spalte/Filter statt ≤15 min 'Unbekannt'. Der naechste
+      // Light-Sync ueberschreibt mit der echten eBay-URL. Ein VORHANDENES
+      // Doc behaelt seine URL (merge, undefined wird gedroppt).
+      viewItemUrl: mirrorSnap?.exists ? undefined : `https://www.ebay.de/itm/${item}`,
       source: { mode: 'publish', ingestedAt: nowIso, actor: safeString(actor) || null },
       firstSeenAt: mirrorSnap?.exists ? undefined : FieldValue.serverTimestamp(),
       lastSeenAt: FieldValue.serverTimestamp(),

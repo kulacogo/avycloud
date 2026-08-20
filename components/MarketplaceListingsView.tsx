@@ -76,6 +76,8 @@ interface NormalizedListing {
   status: ListingStatus;
   category: string | null;
   viewItemUrl: string | null;
+  /** eBay: Laenderseite aus der viewItemUrl-Domain (z. B. "ebay.de"); Kaufland: null */
+  site?: string | null;
   lastSync: string | null;
   errors?: string[];
   /** Kaufland: mandatory attributes the product data is missing (German labels) */
@@ -269,6 +271,10 @@ function normalizeEbayRow(row: EbayListingRow, productMaster?: ProductMasterMap)
       (row.primaryCategoryId ? `Kat. ${row.primaryCategoryId}` : null) ||
       (master ? masterCategoryOrNull(master) : null),
     viewItemUrl: row.viewItemUrl || (row.itemId ? `https://www.ebay.de/itm/${row.itemId}` : null),
+    // site kommt AUSSCHLIESSLICH vom Backend (echte Mirror-URL) — der
+    // ebay.de-Fallback eine Zeile drueber darf NIE als Site-Quelle dienen,
+    // sonst wuerde jedes Listing ohne URL faelschlich als ebay.de gelabelt.
+    site: row.site ?? null,
     // C4: eBay rows missing updatedAt → no "Letztes Update". updatedAt is the only
     // timestamp on the row; keep null otherwise (formatRelativeTime renders "—").
     lastSync: row.updatedAt ?? null,
@@ -463,6 +469,11 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [stockFilter, setStockFilter] = useState<StockFilter>("all");
+  // eBay-Laenderseiten-Filter ("all" | "ebay.de" | … | "unbekannt"). Nur fuer
+  // marketplace==='ebay' gerendert/angewendet — WebInterpret verwaltet die
+  // Auslands-Listings auf demselben Konto, gemessen sind nur ~700 von ~3.200
+  // aktiven Angeboten auf ebay.de.
+  const [siteFilter, setSiteFilter] = useState<string>("all");
   const [syncing, setSyncing] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<EbayConnectionStatus | null>(null);
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
@@ -685,10 +696,14 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
       // "live", "indexing" und "invalid" sind Kaufland-Sub-Status: die Unit
       // EXISTIERT auf dem Marktplatz (auch wenn ungültig/nicht kaufbar) — ein
       // erneutes Publish würde eine Duplikat-Unit anlegen.
-      // Incident 2026-08-20: der frühere Vergleich `l.status === "active"`…
-      // matchte NIE — eBay-Zeilen haben kein status-Feld (nur active:boolean),
-      // Kaufland liefert den Status GROSSGESCHRIEBEN. Die Ausschlussliste war
-      // dadurch leer und gelistete Artikel blieben auf dieser Liste.
+      // Incident 2026-08-20 (Präzisierung 2026-08-21): `listings` sind die
+      // NORMALISIERTEN Zeilen (normalizeEbayStatus mappt active:true→"active"),
+      // der Statusvergleich selbst funktionierte hier also. Kaputt waren
+      // (a) die ops.listingStatus-Kette (fehlende ebayListingLinks) und
+      // (b) das 6000er-Fetch-Limit, das die NEUESTEN ItemIDs aus `listings`
+      // kappte — frisch Publiziertes fehlte damit komplett in der
+      // Ausschlussbasis. isListingRowActive bleibt als robuste, case-
+      // insensitive Variante (deckt auch rohe Zeilen ab).
       const activeListings = listings.filter((l) => isListingRowActive(l));
       const listedSkus = new Set(
         activeListings
@@ -1008,6 +1023,14 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
     else if (stockFilter === "low") result = result.filter((l) => l.quantity != null && l.quantity > 0 && l.quantity <= 3);
     else if (stockFilter === "empty") result = result.filter((l) => l.quantity != null && l.quantity <= 0);
 
+    // Laenderseiten-Filter (nur eBay). Verengt wie stockFilter NUR die
+    // Tabelle — KPI-Kacheln/tabCounts rechnen weiter auf der ungefilterten
+    // Liste. site=null (frisch publiziert, URL kommt mit dem naechsten
+    // Light-Sync) laeuft als eigene Gruppe "unbekannt" mit.
+    if (marketplace === "ebay" && siteFilter !== "all") {
+      result = result.filter((l) => (l.site ?? "unbekannt") === siteFilter);
+    }
+
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       result = result.filter(
@@ -1034,7 +1057,28 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
     }
 
     return result;
-  }, [listings, activeTab, searchQuery, stockFilter, sortKey, sortDir]);
+  }, [listings, activeTab, searchQuery, stockFilter, siteFilter, marketplace, sortKey, sortDir]);
+
+  // Vorhandene Laenderseiten mit Anzahl (fuer die Filter-Optionen), aus der
+  // UNGEFILTERTEN Liste — so zeigt das Dropdown ehrliche Gesamtzahlen.
+  const siteOptions = useMemo(() => {
+    if (marketplace !== "ebay") return [] as Array<{ value: string; count: number }>;
+    const counts = new Map<string, number>();
+    for (const l of listings) {
+      const key = l.site ?? "unbekannt";
+      counts.set(key, (counts.get(key) || 0) + 1);
+    }
+    return Array.from(counts.entries())
+      .map(([value, count]) => ({ value, count }))
+      .sort((a, b) => {
+        // ebay.de zuerst (Heimatmarkt), "unbekannt" zuletzt, Rest alphabetisch
+        if (a.value === "ebay.de") return -1;
+        if (b.value === "ebay.de") return 1;
+        if (a.value === "unbekannt") return 1;
+        if (b.value === "unbekannt") return -1;
+        return a.value.localeCompare(b.value);
+      });
+  }, [marketplace, listings]);
 
   const totalPages = Math.max(1, Math.ceil(filteredListings.length / pageSize));
   const paginatedListings = filteredListings.slice(
@@ -1086,7 +1130,7 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
   useEffect(() => {
     setCurrentPage(1);
     setSelectedIds(new Set());
-  }, [activeTab, searchQuery, stockFilter]);
+  }, [activeTab, searchQuery, stockFilter, siteFilter]);
 
   useEffect(() => {
     setPublishCurrentPage(1);
@@ -1440,6 +1484,21 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
           <option value="low">Niedrig (1–3)</option>
           <option value="empty">Leer (0)</option>
         </select>
+        {marketplace === "ebay" && (
+          <select
+            value={siteFilter}
+            onChange={(e) => { setSiteFilter(e.target.value); setCurrentPage(1); }}
+            className="px-3 py-2 bg-app-surface border border-app-border rounded-lg text-sm text-txt-primary focus:outline-none focus:ring-2 focus:ring-accent/30"
+            title="eBay-Länderseite — Auslands-Angebote verwaltet WebInterpret"
+          >
+            <option value="all">Alle Länder</option>
+            {siteOptions.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.value === "unbekannt" ? "Unbekannt" : o.value} ({o.count})
+              </option>
+            ))}
+          </select>
+        )}
       </div>
 
       {/* Bulk Actions Bar */}
@@ -1539,6 +1598,11 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
                   <th className="px-4 py-3 text-left text-txt-muted font-medium hidden md:table-cell">
                     Listing-ID
                   </th>
+                  {marketplace === "ebay" && (
+                    <th className="px-4 py-3 text-left text-txt-muted font-medium hidden md:table-cell">
+                      Land
+                    </th>
+                  )}
                   <th className="px-4 py-3 text-right text-txt-muted font-medium cursor-pointer select-none hover:text-txt-primary" onClick={() => handleSort("price")}>
                     Preis{sortIndicator("price")}
                   </th>
@@ -1630,6 +1694,13 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
                           {listing.id}
                         </span>
                       </td>
+                      {marketplace === "ebay" && (
+                        <td className="px-4 py-3 hidden md:table-cell">
+                          <span className="text-txt-secondary text-xs" title={listing.viewItemUrl || undefined}>
+                            {listing.site || "—"}
+                          </span>
+                        </td>
+                      )}
                       <td className="px-4 py-3 text-right">
                         <div className="flex flex-col items-end leading-tight">
                           <span className="text-txt-primary font-medium" title={

@@ -1347,7 +1347,14 @@ export async function fetchEbayLiveListings(params?: {
   if (params?.search) url.searchParams.set('search', params.search);
   if (params?.matchStatus) url.searchParams.set('matchStatus', params.matchStatus);
   if (params?.includeInactive) url.searchParams.set('includeInactive', 'true');
-  const res = await fetchApi(url.toString(), { method: 'GET' });
+  // cache:'no-cache': die Route antwortet mit 'Cache-Control: private,
+  // max-age=300' — ohne diese Option bedient der BROWSER-HTTP-Cache den
+  // React-Query-Refetch nach einem Publish bis zu 5 Minuten mit alten Daten
+  // (das frische Angebot erschien deshalb erst spaet in der Liste).
+  // 'no-cache' erzwingt die If-None-Match-Revalidierung am Server und
+  // erhaelt damit den 304-Sparpfad — im Gegensatz zum ?t=-Cache-Buster,
+  // der den ETag entwerten wuerde.
+  const res = await fetchApi(url.toString(), { method: 'GET', cache: 'no-cache' });
   const data = await parseResponse(res);
   if (!res.ok || data?.ok === false) {
     throw new Error(data?.error?.message || 'Failed to load eBay live listings');

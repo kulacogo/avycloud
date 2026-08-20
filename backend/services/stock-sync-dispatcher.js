@@ -291,29 +291,17 @@ const RELIST_WINDOW_MS = 90 * 24 * 60 * 60 * 1000;
 // Relist ist SITE-GEBUNDEN (empirisch 2026-07-22): ein auf ebay.at/it/es/be/fr
 // erstelltes Listing lässt sich nur mit SEINER Site-ID im Header relisten.
 // Die Site steht nirgends im ActiveList-Feed — einzige Quelle ist die Domain
-// der viewItemUrl im Mirror-Doc.
-const EBAY_DOMAIN_TO_SITE_ID = {
-  'ebay.de': '77',
-  'ebay.at': '16',
-  'ebay.fr': '71',
-  'ebay.it': '101',
-  'ebay.es': '186',
-  'benl.ebay.be': '123',
-  'befr.ebay.be': '23',
-  'ebay.nl': '146',
-  'ebay.ie': '205',
-  'ebay.co.uk': '3',
-  'ebay.pl': '212',
-};
+// der viewItemUrl im Mirror-Doc. Domain-Map + Ableitung leben seit 2026-08-21
+// in lib/ebay-sites.js (EINE Quelle, auch fuer die Site-Spalte der
+// Listings-Seite) — Verhalten hier unverändert.
+const { siteDomainFromViewItemUrl, siteIdForDomain } = require('../lib/ebay-sites');
 
 async function resolveListingSiteId(itemId) {
   try {
     const snap = await firestore.collection('ebayListingsLive').doc(String(itemId)).get();
-    const url = String(snap.data()?.viewItemUrl || '');
-    const m = url.match(/https?:\/\/(?:www\.)?([a-z.]*ebay\.[a-z.]+)\//i);
-    if (m && EBAY_DOMAIN_TO_SITE_ID[m[1].toLowerCase()]) {
-      return EBAY_DOMAIN_TO_SITE_ID[m[1].toLowerCase()];
-    }
+    const domain = siteDomainFromViewItemUrl(snap.data()?.viewItemUrl);
+    const siteId = siteIdForDomain(domain);
+    if (siteId) return siteId;
   } catch (_) { /* fallback default site */ }
   return null; // callTradingApi fällt auf die konfigurierte Default-Site zurück
 }
