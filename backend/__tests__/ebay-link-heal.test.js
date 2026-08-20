@@ -68,13 +68,15 @@ describe('healMissingListingLinks — Runner verlinkt fehlende eBay-Links nach',
     });
 
     expect(calls.length).toBe(1);
-    expect(calls[0].itemIds).toEqual(['222', '333']);
+    // Neueste ItemIDs zuerst (eBay-ItemIDs wachsen monoton — frische
+    // Publishes sind die akuten Faelle auf der Liste).
+    expect(calls[0].itemIds).toEqual(['333', '222']);
     expect(result.missing).toBe(2);
     expect(result.healed).toBe(2);
     expect(result.checked).toBe(3);
   });
 
-  it('respektiert den Cap (limit) — Rest kommt im naechsten Zyklus dran', async () => {
+  it('respektiert den Cap (limit) und priorisiert die NEUESTEN ItemIDs', async () => {
     activeMirrorIds = ['1', '2', '3', '4'];
     existingLinkIds = new Set();
     const calls = [];
@@ -83,7 +85,7 @@ describe('healMissingListingLinks — Runner verlinkt fehlende eBay-Links nach',
       buildLinks: async (args) => { calls.push(args); return {}; },
     });
     expect(calls.length).toBe(1);
-    expect(calls[0].itemIds.length).toBe(2);
+    expect(calls[0].itemIds).toEqual(['4', '3']);
     expect(result.missing).toBe(4);
     expect(result.healed).toBe(2);
   });

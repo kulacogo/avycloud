@@ -2567,6 +2567,12 @@ async function healMissingListingLinks({ limit = 300, runId = null, actor = 'lis
     return { checked: activeIds.length, missing: 0, healed: 0, skipped: true };
   }
 
+  // Neueste ItemIDs zuerst: eBay-ItemIDs wachsen monoton — frisch publizierte
+  // Listings sind genau die, die der Operator gerade auf der "zu listenden"-
+  // Liste sieht. Ohne Sortierung kaeme der Rueckstand in Doc-ID-Reihenfolge
+  // (aelteste zuerst) und die akuten Faelle im LETZTEN Zyklus dran.
+  missing.sort((a, b) => b.localeCompare(a));
+
   const cap = Math.max(1, Number(limit) || 300);
   const batchIds = missing.slice(0, cap);
   const linker = typeof buildLinks === 'function' ? buildLinks : buildProductListingLinks;
