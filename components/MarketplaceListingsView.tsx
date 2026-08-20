@@ -29,6 +29,7 @@ import {
   getProductDisplayCategory,
 } from "../utils/product";
 import { useListPaging } from "../hooks/useListPaging";
+import { isListingRowActive } from "../utils/listingRowStatus";
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -684,13 +685,11 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
       // "live", "indexing" und "invalid" sind Kaufland-Sub-Status: die Unit
       // EXISTIERT auf dem Marktplatz (auch wenn ungültig/nicht kaufbar) — ein
       // erneutes Publish würde eine Duplikat-Unit anlegen.
-      const activeListings = listings.filter(
-        (l) =>
-          l.status === "active" ||
-          l.status === "live" ||
-          l.status === "indexing" ||
-          l.status === "invalid"
-      );
+      // Incident 2026-08-20: der frühere Vergleich `l.status === "active"`…
+      // matchte NIE — eBay-Zeilen haben kein status-Feld (nur active:boolean),
+      // Kaufland liefert den Status GROSSGESCHRIEBEN. Die Ausschlussliste war
+      // dadurch leer und gelistete Artikel blieben auf dieser Liste.
+      const activeListings = listings.filter((l) => isListingRowActive(l));
       const listedSkus = new Set(
         activeListings
           .filter((l) => l.sku)

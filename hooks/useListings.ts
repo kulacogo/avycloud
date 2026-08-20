@@ -14,10 +14,15 @@ import type { EbayListingRow } from "../types";
 export function useEbayListings() {
   return useQuery<EbayListingRow[]>({
     queryKey: ["listings", "ebay"],
-    // limit 6000 (vorher 2000): das 2000er-Fenster kappte den Spiegel und die
-    // Kopfzahlen/Oversell-Kachel rechneten über eine unvollständige Scheibe
-    // (Incident 2026-07-20: eBay real 3637 aktiv, UI zeigte 1836).
-    queryFn: () => fetchEbayLiveListings({ limit: 6000, includeInactive: true }),
+    // limit 20000 (vorher 6000, davor 2000): ebayListingsLive hatte am
+    // 2026-08-20 bereits 6.152 Docs (inkl. inaktive) — das 6000er-Fenster
+    // kappte damit erneut still die NEUESTEN ItemIDs (Firestore-Default-
+    // Sortierung ist Doc-ID aufsteigend, neue eBay-ItemIDs sind die
+    // hoechsten). Gleiche Incident-Klasse wie 2026-07-20 (eBay real 3637
+    // aktiv, UI zeigte 1836). Die Collection waechst mit jedem Publish;
+    // bei Annaeherung an 20000 braucht es serverseitige Aggregation statt
+    // eines noch groesseren Fensters.
+    queryFn: () => fetchEbayLiveListings({ limit: 20000, includeInactive: true }),
     staleTime: 5 * 60_000,
     gcTime: 10 * 60_000,
     refetchOnWindowFocus: false,

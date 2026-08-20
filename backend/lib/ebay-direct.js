@@ -2523,6 +2523,61 @@ async function buildProductListingLinks({ itemIds = null, runId = null, actor = 
   };
 }
 
+/**
+ * Self-Heal (Incident 2026-08-20): aktive Spiegel-Listings OHNE
+ * ebayListingLinks-Doc deterministisch nachverlinken.
+ *
+ * Hintergrund: ops.listingStatus.ebay wird ausschliesslich vom
+ * ListingSyncRunner aus ebayListingLinks propagiert — Links baute aber nur
+ * der manuelle Voll-Sync (Default-Fenster 10 Seiten × 100 = max 1.000 von
+ * 3.232 aktiven Listings) und die Bulk-Revise-Pfade. Gemessen 2026-08-20:
+ * 1.742 von 3.232 aktiven Listings ohne Link, 274 Publishes in 30 Tagen zu
+ * ~96 % unverlinkt — die Produkte galten dauerhaft als "nicht gelistet" und
+ * blieben auf der Publish-Liste.
+ *
+ * Nur FEHLENDE Link-Docs werden gematcht: ein einmal geschriebenes
+ * 'unmatched' (echtes Waisen-Listing ohne Produkt) wird nicht in jedem
+ * Zyklus neu gematcht — der Heal terminiert. Cap pro Aufruf begrenzt die
+ * Matching-Last (buildProductListingLinks laedt den Produktkatalog);
+ * ohne Fehlbestand ist der Aufruf ein reiner Index-Check.
+ */
+async function healMissingListingLinks({ limit = 300, runId = null, actor = 'listing-sync-runner', buildLinks = null } = {}) {
+  const activeSnap = await firestore
+    .collection(EBAY_LISTINGS_COLLECTION)
+    .where('active', '==', true)
+    .select()
+    .get();
+  const activeIds = (activeSnap?.docs || []).map((doc) => safeString(doc.id)).filter(Boolean);
+  if (!activeIds.length) {
+    return { checked: 0, missing: 0, healed: 0, skipped: true };
+  }
+
+  const missing = [];
+  for (const group of chunk(activeIds, 300)) {
+    const refs = group.map((id) => firestore.collection(EBAY_LINKS_COLLECTION).doc(id));
+    const docs = await firestore.getAll(...refs);
+    docs.forEach((doc, idx) => {
+      if (!doc || doc.exists !== true) {
+        missing.push(safeString(doc?.id) || group[idx]);
+      }
+    });
+  }
+
+  if (!missing.length) {
+    return { checked: activeIds.length, missing: 0, healed: 0, skipped: true };
+  }
+
+  const cap = Math.max(1, Number(limit) || 300);
+  const batchIds = missing.slice(0, cap);
+  const linker = typeof buildLinks === 'function' ? buildLinks : buildProductListingLinks;
+  const summary = await linker({
+    itemIds: batchIds,
+    runId: safeString(runId) || `link-heal-${Date.now()}`,
+    actor,
+  });
+  return { checked: activeIds.length, missing: missing.length, healed: batchIds.length, summary };
+}
+
 function createGapId(type, field) {
   return `${safeLower(type)}:${normalizeToken(field) || 'general'}`;
 }
@@ -5141,6 +5196,75 @@ async function verifyPublishProduct(productId, overrides = {}) {
   };
 }
 
+/**
+ * Verankert nach erfolgreichem Publish das sicher bekannte Produkt↔Listing-
+ * Wissen SOFORT lokal (Incident 2026-08-20: "gelistete Artikel bleiben auf
+ * der zu-listenden-Liste"):
+ *   1. ebayListingLinks/{itemId} — method 'publish', Konfidenz 1. KEINE
+ *      Matching-Heuristik: im Publish-Moment ist die Zuordnung exakt.
+ *   2. ebayListingsLive/{itemId} — active:true + sku/skuIndex, damit
+ *      /api/ebay/sku-index und das Publish-Modal das Listing sofort kennen
+ *      (der Light-Sync bestaetigt/verfeinert das Doc im naechsten Zyklus,
+ *      merge erhaelt firstSeenAt).
+ *   3. ops.listingStatus.ebay='active' aufs Produkt — sonst wuerde der
+ *      Runner-Propagate das Produkt bis zum naechsten Link-Lauf als
+ *      'not_listed' fuehren.
+ * Ohne diese Writes hing das "gelistet"-Signal komplett am Voll-Sync-Fenster
+ * (max ~1000 von 3200+ Listings): 274 Publishes in 30 Tagen blieben zu ~96 %
+ * unverlinkt und tauchten dauerhaft im Publish-Modal auf.
+ */
+async function recordPublishedListingLinkage({ productId, itemId, sku = null, title = null, actor = null } = {}) {
+  const id = safeString(productId);
+  const item = safeString(itemId);
+  if (!id || !item) return { skipped: true };
+  const nowIso = new Date().toISOString();
+  const skuClean = safeString(sku) || null;
+
+  await firestore.collection(EBAY_LINKS_COLLECTION).doc(item).set(
+    cleanUndefined({
+      itemId: item,
+      listingSku: skuClean,
+      status: 'matched',
+      method: 'publish',
+      confidence: 1,
+      productId: id,
+      candidateProductIds: [id],
+      evidence: { source: 'publish' },
+      actor: safeString(actor) || null,
+      runId: `publish-${Date.now()}`,
+      updatedAt: FieldValue.serverTimestamp(),
+      updatedAtIso: nowIso,
+    }),
+    { merge: true }
+  );
+
+  const mirrorRef = firestore.collection(EBAY_LISTINGS_COLLECTION).doc(item);
+  const mirrorSnap = await mirrorRef.get();
+  await mirrorRef.set(
+    cleanUndefined({
+      itemId: item,
+      // undefined statt null: eine fehlende SKU darf ein vorhandenes
+      // sku/skuIndex im Spiegel nicht per merge mit null ueberschreiben.
+      sku: skuClean || undefined,
+      skuIndex: skuClean ? [skuClean] : undefined,
+      title: safeString(title) || undefined,
+      active: true,
+      source: { mode: 'publish', ingestedAt: nowIso, actor: safeString(actor) || null },
+      firstSeenAt: mirrorSnap?.exists ? undefined : FieldValue.serverTimestamp(),
+      lastSeenAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    }),
+    { merge: true }
+  );
+
+  await firestore.collection(PRODUCTS_COLLECTION).doc(id).set(
+    { ops: { listingStatus: { ebay: 'active', lastSyncAt: nowIso } } },
+    { merge: true }
+  );
+
+  return { linked: true, itemId: item, productId: id };
+}
+
 async function publishProduct(productId, overrides = {}, { actor = null } = {}) {
   const id = safeString(productId);
   if (!id) throw Object.assign(new Error('productId is required'), { code: 'EBAY_PUBLISH_ID_REQUIRED' });
@@ -5336,6 +5460,22 @@ async function publishProduct(productId, overrides = {}, { actor = null } = {}) 
       },
       { merge: true }
     );
+
+    // Best-effort: das Listing ist bereits live — ein Fehler hier darf den
+    // Publish-Erfolg NIE maskieren (ein gemeldeter "Fehler" verleitet zum
+    // erneuten Einstellen → Doppel-Listing). Netz: healMissingListingLinks
+    // im ListingSyncRunner verlinkt uebersehene Listings im 15-min-Zyklus.
+    try {
+      await recordPublishedListingLinkage({
+        productId: id,
+        itemId,
+        sku: safeString(item?.sku) || null,
+        title: safeString(item?.title) || null,
+        actor,
+      });
+    } catch (err) {
+      console.error(`[ebay-publish] Listing-Verankerung fehlgeschlagen (Produkt ${id}, Item ${itemId}): ${err?.message || err}`);
+    }
   }
 
   return {
@@ -5713,6 +5853,8 @@ module.exports = {
   listLiveListings,
   getListingDetail,
   buildProductListingLinks,
+  healMissingListingLinks,
+  recordPublishedListingLinkage,
   auditListingGaps,
   applyGapAction,
   bulkApplyGapActions,

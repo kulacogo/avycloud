@@ -562,6 +562,30 @@ async function runListingSyncCycle() {
       );
     }
 
+    // Self-Heal (Incident 2026-08-20): aktive Spiegel-Listings ohne
+    // ebayListingLinks-Doc nachverlinken, BEVOR propagiert wird. Ohne Link
+    // bekommt ein frisch publiziertes Produkt nie ops.listingStatus.ebay=
+    // 'active' (propagateEbayStatusToProducts kennt nur verlinkte itemIds,
+    // und der Cleanup-Schritt setzt Unbestaetigtes sogar auf 'not_listed'
+    // zurueck) — es blieb dadurch dauerhaft auf der "zu listenden"-Liste.
+    // Gemessen: 1.742 von 3.232 aktiven Listings ohne Link. Cap 300/Zyklus
+    // begrenzt die Matching-Last; ohne Fehlbestand ist der Aufruf ein
+    // reiner Index-Check (skipped:true). Lazy-require + typeof-Guard, damit
+    // Tests, die lib/ebay-direct partiell patchen, nicht brechen.
+    try {
+      const { healMissingListingLinks } = require('../lib/ebay-direct');
+      if (typeof healMissingListingLinks === 'function') {
+        const linkHeal = await healMissingListingLinks({ limit: 300 });
+        if (linkHeal?.missing) {
+          console.log(
+            `[ListingSyncRunner] Link-Heal: ${linkHeal.healed}/${linkHeal.missing} fehlende eBay-Links nachverlinkt (aktiv gesamt: ${linkHeal.checked})`
+          );
+        }
+      }
+    } catch (err) {
+      console.warn(`[ListingSyncRunner] Link-Heal failed: ${err.message}`);
+    }
+
     // Always propagate — listings may have been synced in a previous cycle
     const ebayProp = await propagateEbayStatusToProducts().catch(err => ({ error: err.message, updated: 0 }));
     if (ebayProp.error) {
