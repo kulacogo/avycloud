@@ -910,7 +910,20 @@ const MAX_PENDING_HEALS_PER_RUN = 20;
 const PENDING_HEAL_MIN_AGE_MS = 30 * 60 * 1000;
 // Nach 7 Tagen ohne product_ready stimmt strukturell etwas nicht — dann
 // zusätzlich als Listing-Fehler ins Cockpit heben (Operator-Sichtbarkeit).
+// (Mit dem 24h-Verfall unten normalerweise unerreichbar; bleibt als Netz,
+// falls KAUFLAND_PENDING_HEAL_MAX_AGE_MS bewusst über 7 Tage gesetzt wird.)
 const PENDING_HEAL_STALE_MS = 7 * 24 * 3600 * 1000;
+// BETREIBER-ENTSCHEIDUNG 2026-08-21 ("ich will Angebote listen, wenn ich
+// listen will"): Ein Publish-Klick darf von der Heal-Phase nur noch INNERHALB
+// dieses Fensters vollendet werden. Ältere Marker VERFALLEN (Marker wird
+// gelöscht, Audit-Feld publish_pending_expired_at bleibt). Vorher verfiel
+// der Marker NIE — ein wochenalter, längst vergessener Klick konnte
+// plötzlich ein Live-Angebot erzeugen (gemessen: 7 Marker vom 11.07.
+// standen am 21.08. noch offen). Untergrenze 1h schützt vor Fehlkonfiguration.
+const PENDING_HEAL_MAX_AGE_MS = Math.max(
+  60 * 60 * 1000,
+  parseInt(process.env.KAUFLAND_PENDING_HEAL_MAX_AGE_MS || String(24 * 3600 * 1000), 10) || 24 * 3600 * 1000
+);
 // Enrich+Repair (Gemini-Kosten + Kaufland-PATCH) höchstens alle 6h pro Produkt
 // — aligned mit REPAIR_TTL_MS der Auto-Repair-Phase. Der billige Status-Check
 // und createUnit-bei-ready laufen weiterhin in jedem 15-min-Lauf.
@@ -943,6 +956,7 @@ async function healPendingKauflandPublishes({ products = [], storefront = 'de', 
   const stats = { candidates: 0, attempted: 0, healed: 0 };
 
   const candidates = [];
+  const expired = [];
   for (const p of (Array.isArray(products) ? products : [])) {
     if (!p || !p.id) continue;
     const pendingAtRaw = p?.marketplace?.kaufland?.publish_pending_at;
@@ -950,12 +964,22 @@ async function healPendingKauflandPublishes({ products = [], storefront = 'de', 
     if (p?.ops?.kaufland?.unitId) continue; // Unit existiert → Auto-Repair-Phase zuständig
     const pendingAtMs = Date.parse(pendingAtRaw);
     if (!Number.isFinite(pendingAtMs)) continue;
-    if ((nowMs - pendingAtMs) < PENDING_HEAL_MIN_AGE_MS) continue;
+    const ageMs = nowMs - pendingAtMs;
+    if (ageMs < PENDING_HEAL_MIN_AGE_MS) continue;
+    if (ageMs > PENDING_HEAL_MAX_AGE_MS) {
+      // Klick zu alt → verfällt (Betreiber-Entscheidung 2026-08-21). Reiner
+      // Cleanup, kein Status-Check, kein createUnit.
+      expired.push(p);
+      continue;
+    }
     candidates.push({ product: p, pendingAtMs });
   }
   stats.candidates = candidates.length;
+  // `expired` nur bei Vorkommen melden — hält den Rückgabe-Vertrag der
+  // bestehenden Aufrufer/Tests (candidates/attempted/healed) additiv.
+  if (expired.length) stats.expired = expired.length;
   const toProcess = candidates.slice(0, MAX_PENDING_HEALS_PER_RUN);
-  if (!toProcess.length) {
+  if (!toProcess.length && !expired.length) {
     if (stats.candidates) {
       console.log(`[kaufland-sync] pending-heal candidates=${stats.candidates} attempted=0 healed=0`);
     }
@@ -996,6 +1020,24 @@ async function healPendingKauflandPublishes({ products = [], storefront = 'de', 
       'marketplace.kaufland.listing_errors_at': new Date(nowMs).toISOString(),
     }).catch(() => null);
   };
+
+  // Verfallene Marker aufräumen (Betreiber-Entscheidung 2026-08-21): Marker
+  // weg, Audit-Feld bleibt — damit ist nachvollziehbar, DASS ein Klick
+  // verfallen ist, aber nichts kann ihn mehr ungefragt vollenden.
+  for (const p of expired) {
+    await productsCol.doc(String(p.id)).update({
+      'marketplace.kaufland.publish_pending_at': FieldValueRef.delete(),
+      'marketplace.kaufland.publish_pending': FieldValueRef.delete(),
+      'marketplace.kaufland.publish_pending_expired_at': new Date(nowMs).toISOString(),
+    }).catch(() => null);
+  }
+  if (expired.length) {
+    console.log(`[kaufland-sync] pending-heal: ${expired.length} Marker älter als ${Math.round(PENDING_HEAL_MAX_AGE_MS / 3600000)}h verfallen (kein Auto-Listing)`);
+  }
+  if (!toProcess.length) {
+    console.log(`[kaufland-sync] pending-heal candidates=${stats.candidates} attempted=0 healed=0`);
+    return stats;
+  }
 
   for (const { product: p, pendingAtMs } of toProcess) {
     try {
@@ -1088,20 +1130,20 @@ async function healPendingKauflandPublishes({ products = [], storefront = 'de', 
         productForCreate.details.kaufland.id_warehouse = klDefaults.warehouseId || 70462;
       }
 
-      // Preis-Gate (gleiche Auflösungskette wie pickUnitData): ohne Preis
-      // würde createUnit sowieso mit KAUFLAND_PRICE_INVALID werfen — lieber
-      // gezielt als Listing-Fehler ins Cockpit, Marker bleibt stehen.
+      // Preis-Gate: im UNBEAUFSICHTIGTEN Heal-Pfad darf NUR ein ausdrücklich
+      // gesetzter Verkaufspreis live gehen (Betreiber-Entscheidung
+      // 2026-08-21). Der frühere Fallback bis auf lowest_price.amount hätte
+      // den RECHERCHIERTEN Marktpreis ungeprüft online gestellt. Bewusst
+      // ENGER als pickUnitData: dort steht der Operator daneben, hier nicht.
       const rawPrice = productForCreate?.details?.pricing?.sellPrice
         ?? productForCreate?.pricing?.kaufland?.price
         ?? productForCreate?.pricing?.sellPrice
-        ?? productForCreate?.details?.pricing?.lowest_price?.amount
-        ?? productForCreate?.details?.pricing?.amount
         ?? null;
       const sellPrice = Number(String(rawPrice ?? '').replace(',', '.'));
       if (!Number.isFinite(sellPrice) || sellPrice <= 0) {
         await persistListingError(
           p.id,
-          'Kaufland-Produktdaten sind validiert, aber kein Verkaufspreis (sellPrice) vorhanden — Publish nicht möglich',
+          'Kaufland-Produktdaten sind validiert, aber kein bestätigter Verkaufspreis (sellPrice) vorhanden — automatisches Listen abgelehnt',
           'KAUFLAND_PRICE_INVALID'
         );
         continue;

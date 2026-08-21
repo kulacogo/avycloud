@@ -269,14 +269,13 @@ describe('healPendingKauflandPublishes', () => {
     expect(markerDelete).toBeUndefined();
   });
 
-  it('>7 Tage pending + nicht ready → listing_error mit missing_attributes im Text, Marker bleibt', async () => {
+  it('>24h alter Marker VERFÄLLT: kein API-Call, kein createUnit, Marker gelöscht + Audit-Feld (Betreiber-Entscheidung 2026-08-21)', async () => {
+    // Vorher blieb der Marker EWIG stehen (nach 7 Tagen nur Cockpit-Warnung)
+    // — ein wochenalter, längst vergessener Publish-Klick konnte plötzlich
+    // ein Live-Angebot erzeugen (gemessen: 7 Marker vom 11.07. standen am
+    // 21.08. noch offen). Neu: der Klick darf nur noch am selben Tag
+    // vollendet werden, danach verfällt er lautlos und sauber.
     const { updates, deps } = makeDeps();
-    deps.kauflandApi.getProductDataStatus.mockResolvedValue({
-      product_ready: false,
-      missing_attributes: ['Bild'],
-      min_one_missing_attributes: ['Titel'],
-    });
-    deps.enrichProductForKaufland.mockResolvedValue({ enriched: null, enrichedFields: [] });
 
     const stats = await healPendingKauflandPublishes({
       products: [buildPendingProduct({ id: 'P8', pendingAt: EIGHT_DAYS_AGO })],
@@ -284,19 +283,42 @@ describe('healPendingKauflandPublishes', () => {
       deps: deps,
     });
 
+    expect(stats).toEqual({ candidates: 0, attempted: 0, healed: 0, expired: 1 });
+    // Kein Status-Check, kein createUnit — der Verfall ist ein reiner Cleanup.
+    expect(deps.kauflandApi.getProductDataStatus).not.toHaveBeenCalled();
+    expect(deps.kauflandApi.createUnit).not.toHaveBeenCalled();
+    // Marker gelöscht + Audit-Feld gesetzt
+    const expireUpdate = updates.find(
+      (u) => u.id === 'P8' && u.payload['marketplace.kaufland.publish_pending_at'] === DELETE_SENTINEL
+    );
+    expect(expireUpdate).toBeDefined();
+    expect(expireUpdate.payload['marketplace.kaufland.publish_pending_expired_at']).toBeTruthy();
+  });
+
+  it('NUR recherchierter Marktpreis (lowest_price) vorhanden → wird NICHT gelistet (Betreiber-Entscheidung 2026-08-21)', async () => {
+    // Der frühere Fallback bis auf details.pricing.lowest_price.amount hätte
+    // einen nie bestätigten Recherche-Preis unbeaufsichtigt online gestellt.
+    // Im unbeaufsichtigten Heal-Pfad darf NUR ein ausdrücklich gesetzter
+    // Verkaufspreis (sellPrice) live gehen.
+    const { updates, deps } = makeDeps();
+    deps.kauflandApi.getProductDataStatus.mockResolvedValue({ product_ready: true });
+
+    const product = buildPendingProduct({ id: 'P10', sellPrice: null });
+    product.details.pricing = { lowest_price: { amount: 25.99 } };
+
+    const stats = await healPendingKauflandPublishes({
+      products: [product],
+      storefront: 'de',
+      deps: deps,
+    });
+
     expect(stats).toEqual({ candidates: 1, attempted: 1, healed: 0 });
+    expect(deps.kauflandApi.createUnit).not.toHaveBeenCalled();
     const errUpdate = updates.find(
-      (u) => u.id === 'P8' && Array.isArray(u.payload['marketplace.kaufland.listing_errors'])
+      (u) => u.id === 'P10' && Array.isArray(u.payload['marketplace.kaufland.listing_errors'])
     );
     expect(errUpdate).toBeDefined();
-    const message = errUpdate.payload['marketplace.kaufland.listing_errors'][0].message;
-    expect(message).toContain('Bild');
-    expect(message).toContain('Titel');
-    // Marker wurde NICHT gelöscht
-    const markerDelete = updates.find(
-      (u) => u.payload && u.payload['marketplace.kaufland.publish_pending_at'] === DELETE_SENTINEL
-    );
-    expect(markerDelete).toBeUndefined();
+    expect(errUpdate.payload['marketplace.kaufland.listing_errors'][0].message).toContain('Verkaufspreis');
   });
 
   it('ohne EAN → skip (kein API-Call), zählt nicht als attempted', async () => {
