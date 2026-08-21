@@ -197,6 +197,103 @@ describe('resolveKTypFromVehicleSpec — Fahrzeugnennung deterministisch nachsch
   });
 });
 
+describe('Adversarial-Review 2026-08-21 — Falschdaten-Faelle (an echter MVL-Struktur verifiziert)', () => {
+  /**
+   * Realitaets-Muster der MVL: das nackte "Golf" ist ein Suedamerika-Exot
+   * (9B3), die Generationen sind EIGENE Modelle mit ROEMISCHEN Ziffern.
+   * Ducato-Modelle sind alle mehrteilig; "500" ist ein echtes Fiat-Modell.
+   */
+  function realityIndex() {
+    return buildMvlIndexFromRecords([
+      { k: 201, make: 'VW', model: 'Golf', type: '1.6', platform: '9B3', period: '2007/03-2014/03', hsn_tsn: '' },
+      { k: 202, make: 'VW', model: 'Golf VII', type: '2.0 TDI', platform: '5G1, BQ1', period: '2012/08-2020/03', hsn_tsn: '' },
+      { k: 203, make: 'Fiat', model: '500', type: '1.2', platform: '312', period: '2007/07-2025/12', hsn_tsn: '' },
+      { k: 204, make: 'Fiat', model: 'Ducato Kasten', type: '2.3 D', platform: '250, 290', period: '2006/07-2025/12', hsn_tsn: '' },
+      { k: 205, make: 'Audi', model: 'A4', type: '2.0 TDI', platform: '8EC', period: '2004/11-2008/06', hsn_tsn: '' },
+      { k: 206, make: 'Audi', model: 'A4', type: '2.0 TDI', platform: '8K2', period: '2007/11-2015/12', hsn_tsn: '' },
+      { k: 207, make: 'Audi', model: 'A4', type: '2.0 TDI', platform: '8W2', period: '2015/05-2025/12', hsn_tsn: '' },
+    ]);
+  }
+
+  it('"Golf 7" (arabische Ziffer) trifft Golf VII — NIE den Suedamerika-Golf', () => {
+    const product = {
+      id: 'p-golf7',
+      identification: { name: 'Außenspiegel links für VW Golf 7 Bj. 2013-2019' },
+      details: { categoryId: '177711', attributes: {} },
+    };
+    const res = resolveKTypFromVehicleSpec(product, { mvl: realityIndex() });
+    expect(res.ok).toBe(true);
+    expect(res.ids).toEqual([202]);
+    expect(res.ids).not.toContain(201); // 9B3-Exot
+  });
+
+  it('nacktes "Golf" mit Generations-Geschwistern: Baujahr allein reicht NICHT', () => {
+    const product = {
+      id: 'p-golf-bare',
+      identification: { name: 'Fußmatten für VW Golf Bj. 2013' },
+      details: { categoryId: '177711', attributes: {} },
+    };
+    const res = resolveKTypFromVehicleSpec(product, { mvl: realityIndex() });
+    expect(res.ok).toBe(false); // sonst kaeme der 9B3-Exot ueber die Jahresgrenze
+  });
+
+  it('"Fiat Ducato 500 kg" wird NIE zum Fiat 500 (Einheiten-Veto + Marken-Sequenz-Anker)', () => {
+    const product = {
+      id: 'p-ducato',
+      identification: { name: 'Anhängerkupplung für Fiat Ducato 500 kg Stützlast' },
+      details: { categoryId: '177711', attributes: { Baujahr: '2015-2020' } },
+    };
+    const res = resolveKTypFromVehicleSpec(product, { mvl: realityIndex() });
+    expect(res.ok).toBe(false);
+  });
+
+  it('widersprechender Plattform-Token ("A4 B8", MVL kennt nur Werkscodes) vetot statt Jahres-Fallback', () => {
+    // Sonst zoege die Jahresgrenze 2008/2015 die Nachbargenerationen B7+B9 rein.
+    const product = {
+      id: 'p-a4b8',
+      identification: { name: 'Bremsscheiben Set für Audi A4 B8 Bj. 2008-2015' },
+      details: { categoryId: '177711', attributes: {} },
+    };
+    const res = resolveKTypFromVehicleSpec(product, { mvl: realityIndex() });
+    expect(res.ok).toBe(false);
+  });
+
+  it('Werkscode im Titel trifft exakt die richtige Generation', () => {
+    const product = {
+      id: 'p-a4-8k2',
+      identification: { name: 'Bremsscheiben Set für Audi A4 8K2 Bj. 2008-2015' },
+      details: { categoryId: '177711', attributes: {} },
+    };
+    const res = resolveKTypFromVehicleSpec(product, { mvl: realityIndex() });
+    expect(res.ok).toBe(true);
+    expect(res.ids).toEqual([206]);
+  });
+
+  it('Index: reine Buchstaben-Fragmente aus Komma-Plattformen werden KEINE Lookup-Schluessel', () => {
+    const idx = buildMvlIndexFromRecords([
+      { k: 300, make: 'Test', model: 'Alpha', type: 'x', platform: '1A2, KBA, PS', period: '2010/01-2020/12', hsn_tsn: '' },
+    ]);
+    expect(idx.byMakePlatform.has('test|1A2')).toBe(true);
+    expect(idx.byMakePlatform.has('test|KBA')).toBe(false);
+    expect(idx.byMakePlatform.has('test|PS')).toBe(false);
+    expect(idx.byMakePlatform.has('test|1A2, KBA, PS')).toBe(true); // Roh-String bleibt
+  });
+
+  it('"Modellnummer" ist Teilenummern-, kein Fahrzeugtext', () => {
+    const product = {
+      id: 'p-modellnr',
+      identification: { name: 'Steuergerät universal' },
+      details: {
+        categoryId: '177711',
+        // Ohne Ausschluss wuerde "1987" aus der Modellnummer als Baujahr gelten.
+        attributes: { Fahrzeugmarke: 'VW', Modellnummer: '1987 Golf 429' },
+      },
+    };
+    const res = resolveKTypFromVehicleSpec(product, { mvl: realityIndex() });
+    expect(res.ok).toBe(false);
+  });
+});
+
 describe('Beleg-Ernte liest LISTEN vollstaendig (Ketten-Fenster)', () => {
   it('liest alle 12 Schluesselnummern der Screenshot-Antwort vom 21.08. (vorher: 8)', () => {
     const text = [

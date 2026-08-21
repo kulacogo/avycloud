@@ -343,7 +343,12 @@ function buildMvlIndexFromRecords(records = []) {
     if (makeLower) makes.add(makeLower);
     const platform = safeString(rec?.platform);
     if (makeLower && platform) {
-      const keys = new Set([platform, ...splitPlatformTokens(platform)]);
+      // Split-Tokens nur, wenn sie plattform-artig sind (Buchstabe UND Ziffer):
+      // reine Buchstaben-Fragmente ("KBA", "PS") wuerden sonst zu Lookup-
+      // Schluesseln, die Freitext-Tokens treffen (Review 2026-08-21). Der
+      // Roh-String bleibt immer als Schluessel erhalten.
+      const splitToks = splitPlatformTokens(platform).filter((t) => /[A-Z]/.test(t) && /\d/.test(t));
+      const keys = new Set([platform, ...splitToks]);
       for (const token of keys) {
         const key = `${makeLower}|${token}`;
         const set = byMakePlatform.get(key) || new Set();
@@ -619,8 +624,11 @@ function collectLocalFitmentText(product, { excludeValues = [] } = {}) {
       ? product.details.attributes
       : {};
   const compatKeyRe = /passend|kompatib|fahrzeug|vehicle|verwendung|modell|baureihe|plattform/i;
+  // "Modellnummer"/"Modell-Nr" ist eine TEILENUMMER, kein Fahrzeugtext — ihre
+  // Ziffern wuerden sonst als Baujahr-Beleg gelesen (Review 2026-08-21).
+  const partNumberKeyRe = /modell\s*-?\s*(nummer|nr)/i;
   const compatValues = Object.entries(attrs)
-    .filter(([k]) => compatKeyRe.test(String(k || '')))
+    .filter(([k]) => compatKeyRe.test(String(k || '')) && !partNumberKeyRe.test(String(k || '')))
     .map(([, v]) => safeString(v))
     .filter(Boolean);
   let text = [
@@ -812,30 +820,55 @@ function parsePeriodYears(period = '') {
   return { start, end: Number.isFinite(end) ? end : 2035 };
 }
 
+// Generationen stehen in der MVL als EIGENE Modelle mit ROEMISCHEN Ziffern
+// ("Golf VII"); eBay-Titel schreiben arabisch ("Golf 7"). Ohne das Mapping
+// matcht "Golf 7" nur das nackte MVL-Modell "Golf" — und das sind 6
+// Suedamerika-Exoten [9B3] (Review-Befund 2026-08-21, verifiziert).
+const ROMAN_GENERATIONS = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII', 'XIII', 'XIV', 'XV', 'XVI', 'XVII', 'XVIII', 'XIX', 'XX'];
+const ROMAN_SUFFIX_RE = /^(?=[IVX])X{0,2}(?:IX|IV|V?I{0,3})$/;
+// Zahl+Einheit ist NIE Plattform-/Modell-Evidenz ("12V", "500KG"). "M" fehlt in
+// der Einzel-Buchstaben-Liste bewusst — "4M" ist eine echte Audi-Plattform.
+const NUMBER_UNIT_RE = /^\d+(?:MM|CM|KG|ML|KW|PS|AH|BAR|LM|STK|ZOLL|V|W|A|G|L|T)$/;
+const UNIT_TOKEN_RE = /^(?:MM|CM|M|G|KG|T|L|ML|V|W|KW|PS|A|AH|BAR|LM|ZOLL|STK|X)$/;
+
 /**
  * Generations-Trennung: ein Modell-Treffer allein reicht NIE.
- * Erst Plattform-Token (praefix-tolerant: "4M" trifft 4MB/4MG/4MN), dann
- * Bauzeitraum-Ueberlappung. Ohne jeden Generations-Beleg: leere Menge —
- * sonst bekaeme ein 4M-Teil auch das alte Q7 (4LB) zugeschrieben.
+ *
+ * Reihenfolge (Review 2026-08-21, "A4 B8"- und "Golf"-Befunde):
+ * 1. Plattform-Token passt zu den Zeilen -> diese Generation (ggf. ∩ Baujahr).
+ * 2. Plattform-Token vorhanden, aber KEINER passt -> WIDERSPRUCH: nur ein
+ *    generations-explizites Modell ("Golf VII") darf dann noch ueber den
+ *    Bauzeitraum gehen. Ein nacktes Modell nicht — sonst rutschen
+ *    Nachbargenerationen ueber die Grenzjahre rein ("A4 B8" zog B7+B9).
+ * 3. Generations-explizit ohne Plattform-Token: das Modell SELBST ist der
+ *    Generations-Beleg (∩ Baujahr wenn vorhanden).
+ * 4. Nacktes Modell: Baujahr noetig, und NUR wenn keine Generations-
+ *    Geschwister existieren ("Golf" neben "Golf VII" ist ein 9B3-Exot).
  */
-function pickGenerationRows(rows, { platCands = [], years = new Set() } = {}) {
+function pickGenerationRows(rows, { platCands = [], years = new Set(), generationExplicit = false, hasSiblings = false } = {}) {
   if (!Array.isArray(rows) || !rows.length) return [];
-  const withPlat = platCands.length
-    ? rows.filter((r) => {
-        const recToks = splitPlatformTokens(r.platform);
-        return recToks.some((rt) => platCands.some((t) => rt === t || (t.length >= 2 && rt.startsWith(t))));
-      })
-    : [];
-  if (!years.size) return withPlat;
-  const base = withPlat.length ? withPlat : rows;
-  return base.filter((r) => {
-    const p = parsePeriodYears(r.period);
-    if (!p) return false;
-    for (const y of years) {
-      if (y >= p.start && y <= p.end) return true;
-    }
-    return false;
-  });
+  const byYear = (list) =>
+    list.filter((r) => {
+      const p = parsePeriodYears(r.period);
+      if (!p) return false;
+      for (const y of years) {
+        if (y >= p.start && y <= p.end) return true;
+      }
+      return false;
+    });
+  if (platCands.length) {
+    const withPlat = rows.filter((r) => {
+      const recToks = splitPlatformTokens(r.platform);
+      return recToks.some((rt) => platCands.some((t) => rt === t || (t.length >= 2 && rt.startsWith(t))));
+    });
+    if (withPlat.length) return years.size ? byYear(withPlat) : withPlat;
+    if (!generationExplicit) return [];
+    return years.size ? byYear(rows) : rows;
+  }
+  if (generationExplicit) return years.size ? byYear(rows) : rows;
+  if (!years.size) return [];
+  if (hasSiblings) return [];
+  return byYear(rows);
 }
 
 /**
@@ -879,9 +912,30 @@ function resolveKTypFromVehicleSpec(product, { mvl = null, maxKTypes = 60 } = {}
   const years = new Set(extractYearCandidates(yearText));
 
   // Plattform-Kandidaten: Tokens mit Buchstabe UND Ziffer (4M, B8, 8P) —
-  // reine Buchstaben ("SRS", "SUV") und reine Zahlen (Masse) sind keine Plattform.
+  // reine Buchstaben ("SRS", "SUV") und reine Zahlen (Masse) sind keine
+  // Plattform. Ebenfalls raus: Zahl+Einheit ("12V") und Tokens, die selbst
+  // Modellnamen der erkannten Marken sind ("Q7", "A4", "X5") — sonst vetot
+  // der eigene Modellname die Plattform-Pruefung (Review 2026-08-21).
+  const modelNameTokens = new Set();
+  for (const make of makes) {
+    const mm = index.modelsByMake.get(make);
+    if (!mm) continue;
+    for (const toks of mm.values()) {
+      if (toks.length === 1) modelNameTokens.add(toks[0]);
+    }
+  }
   const platCands = Array.from(
-    new Set(textTokens.filter((t) => t.length >= 2 && t.length <= 6 && /[A-Z]/.test(t) && /\d/.test(t)))
+    new Set(
+      textTokens.filter(
+        (t) =>
+          t.length >= 2 &&
+          t.length <= 6 &&
+          /[A-Z]/.test(t) &&
+          /\d/.test(t) &&
+          !NUMBER_UNIT_RE.test(t) &&
+          !modelNameTokens.has(t)
+      )
+    )
   );
 
   // Explizite Modell-Attribute ("Modell":"X5") verankern kurze Modellnamen,
@@ -909,7 +963,9 @@ function resolveKTypFromVehicleSpec(product, { mvl = null, maxKTypes = 60 } = {}
     if (!/[,&+/]|\b(UND|ODER|BZW)\b/.test(between)) return false;
     const residue = between.replace(/\b(UND|ODER|BZW)\b/g, ' ').replace(/[,&+/().]/g, ' ');
     const toks = residue.match(/[A-Z0-9]+/g) || [];
-    return toks.every((t) => t.length <= 6 && /\d/.test(t));
+    // Fuelltokens muessen plattform-artig sein: Buchstabe UND Ziffer ("4M"),
+    // keine Zahl+Einheit — reine Zahlen ("500") sind Mengen, keine Fahrzeuge.
+    return toks.every((t) => t.length <= 6 && /\d/.test(t) && /[A-Z]/.test(t) && !NUMBER_UNIT_RE.test(t));
   };
 
   const hits = new Set();
@@ -918,11 +974,22 @@ function resolveKTypFromVehicleSpec(product, { mvl = null, maxKTypes = 60 } = {}
   for (const make of makes) {
     const models = index.modelsByMake.get(make);
     if (!models) continue;
-    const makeTok = tokenizeAlnum(make)[0] || '';
-    const makePositions = [];
-    textTokens.forEach((t, i) => {
-      if (makeTok && t === makeTok) makePositions.push(i);
-    });
+    // Anker-Positionen: Token-Index DIREKT hinter einer VOLLSTAENDIGEN
+    // Markennennung ("Alfa Romeo" = 2 Tokens). Der fruehere 1-2-Token-Abstand
+    // vom ersten Marken-Token liess "Fiat Ducato 500 kg" als "Fiat 500"
+    // durchgehen (Review 2026-08-21) — ein Zwischentoken ist nicht erlaubt.
+    const makeTokens = tokenizeAlnum(make);
+    const makeSeqNext = new Set();
+    for (let i = 0; i + makeTokens.length <= textTokens.length; i += 1) {
+      let all = true;
+      for (let j = 0; j < makeTokens.length; j += 1) {
+        if (textTokens[i + j] !== makeTokens[j]) {
+          all = false;
+          break;
+        }
+      }
+      if (all) makeSeqNext.add(i + makeTokens.length);
+    }
 
     // Schritt 1: alle Modell-Nennungen einsammeln. Laengster Modellname gewinnt
     // an seiner Textposition — "Q8 E-Tron SUV" darf nicht zusaetzlich als "Q8"
@@ -941,13 +1008,42 @@ function resolveKTypFromVehicleSpec(product, { mvl = null, maxKTypes = 60 } = {}
           }
         }
         if (!all) continue;
-        for (let j = 0; j < modelTokens.length; j += 1) claimed.add(i + j);
-        const last = tokMatches[i + modelTokens.length - 1];
+
+        let modelKey = modelTokens.join(' ');
+        let consumed = modelTokens.length;
+        let generationExplicit =
+          modelTokens.length > 1 && ROMAN_SUFFIX_RE.test(modelTokens[modelTokens.length - 1]);
+
+        // Arabische Generationsziffer: "Golf 7" meint "Golf VII" — die MVL
+        // fuehrt Generationen als EIGENE Modelle mit roemischen Ziffern; das
+        // nackte "Golf" sind Suedamerika-Exoten (Review 2026-08-21).
+        const nextTok = textTokens[i + consumed];
+        if (!generationExplicit && nextTok && /^\d{1,2}$/.test(nextTok)) {
+          const roman = ROMAN_GENERATIONS[Number(nextTok)] || '';
+          const upgradedKey = roman ? `${modelKey} ${roman}` : '';
+          const afterDigit = textTokens[i + consumed + 1];
+          if (upgradedKey && models.has(upgradedKey) && !(afterDigit && UNIT_TOKEN_RE.test(afterDigit))) {
+            modelKey = upgradedKey;
+            consumed += 1;
+            generationExplicit = true;
+          }
+        }
+
+        // Einheiten-Veto: eine Zahl mit folgender Einheit ist eine MASSANGABE,
+        // kein Modell ("Ducato 500 kg" darf nie zum Fiat 500 werden).
+        if (modelTokens.length === 1 && /^\d+$/.test(modelTokens[0])) {
+          const after = textTokens[i + consumed];
+          if (after && UNIT_TOKEN_RE.test(after)) continue;
+        }
+
+        for (let j = 0; j < consumed; j += 1) claimed.add(i + j);
+        const last = tokMatches[i + consumed - 1];
         mentions.push({
-          modelTokens,
+          modelKey,
           i,
           startChar: tokMatches[i].index,
           endChar: last.index + last[0].length,
+          generationExplicit,
           // Kurze Einzeltoken-Modelle brauchen einen ANKER: reine Ziffern ("205"
           // — sonst wird jede Massangabe zum Modell) und Namen mit <=2 Zeichen
           // ("GT", "KA", "M3" — sonst wird jedes Ausstattungs-Kuerzel und jede
@@ -962,13 +1058,13 @@ function resolveKTypFromVehicleSpec(product, { mvl = null, maxKTypes = 60 } = {}
     mentions.sort((a, b) => a.i - b.i);
 
     // Schritt 2: Anker aufloesen. Direkt-Anker: Modell ohne Anker-Pflicht,
-    // Position direkt hinter der Marke, oder ausdrueckliches Modell-Attribut.
-    // Ketten-Anker: haengt per Aufzaehlungs-Verbinder an einer bereits
-    // akzeptierten Nennung ("Audi Q7 4M & Q8" -> Q8 zaehlt).
+    // Position direkt hinter der vollstaendigen Markennennung, oder
+    // ausdrueckliches Modell-Attribut. Ketten-Anker: haengt per Aufzaehlungs-
+    // Verbinder an einer bereits akzeptierten Nennung ("Audi Q7 4M & Q8").
     for (const m of mentions) {
       if (!m.needsAnchor) m.accepted = true;
-      else if (makePositions.some((p) => m.i - p >= 1 && m.i - p <= 2)) m.accepted = true;
-      else if (attrModelValues.has(m.modelTokens.join(' '))) m.accepted = true;
+      else if (makeSeqNext.has(m.i)) m.accepted = true;
+      else if (attrModelValues.has(m.modelKey)) m.accepted = true;
     }
     let changed = true;
     while (changed) {
@@ -989,13 +1085,20 @@ function resolveKTypFromVehicleSpec(product, { mvl = null, maxKTypes = 60 } = {}
     for (const m of mentions) {
       if (!m.accepted) continue;
       modelSeen = true;
-      const rows = index.byMakeModel.get(`${make}|${m.modelTokens.join(' ')}`) || [];
-      const chosen = pickGenerationRows(rows, { platCands, years });
+      const rows = index.byMakeModel.get(`${make}|${m.modelKey}`) || [];
+      const siblingPrefix = `${m.modelKey} `;
+      const hasSiblings = Array.from(models.keys()).some((k) => k.startsWith(siblingPrefix));
+      const chosen = pickGenerationRows(rows, {
+        platCands,
+        years,
+        generationExplicit: m.generationExplicit,
+        hasSiblings,
+      });
       if (chosen.length) {
-        const label = `${make}|${m.modelTokens.join(' ')}`;
+        const label = `${make}|${m.modelKey}`;
         // Titel UND Modell-Attribut nennen dasselbe Fahrzeug — nur einmal listen.
         if (!matchedModels.some((x) => `${x.make}|${x.model}` === label)) {
-          matchedModels.push({ make, model: m.modelTokens.join(' '), rows: chosen.length });
+          matchedModels.push({ make, model: m.modelKey, rows: chosen.length });
         }
         chosen.forEach((r) => hits.add(r.k));
       }
@@ -1539,7 +1642,7 @@ async function enrichKTypFromHsnTsnEvidence(
 // ausdrueckliche K-Typ-Frage schaltet den Erweitern-Modus frei. Bewusst eng:
 // "Typ" allein, "Kompatibilitaet" oder "k typisch" zaehlen nicht (die
 // Suffix-Liste ist geschlossen, kein \w* — Review-Befund 2026-08-21).
-const KTYP_INTENT_RE = /\bk[\s\-–]?typ(?:en|s|nummern?|liste)?\b|fahrzeugverwendungsliste|\bfahrzeugliste\b|\bmvl\b/i;
+const KTYP_INTENT_RE = /\bk[\s\-‑–—]?typ(?:en|s|nummern?|liste)?\b|fahrzeugverwendungsliste|\bfahrzeugliste\b|\bmvl\b/i;
 
 function isKTypIntentMessage(message = '') {
   return KTYP_INTENT_RE.test(String(message || ''));

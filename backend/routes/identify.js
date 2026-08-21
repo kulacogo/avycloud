@@ -1659,7 +1659,13 @@ async function attachKTypDatasheetChange(chatResult, product, enrichHandle, user
     // dem K-Typ, wird ein gefülltes Feld per Union ERWEITERT statt still
     // übersprungen — genau dieses Schweigen war der Vorfall vom 21.08.2026
     // (SKU-7093518261: 5 von ~44 Fahrzeugen im Feld, Antwort ohne Karte).
-    const turn = await resolveKTypForChatTurn(product, chatResult, { userMessage });
+    // Gleiches Zeit-Budget wie das Race darueber: ein MVL-Kaltstart-Download
+    // darf die Chat-Antwort nicht blockieren — dann eben ohne K-Typ-Zug
+    // (naechste Frage trifft den warmen Cache).
+    const turn = await Promise.race([
+      resolveKTypForChatTurn(product, chatResult, { userMessage }),
+      new Promise((resolve) => setTimeout(() => resolve(null), KTYP_CHAT_ATTACH_TIMEOUT_MS)),
+    ]);
     if (turn && (turn.intent || turn.addedCount > 0)) {
       console.log(
         `[chat] K-Typ turn: product=${product?.id} intent=${turn.intent} status=${turn.status} before=${turn.beforeCount} now=${turn.nowCount} added=${turn.addedCount}`
