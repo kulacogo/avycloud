@@ -1642,7 +1642,7 @@ function startChatKTypEnrichment(product) {
   return { beforeValue, promise };
 }
 
-async function attachKTypDatasheetChange(chatResult, product, enrichHandle) {
+async function attachKTypDatasheetChange(chatResult, product, enrichHandle, userMessage = '') {
   if (!chatResult || !enrichHandle) return;
   try {
     // Enrichment lief parallel zur (langen) LLM-Antwort; hier nur noch ein kurzer
@@ -1651,53 +1651,75 @@ async function attachKTypDatasheetChange(chatResult, product, enrichHandle) {
       enrichHandle.promise,
       new Promise((resolve) => setTimeout(resolve, KTYP_CHAT_ATTACH_TIMEOUT_MS)),
     ]);
-    const {
-      buildKTypDatasheetChange,
-      collectHsnTsnFromChatResult,
-      enrichKTypFromHsnTsnEvidence,
-    } = require('../lib/ktype-enrichment');
+    const { buildKTypDatasheetChange, resolveKTypForChatTurn } = require('../lib/ktype-enrichment');
 
-    // Zweiter Anlauf mit dem Beleg, den das Modell SOEBEN recherchiert hat.
-    //
-    // Die Anreicherung oben startete parallel zum Modell-Aufruf und konnte
-    // deshalb nur lesen, was schon im Produkt stand. Fand das Modell im selben
-    // Zug die Schlüsselnummern (Vorfall 2026-08-17: "0588/BDM, 0588/BDQ,
-    // 0588/BNL"), kam das für den ersten Lauf zu spät — der K-Typ blieb leer,
-    // obwohl der Beleg auf dem Bildschirm stand.
-    if (!String(product?.details?.attributes?.['K-Typ'] || '').trim()) {
-      const pairs = collectHsnTsnFromChatResult(chatResult);
-      if (pairs.length) {
-        const res = await enrichKTypFromHsnTsnEvidence(product, pairs, { reason: 'chat_evidence' });
+    // Deterministischer K-Typ-Zug NACH der Modell-Antwort: Schlüsselnummern aus
+    // der soeben gelieferten Antwort ernten UND die Fahrzeugnennung der eigenen
+    // Produktdaten gegen die MVL auflösen. Fragt der Bediener ausdrücklich nach
+    // dem K-Typ, wird ein gefülltes Feld per Union ERWEITERT statt still
+    // übersprungen — genau dieses Schweigen war der Vorfall vom 21.08.2026
+    // (SKU-7093518261: 5 von ~44 Fahrzeugen im Feld, Antwort ohne Karte).
+    const turn = await resolveKTypForChatTurn(product, chatResult, { userMessage });
+    if (turn && (turn.intent || turn.addedCount > 0)) {
+      console.log(
+        `[chat] K-Typ turn: product=${product?.id} intent=${turn.intent} status=${turn.status} before=${turn.beforeCount} now=${turn.nowCount} added=${turn.addedCount}`
+      );
+    }
+
+    const change = buildKTypDatasheetChange(product, { beforeValue: enrichHandle.beforeValue });
+    let attached = false;
+    if (change) {
+      chatResult.datasheetChanges = Array.isArray(chatResult.datasheetChanges)
+        ? chatResult.datasheetChanges
+        : [];
+      // Kein Duplikat, wenn das Modell in diesem Turn selbst einen K-Typ vorschlug.
+      // V3-Tool-Cards tragen attributes als Array [{key,value}], die K-Typ-Card und
+      // V2-Cards als Map — beide Shapes prüfen.
+      const normKey = (k) => String(k || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
+      const llmAlreadyProposed = chatResult.datasheetChanges.some((c) => {
+        if (!c || c === change || !c.attributes) return false;
+        if (Array.isArray(c.attributes)) {
+          return c.attributes.some((a) => normKey(a?.key || a?.name) === 'ktyp');
+        }
+        if (typeof c.attributes === 'object') {
+          return Object.keys(c.attributes).some((k) => normKey(k) === 'ktyp');
+        }
+        return false;
+      });
+      if (!llmAlreadyProposed) {
+        chatResult.datasheetChanges.push(change);
+        attached = true;
         console.log(
-          `[chat] K-Typ evidence retry: product=${product?.id} pairs=${pairs.join(',')} ok=${res.ok} reason=${res.reason || '-'}`
+          `[chat] K-Typ change card attached: product=${product?.id} values=${String(change.attributes['K-Typ']).split('|').length}`
         );
       }
     }
 
-    const change = buildKTypDatasheetChange(product, { beforeValue: enrichHandle.beforeValue });
-    if (!change) return;
-    chatResult.datasheetChanges = Array.isArray(chatResult.datasheetChanges)
-      ? chatResult.datasheetChanges
-      : [];
-    // Kein Duplikat, wenn das Modell in diesem Turn selbst einen K-Typ vorschlug.
-    // V3-Tool-Cards tragen attributes als Array [{key,value}], die K-Typ-Card und
-    // V2-Cards als Map — beide Shapes prüfen.
-    const normKey = (k) => String(k || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
-    const llmAlreadyProposed = chatResult.datasheetChanges.some((c) => {
-      if (!c || c === change || !c.attributes) return false;
-      if (Array.isArray(c.attributes)) {
-        return c.attributes.some((a) => normKey(a?.key || a?.name) === 'ktyp');
+    // Ehrliche Antwort statt Schweigen, wenn ausdrücklich nach K-Typ gefragt
+    // wurde. Ohne diese Zeile ist "Feld ist schon korrekt gefüllt" für den
+    // Bediener nicht von "Assistent kann es nicht" zu unterscheiden.
+    if (turn?.intent) {
+      let note = '';
+      if (attached) {
+        note = `🔧 K-Typ aus der eBay-Fahrzeugliste (MVL) ermittelt: ${turn.nowCount} Fahrzeuge${turn.addedCount ? ` (davon ${turn.addedCount} neu)` : ''}. Die Änderungskarte übernehmen, um zu speichern.`;
+      } else if (change && !attached) {
+        // llmAlreadyProposed: das Modell hat in diesem Zug selbst eine K-Typ-
+        // Karte vorgeschlagen — nicht doppeln, aber auch nicht schweigen.
+        note = 'ℹ️ In diesem Zug liegt bereits eine K-Typ-Änderungskarte vor — bitte diese prüfen und übernehmen.';
+      } else if (turn.status === 'already_set' || turn.status === 'kept_existing') {
+        note = `ℹ️ Der K-Typ ist bereits gesetzt: ${turn.nowCount} Fahrzeuge stehen im Datenblatt. Die Fahrzeugliste lieferte keine zusätzlichen Treffer.`;
+      } else if (turn.status === 'no_evidence') {
+        note =
+          '⚠️ K-Typ konnte nicht belegt ermittelt werden — weder die Fahrzeugnennung im Datenblatt noch recherchierte Schlüsselnummern führten zu Treffern in der eBay-Fahrzeugliste. Bitte Fahrzeugmodell/Baureihe oder HSN/TSN ergänzen.';
+      } else if (turn.status === 'not_auto_fitment') {
+        note = 'ℹ️ Für diese Kategorie gibt es keine K-Typ-Liste — K-Typ ist eine PKW-Kennung; Motorrad-Kompatibilität läuft über ePIDs.';
+      } else if (turn.status === 'not_fitment_category') {
+        note = 'ℹ️ Die aktuelle eBay-Kategorie führt keine Fahrzeugverwendungsliste — ohne Fahrzeug-Kategorie kann kein K-Typ gesetzt werden.';
+      } else if (turn.status === 'mvl_missing') {
+        note = '⚠️ Die eBay-Fahrzeugliste (MVL) ist gerade nicht ladbar — K-Typ konnte deshalb nicht ermittelt werden. Bitte später erneut versuchen.';
       }
-      if (typeof c.attributes === 'object') {
-        return Object.keys(c.attributes).some((k) => normKey(k) === 'ktyp');
-      }
-      return false;
-    });
-    if (llmAlreadyProposed) return;
-    chatResult.datasheetChanges.push(change);
-    console.log(
-      `[chat] K-Typ change card attached: product=${product?.id} values=${String(change.attributes['K-Typ']).split('|').length}`
-    );
+      if (note) chatResult.message = `${chatResult.message || ''}\n\n${note}`.trim();
+    }
   } catch (err) {
     console.warn('[chat] K-Typ change attach failed (non-blocking):', err?.message || err);
   }
@@ -1912,7 +1934,7 @@ router.post('/chat', requirePermission('ai', 'chat'), identifyLimiter, chatUploa
         await validateChatGpsr(chatResult, product, normalizedScope, normalizedMessage);
 
         // K-Typ-Ergebnis (lief parallel) als Change-Card anhängen (alle Pipelines).
-        await attachKTypDatasheetChange(chatResult, product, ktypEnrichHandle);
+        await attachKTypDatasheetChange(chatResult, product, ktypEnrichHandle, normalizedMessage);
 
         console.log('[chat] pipeline=%s model=%s product=%s', pipelineUsed, chatResult.model || chatResult.modelUsed, productId);
 
@@ -2036,7 +2058,7 @@ router.post('/chat', requirePermission('ai', 'chat'), identifyLimiter, chatUploa
     await validateChatGpsr(chatResult, product, normalizedScope, normalizedMessage);
 
     // K-Typ-Ergebnis (lief parallel) als Change-Card anhängen (alle Pipelines).
-    await attachKTypDatasheetChange(chatResult, product, ktypEnrichHandle);
+    await attachKTypDatasheetChange(chatResult, product, ktypEnrichHandle, normalizedMessage);
 
     console.log('[chat] pipeline=%s model=%s product=%s', pipelineUsed, chatResult.model || chatResult.modelUsed, productId);
 

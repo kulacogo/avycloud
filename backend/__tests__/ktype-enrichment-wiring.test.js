@@ -54,8 +54,12 @@ describe('K-Typ Chat-Chokepoint — alle Pipelines, persistiert via Change-Card'
     expect(identifySrc).toMatch(/const ktypEnrichHandle = startChatKTypEnrichment\(product\)/);
   });
 
-  it('attachKTypDatasheetChange laeuft in Stream- UND Sync-Zweig', () => {
-    const calls = identifySrc.match(/await attachKTypDatasheetChange\(chatResult, product, ktypEnrichHandle\)/g) || [];
+  it('attachKTypDatasheetChange laeuft in Stream- UND Sync-Zweig — MIT der User-Nachricht', () => {
+    // Seit 2026-08-21 wird die User-Nachricht durchgereicht: die ausdrueckliche
+    // K-Typ-Frage ("k-typ bitte") schaltet den Erweitern-Modus frei und erzwingt
+    // eine ehrliche Antwort statt Schweigen bei bereits gefuelltem Feld.
+    const calls =
+      identifySrc.match(/await attachKTypDatasheetChange\(chatResult, product, ktypEnrichHandle, normalizedMessage\)/g) || [];
     expect(calls.length).toBeGreaterThanOrEqual(2);
   });
 

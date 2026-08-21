@@ -80,7 +80,8 @@ function extractHsnTsnCandidates(text = '') {
  * der MVL. Was dort nicht steht, erzeugt keinen K-Typ.
  */
 const HSN_TSN_CONTEXT_RE = /\b(HSN|TSN|KBA|Schl(?:ü|ue)sselnummern?|Typschl(?:ü|ue)ssel)\b/gi;
-const PART_NUMBER_LABEL_RE = /(vergleichs|artikel|teile|ersatzteil|referenz|bestell|oe[m]?[-\s]?)\s*(nummer|nr)?\s*[:=]?\s*$/i;
+// "nummern?" — der Plural ("Vergleichsnummern:") matchte vorher NIE (Review 2026-08-21).
+const PART_NUMBER_LABEL_RE = /(vergleichs|artikel|teile|ersatzteil|referenz|bestell|oe[m]?[-\s]?)\s*(nummern?|nr\.?)?\s*[:=]?\s*$/i;
 const EVIDENCE_WINDOW_CHARS = 200;
 
 function extractHsnTsnFromEvidenceText(text = '') {
@@ -88,28 +89,43 @@ function extractHsnTsnFromEvidenceText(text = '') {
   if (!s) return [];
   const out = new Set();
 
-  const scanWindow = (window, windowStart) => {
+  // Alle Kandidaten im GANZEN Text finden (Index-sortiert) …
+  const candidates = [];
+  {
     // "0588/BDM", "0588-BDM"
     const slash = /(\d{4})\s*[/\-]\s*([A-Za-z0-9]{3})\b/g;
     // "0588 BDM" — mindestens ein Buchstabe, sonst schluckt es "0588 123".
     const spaced = /(\d{4})\s+(?=[A-Za-z0-9]{3}\b)([A-Za-z0-9]*[A-Za-z][A-Za-z0-9]*)\b/g;
     for (const re of [slash, spaced]) {
       let m;
-      while ((m = re.exec(window)) !== null) {
-        const before = s.slice(Math.max(0, windowStart + m.index - 40), windowStart + m.index);
-        if (PART_NUMBER_LABEL_RE.test(before)) continue;
-        const h = m[1];
-        const t = String(m[2] || '').toUpperCase();
-        if (/^\d{4}$/.test(h) && /^[A-Z0-9]{3}$/.test(t)) out.add(`${h}|${t}`);
+      while ((m = re.exec(s)) !== null) {
+        candidates.push({ index: m.index, end: m.index + m[0].length, h: m[1], t: String(m[2] || '').toUpperCase() });
       }
     }
-  };
+    candidates.sort((a, b) => a.index - b.index);
+  }
 
+  // … und per Reichweiten-KETTE akzeptieren: jedes akzeptierte Paar verlaengert
+  // das Lesefenster um EVIDENCE_WINDOW_CHARS. Ein starres Fenster las am
+  // 21.08.2026 nur 8 von 12 aufgelisteten Schluesselnummern — die Liste war
+  // laenger als 200 Zeichen, der Rest fiel wortlos unter den Tisch.
   HSN_TSN_CONTEXT_RE.lastIndex = 0;
   let marker;
   while ((marker = HSN_TSN_CONTEXT_RE.exec(s)) !== null) {
-    const start = marker.index;
-    scanWindow(s.slice(start, start + EVIDENCE_WINDOW_CHARS), start);
+    let reach = marker.index + EVIDENCE_WINDOW_CHARS;
+    for (const cand of candidates) {
+      if (cand.index < marker.index) continue;
+      if (cand.index > reach) break;
+      const before = s.slice(Math.max(0, cand.index - 40), cand.index);
+      // Teilenummern-Etikett = KONTEXTWECHSEL: ab hier folgt eine Teilenummern-
+      // Liste, die Kette endet (nicht nur dieses Paar ueberspringen — sonst
+      // frisst sich die Reichweite durch die ganze Liste; Review 2026-08-21).
+      if (PART_NUMBER_LABEL_RE.test(before)) break;
+      if (/^\d{4}$/.test(cand.h) && /^[A-Z0-9]{3}$/.test(cand.t)) {
+        out.add(`${cand.h}|${cand.t}`);
+        reach = Math.max(reach, cand.end + EVIDENCE_WINDOW_CHARS);
+      }
+    }
   }
 
   // Die ausgeschriebene Form ("HSN 0588, TSN BDM") kann der obige Leser besser.
@@ -269,16 +285,57 @@ async function loadMvlIndex() {
     return MVL_CACHE;
   }
   const text = fs.readFileSync(jsonlPath, 'utf8');
+  const records = [];
+  for (const line of text.split('\n')) {
+    const s = line.trim();
+    if (!s) continue;
+    records.push(JSON.parse(s));
+  }
+  const index = buildMvlIndexFromRecords(records);
+  MVL_CACHE = {
+    atMs: now,
+    jsonlPath,
+    configuredPath: configuredPath || null,
+    download: download || null,
+    gcsUri: resolveMvlGcsUri() || null,
+    ...index,
+  };
+  return MVL_CACHE;
+}
+
+function tokenizeAlnum(text = '') {
+  return String(text || '').toUpperCase().match(/[A-Z0-9]+/g) || [];
+}
+
+function splitPlatformTokens(platform = '') {
+  return safeString(platform)
+    .toUpperCase()
+    .split(/[,/\s]+/)
+    .map((t) => t.trim())
+    .filter(Boolean);
+}
+
+/**
+ * MVL-Index aus Compact-Records bauen — EINE Quelle fuer Produktion und Tests.
+ *
+ * Zusaetzlich zum bisherigen Index (byHsnTsn, byMakePlatform mit ROH-String):
+ * - byMakePlatform bekommt jeden Komma-/Slash-Token einzeln: 10.711 von 55.851
+ *   MVL-Zeilen tragen Listen wie "4MB, 4MG, 4MQ" — ein Titel-Token ("4MB")
+ *   konnte den Roh-String-Schluessel nie treffen.
+ * - byMakeModel + modelsByMake: die Fahrzeugnennung ("Audi Q7") steht in
+ *   Autoteile-Titeln fast immer; der Modell-Index macht sie deterministisch
+ *   nachschlagbar (resolveKTypFromVehicleSpec), samt platform/period fuer die
+ *   Generations-Trennung.
+ */
+function buildMvlIndexFromRecords(records = []) {
   const byHsnTsn = new Map();
   const makes = new Set();
   const byMakePlatform = new Map();
-  const lines = text.split('\n');
+  const byMakeModel = new Map(); // `${makeLower}|${MODEL TOKENS}` -> [{k, platform, period}]
+  const modelsByMake = new Map(); // makeLower -> Map<modelKey, tokens[]>
   let parsed = 0;
-  for (const line of lines) {
-    const s = line.trim();
-    if (!s) continue;
+  for (const rec of records) {
     parsed += 1;
-    const rec = JSON.parse(s);
     const k = Number(rec?.k);
     if (!Number.isFinite(k)) continue;
     const make = safeString(rec?.make);
@@ -286,10 +343,24 @@ async function loadMvlIndex() {
     if (makeLower) makes.add(makeLower);
     const platform = safeString(rec?.platform);
     if (makeLower && platform) {
-      const key = `${makeLower}|${platform}`;
-      const set = byMakePlatform.get(key) || new Set();
-      set.add(k);
-      byMakePlatform.set(key, set);
+      const keys = new Set([platform, ...splitPlatformTokens(platform)]);
+      for (const token of keys) {
+        const key = `${makeLower}|${token}`;
+        const set = byMakePlatform.get(key) || new Set();
+        set.add(k);
+        byMakePlatform.set(key, set);
+      }
+    }
+    const modelTokens = tokenizeAlnum(rec?.model);
+    if (makeLower && modelTokens.length) {
+      const modelKey = modelTokens.join(' ');
+      const mm = modelsByMake.get(makeLower) || new Map();
+      if (!mm.has(modelKey)) mm.set(modelKey, modelTokens);
+      modelsByMake.set(makeLower, mm);
+      const rowKey = `${makeLower}|${modelKey}`;
+      const rows = byMakeModel.get(rowKey) || [];
+      rows.push({ k, platform, period: safeString(rec?.period) });
+      byMakeModel.set(rowKey, rows);
     }
     const raw = safeString(rec?.hsn_tsn);
     if (!raw) continue;
@@ -300,19 +371,7 @@ async function loadMvlIndex() {
       byHsnTsn.set(h, set);
     }
   }
-  MVL_CACHE = {
-    atMs: now,
-    ok: true,
-    jsonlPath,
-    configuredPath: configuredPath || null,
-    download: download || null,
-    gcsUri: resolveMvlGcsUri() || null,
-    parsed,
-    byHsnTsn,
-    makes,
-    byMakePlatform,
-  };
-  return MVL_CACHE;
+  return { ok: true, parsed, byHsnTsn, makes, byMakePlatform, byMakeModel, modelsByMake };
 }
 
 function resolveMotoGcsUri() {
@@ -380,11 +439,15 @@ async function loadMotoIndex() {
   return MOTO_CACHE;
 }
 
-function extractVehicleMakes(text, makeSet) {
+function extractVehicleMakes(text, makeSet, { minLen = 3 } = {}) {
   const lower = String(text || '').toLowerCase();
   const found = new Set();
   for (const make of makeSet) {
-    if (!make || make.length < 3) continue;
+    // minLen 2 gilt NUR fuer EIGENE Produktdaten (kontrollierter Text): "VW"
+    // fiel dort bisher KOMPLETT durch (kein make-Treffer => kein Plattform-
+    // Pfad). Web-Seiten behalten die 3er-Schranke — sonst waehlt "500 mg" oder
+    // "DS" in gefetchtem Freitext eine Fahrzeugmarke (Review 2026-08-21).
+    if (!make || make.length < minLen) continue;
     const re = new RegExp(`\\b${make.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}\\b`, 'i');
     if (re.test(lower)) found.add(make);
     if (found.size >= 3) break;
@@ -694,6 +757,268 @@ function extractCcmNearModel(text = '', models = []) {
   return Array.from(out);
 }
 
+function parseExistingKTypIds(product) {
+  const raw = safeString(product?.details?.attributes?.['K-Typ']);
+  if (!raw) return [];
+  return Array.from(
+    new Set(
+      raw
+        .split(/[|,;]+/)
+        .map((x) => safeString(x))
+        .filter((x) => /^\d+$/.test(x))
+        .map(Number)
+    )
+  );
+}
+
+/**
+ * Bestehenden K-Typ-Wert ERWEITERN, ohne ihn neu zu formatieren.
+ *
+ * K-Typ darf Notizen tragen (`<id>,<note>|<id>,<note>` — siehe CLAUDE.md).
+ * Ein Union-Rewrite ueber geparste Zahlen wuerde diese Notizen still loeschen
+ * (Datenverlust-Klasse aus Punkt 16, Review-Befund 2026-08-21). Deshalb:
+ * bestehende Eintraege bleiben VERBATIM stehen, neue IDs werden nur angehaengt.
+ */
+function buildExtendedKTypValue(existingRaw, newIds = [], cap = 60) {
+  const raw = safeString(existingRaw);
+  const sortedNew = Array.from(new Set((newIds || []).map(Number).filter(Number.isFinite))).sort((a, b) => a - b);
+  if (!raw) {
+    const ids = cap > 0 ? sortedNew.slice(0, cap) : sortedNew;
+    return { value: formatKTyp(ids, { maxLen: 0 }), added: ids.length, total: ids.length };
+  }
+  const entries = raw.split('|').map((e) => e.trim()).filter(Boolean);
+  const existingIds = new Set();
+  for (const e of entries) {
+    const m = e.match(/^(\d+)/);
+    if (m) existingIds.add(Number(m[1]));
+  }
+  const fresh = [];
+  for (const id of sortedNew) {
+    if (existingIds.has(id)) continue;
+    if (cap > 0 && entries.length + fresh.length >= cap) break;
+    fresh.push(String(id));
+  }
+  if (!fresh.length) return { value: raw, added: 0, total: entries.length };
+  return { value: [...entries, ...fresh].join('|'), added: fresh.length, total: entries.length + fresh.length };
+}
+
+function parsePeriodYears(period = '') {
+  const s = safeString(period);
+  const m = s.match(/(\d{4})\s*\/\s*\d{1,2}\s*-\s*(?:(\d{4})\s*\/\s*\d{1,2})?/);
+  if (!m) return null;
+  const start = Number(m[1]);
+  if (!Number.isFinite(start)) return null;
+  const end = m[2] ? Number(m[2]) : 2035; // offenes Ende = laeuft noch
+  return { start, end: Number.isFinite(end) ? end : 2035 };
+}
+
+/**
+ * Generations-Trennung: ein Modell-Treffer allein reicht NIE.
+ * Erst Plattform-Token (praefix-tolerant: "4M" trifft 4MB/4MG/4MN), dann
+ * Bauzeitraum-Ueberlappung. Ohne jeden Generations-Beleg: leere Menge —
+ * sonst bekaeme ein 4M-Teil auch das alte Q7 (4LB) zugeschrieben.
+ */
+function pickGenerationRows(rows, { platCands = [], years = new Set() } = {}) {
+  if (!Array.isArray(rows) || !rows.length) return [];
+  const withPlat = platCands.length
+    ? rows.filter((r) => {
+        const recToks = splitPlatformTokens(r.platform);
+        return recToks.some((rt) => platCands.some((t) => rt === t || (t.length >= 2 && rt.startsWith(t))));
+      })
+    : [];
+  if (!years.size) return withPlat;
+  const base = withPlat.length ? withPlat : rows;
+  return base.filter((r) => {
+    const p = parsePeriodYears(r.period);
+    if (!p) return false;
+    for (const y of years) {
+      if (y >= p.start && y <= p.end) return true;
+    }
+    return false;
+  });
+}
+
+/**
+ * K-Typ direkt aus der Fahrzeugnennung der EIGENEN Produktdaten aufloesen.
+ *
+ * Der HSN/TSN-Weg ist eine Lupe: jede Schluesselnummer ist EINE Homologation.
+ * Gemessen am Vorfall 2026-08-21 (Airbag-Steuergeraet Audi Q7 4M + Q8):
+ * 12 recherchierte Schluesselnummern -> 8 K-Typen; die MVL kennt fuer die
+ * Baureihe ~44. Dieses Nachschlagen ist deterministisch (kein LLM):
+ * Marke + Modell-Tokenfolge + Generations-Beleg (Plattform-Token/Baujahr)
+ * gegen den MVL-Index. Was dort nicht steht, wird nicht geschrieben.
+ */
+function resolveKTypFromVehicleSpec(product, { mvl = null, maxKTypes = 60 } = {}) {
+  const catId = pickCategoryId(product);
+  const fitmentMode = catId ? getVehicleFitmentMode(catId) : null;
+  if (fitmentMode !== 'auto') {
+    return { ok: false, reason: fitmentMode ? 'not_auto_fitment' : 'not_fitment_category' };
+  }
+  const index = mvl;
+  if (!index?.ok || !index.byMakeModel || !index.modelsByMake) return { ok: false, reason: 'mvl_missing' };
+
+  const mpn = pickPartNumber(product);
+  const fitmentText = collectLocalFitmentText(product, { excludeValues: [mpn] });
+  if (!fitmentText) return { ok: false, reason: 'no_vehicle_text' };
+
+  const textTokens = tokenizeAlnum(fitmentText);
+  const makes = extractVehicleMakes(fitmentText, index.makes, { minLen: 2 });
+  if (!makes.length) return { ok: false, reason: 'no_make' };
+
+  // Baujahr zaehlt als Generations-Beleg, steht aber nicht im Fitment-Text
+  // (collectLocalFitmentText kennt den Schluessel nicht) — explizit dazulesen.
+  const attrs = product?.details?.attributes || {};
+  const extra = product?.details?.attributes_extra || {};
+  const yearText = [
+    fitmentText,
+    pickFromAttributes(attrs, ['Baujahr', 'Baujahre', 'Baujahr von', 'Baujahr bis']),
+    pickFromAttributes(extra, ['Baujahr', 'Baujahre']),
+  ]
+    .filter(Boolean)
+    .join('\n');
+  const years = new Set(extractYearCandidates(yearText));
+
+  // Plattform-Kandidaten: Tokens mit Buchstabe UND Ziffer (4M, B8, 8P) —
+  // reine Buchstaben ("SRS", "SUV") und reine Zahlen (Masse) sind keine Plattform.
+  const platCands = Array.from(
+    new Set(textTokens.filter((t) => t.length >= 2 && t.length <= 6 && /[A-Z]/.test(t) && /\d/.test(t)))
+  );
+
+  // Explizite Modell-Attribute ("Modell":"X5") verankern kurze Modellnamen,
+  // die im Fliesstext mehrdeutig waeren.
+  const attrModelValues = new Set();
+  for (const [k, v] of Object.entries(attrs)) {
+    const norm = safeString(k).toLowerCase().replace(/[^a-z0-9]+/g, '');
+    if (!/^(modell|model|fahrzeugmodell|baureihe)$/.test(norm)) continue;
+    const t = tokenizeAlnum(v).join(' ');
+    if (t) attrModelValues.add(t);
+  }
+
+  // Tokens MIT Zeichen-Offsets — die Aufzuehlungs-Kette unten muss den Rohtext
+  // zwischen zwei Modellnennungen auf Verbinder (&, Komma, "und") pruefen.
+  const upperText = String(fitmentText).toUpperCase();
+  const tokMatches = Array.from(upperText.matchAll(/[A-Z0-9]+/g));
+
+  // Zwischen zwei Nennungen darf nur Aufzaehlung stehen: mindestens ein
+  // Verbinder, sonst nur Leerraum und plattform-artige Kurztokens mit Ziffer
+  // ("Q7 4M & Q8" ja, "Fiesta V GT" nein — da steht kein Verbinder).
+  const hasEnumerationPath = (fromCharEnd, toCharStart) => {
+    if (toCharStart <= fromCharEnd) return false;
+    const between = upperText.slice(fromCharEnd, toCharStart);
+    if (between.length > 40) return false;
+    if (!/[,&+/]|\b(UND|ODER|BZW)\b/.test(between)) return false;
+    const residue = between.replace(/\b(UND|ODER|BZW)\b/g, ' ').replace(/[,&+/().]/g, ' ');
+    const toks = residue.match(/[A-Z0-9]+/g) || [];
+    return toks.every((t) => t.length <= 6 && /\d/.test(t));
+  };
+
+  const hits = new Set();
+  const matchedModels = [];
+  let modelSeen = false;
+  for (const make of makes) {
+    const models = index.modelsByMake.get(make);
+    if (!models) continue;
+    const makeTok = tokenizeAlnum(make)[0] || '';
+    const makePositions = [];
+    textTokens.forEach((t, i) => {
+      if (makeTok && t === makeTok) makePositions.push(i);
+    });
+
+    // Schritt 1: alle Modell-Nennungen einsammeln. Laengster Modellname gewinnt
+    // an seiner Textposition — "Q8 E-Tron SUV" darf nicht zusaetzlich als "Q8"
+    // (Verbrenner) zaehlen.
+    const candidates = Array.from(models.values()).sort((a, b) => b.length - a.length);
+    const claimed = new Set();
+    const mentions = [];
+    for (const modelTokens of candidates) {
+      for (let i = 0; i + modelTokens.length <= textTokens.length; i += 1) {
+        if (claimed.has(i)) continue;
+        let all = true;
+        for (let j = 0; j < modelTokens.length; j += 1) {
+          if (textTokens[i + j] !== modelTokens[j]) {
+            all = false;
+            break;
+          }
+        }
+        if (!all) continue;
+        for (let j = 0; j < modelTokens.length; j += 1) claimed.add(i + j);
+        const last = tokMatches[i + modelTokens.length - 1];
+        mentions.push({
+          modelTokens,
+          i,
+          startChar: tokMatches[i].index,
+          endChar: last.index + last[0].length,
+          // Kurze Einzeltoken-Modelle brauchen einen ANKER: reine Ziffern ("205"
+          // — sonst wird jede Massangabe zum Modell) und Namen mit <=2 Zeichen
+          // ("GT", "KA", "M3" — sonst wird jedes Ausstattungs-Kuerzel und jede
+          // Gewindegroesse zum Modell; Dry-Run 2026-08-21: drei Fiesta-Produkte
+          // matchten "Ford GT").
+          needsAnchor: modelTokens.length === 1 && (/^\d+$/.test(modelTokens[0]) || modelTokens[0].length <= 2),
+          accepted: false,
+        });
+      }
+    }
+    if (!mentions.length) continue;
+    mentions.sort((a, b) => a.i - b.i);
+
+    // Schritt 2: Anker aufloesen. Direkt-Anker: Modell ohne Anker-Pflicht,
+    // Position direkt hinter der Marke, oder ausdrueckliches Modell-Attribut.
+    // Ketten-Anker: haengt per Aufzaehlungs-Verbinder an einer bereits
+    // akzeptierten Nennung ("Audi Q7 4M & Q8" -> Q8 zaehlt).
+    for (const m of mentions) {
+      if (!m.needsAnchor) m.accepted = true;
+      else if (makePositions.some((p) => m.i - p >= 1 && m.i - p <= 2)) m.accepted = true;
+      else if (attrModelValues.has(m.modelTokens.join(' '))) m.accepted = true;
+    }
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const m of mentions) {
+        if (m.accepted) continue;
+        const chained = mentions.some(
+          (o) => o.accepted && o !== m && hasEnumerationPath(o.endChar, m.startChar)
+        );
+        if (chained) {
+          m.accepted = true;
+          changed = true;
+        }
+      }
+    }
+
+    // Schritt 3: akzeptierte Nennungen gegen die MVL aufloesen (Generations-Gate).
+    for (const m of mentions) {
+      if (!m.accepted) continue;
+      modelSeen = true;
+      const rows = index.byMakeModel.get(`${make}|${m.modelTokens.join(' ')}`) || [];
+      const chosen = pickGenerationRows(rows, { platCands, years });
+      if (chosen.length) {
+        const label = `${make}|${m.modelTokens.join(' ')}`;
+        // Titel UND Modell-Attribut nennen dasselbe Fahrzeug — nur einmal listen.
+        if (!matchedModels.some((x) => `${x.make}|${x.model}` === label)) {
+          matchedModels.push({ make, model: m.modelTokens.join(' '), rows: chosen.length });
+        }
+        chosen.forEach((r) => hits.add(r.k));
+      }
+    }
+  }
+
+  if (!hits.size) {
+    return { ok: false, reason: modelSeen ? 'vehicle_generation_unresolved' : 'no_model' };
+  }
+  const ids = Array.from(hits)
+    .sort((a, b) => a - b)
+    .slice(0, maxKTypes);
+  return {
+    ok: true,
+    ids,
+    matched: matchedModels,
+    evidence: {
+      platform_tokens: platCands,
+      years: years.size ? [Math.min(...years), Math.max(...years)] : [],
+    },
+  };
+}
+
 // Negativ-Cache NUR für den Chat-Pfad: Chat persistiert das Produkt nie, d.h.
 // ohne Cache wiederholt JEDER Chat-Turn auf demselben K-Typ-losen Fitment-Produkt
 // den kompletten SerpAPI+Fetch-Wasserfall. Identify/Improve bleiben ungecacht.
@@ -706,7 +1031,7 @@ function markChatNegative(product, reason, failReason) {
   }
 }
 
-async function enrichKTypIfPossible(product, { reason = 'identify', maxKTypes = 60 } = {}) {
+async function enrichKTypIfPossible(product, { reason = 'identify', maxKTypes = 60, mvl: injectedMvl = null } = {}) {
   // Preconditions
   const catId = pickCategoryId(product);
   const fitmentMode = catId ? getVehicleFitmentMode(catId) : null;
@@ -733,7 +1058,7 @@ async function enrichKTypIfPossible(product, { reason = 'identify', maxKTypes = 
     }
   }
   const mpn = pickPartNumber(product);
-  const mvl = fitmentMode === 'auto' ? await loadMvlIndex() : null;
+  const mvl = fitmentMode === 'auto' ? injectedMvl || (await loadMvlIndex()) : null;
   const moto = fitmentMode === 'moto' ? await loadMotoIndex() : null;
   if (fitmentMode === 'auto' && mvl && !mvl.ok) {
     product.notes = product.notes || {};
@@ -813,7 +1138,44 @@ async function enrichKTypIfPossible(product, { reason = 'identify', maxKTypes = 
     }
   }
 
-  // Deterministic fast-path 2: Fahrzeugmarke + Plattform-Token aus den EIGENEN
+  // Deterministic fast-path 2: Fahrzeug-MODELL + Generations-Beleg (Plattform-
+  // Token oder Baujahr) aus den eigenen Produktdaten. Praeziser als der
+  // Marke+Plattform-Pfad darunter (Modell-Gate + Generations-Trennung) und
+  // braucht KEIN MPN — laeuft deshalb VOR der missing_part_number-Schranke.
+  if (fitmentMode === 'auto' && mvl?.ok) {
+    const vspec = resolveKTypFromVehicleSpec(product, { mvl, maxKTypes });
+    if (vspec.ok && vspec.ids.length) {
+      product.details = product.details || {};
+      product.details.attributes =
+        product.details.attributes && typeof product.details.attributes === 'object' ? product.details.attributes : {};
+      product.details.attributes['K-Typ'] = formatKTyp(vspec.ids, { maxLen: 0 });
+      attachKTypeTrace(product, {
+        ok: true,
+        reason,
+        source: 'local_vehicle_model',
+        fitment_mode: fitmentMode,
+        catId: catId || null,
+        mpn: mpn || null,
+        matched: vspec.matched,
+        evidence: vspec.evidence,
+        ktypes: vspec.ids,
+        mvl_path: mvl?.jsonlPath || null,
+      });
+      clearKTypWarnings(product);
+      if (process.env.DEBUG_KTYPE) {
+        console.log('[ktype] enriched', {
+          productId: product?.id || null,
+          fitmentMode,
+          source: 'local_vehicle_model',
+          count: vspec.ids.length,
+          matched: vspec.matched,
+        });
+      }
+      return { ok: true, fitmentMode, ids: vspec.ids };
+    }
+  }
+
+  // Deterministic fast-path 3: Fahrzeugmarke + Plattform-Token aus den EIGENEN
   // Produktdaten (Titel/Kompatibilitäts-Attribute) gegen die MVL mappen.
   // Autoteile-Titel tragen die Verwendung fast immer ("… für Audi A4 B8 …"),
   // während Web-Seiten selten HSN/TSN nennen — genau daran scheiterten 39 von
@@ -823,7 +1185,7 @@ async function enrichKTypIfPossible(product, { reason = 'identify', maxKTypes = 
   if (fitmentMode === 'auto' && mvl?.ok) {
     const fitmentText = collectLocalFitmentText(product, { excludeValues: [mpn] });
     if (fitmentText) {
-      const localMakes = extractVehicleMakes(fitmentText, mvl.makes);
+      const localMakes = extractVehicleMakes(fitmentText, mvl.makes, { minLen: 2 });
       const localPlatformHits = new Set();
       const matchedKeys = [];
       if (localMakes.length) {
@@ -1034,10 +1396,32 @@ function buildKTypDatasheetChange(product, { beforeValue = '' } = {}) {
   const nowValue = attrs && typeof attrs === 'object' ? safeString(attrs['K-Typ']) : '';
   if (!nowValue || nowValue === safeString(beforeValue)) return null;
   const trace = product?.ops?.data_quality?.ktype_enrich_v1 || {};
-  const count = nowValue.split('|').filter(Boolean).length;
-  const via = trace.source === 'local_hsn_tsn' ? 'HSN/TSN' : 'Web-Beleg + MVL';
+  // Eintraege koennen Notizen tragen ("113153,Audi Q7") — fuer den Vergleich
+  // zaehlt die fuehrende ID, nicht der Roh-String.
+  const idOf = (e) => {
+    const m = safeString(e).match(/^(\d+)/);
+    return m ? m[1] : safeString(e);
+  };
+  const nowEntries = nowValue.split('|').map((x) => safeString(x)).filter(Boolean);
+  const count = nowEntries.length;
+  const beforeIds = new Set(
+    safeString(beforeValue)
+      .split('|')
+      .map(idOf)
+      .filter(Boolean)
+  );
+  const addedCount = nowEntries.map(idOf).filter((id) => !beforeIds.has(id)).length;
+  const viaMap = {
+    local_hsn_tsn: 'HSN/TSN',
+    chat_evidence_hsn_tsn: 'HSN/TSN (Chat-Recherche)',
+    local_vehicle_model: 'Fahrzeugmodell + eBay-Fahrzeugliste',
+  };
+  const via = viaMap[trace.source] || 'Web-Beleg + MVL';
+  const summary = beforeIds.size
+    ? `K-Typ (Fahrzeugverwendungsliste) erweitert: +${addedCount} auf ${count} Fahrzeuge via ${via}. Bestehende Eintraege bleiben erhalten.`
+    : `K-Typ (Fahrzeugverwendungsliste) automatisch ermittelt: ${count} Fahrzeug${count === 1 ? '' : 'e'} via ${via}.`;
   return {
-    summary: `K-Typ (Fahrzeugverwendungsliste) automatisch ermittelt: ${count} Fahrzeug${count === 1 ? '' : 'e'} via ${via}.`,
+    summary,
     confidence: 0.95,
     // FE-Contract (types.ts DatasheetChange.attributes) ist eine Map, KEIN Array —
     // ProductSheet.applyAssistantChange iteriert Object.entries(); ein Array
@@ -1088,7 +1472,7 @@ function collectHsnTsnFromChatResult(chatResult) {
 async function enrichKTypFromHsnTsnEvidence(
   product,
   pairs = [],
-  { mvl = null, maxKTypes = 60, reason = 'chat_evidence' } = {}
+  { mvl = null, maxKTypes = 60, reason = 'chat_evidence', extendExisting = false } = {}
 ) {
   const list = Array.from(
     new Set(
@@ -1105,7 +1489,10 @@ async function enrichKTypFromHsnTsnEvidence(
   if (fitmentMode !== 'auto') {
     return { ok: false, reason: fitmentMode ? 'not_auto_fitment' : 'not_fitment_category' };
   }
-  if (hasKTyp(product)) return { ok: false, reason: 'already_has_ktype' };
+  // extendExisting (nur Chat mit ausdruecklicher K-Typ-Frage): ein gefuellter
+  // K-Typ wird per Union ERWEITERT statt still uebersprungen. Bestand fliegt
+  // nie raus. Ohne das Flag: bisheriges Verhalten (unangetastet).
+  if (hasKTyp(product) && !extendExisting) return { ok: false, reason: 'already_has_ktype' };
 
   const index = mvl || (await loadMvlIndex());
   if (!index?.ok) return { ok: false, reason: 'mvl_missing' };
@@ -1116,17 +1503,24 @@ async function enrichKTypFromHsnTsnEvidence(
     if (!set) continue;
     for (const id of set.values()) mapped.add(id);
   }
-  const ids = Array.from(mapped)
+  const newIds = Array.from(mapped)
     .sort((a, b) => a - b)
     .slice(0, maxKTypes);
-  if (!ids.length) return { ok: false, reason: 'no_mvl_match', hsnTsn: list };
+  if (!newIds.length) return { ok: false, reason: 'no_mvl_match', hsnTsn: list };
+
+  const existingRaw = safeString(product?.details?.attributes?.['K-Typ']);
+  const ext = buildExtendedKTypValue(existingRaw, newIds, maxKTypes);
+  if (existingRaw && ext.added === 0) {
+    return { ok: false, reason: 'no_new_ids', hsnTsn: list };
+  }
+  const ids = newIds;
 
   product.details = product.details || {};
   product.details.attributes =
     product.details.attributes && typeof product.details.attributes === 'object'
       ? product.details.attributes
       : {};
-  product.details.attributes['K-Typ'] = formatKTyp(ids, { maxLen: 0 });
+  product.details.attributes['K-Typ'] = ext.value;
   attachKTypeTrace(product, {
     ok: true,
     reason,
@@ -1141,12 +1535,118 @@ async function enrichKTypFromHsnTsnEvidence(
   return { ok: true, fitmentMode, ids, hsnTsn: list };
 }
 
+// "K-Typ bitte", "KTyp fuellen", "Fahrzeugverwendungsliste ergaenzen" — die
+// ausdrueckliche K-Typ-Frage schaltet den Erweitern-Modus frei. Bewusst eng:
+// "Typ" allein, "Kompatibilitaet" oder "k typisch" zaehlen nicht (die
+// Suffix-Liste ist geschlossen, kein \w* — Review-Befund 2026-08-21).
+const KTYP_INTENT_RE = /\bk[\s\-–]?typ(?:en|s|nummern?|liste)?\b|fahrzeugverwendungsliste|\bfahrzeugliste\b|\bmvl\b/i;
+
+function isKTypIntentMessage(message = '') {
+  return KTYP_INTENT_RE.test(String(message || ''));
+}
+
+/**
+ * Der deterministische K-Typ-Zug NACH der Modell-Antwort (alle Chat-Pipelines).
+ *
+ * Vorfall 2026-08-21 ("k-typ bitte", SKU-7093518261): Das Feld trug 5 von ~44
+ * Fahrzeugen, und der Chat schwieg komplett, weil "bestehender K-Typ bleibt
+ * unangetastet" — fuer den Bediener ununterscheidbar von "kann es nicht".
+ *
+ * Regeln:
+ * - Leeres Feld: fuellen (Schluesselnummern-Ernte + Fahrzeugnennung), wie bisher.
+ * - Gefuelltes Feld + K-Typ-Frage: per Union ERWEITERN (Bestand bleibt).
+ * - Gefuelltes Feld ohne K-Typ-Frage: nicht anfassen (bisheriges Verhalten).
+ * Persistiert wird weiterhin NUR ueber die "Uebernehmen"-Change-Card.
+ */
+async function resolveKTypForChatTurn(product, chatResult, { userMessage = '', mvl = null, maxKTypes = 60 } = {}) {
+  const intent = isKTypIntentMessage(userMessage);
+  const beforeIds = parseExistingKTypIds(product);
+  const hadValue = beforeIds.length > 0;
+  const out = { intent, status: 'noop', beforeCount: beforeIds.length, nowCount: beforeIds.length, addedCount: 0 };
+
+  const catId = pickCategoryId(product);
+  const fitmentMode = catId ? getVehicleFitmentMode(catId) : null;
+  if (fitmentMode !== 'auto') {
+    out.status = fitmentMode ? 'not_auto_fitment' : 'not_fitment_category';
+    return out;
+  }
+  if (hadValue && !intent) {
+    out.status = 'kept_existing';
+    return out;
+  }
+
+  const index = mvl || (await loadMvlIndex());
+  if (!index?.ok) {
+    out.status = 'mvl_missing';
+    return out;
+  }
+
+  // 1) Schluesselnummern aus der SOEBEN gelieferten Antwort ernten (Prosa +
+  //    Change-Cards) und gegen die MVL aufloesen.
+  const pairs = collectHsnTsnFromChatResult(chatResult);
+  if (pairs.length) {
+    const res = await enrichKTypFromHsnTsnEvidence(product, pairs, {
+      mvl: index,
+      maxKTypes,
+      reason: 'chat_evidence',
+      extendExisting: intent,
+    });
+    if (res?.ok || res?.reason) out.evidence = { pairs, result: res?.ok ? 'ok' : res?.reason };
+  }
+
+  // 2) Fahrzeugnennung der eigenen Produktdaten — holt die GANZE Baureihe,
+  //    nicht nur die recherchierten Einzel-Homologationen.
+  const vspec = resolveKTypFromVehicleSpec(product, { mvl: index, maxKTypes });
+  if (vspec.ok && vspec.ids.length) {
+    const merged = buildExtendedKTypValue(
+      product?.details?.attributes?.['K-Typ'],
+      vspec.ids,
+      maxKTypes
+    );
+    if (merged.added > 0) {
+      product.details = product.details || {};
+      product.details.attributes =
+        product.details.attributes && typeof product.details.attributes === 'object'
+          ? product.details.attributes
+          : {};
+      product.details.attributes['K-Typ'] = merged.value;
+      attachKTypeTrace(product, {
+        ok: true,
+        reason: 'chat',
+        source: 'local_vehicle_model',
+        fitment_mode: fitmentMode,
+        catId: catId || null,
+        matched: vspec.matched,
+        evidence: vspec.evidence,
+        ktypes: vspec.ids,
+        mvl_path: index?.jsonlPath || null,
+      });
+      clearKTypWarnings(product);
+    }
+  } else if (vspec.reason) {
+    out.vehicleSpec = vspec.reason;
+  }
+
+  const nowIds = parseExistingKTypIds(product);
+  const beforeSet = new Set(beforeIds);
+  out.nowCount = nowIds.length;
+  out.addedCount = nowIds.filter((id) => !beforeSet.has(id)).length;
+  if (out.addedCount > 0) out.status = hadValue ? 'extended' : 'filled';
+  else out.status = hadValue ? 'already_set' : 'no_evidence';
+  return out;
+}
+
 module.exports = {
   enrichKTypIfPossible,
   enrichKTypFromHsnTsnEvidence,
   extractHsnTsnFromEvidenceText,
   collectHsnTsnFromChatResult,
   buildKTypDatasheetChange,
+  buildExtendedKTypValue,
+  buildMvlIndexFromRecords,
+  resolveKTypFromVehicleSpec,
+  resolveKTypForChatTurn,
+  isKTypIntentMessage,
   collectLocalFitmentText,
   loadMvlIndex,
   resolveMvlPath,
