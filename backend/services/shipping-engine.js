@@ -836,17 +836,22 @@ async function createParcel({
     labelUrl,
     carrier: carrierCode,
     carrierName: carrierCode,
+    // Genauer als `carrier`: benennt das gebuchte Produkt (z. B. 'dp:maxibrief'
+    // vs 'dhl_de:dhl_paket'). `lib/label-format.js` waehlt daran die Rolle und
+    // damit den Drucker. Additiv — Altsendungen ohne das Feld fallen auf
+    // `carrier` zurueck.
+    shippingOptionCode: shippingOptionCode || null,
     shippingMethodId: shippingMethodId || parcel.shipment?.id || null,
     weight: totalWeight,
     status: mapSendCloudStatus(parcel.status?.id),
     statusRaw: parcel.status?.message || 'created',
     statusId: parcel.status?.id || null,
+    ...(additionalLabel ? { additionalLabel: true } : {}),
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
 
   const shipRef = await getDb().collection(SHIPMENTS_COLLECTION).add(shipmentDoc);
-    ...(additionalLabel ? { additionalLabel: true } : {}),
 
   return {
     shipmentId: shipRef.id,
@@ -1473,14 +1478,9 @@ async function shipOrder({ orderId, tenantId = 'default', shippingMethodId, ship
     requestLabel: true,
     tenantId,
     labelFormat,
+    additionalLabel,
   });
 
-  // Update order with tracking info
-  await orderSnap.ref.set({
-    trackingNumber: result.trackingNumber,
-    additionalLabel,
-    trackingUrl: result.trackingUrl,
-    shippingService: result.carrier,
   if (additionalLabel) {
     // Zusatz-Label: die Primär-Felder (trackingNumber/shipmentId — die Wahrheit
     // am Marktplatz und in der UI) bleiben UNANGETASTET. Die neue Sendung wird
@@ -1501,6 +1501,11 @@ async function shipOrder({ orderId, tenantId = 'default', shippingMethodId, ship
     return { ...result, additionalLabel: true };
   }
 
+  // Update order with tracking info
+  await orderSnap.ref.set({
+    trackingNumber: result.trackingNumber,
+    trackingUrl: result.trackingUrl,
+    shippingService: result.carrier,
     shipmentId: result.shipmentId,
     updatedAt: new Date().toISOString(),
   }, { merge: true });

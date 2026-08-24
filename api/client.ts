@@ -4057,9 +4057,97 @@ export async function packAndShip(
   };
 }
 
+/* ─── Drucken über AvyCloud (Druckwarteschlange + Agent im LAN) ─────────── */
+
+export interface PrintStatus {
+  /** Ist die Warteschlange überhaupt eingeschaltet? */
+  enabled: boolean;
+  /** Läuft gerade ein Druck-Agent im Büro-Netz? */
+  online: boolean;
+  agents: Array<{ agentId: string; lastSeenAt: string | null; online: boolean }>;
+}
+
 /**
- * Send a PDF blob directly to a LAN print proxy (e.g. Raspberry Pi).
- * The proxy forwards it to a CUPS-configured label printer.
+ * Lebt ein Druck-Agent?
+ *
+ * Daran entscheidet die Oberfläche, ob sie den Druckauftrag einreiht oder auf
+ * den alten Teilen-Weg zurückfällt. Bei totem Agenten einzureihen wäre
+ * schlimmer als Androids Druckauswahl: das Paket bliebe unfrankiert liegen,
+ * ohne dass es jemand merkt. Deshalb ist jeder Fehler hier ein `online: false`.
+ */
+export async function fetchPrintStatus(): Promise<PrintStatus> {
+  try {
+    const res = await fetchApi(`${BACKEND_URL}/api/print/status`, { method: 'GET' });
+    const data = await parseResponse(res);
+    if (!res.ok || data?.ok === false) return { enabled: false, online: false, agents: [] };
+    return data?.data || { enabled: false, online: false, agents: [] };
+  } catch {
+    return { enabled: false, online: false, agents: [] };
+  }
+}
+
+export interface PrintJob {
+  jobId: string;
+  status: 'queued' | 'claimed' | 'done' | 'failed';
+  printerRole: string;
+  widthMm: number | null;
+  heightMm: number | null;
+  error?: string | null;
+}
+
+/** Versandetikett in die Druckwarteschlange legen. */
+export async function enqueueLabelPrint(
+  orderId: string,
+  opts?: { shipmentId?: string; copies?: number }
+): Promise<PrintJob> {
+  const res = await fetchApi(`${BACKEND_URL}/api/print/jobs`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ orderId, shipmentId: opts?.shipmentId, copies: opts?.copies || 1 }),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Druckauftrag fehlgeschlagen');
+  return data?.data;
+}
+
+/** Zustand eines Druckauftrags abfragen. */
+export async function fetchPrintJob(jobId: string): Promise<PrintJob> {
+  const res = await fetchApi(`${BACKEND_URL}/api/print/jobs/${encodeURIComponent(jobId)}`, { method: 'GET' });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Druckauftrag nicht gefunden');
+  return data?.data;
+}
+
+/**
+ * Warten, bis der Agent den Auftrag wirklich gedruckt hat.
+ *
+ * Ohne dieses Warten meldete die Oberfläche „gedruckt", sobald der Auftrag
+ * ABGELEGT ist — das ist dieselbe Erfolgs-Illusion wie beim Chat-Vorfall vom
+ * 2026-08-10: der Bediener sieht eine Bestätigung für etwas, das nie passiert
+ * ist.
+ */
+export async function waitForPrintJob(
+  jobId: string,
+  opts?: { timeoutMs?: number; intervalMs?: number }
+): Promise<PrintJob> {
+  const timeoutMs = opts?.timeoutMs ?? 30000;
+  const intervalMs = opts?.intervalMs ?? 1000;
+  const bis = Date.now() + timeoutMs;
+  let last: PrintJob | null = null;
+  while (Date.now() < bis) {
+    last = await fetchPrintJob(jobId);
+    if (last.status === 'done' || last.status === 'failed') return last;
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
+  throw new Error('Der Drucker hat sich nicht zurückgemeldet — bitte am Drucker nachsehen.');
+}
+
+/**
+ * @deprecated Ersetzt durch die Druckwarteschlange oben (`enqueueLabelPrint`).
+ * Ein direkter Aufruf aus dem Browser an eine LAN-Adresse wird von jedem
+ * Browser als gemischter Inhalt blockiert, solange AvyCloud über HTTPS läuft —
+ * diese Funktion hatte nie einen Aufrufer und konnte nie funktionieren.
+ * Bleibt nur stehen, um den Weg nicht erneut zu erfinden.
  */
 export async function printToLabelPrinter(proxyUrl: string, pdfBlob: Blob): Promise<{ ok: boolean; error?: string }> {
   try {
@@ -4130,6 +4218,7 @@ export async function transitionOrderStatus(
 
 export async function fetchLabelPdfBlob(orderId: string, opts?: { labelFormat?: string; shipmentId?: string }): Promise<Blob> {
   const format = opts?.labelFormat || 'a6';
+  const shipmentParam = opts?.shipmentId ? `&shipmentId=${encodeURIComponent(opts.shipmentId)}` : '';
   const res = await fetchApi(
     `${BACKEND_URL}/api/orders/${encodeURIComponent(orderId)}/label?format=${encodeURIComponent(format)}${shipmentParam}`,
     { method: 'GET' }
@@ -4218,7 +4307,6 @@ export async function runRepricingBatch(): Promise<any> {
 }
 
 export async function fetchAllPricingRules(): Promise<any[]> {
-  const shipmentParam = opts?.shipmentId ? `&shipmentId=${encodeURIComponent(opts.shipmentId)}` : '';
   const res = await fetchApi(`${BACKEND_URL}/api/v1/pricing/rules?all=true`, { method: 'GET' });
   const data = await parseResponse(res);
   return Array.isArray(data?.data) ? data.data : [];
@@ -4338,6 +4426,12 @@ export interface ShippingOptionsResponse {
   country?: string;
   /** true = Zielland außerhalb Standard-Zonen (Teamlead-Hinweis). */
   warn?: boolean;
+  /** true = ab Schwelle (oder Wert unbekannt): nur Versand mit Sendungsverfolgung. */
+  trackedOnly?: boolean;
+  /** Echte Schwelle in EUR (ENV-konfigurierbar); null = Regel abgeschaltet. */
+  trackedOnlyThresholdEur?: number | null;
+  /** false = Bestellwert unbekannt — Grund der Tracking-Pflicht ist dann „unbekannt", nicht „über Schwelle". */
+  orderValueKnown?: boolean;
   products?: CuratedShippingProduct[];
 }
 
@@ -4366,6 +4460,49 @@ export async function shipOrder(orderId: string, opts?: { shippingMethodId?: num
   const data = await parseResponse(res);
   if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Versand fehlgeschlagen');
   return data?.data;
+}
+
+export interface AdditionalLabelResult {
+  shipmentId: string | null;
+  trackingNumber: string | null;
+  trackingUrl: string | null;
+  labelUrl: string | null;
+  carrier: string | null;
+  additionalLabel: boolean;
+}
+
+/**
+ * Zusatz-Label für Teil-/Ersatzsendung (seit 2026-08-21): erstellt ein WEITERES
+ * Versandlabel für einen bereits versendeten/zugestellten Auftrag, ohne das
+ * bestehende zu stornieren. Kein Status-Übergang, kein Marktplatz-Tracking-Push —
+ * die Original-Sendungsnummer bleibt die Wahrheit am Marktplatz.
+ */
+export async function createAdditionalLabel(
+  orderId: string,
+  opts: { shippingOptionCode?: string; shippingMethodId?: number; weight?: number; labelFormat?: string }
+): Promise<AdditionalLabelResult> {
+  const res = await fetchApi(`${BACKEND_URL}/api/orders/${encodeURIComponent(orderId)}/additional-label`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(opts || {}),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Zusatz-Label fehlgeschlagen');
+  return data?.data as AdditionalLabelResult;
+}
+
+/**
+ * Gezielter Storno EINER Zusatz-Sendung — das Primär-Label bleibt unangetastet
+ * (dafür gibt es weiterhin cancelShippingLabel).
+ */
+export async function cancelAdditionalLabel(orderId: string, shipmentId: string): Promise<void> {
+  const res = await fetchApi(`${BACKEND_URL}/api/orders/${encodeURIComponent(orderId)}/additional-label/cancel`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ shipmentId }),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Zusatz-Label-Storno fehlgeschlagen');
 }
 
 export interface RefreshShipmentResult {
@@ -4426,12 +4563,6 @@ export async function generateInvoice(orderId: string, opts?: { vatRate?: number
   const data = await parseResponse(res);
   if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Rechnungserstellung fehlgeschlagen');
   return data?.data;
-  /** true = ab Schwelle (oder Wert unbekannt): nur Versand mit Sendungsverfolgung. */
-  trackedOnly?: boolean;
-  /** Echte Schwelle in EUR (ENV-konfigurierbar); null = Regel abgeschaltet. */
-  trackedOnlyThresholdEur?: number | null;
-  /** false = Bestellwert unbekannt — Grund der Tracking-Pflicht ist dann „unbekannt", nicht „über Schwelle". */
-  orderValueKnown?: boolean;
 }
 
 export async function generateDeliveryNote(orderId: string): Promise<{ deliveryNoteNumber: string; pdfUrl: string | null }> {
@@ -4462,49 +4593,6 @@ export async function syncShippingMethods(): Promise<ShippingMethod[]> {
     body: "{}",
   });
   const data = await parseResponse(res);
-export interface AdditionalLabelResult {
-  shipmentId: string | null;
-  trackingNumber: string | null;
-  trackingUrl: string | null;
-  labelUrl: string | null;
-  carrier: string | null;
-  additionalLabel: boolean;
-}
-
-/**
- * Zusatz-Label für Teil-/Ersatzsendung (seit 2026-08-21): erstellt ein WEITERES
- * Versandlabel für einen bereits versendeten/zugestellten Auftrag, ohne das
- * bestehende zu stornieren. Kein Status-Übergang, kein Marktplatz-Tracking-Push —
- * die Original-Sendungsnummer bleibt die Wahrheit am Marktplatz.
- */
-export async function createAdditionalLabel(
-  orderId: string,
-  opts: { shippingOptionCode?: string; shippingMethodId?: number; weight?: number; labelFormat?: string }
-): Promise<AdditionalLabelResult> {
-  const res = await fetchApi(`${BACKEND_URL}/api/orders/${encodeURIComponent(orderId)}/additional-label`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(opts || {}),
-  });
-  const data = await parseResponse(res);
-  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Zusatz-Label fehlgeschlagen');
-  return data?.data as AdditionalLabelResult;
-}
-
-/**
- * Gezielter Storno EINER Zusatz-Sendung — das Primär-Label bleibt unangetastet
- * (dafür gibt es weiterhin cancelShippingLabel).
- */
-export async function cancelAdditionalLabel(orderId: string, shipmentId: string): Promise<void> {
-  const res = await fetchApi(`${BACKEND_URL}/api/orders/${encodeURIComponent(orderId)}/additional-label/cancel`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ shipmentId }),
-  });
-  const data = await parseResponse(res);
-  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Zusatz-Label-Storno fehlgeschlagen');
-}
-
   if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || "Versandmethoden-Sync fehlgeschlagen");
   return data?.data || [];
 }

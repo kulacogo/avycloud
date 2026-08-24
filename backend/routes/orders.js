@@ -2280,9 +2280,43 @@ router.get('/orders/:orderId/label', requirePermission('orders', 'read'), async 
 
     const { buffer, contentType } = await downloadLabelPdf(labelUrl);
 
+    // Auf das physische Rollenmass bringen: DHL/DPD 103x164 mm, Deutsche Post
+    // 62x100 mm (Betreiber-Vorgabe 2026-08-24). Ohne das skaliert der
+    // Druckertreiber selbst und staucht im Zweifel den Barcode.
+    // Fail-open: bei unbekanntem Transporteur oder unlesbarem PDF geht das
+    // Original raus — ein Etikett im falschen Mass ist immer noch ein Etikett,
+    // gar keines stoppt den Versand.
+    const { resolveLabelFormat, labelExactSizeEnabled } = require('../lib/label-format');
+    const { resizeLabelPdfSafe } = require('../lib/label-pdf-resize');
+
+    const labelFormatTarget = labelExactSizeEnabled()
+      ? resolveLabelFormat({
+        shippingOptionCode: shipment.shippingOptionCode,
+        carrier: shipment.carrier,
+      })
+      : null;
+
+    const { buffer: outBuffer, resized, scale } = await resizeLabelPdfSafe(buffer, labelFormatTarget);
+
+    // Der Druck-Agent liest daran, welche Rolle/welcher Drucker gemeint ist.
+    // Der Browser ignoriert unbekannte Kopfzeilen, das ist rueckwaertskompatibel.
+    if (labelFormatTarget) {
+      res.set('X-Label-Format', labelFormatTarget.key);
+      res.set('X-Label-Printer-Role', labelFormatTarget.printerRole);
+      res.set('X-Label-Width-Mm', String(labelFormatTarget.widthMm));
+      res.set('X-Label-Height-Mm', String(labelFormatTarget.heightMm));
+    }
+    res.set('X-Label-Resized', resized ? '1' : '0');
+    // Verkleinerungsfaktor sichtbar machen: SendCloud liefert ueber
+    // `label_printer` A6 (105x148). Auf die 62x100er Briefrolle sind das rund
+    // 59 % — ein Barcode kann dabei unter seine Mindest-Modulbreite fallen.
+    if (typeof scale === 'number') res.set('X-Label-Scale', scale.toFixed(3));
+    res.set('Access-Control-Expose-Headers',
+      'X-Label-Format, X-Label-Printer-Role, X-Label-Width-Mm, X-Label-Height-Mm, X-Label-Resized, X-Label-Scale');
+
     res.set('Content-Type', contentType);
     res.set('Content-Disposition', `inline; filename="label-${orderId}.pdf"`);
-    res.send(buffer);
+    res.send(outBuffer);
   } catch (err) {
     console.error(`[GET /api/orders/:orderId/label] ${err.message}`, err);
     res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });

@@ -30,6 +30,7 @@ const rulesRouter = require('./routes/rules');
 const sessionsRouter = require('./routes/sessions');
 const { router: sseRouter } = require('./routes/sse');
 const helpRouter = require('./routes/help');
+const printRouter = require('./routes/print');
 // order-sync's syncNewOrders is no longer used (replaced by native eBay/Kaufland intake)
 const { requireAuth } = require('./lib/auth');
 const { ensureDefaultRoles } = require('./lib/rbac');
@@ -343,6 +344,7 @@ app.use('/api/v1/rules', rulesRouter);
 app.use('/api/sessions', sessionsRouter);
 app.use('/api', sseRouter);
 app.use('/api', helpRouter);
+app.use('/api', printRouter);
 setBackgroundSyncOrders(backgroundSyncOrders);
 
 // --- Centralized Error Handler ---

@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import type { ShippingPreviewMatch, CuratedShippingProduct } from "../../api/client";
+import DecimalNumpad from "../operations/DecimalNumpad";
+import { appendDigit, appendSeparator, dropLast, parseWeight, formatWeight } from "../../utils/decimalPad";
 
 /**
  * Shared shipping-decision dialogs used by both the mobile pack module
@@ -109,30 +111,51 @@ export const WeightPromptModal: React.FC<WeightPromptModalProps> = ({
   onConfirm,
   onCancel,
 }) => {
-  const [value, setValue] = useState<string>(
-    initialKg && initialKg > 0 ? String(initialKg).replace(".", ",") : ""
-  );
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [value, setValue] = useState<string>(formatWeight(initialKg));
+  // Der vorbelegte Schätzwert soll beim ersten Tastendruck ERSETZT werden,
+  // nicht verlängert — sonst wird aus dem Vorschlag 2 und der Eingabe 3 die
+  // Zahl 23, und das Paket geht mit 23 kg raus.
+  const [istVorschlag, setIstVorschlag] = useState<boolean>(Boolean(initialKg && initialKg > 0));
 
-  useEffect(() => {
-    inputRef.current?.focus();
-    inputRef.current?.select();
-  }, []);
-
-  const parsed = useMemo(() => {
-    const normalized = value.trim().replace(",", ".");
-    if (!normalized) return null;
-    const n = Number(normalized);
-    if (!Number.isFinite(n) || n <= 0) return null;
-    // Hard upper guard — SendCloud rejects parcels >120 kg outright; lower than that
-    // is almost always a typo (e.g. "350" instead of "3,5"). Accept anything <=100 kg.
-    if (n > 100) return null;
-    return Math.round(n * 1000) / 1000;
-  }, [value]);
+  const parsed = useMemo(() => parseWeight(value), [value]);
 
   const submit = () => {
     if (parsed != null && !busy) onConfirm(parsed);
   };
+
+  /**
+   * Echte Tastenanschläge zusätzlich annehmen.
+   *
+   * Am Schreibtisch soll man das Gewicht einfach tippen können. Auf dem
+   * Handscanner tippt man auf den Ziffernblock. Beides gleichzeitig geht nur
+   * ohne fokussiertes Eingabefeld — ein solches Feld ist genau das, wofür
+   * Android seine Bildschirmtastatur öffnet (siehe DecimalNumpad).
+   */
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (busy) return;
+      if (e.key === "Enter") { e.preventDefault(); submit(); return; }
+      if (e.key === "Backspace") {
+        e.preventDefault();
+        if (istVorschlag) { setIstVorschlag(false); setValue(""); return; }
+        setValue((v) => dropLast(v));
+        return;
+      }
+      if (e.key === "," || e.key === ".") {
+        e.preventDefault();
+        setValue((v) => appendSeparator(v, istVorschlag));
+        setIstVorschlag(false);
+        return;
+      }
+      if (/^[0-9]$/.test(e.key)) {
+        e.preventDefault();
+        setValue((v) => appendDigit(v, e.key, istVorschlag));
+        setIstVorschlag(false);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [busy, istVorschlag, parsed]);
 
   return (
     <ModalShell
@@ -166,27 +189,23 @@ export const WeightPromptModal: React.FC<WeightPromptModalProps> = ({
         </div>
       }
     >
-      <label className="block text-xs font-semibold text-txt-muted mb-1.5">Gewicht (kg)</label>
-      <input
-        ref={inputRef}
-        type="text"
-        inputMode="decimal"
-        autoComplete="off"
+      {/*
+        Eigener Ziffernblock statt eines echten Eingabefeldes. Das Feld war die
+        Ursache der aufpoppenden Android-Tastatur im Packen: der Fokus-Wächter
+        des Scan-Fangfeldes hielt ihm den Fokus ausdrücklich frei, DAMIT sie
+        aufgeht. Auf dem 5,6"-Handscanner verdeckt sie den Bestätigen-Knopf.
+        Am Schreibtisch tippt man weiterhin einfach — der keydown-Horcher oben
+        nimmt echte Tastenanschläge an.
+      */}
+      <DecimalNumpad
+        label="Gewicht"
+        unit="kg"
         value={value}
-        onChange={(e) => setValue(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            e.preventDefault();
-            submit();
-          }
-        }}
-        placeholder="z. B. 2,5"
-        disabled={busy}
-        className="w-full rounded-lg border border-app-border bg-app-bg px-4 py-3 text-2xl font-semibold text-txt-primary tabular-nums focus:outline-none focus:ring-2 focus:ring-accent disabled:opacity-50"
+        onChange={setValue}
+        isSuggestion={istVorschlag}
+        onSuggestionReplaced={() => setIstVorschlag(false)}
+        hint="Versandgewicht inkl. Verpackung. Am Rechner kann auch getippt werden."
       />
-      <p className="text-[11px] text-txt-muted mt-2">
-        Versandgewicht inkl. Verpackung. Komma oder Punkt als Dezimaltrenner.
-      </p>
       {errorMessage ? (
         <div className="mt-3 bg-danger-dim border border-danger/20 rounded-lg px-3 py-2 text-xs text-danger">
           {errorMessage}
@@ -337,6 +356,12 @@ interface ShippingOptionModalProps {
   products: CuratedShippingProduct[];
   /** true = Zielland außerhalb Standard-Zonen (Teamlead-Hinweis). */
   warn?: boolean;
+  /** true = ab Schwelle (oder Wert unbekannt): nur Versandarten mit Sendungsverfolgung (2026-08-21). */
+  trackedOnly?: boolean;
+  /** Echte Schwelle in EUR (ENV-konfigurierbar, nicht hartkodiert). */
+  trackedOnlyThresholdEur?: number | null;
+  /** false = Bestellwert unbekannt — der Grund ist dann „unbekannt", nicht „über Schwelle". */
+  orderValueKnown?: boolean;
   country?: string;
   contextLabel?: string | null;
   busy?: boolean;
@@ -349,6 +374,9 @@ export const ShippingOptionModal: React.FC<ShippingOptionModalProps> = ({
   weightKg,
   products,
   warn,
+  trackedOnly,
+  trackedOnlyThresholdEur,
+  orderValueKnown,
   country,
   contextLabel,
   busy = false,
@@ -356,12 +384,6 @@ export const ShippingOptionModal: React.FC<ShippingOptionModalProps> = ({
   onConfirm,
   onCancel,
 }) => {
-  /** true = ab Schwelle (oder Wert unbekannt): nur Versandarten mit Sendungsverfolgung (2026-08-21). */
-  trackedOnly?: boolean;
-  /** Echte Schwelle in EUR (ENV-konfigurierbar, nicht hartkodiert). */
-  trackedOnlyThresholdEur?: number | null;
-  /** false = Bestellwert unbekannt — der Grund ist dann „unbekannt", nicht „über Schwelle". */
-  orderValueKnown?: boolean;
   const [selectedKey, setSelectedKey] = useState<string | null>(products[0]?.key ?? null);
   const selected = products.find((p) => p.key === selectedKey) || null;
 
@@ -374,9 +396,6 @@ export const ShippingOptionModal: React.FC<ShippingOptionModalProps> = ({
       onClose={onCancel}
       busy={busy}
       footer={
-  trackedOnly,
-  trackedOnlyThresholdEur,
-  orderValueKnown,
         <div className="flex items-center justify-end gap-2">
           <button
             type="button"
@@ -403,6 +422,13 @@ export const ShippingOptionModal: React.FC<ShippingOptionModalProps> = ({
           Außerhalb der Standard-Zonen — bitte Teamlead fragen, bevor du versendest.
         </div>
       ) : null}
+      {trackedOnly ? (
+        <div className="mb-3 bg-info-dim border border-info/30 rounded-lg px-3 py-2 text-xs text-info">
+          {orderValueKnown === false
+            ? "Bestellwert unbekannt — zur Sicherheit nur Versand mit Sendungsverfolgung."
+            : `Ab ${(trackedOnlyThresholdEur ?? 10).toLocaleString("de-DE")} € Bestellwert: nur Versand mit Sendungsverfolgung — Maxibrief/Warensendung stehen deshalb nicht zur Auswahl.`}
+        </div>
+      ) : null}
       <div className="space-y-2">
         {products.length === 0 ? (
           <p className="text-sm text-txt-muted">Keine passende Versandoption für dieses Gewicht/Zielland.</p>
@@ -422,13 +448,6 @@ export const ShippingOptionModal: React.FC<ShippingOptionModalProps> = ({
                 } disabled:opacity-50`}
               >
                 <span
-      {trackedOnly ? (
-        <div className="mb-3 bg-info-dim border border-info/30 rounded-lg px-3 py-2 text-xs text-info">
-          {orderValueKnown === false
-            ? "Bestellwert unbekannt — zur Sicherheit nur Versand mit Sendungsverfolgung."
-            : `Ab ${(trackedOnlyThresholdEur ?? 10).toLocaleString("de-DE")} € Bestellwert: nur Versand mit Sendungsverfolgung — Maxibrief/Warensendung stehen deshalb nicht zur Auswahl.`}
-        </div>
-      ) : null}
                   className={`inline-flex items-center justify-center w-5 h-5 rounded-full border ${
                     active ? "border-accent bg-accent" : "border-app-border bg-app-elevated"
                   }`}

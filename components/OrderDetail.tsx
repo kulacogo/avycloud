@@ -155,6 +155,11 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
   const [labelFormat, setLabelFormat] = useState<string>(
     () => localStorage.getItem("avycloud_label_format") || "a6",
   );
+  /**
+   * Läuft ein Druck-Agent im Büro-Netz? Solange ja, druckt AvyCloud selbst auf
+   * dem passenden Gerät — kein Druckfenster, keine Druckerwahl von Hand.
+   */
+  const [printAgentOnline, setPrintAgentOnline] = useState<boolean>(false);
   const [showManualTracking, setShowManualTracking] = useState(false);
   const [manualTrackingNumber, setManualTrackingNumber] = useState("");
   const [manualCarrier, setManualCarrier] = useState("");
@@ -172,24 +177,24 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
   type ShipDecisionStep = "idle" | "weight" | "pick" | "options" | "executing";
   const [shipDecisionStep, setShipDecisionStep] =
     useState<ShipDecisionStep>("idle");
-  // Kuratierter Pack-Flow (hinter Flag PACK_CURATED_SHIPPING). curatedMode=true
-  // -> immer Gewicht abfragen, dann kuratierte Produktliste statt Regel-Treffer.
-  const [curatedMode, setCuratedMode] = useState(false);
-  const [curatedProducts, setCuratedProducts] = useState<CuratedShippingProduct[]>([]);
-  const [curatedWarn, setCuratedWarn] = useState(false);
   // "ship" = normaler Versand (Status → shipped, Marktplatz-Push).
   // "additional" = Zusatz-Label für Teil-/Ersatzsendung (seit 2026-08-21):
   // gleiche Gewichts-/Options-Pipeline, aber POST /additional-label — kein
   // Status-Übergang, kein Marktplatz-Push, bestehendes Label bleibt.
   const [shipDecisionMode, setShipDecisionMode] = useState<"ship" | "additional">("ship");
+  // Kuratierter Pack-Flow (hinter Flag PACK_CURATED_SHIPPING). curatedMode=true
+  // -> immer Gewicht abfragen, dann kuratierte Produktliste statt Regel-Treffer.
+  const [curatedMode, setCuratedMode] = useState(false);
+  const [curatedProducts, setCuratedProducts] = useState<CuratedShippingProduct[]>([]);
+  const [curatedWarn, setCuratedWarn] = useState(false);
+  const [curatedTrackedOnly, setCuratedTrackedOnly] = useState(false);
+  const [curatedThreshold, setCuratedThreshold] = useState<number | null>(null);
+  const [curatedValueKnown, setCuratedValueKnown] = useState(true);
   const [curatedCountry, setCuratedCountry] = useState<string | undefined>(undefined);
   const [shipDecisionMatches, setShipDecisionMatches] = useState<
     ShippingPreviewMatch[]
   >([]);
   const [shipDecisionWeight, setShipDecisionWeight] = useState<number | null>(
-  const [curatedTrackedOnly, setCuratedTrackedOnly] = useState(false);
-  const [curatedThreshold, setCuratedThreshold] = useState<number | null>(null);
-  const [curatedValueKnown, setCuratedValueKnown] = useState(true);
     null,
   );
   const [shipDecisionInitialWeight, setShipDecisionInitialWeight] = useState<
@@ -234,6 +239,17 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Einmal beim Öffnen nachsehen, ob ein Druck-Agent läuft. Das entscheidet,
+  // ob „Label drucken" direkt auf dem richtigen Gerät landet oder das alte
+  // Druckfenster öffnet.
+  useEffect(() => {
+    let abgebrochen = false;
+    void fetchPrintStatus().then((s) => {
+      if (!abgebrochen) setPrintAgentOnline(Boolean(s.enabled && s.online));
+    });
+    return () => { abgebrochen = true; };
+  }, []);
 
   useEffect(() => {
     if (
@@ -296,12 +312,127 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
   );
 
   /**
+   * Drucken über AvyCloud: der Druck-Agent im Büro-Netz schickt das Etikett an
+   * das Gerät, das zum Transporteur passt (DHL/DPD 103×164 mm, Deutsche Post
+   * 62×100 mm). Kein Druckerdialog, keine Wahl von Hand.
+   *
+   * Gibt `true` zurück, wenn wirklich gedruckt wurde. Bei `false` MUSS der
+   * Aufrufer den alten Weg gehen — sonst meldet die Oberfläche einen Erfolg für
+   * etwas, das nie aus dem Drucker kam.
+   */
+  const printViaAvycloud = useCallback(
+    async (shipmentId?: string): Promise<boolean> => {
+      if (!printAgentOnline) return false;
+      try {
+        const job = await enqueueLabelPrint(orderId, { shipmentId });
+        const fertig = await waitForPrintJob(job.jobId);
+        if (fertig.status === "done") {
+          toast.success("Etikett gedruckt.");
+          return true;
+        }
+        toast.error(`Drucker meldet einen Fehler: ${fertig.error || "unbekannt"}`);
+        return false;
+      } catch (err: any) {
+        // Kein stiller Rückfall: der Bediener soll wissen, warum plötzlich
+        // wieder ein Druckfenster aufgeht.
+        toast.error(`Druck über AvyCloud fehlgeschlagen: ${err?.message || "unbekannt"}`);
+        setPrintAgentOnline(false);
+        return false;
+      }
+    },
+    [orderId, printAgentOnline, toast],
+  );
+
+  /** Label-Blob in einem Druckfenster öffnen (Fallback: Download bei Popup-Block). */
+  const openLabelBlobForPrint = useCallback((blob: Blob, downloadName: string) => {
+    const blobUrl = URL.createObjectURL(blob);
+    const printWindow = window.open(blobUrl, "_blank");
+    if (printWindow) {
+      printWindow.addEventListener("load", () => printWindow.print());
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 120000);
+    } else {
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = downloadName;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+    }
+  }, []);
+
+  /**
+   * Zusatz-Label (Teil-/Ersatzsendung): erstellt ein WEITERES Label ohne das
+   * bestehende zu stornieren, druckt es direkt und lädt den Auftrag neu.
+   */
+  const executeAdditionalLabel = useCallback(
+    async (weight: number, methodId: number | null, shippingOptionCode?: string) => {
+      const result = await createAdditionalLabel(orderId, {
+        weight,
+        ...(shippingOptionCode
+          ? { shippingOptionCode }
+          : methodId
+            ? { shippingMethodId: methodId }
+            : {}),
+        labelFormat,
+      });
+      toast.success(
+        result.trackingNumber
+          ? `Zusatz-Label erstellt — Tracking ${result.trackingNumber}`
+          : "Zusatz-Label erstellt.",
+      );
+      try {
+        if (!(await printViaAvycloud(result.shipmentId || undefined))) {
+          const blob = await fetchLabelPdfBlob(orderId, {
+            labelFormat,
+            shipmentId: result.shipmentId || undefined,
+          });
+          openLabelBlobForPrint(blob, `label-zusatz-${orderId}.pdf`);
+        }
+      } catch {
+        // Label lässt sich später über „Weitere Sendungen" drucken.
+      }
+      await loadData();
+      onStatusChange?.();
+    },
+    [orderId, labelFormat, loadData, onStatusChange, toast, openLabelBlobForPrint, printViaAvycloud],
+  );
+
+  /** Label einer bestimmten (Zusatz-)Sendung drucken. */
+  const printShipmentLabel = useCallback(
+    async (shipmentId: string) => {
+      if (await printViaAvycloud(shipmentId)) return;
+      try {
+        const blob = await fetchLabelPdfBlob(orderId, { labelFormat, shipmentId });
+        openLabelBlobForPrint(blob, `label-${shipmentId}.pdf`);
+      } catch (err: any) {
+        toast.error(err?.message || "Label-Download fehlgeschlagen");
+      }
+    },
+    [orderId, labelFormat, openLabelBlobForPrint, printViaAvycloud, toast],
+  );
+
+  /** Gezielter Storno EINER Zusatz-Sendung — das Primär-Label bleibt unangetastet. */
+  const handleCancelAdditional = useCallback(
+    async (shipmentId: string) => {
+      try {
+        await cancelAdditionalLabel(orderId, shipmentId);
+        toast.success("Zusatz-Label storniert.");
+        await loadData();
+        onStatusChange?.();
+      } catch (err: any) {
+        toast.error(err?.message || "Zusatz-Label-Storno fehlgeschlagen");
+      }
+    },
+    [orderId, loadData, onStatusChange, toast],
+  );
+
+  /**
    * Run the preview→prompt→pick pipeline.
    * If `forcedMethodId` is given (user picked from the dropdown), the carrier-pick
    * modal is skipped and that method is used as soon as a weight is known.
    */
   const startShippingDecision = useCallback(
     async (forcedMethodId: number | null) => {
+      setShipDecisionMode("ship");
       setShipDecisionError(null);
       try {
         // Kuratierter Flow (hinter Flag). Bei enabled:false ODER jedem Fehler
@@ -352,6 +483,31 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
     [orderId, executeShip],
   );
 
+  /**
+   * Zusatz-Label-Flow (Teil-/Ersatzsendung): gleiche Gewichts-/Auswahl-Pipeline,
+   * aber IMMER mit Gewichtsabfrage (das neue Paket wiegt selten dasselbe wie die
+   * ursprüngliche Sendung) und ohne Status-/Marktplatz-Seiteneffekte.
+   */
+  const startAdditionalLabel = useCallback(async () => {
+    setShipDecisionMode("additional");
+    setShipDecisionError(null);
+    try {
+      const options = await fetchShippingOptions(orderId).catch(() => null);
+      if (options?.enabled) {
+        setCuratedMode(true);
+        setShipDecisionInitialWeight(options.weightEstimate ?? order?.weight ?? null);
+        setShipDecisionStep("weight");
+        return;
+      }
+      setCuratedMode(false);
+      const preview = await fetchShippingPreview(orderId).catch(() => null);
+      setShipDecisionInitialWeight(preview?.weight ?? order?.weight ?? null);
+      setShipDecisionStep("weight");
+    } catch (err: any) {
+      setError(err?.message || "Zusatz-Label konnte nicht gestartet werden");
+    }
+  }, [orderId, order?.weight]);
+
   const handleWeightConfirm = useCallback(
     async (kg: number) => {
       setShipDecisionBusy(true);
@@ -382,6 +538,9 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
           }
           setCuratedProducts(products);
           setCuratedWarn(!!opts.warn);
+          setCuratedTrackedOnly(!!opts.trackedOnly);
+          setCuratedThreshold(opts.trackedOnlyThresholdEur ?? null);
+          setCuratedValueKnown(opts.orderValueKnown !== false);
           setCuratedCountry(opts.country);
           setShipDecisionWeight(kg);
           setShipDecisionStep("options");
@@ -441,7 +600,6 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
     [executeShip, executeAdditionalLabel, shipDecisionMode, shipDecisionWeight],
   );
 
-      setShipDecisionMode("ship");
   const handleCarrierConfirm = useCallback(
     async (match: ShippingPreviewMatch) => {
       if (shipDecisionWeight == null) return;
@@ -467,12 +625,16 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
   const cancelShipDecision = useCallback(() => {
     if (shipDecisionBusy) return;
     setShipDecisionStep("idle");
+    setShipDecisionMode("ship");
     setShipDecisionMatches([]);
     setShipDecisionWeight(null);
     setShipDecisionInitialWeight(null);
     setShipDecisionError(null);
     setCuratedProducts([]);
     setCuratedWarn(false);
+    setCuratedTrackedOnly(false);
+    setCuratedThreshold(null);
+    setCuratedValueKnown(true);
   }, [shipDecisionBusy]);
 
   const omsStatus = order?.omsStatus || order?.status || "pending";
@@ -492,31 +654,6 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
         pickHint?: { binCode?: string; quantityAvailable?: number };
       }
     >();
-
-  /**
-   * Zusatz-Label-Flow (Teil-/Ersatzsendung): gleiche Gewichts-/Auswahl-Pipeline,
-   * aber IMMER mit Gewichtsabfrage (das neue Paket wiegt selten dasselbe wie die
-   * ursprüngliche Sendung) und ohne Status-/Marktplatz-Seiteneffekte.
-   */
-  const startAdditionalLabel = useCallback(async () => {
-    setShipDecisionMode("additional");
-    setShipDecisionError(null);
-    try {
-      const options = await fetchShippingOptions(orderId).catch(() => null);
-      if (options?.enabled) {
-        setCuratedMode(true);
-        setShipDecisionInitialWeight(options.weightEstimate ?? order?.weight ?? null);
-        setShipDecisionStep("weight");
-        return;
-      }
-      setCuratedMode(false);
-      const preview = await fetchShippingPreview(orderId).catch(() => null);
-      setShipDecisionInitialWeight(preview?.weight ?? order?.weight ?? null);
-      setShipDecisionStep("weight");
-    } catch (err: any) {
-      setError(err?.message || "Zusatz-Label konnte nicht gestartet werden");
-    }
-  }, [orderId, order?.weight]);
 
     (order?.items || []).forEach((item, idx) => {
       const skuKey = (item.sku || "").trim().toLowerCase();
@@ -541,9 +678,6 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
           existing.lineTotal += lineAmount;
           existing.hasPrice = true;
         }
-          setCuratedTrackedOnly(!!opts.trackedOnly);
-          setCuratedThreshold(opts.trackedOnlyThresholdEur ?? null);
-          setCuratedValueKnown(opts.orderValueKnown !== false);
         return;
       }
 
@@ -625,16 +759,12 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
   }, [orderId, labelFormat, loadData, onStatusChange]);
 
   return (
-    setShipDecisionMode("ship");
     <div
       ref={backdropRef}
       onClick={handleBackdropClick}
       className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-sm"
     >
       <div className="w-full max-w-2xl bg-app-surface border-l border-app-border shadow-2xl flex flex-col h-full animate-slide-in-right">
-    setCuratedTrackedOnly(false);
-    setCuratedThreshold(null);
-    setCuratedValueKnown(true);
         {/* Header */}
         <div className="flex items-center gap-3 p-5 border-b border-app-border shrink-0">
           <div className="flex-1 min-w-0">
@@ -1136,6 +1266,64 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
                           })()}
                         />
                       )}
+                      {(order.additionalShipments?.length ?? 0) > 0 && (
+                        <div className="pt-2 border-t border-app-border/50">
+                          <div className="text-xs text-txt-muted mb-1">
+                            Weitere Sendungen (Teil-/Ersatzlieferung)
+                          </div>
+                          {(order.additionalShipments || []).map((s, i) => (
+                            <div
+                              key={s.shipmentId || i}
+                              className="flex flex-wrap items-center gap-2 py-0.5 text-xs"
+                            >
+                              {s.cancelledAt ? (
+                                <span className="font-mono text-txt-muted line-through">
+                                  {s.trackingNumber || "—"}
+                                </span>
+                              ) : s.trackingUrl && s.trackingNumber ? (
+                                <a
+                                  href={s.trackingUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-accent hover:underline font-mono"
+                                >
+                                  {s.trackingNumber}
+                                </a>
+                              ) : (
+                                <span className="font-mono text-txt-primary">
+                                  {s.trackingNumber || "Tracking ausstehend"}
+                                </span>
+                              )}
+                              <span className="text-txt-muted">
+                                {[s.carrier, s.createdAt
+                                  ? new Date(s.createdAt).toLocaleDateString("de-DE")
+                                  : null]
+                                  .filter(Boolean)
+                                  .join(" · ")}
+                                {s.cancelledAt ? " · storniert" : ""}
+                              </span>
+                              {!s.cancelledAt && s.shipmentId && (
+                                <>
+                                  <button
+                                    type="button"
+                                    className="text-accent hover:underline"
+                                    onClick={() => printShipmentLabel(s.shipmentId!)}
+                                  >
+                                    Label drucken
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="text-danger hover:underline"
+                                    onClick={() => handleCancelAdditional(s.shipmentId!)}
+                                  >
+                                    Stornieren
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                       {order.buyerNote && (
                         <Row label="Kundennotiz" value={order.buyerNote} />
                       )}
@@ -1266,64 +1454,6 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
                                         >
                                           {shippingMethodOptionLabel(m)}
                                         </option>
-                      {(order.additionalShipments?.length ?? 0) > 0 && (
-                        <div className="pt-2 border-t border-app-border/50">
-                          <div className="text-xs text-txt-muted mb-1">
-                            Weitere Sendungen (Teil-/Ersatzlieferung)
-                          </div>
-                          {(order.additionalShipments || []).map((s, i) => (
-                            <div
-                              key={s.shipmentId || i}
-                              className="flex flex-wrap items-center gap-2 py-0.5 text-xs"
-                            >
-                              {s.cancelledAt ? (
-                                <span className="font-mono text-txt-muted line-through">
-                                  {s.trackingNumber || "—"}
-                                </span>
-                              ) : s.trackingUrl && s.trackingNumber ? (
-                                <a
-                                  href={s.trackingUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-accent hover:underline font-mono"
-                                >
-                                  {s.trackingNumber}
-                                </a>
-                              ) : (
-                                <span className="font-mono text-txt-primary">
-                                  {s.trackingNumber || "Tracking ausstehend"}
-                                </span>
-                              )}
-                              <span className="text-txt-muted">
-                                {[s.carrier, s.createdAt
-                                  ? new Date(s.createdAt).toLocaleDateString("de-DE")
-                                  : null]
-                                  .filter(Boolean)
-                                  .join(" · ")}
-                                {s.cancelledAt ? " · storniert" : ""}
-                              </span>
-                              {!s.cancelledAt && s.shipmentId && (
-                                <>
-                                  <button
-                                    type="button"
-                                    className="text-accent hover:underline"
-                                    onClick={() => printShipmentLabel(s.shipmentId!)}
-                                  >
-                                    Label drucken
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="text-danger hover:underline"
-                                    onClick={() => handleCancelAdditional(s.shipmentId!)}
-                                  >
-                                    Stornieren
-                                  </button>
-                                </>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      )}
                                       ))}
                                     </optgroup>
                                   ),
@@ -1442,8 +1572,16 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
                             label="Label drucken"
                             icon="🖨"
                             onClick={async () => {
+                              // Primär-Sendung explizit anfordern — „neuestes
+                              // Shipment" wäre nach einem Zusatz-Label die
+                              // Zusatz-Sendung (falsches Etikett).
+                              // Erst über AvyCloud drucken (richtiger Drucker,
+                              // kein Dialog); nur wenn kein Agent läuft, geht
+                              // das Druckfenster auf.
+                              if (await printViaAvycloud(order.shipmentId || undefined)) return;
                               const blob = await fetchLabelPdfBlob(orderId, {
                                 labelFormat,
+                                shipmentId: order.shipmentId || undefined,
                               });
                               const blobUrl = URL.createObjectURL(blob);
                               const printWindow = window.open(
@@ -1478,6 +1616,20 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
                             icon="↻"
                             onClick={handleRefreshShipment}
                           />
+                          {/* Zusatz-Label (seit 2026-08-21): Teil-/Ersatzsendung für einen
+                              bereits versendeten/zugestellten Auftrag — OHNE Storno des
+                              bestehenden Labels, ohne Status-Übergang, ohne Marktplatz-Push.
+                              Nicht für stornierte Aufträge (Route lehnt mit 409 ab). */}
+                          {omsStatus !== "cancelled" &&
+                            order.customer?.street &&
+                            order.customer?.city &&
+                            order.customer?.zip && (
+                              <ActionButton
+                                label="Weiteres Label erstellen"
+                                icon="➕"
+                                onClick={startAdditionalLabel}
+                              />
+                            )}
                         </>
                       )}
                       {/* Auch bei "shipped ohne Tracking" anzeigen (Label extern
@@ -1581,7 +1733,6 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
                               }}
                             >
                               <svg
-                                shipmentId: order.shipmentId || undefined,
                                 className="w-3 h-3"
                                 fill="none"
                                 viewBox="0 0 24 24"
@@ -1616,20 +1767,6 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
                       Keine Positionen
                     </div>
                   ) : (
-                          {/* Zusatz-Label (seit 2026-08-21): Teil-/Ersatzsendung für einen
-                              bereits versendeten/zugestellten Auftrag — OHNE Storno des
-                              bestehenden Labels, ohne Status-Übergang, ohne Marktplatz-Push.
-                              Nicht für stornierte Aufträge (Route lehnt mit 409 ab). */}
-                          {omsStatus !== "cancelled" &&
-                            order.customer?.street &&
-                            order.customer?.city &&
-                            order.customer?.zip && (
-                              <ActionButton
-                                label="Weiteres Label erstellen"
-                                icon="➕"
-                                onClick={startAdditionalLabel}
-                              />
-                            )}
                     aggregatedItems.map((item) => (
                       <div
                         key={item.key}
@@ -1781,6 +1918,9 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
           weightKg={shipDecisionWeight}
           products={curatedProducts}
           warn={curatedWarn}
+          trackedOnly={curatedTrackedOnly}
+          trackedOnlyThresholdEur={curatedThreshold}
+          orderValueKnown={curatedValueKnown}
           country={curatedCountry}
           contextLabel={
             order?.marketplaceOrderId ||
@@ -1842,6 +1982,3 @@ const Row: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value
 );
 
 export default OrderDetail;
-          trackedOnly={curatedTrackedOnly}
-          trackedOnlyThresholdEur={curatedThreshold}
-          orderValueKnown={curatedValueKnown}

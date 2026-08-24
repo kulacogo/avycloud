@@ -22,6 +22,7 @@ import type { UploadGroupPayload } from '../hooks/useIdentification';
 import QuantityNumpad from './operations/QuantityNumpad';
 import { resolveScanCaptureMode } from './scanCaptureMode';
 import { printLabelBlob } from '../utils/labelPrint';
+import { fetchPrintStatus, enqueueLabelPrint, waitForPrintJob } from '../api/client';
 
 type OpsMode = 'operations' | 'operations-identify' | 'operations-stow' | 'operations-pick' | 'operations-pack';
 
@@ -157,7 +158,13 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
   const [packMessage, setPackMessage] = useState<string | null>(null);
   // Fertiges Etikett, das nur noch gedruckt werden muss. Steht als grosser
   // Knopf im Pack-Bildschirm, bis der Mensch gedruckt oder weggetippt hat.
-  const [pendingLabel, setPendingLabel] = useState<{ blob: Blob; orderLabel: string; carrier: string | null } | null>(null);
+  const [pendingLabel, setPendingLabel] = useState<{ blob: Blob; orderId: string; orderLabel: string; carrier: string | null } | null>(null);
+  /**
+   * Läuft ein Druck-Agent im Büro-Netz? Solange ja, druckt AvyCloud selbst auf
+   * dem richtigen Gerät und der Bediener sieht KEINE Android-Druckauswahl.
+   * `null` = noch nicht geprüft.
+   */
+  const [printAgentOnline, setPrintAgentOnline] = useState<boolean | null>(null);
   const [labelPrinting, setLabelPrinting] = useState(false);
   const [packScopedOrderKey, setPackScopedOrderKey] = useState<string | null>(null);
   const [packSelectedKey, setPackSelectedKey] = useState<string | null>(null);
@@ -193,6 +200,9 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
   const [curatedMode, setCuratedMode] = useState(false);
   const [curatedProducts, setCuratedProducts] = useState<CuratedShippingProduct[]>([]);
   const [curatedWarn, setCuratedWarn] = useState(false);
+  const [curatedTrackedOnly, setCuratedTrackedOnly] = useState(false);
+  const [curatedThreshold, setCuratedThreshold] = useState<number | null>(null);
+  const [curatedValueKnown, setCuratedValueKnown] = useState(true);
   const [curatedCountry, setCuratedCountry] = useState<string | undefined>(undefined);
 
   const [identifyLotCode, setIdentifyLotCode] = useState('');
@@ -200,9 +210,6 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
   const uploadInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const cameraInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const isUnmountedRef = useRef(false);
-  const [curatedTrackedOnly, setCuratedTrackedOnly] = useState(false);
-  const [curatedThreshold, setCuratedThreshold] = useState<number | null>(null);
-  const [curatedValueKnown, setCuratedValueKnown] = useState(true);
   const pickSubmitInFlightRef = useRef(false);
   // Doppel-Absenden-Sperre fuer Einlagern, exakt analog zu `pickSubmitInFlightRef`.
   // Ein Ref und kein State: der Scanner-Wagenrueclauf feuert mehrere Events im
@@ -1472,6 +1479,22 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
     logScanDebug('state-change');
   }, [activeBin, activeSku, pendingPick, stowSku, stowBin, logScanDebug]);
 
+  /**
+   * Beim Betreten des Packen-Bildschirms nachsehen, ob ein Druck-Agent lebt.
+   *
+   * Das entscheidet den Druckweg. Bewusst NUR im Packen und nur beim Betreten:
+   * eine Dauerabfrage wäre Last ohne Nutzen, und der Zustand ändert sich
+   * höchstens, wenn jemand den Agenten im Büro startet oder stoppt.
+   */
+  useEffect(() => {
+    if (mode !== 'operations-pack') return;
+    let abgebrochen = false;
+    void fetchPrintStatus().then((s) => {
+      if (!abgebrochen) setPrintAgentOnline(Boolean(s.enabled && s.online));
+    });
+    return () => { abgebrochen = true; };
+  }, [mode]);
+
   const submitScanCapture = useCallback(
     (raw: string) => {
       if (scanCaptureTimerRef.current) {
@@ -1819,37 +1842,39 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
               <p className="text-base font-semibold break-all">{stowBin || '—'}</p>
             </div>
           </div>
+          {/* Zuruecksetzen steht VOR dem verankerten Block — alles, was nach
+              einem `sticky bottom-0`-Element kommt, liegt darunter und waere
+              nur nach Scrollen erreichbar. Genau das soll weg. */}
+          <button
+            type="button"
+            disabled={stowSubmitting}
+            onClick={() => {
+              setStowSku('');
+              setStowBin('');
+              setStowQty(1);
+              setStowError(null);
+            }}
+            aria-label={t('common.reset')}
+            className="w-full rounded-xl bg-app-surface text-txt-primary font-semibold py-2.5 border border-app-border disabled:opacity-40"
+          >
+            {t('common.reset')}
+          </button>
           {showKeypad && (
-            <QuantityNumpad value={stowQty} onChange={setStowQty} min={0} />
-          )}
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              disabled={stowSubmitting || !stowSku || !stowBin || stowQty <= 0}
-              onClick={() => {
+            // Am unteren Rand verankert, mit dem Buchen-Knopf DARIN: auf den
+            // Handscannern (6,2" / 5,6") waren Block und Knopf sonst erst nach
+            // Scrollen erreichbar.
+            <QuantityNumpad
+              value={stowQty}
+              onChange={setStowQty}
+              min={0}
+              stickyBottom
+              onConfirm={() => {
                 void handleSubmitStow();
               }}
-              aria-label={stowSubmitting ? t('common.saving') : t('ops.stow.submit')}
-              aria-busy={stowSubmitting}
-              className="rounded-xl bg-success-dim text-success font-semibold py-3 disabled:opacity-40"
-            >
-              {stowSubmitting ? t('common.saving') : t('ops.stow.submit')}
-            </button>
-            <button
-              type="button"
-              disabled={stowSubmitting}
-              onClick={() => {
-                setStowSku('');
-                setStowBin('');
-                setStowQty(1);
-                setStowError(null);
-              }}
-              aria-label={t('common.reset')}
-              className="rounded-xl bg-app-surface text-txt-primary font-semibold py-3 border border-app-border disabled:opacity-40"
-            >
-              {t('common.reset')}
-            </button>
-          </div>
+              confirmLabel={stowSubmitting ? t('common.saving') : t('ops.stow.submit')}
+              confirmDisabled={stowSubmitting || !stowSku || !stowBin || stowQty <= 0}
+            />
+          )}
         </div>
 
         {stowEntries.length > 0 ? (
@@ -2051,6 +2076,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
                     : pendingPick.remainingTotal
                 }
                 readOnlyLabel={t('ops.mobile.pick.qtyPadHint')}
+                stickyBottom
                 onConfirm={() => void submitPick(pendingPick, pendingPickQty)}
                 confirmLabel={t('ops.pick.submit')}
                 confirmDisabled={
@@ -2218,7 +2244,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
         // der direkt in Androids Teilen-/Druck-Auswahl führt.
         if (result.labelBlob) {
           if (result.labelBlobUrl) URL.revokeObjectURL(result.labelBlobUrl);
-          setPendingLabel({ blob: result.labelBlob, orderLabel, carrier: result.carrier || null });
+          setPendingLabel({ blob: result.labelBlob, orderId, orderLabel, carrier: result.carrier || null });
           setPackMessage(`${orderLabel} verpackt & Etikett bereit (${result.carrier || '?'}).`);
         } else if (result.labelBlobUrl) {
           setPackMessage(
@@ -2364,6 +2390,9 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
           }
           setCuratedProducts(products);
           setCuratedWarn(!!opts.warn);
+          setCuratedTrackedOnly(!!opts.trackedOnly);
+          setCuratedThreshold(opts.trackedOnlyThresholdEur ?? null);
+          setCuratedValueKnown(opts.orderValueKnown !== false);
           setCuratedCountry(opts.country);
           setShipDecisionWeight(kg);
           setShipDecisionStep('options');
@@ -2390,9 +2419,6 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
           shipDecisionWeight,
           null,
           product.shippingOptionCode
-          setCuratedTrackedOnly(!!opts.trackedOnly);
-          setCuratedThreshold(opts.trackedOnlyThresholdEur ?? null);
-          setCuratedValueKnown(opts.orderValueKnown !== false);
         );
         setShipDecisionStep('idle');
         setShipDecisionTarget(null);
@@ -2437,6 +2463,9 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
       setShipDecisionError(null);
       setCuratedProducts([]);
       setCuratedWarn(false);
+      setCuratedTrackedOnly(false);
+      setCuratedThreshold(null);
+      setCuratedValueKnown(true);
     };
     return (
       <div className="max-w-xl mx-auto flex flex-col gap-3">
@@ -2462,10 +2491,35 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
               onClick={async () => {
                 setLabelPrinting(true);
                 try {
+                  // WEG 1 — über AvyCloud: der Druck-Agent im Büro-Netz schickt
+                  // das Etikett an den Drucker, der zum Transporteur passt
+                  // (DHL/DPD 103x164 mm, Deutsche Post 62x100 mm). Keine
+                  // Android-Druckauswahl, keine Druckerwahl von Hand.
+                  if (printAgentOnline) {
+                    try {
+                      const job = await enqueueLabelPrint(pendingLabel.orderId);
+                      const fertig = await waitForPrintJob(job.jobId);
+                      if (fertig.status === 'done') {
+                        setPackMessage(`${pendingLabel.orderLabel} — Etikett gedruckt.`);
+                        setPendingLabel(null);
+                        return;
+                      }
+                      // Erst melden, dann den Rückfallweg anbieten. Stumm
+                      // umschalten würde verbergen, dass der Drucker klemmt.
+                      setPackMessage(
+                        `Drucker meldet einen Fehler: ${fertig.error || 'unbekannt'} — bitte über Teilen drucken.`
+                      );
+                      setPrintAgentOnline(false);
+                    } catch (err: any) {
+                      setPackMessage(`Druck über AvyCloud fehlgeschlagen: ${err?.message || 'unbekannt'}`);
+                      setPrintAgentOnline(false);
+                    }
+                    return;
+                  }
+
+                  // WEG 2 — Rückfall: Androids Teilen-/Druckauswahl. Nicht
+                  // schön, aber es bleibt nichts liegen.
                   const res = await printLabelBlob(pendingLabel.blob, `label-${pendingLabel.orderLabel}.pdf`);
-      setCuratedTrackedOnly(false);
-      setCuratedThreshold(null);
-      setCuratedValueKnown(true);
                   // Abbruch durch den Menschen: Knopf stehen lassen, damit ein
                   // zweiter Versuch moeglich ist.
                   if (res.ok) setPendingLabel(null);
@@ -2476,7 +2530,9 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
               }}
               className="w-full rounded-xl bg-success text-white font-bold h-14 text-base disabled:opacity-50"
             >
-              {labelPrinting ? 'Öffne Druck…' : 'Etikett drucken'}
+              {labelPrinting
+                ? (printAgentOnline ? 'Drucke…' : 'Öffne Druck…')
+                : (printAgentOnline ? 'Etikett drucken' : 'Etikett drucken (Teilen)')}
             </button>
             <button
               type="button"
@@ -2625,6 +2681,9 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
             weightKg={shipDecisionWeight}
             products={curatedProducts}
             warn={curatedWarn}
+            trackedOnly={curatedTrackedOnly}
+            trackedOnlyThresholdEur={curatedThreshold}
+            orderValueKnown={curatedValueKnown}
             country={curatedCountry}
             contextLabel={shipDecisionTarget.orderLabel}
             busy={shipDecisionBusy}
@@ -2681,9 +2740,6 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
     },
   ];
 
-            trackedOnly={curatedTrackedOnly}
-            trackedOnlyThresholdEur={curatedThreshold}
-            orderValueKnown={curatedValueKnown}
   return (
     <div className="flex flex-col flex-1 min-h-0 max-w-xl mx-auto w-full">
       <h1 className="text-2xl font-semibold text-txt-primary mb-3 shrink-0">{t('ops.title')}</h1>
@@ -2704,6 +2760,65 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
           </button>
         ))}
       </div>
+
+      {/*
+        Geräte-Einstellung für die Bildschirmtastatur.
+
+        Warum das hier steht und nicht in den Einstellungen: es gilt PRO GERÄT,
+        nicht pro Benutzer, und bis jetzt konnte man es nur über eine getippte
+        Adresse (?scanCapture=none) setzen — auf einem Handscanner eine Zumutung.
+
+        Warum es kein „Tastatur aus"-Schalter für alle ist: Chromium entscheidet
+        die Tastatur an genau einem Prädikat — ein fokussiertes, editierbares
+        Feld bekommt eine. Dasselbe Feld ist aber der einzige Weg, über den ein
+        IME-Scanner (NETUM Q900) seinen Scan abliefert. Wer die Tastatur
+        web-seitig abschaltet, schaltet den Scanner mit ab. Gemessen 2026-08-04.
+        Für Scanner im HID-Modus (echte Tastenanschläge) gilt das nicht — die
+        laufen ohne Tastatur weiter.
+      */}
+      <details className="shrink-0 mt-3 rounded-2xl border border-app-border bg-app-surface px-3 py-2">
+        <summary className="cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden text-xs font-semibold text-txt-muted flex items-center justify-between">
+          <span>Gerät: Bildschirmtastatur</span>
+          <span className="text-txt-muted">▾</span>
+        </summary>
+        <div className="mt-2 space-y-2">
+          <div className="grid grid-cols-2 gap-2">
+            {([
+              { wert: 'input', titel: 'Tastatur an', hinweis: 'Für IME-Scanner (NETUM Q900)' },
+              { wert: 'none', titel: 'Tastatur aus', hinweis: 'Nur für Scanner im HID-Modus' },
+            ] as const).map((option) => (
+              <button
+                key={option.wert}
+                type="button"
+                onClick={() => {
+                  try {
+                    window.localStorage.setItem('scanCapture', option.wert);
+                  } catch { /* Privatmodus: dann gilt es nur bis zum Neuladen */ }
+                  // Neu laden, weil der Modus bewusst NICHT in der
+                  // Abhängigkeitskette der Fokus-Effekte hängt — ein Wechsel zur
+                  // Laufzeit würde dem Gewichts-Block den Fokus klauen.
+                  window.location.reload();
+                }}
+                className={`rounded-xl border p-2 text-left ${
+                  scanCaptureMode === option.wert
+                    ? 'border-accent bg-accent/10'
+                    : 'border-app-border bg-app-bg/60'
+                }`}
+              >
+                <p className="text-sm font-semibold text-txt-primary">{option.titel}</p>
+                <p className="text-[11px] text-txt-muted">{option.hinweis}</p>
+              </button>
+            ))}
+          </div>
+          <p className="text-[11px] text-txt-muted">
+            Gilt nur für dieses Gerät. „Tastatur aus" schaltet auch den
+            IME-Scanner ab — erst umstellen, wenn ein Scan noch ankommt.
+            Dauerhaft ohne Tastatur geht nur über die Android-Einstellungen des
+            Geräts (MUNBYN: „FeatureSettings", NETUM: Null-Tastatur als
+            Standard).
+          </p>
+        </div>
+      </details>
     </div>
   );
 };
