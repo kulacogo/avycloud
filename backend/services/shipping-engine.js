@@ -550,6 +550,10 @@ async function createParcel({
   requestLabel = true,
   tenantId = 'default',
   labelFormat = 'a6',
+  // Zusatz-Label (Teil-/Ersatzsendung, 2026-08-21): markiert das shipments-Doc
+  // bei der GEBURT, damit refresh-shipment/Webhook/Label-Route die Sendung nie
+  // als Primär-Sendung behandeln. Additives Feld, Bestandsdocs unberührt.
+  additionalLabel = false,
 }) {
   if (!order) throw new Error('order is required');
 
@@ -676,6 +680,15 @@ async function createParcel({
   // Wenn ein exakter v3-Code übergeben wurde (kuratierter Pack-Flow), diesen
   // direkt nutzen — kein Fuzzy-Resolver, kein Options-Call.
   const isDomestic = String(fromAddress?.country_code || 'DE').toUpperCase() === String(countryRaw || 'DE').toUpperCase();
+  const {
+    isUntrackedOptionCode, requiresPremiumVariant, resolveOrderValueEur,
+    trackedOnlyObligation, trackedOnlyThresholdEur, findPremiumSibling,
+  } = require('../lib/shipping-catalog-resolver');
+  const orderValueEur = resolveOrderValueEur(order);
+  // Tracking-Pflicht ab 10 € (Betreiber-Anweisung 2026-08-21): unbekannter Wert
+  // zählt fail-safe als Pflicht; SHIPPING_TRACKED_ONLY_FROM_EUR='off' schaltet
+  // KOMPLETT ab (auch für unbekannte Werte — Notbremsen-Semantik).
+  const mustTrack = trackedOnlyObligation(orderValueEur);
   let shippingOptionCode = explicitOptionCode || null;
   if (!shippingOptionCode) {
     const methodMeta = await _getCachedMethodMeta(tenantId, shippingMethodId);
@@ -684,22 +697,76 @@ async function createParcel({
     if (!shippingOptionCode) {
       // Fallback: günstigste gewichts-passende Home-Delivery-Option (keine
       // service-point-Produkte), damit Label-Erstellung nicht komplett blockt.
+      // Tracking-/Premium-Pflicht fließen schon in die WAHL ein — sonst liefe
+      // der Fallback sehenden Auges in den Guard, obwohl eine erlaubte Option
+      // auf derselben Lane liegt (Review-Befund 12, 2026-08-21).
+      const quotedPrice = (o) => {
+        const v = Number(o?.quotes?.[0]?.price?.total?.value);
+        return Number.isFinite(v) ? v : Number.MAX_SAFE_INTEGER;
+      };
       const fit = options
         .filter((o) => {
           if (_needsServicePoint(o?.code)) return false;
+          if (requiresPremiumVariant(o?.code)) return false;
+          if (mustTrack && isUntrackedOptionCode(o?.code)) return false;
           const min = Number(o?.weight?.min?.value ?? 0) || 0;
           const max = Number(o?.weight?.max?.value ?? 0) || Infinity;
           return weightKg >= min && weightKg <= max;
         })
-        .sort((a, b) => (Number(a?.quotes?.[0]?.price?.total?.value ?? Infinity)) - (Number(b?.quotes?.[0]?.price?.total?.value ?? Infinity)));
+        // Deterministisch sortieren: v3-Optionen tragen im Announce-Kontext oft
+        // KEINE quotes — der frühere Vergleich rechnete Infinity−Infinity=NaN,
+        // ein Münzwurf wie beim europaket-Vorfall 2026-08-07. Ohne Preis gelten
+        // Briefprodukte (untracked) als günstiger — das entspricht der realen
+        // Preisordnung (Maxibrief < Kleinpaket) und dem Plakat.
+        .sort((a, b) =>
+          (quotedPrice(a) - quotedPrice(b)) ||
+          (Number(isUntrackedOptionCode(b.code)) - Number(isUntrackedOptionCode(a.code))) ||
+          String(a.code).localeCompare(String(b.code)));
       shippingOptionCode = fit[0]?.code || options.find((o) => !_needsServicePoint(o?.code))?.code || null;
       if (shippingOptionCode) console.warn(`[createParcel] v3: kein exakter Methoden-Match für ${shippingMethodId} — Fallback "${shippingOptionCode}"`);
     }
     if (!shippingOptionCode) {
       throw new Error(`SendCloud v3: keine passende Versandoption für ${countryRaw}/${weightKg}kg gefunden (Methode ${shippingMethodId || 'default'}, ${options.length} Optionen).`);
     }
+    // PREMIUM-AUTO-UPGRADE (nur Alt-Flow/Fuzzy): _matchV3OptionCode MEIDET
+    // Premium bewusst (+4-Penalty, „nie stilles Premium-Upgrade" 2026-07-20) —
+    // für DHL International ist Premium seit 2026-08-21 aber PFLICHT. Statt im
+    // Guard hart zu scheitern, wird auf die Premium-Schwester derselben Lane
+    // umgeschrieben. Explizit übergebene Codes werden NIE umgeschrieben.
+    if (requiresPremiumVariant(shippingOptionCode)) {
+      const sibling = findPremiumSibling(options, shippingOptionCode, weightKg);
+      if (sibling) {
+        console.warn(`[createParcel] Premium-Pflicht: "${shippingOptionCode}" → "${sibling}" (DHL International nur mit Sendungsverfolgung).`);
+        shippingOptionCode = sibling;
+      }
+    }
   } else {
     console.log(`[createParcel] v3: exakter shippingOptionCode übergeben — Resolver übersprungen: "${shippingOptionCode}"`);
+  }
+
+  // TRACKING-PFLICHT AB 10 € (Betreiber-Anweisung 2026-08-21): createParcel ist der
+  // einzige Choke-Point ALLER Label-Wege (Pack-Flow, OrderDetail, Bulk, Alt-Flow mit
+  // Fuzzy-Resolver). Ein Code ohne Sendungsverfolgung (Maxibrief, Warensendung,
+  // Warenpost Int ohne Premium) darf ab der Schwelle — und bei UNBEKANNTEM
+  // Bestellwert, fail-safe — nie zum Announce kommen. Der kuratierte Katalog
+  // filtert dieselben Produkte schon in der Auswahl; dieser Guard fängt die
+  // übrigen Wege (Versandregeln, manuell übergebene Codes).
+  // PREMIUM-PFLICHT (wertunabhängig): DHL International nie ohne Premium —
+  // nur die Premium-Variante trägt eine verlässliche Sendungsverfolgung.
+  if (requiresPremiumVariant(shippingOptionCode)) {
+    throw new Error(
+      `„${shippingOptionCode}" muss immer als Premium versendet werden — nur die Premium-Variante hat eine Sendungsverfolgung. ` +
+      'Bitte die Premium-Variante wählen (kuratierte Versandauswahl nutzt sie automatisch).'
+    );
+  }
+  if (mustTrack && isUntrackedOptionCode(shippingOptionCode)) {
+    const threshold = trackedOnlyThresholdEur();
+    const known = Number.isFinite(orderValueEur) && orderValueEur > 0;
+    throw new Error(
+      `Versand ohne Sendungsverfolgung („${shippingOptionCode}") ist ab ${threshold} € Bestellwert nicht erlaubt` +
+      (known ? ` — Bestellwert ${orderValueEur.toFixed(2)} €.` : ' — Bestellwert unbekannt, zur Sicherheit gilt die Tracking-Pflicht.') +
+      ' Bitte eine Versandart mit Sendungsverfolgung wählen (z. B. Kleinpaket, DPD, DHL Paket).'
+    );
   }
 
   console.log(`[createParcel] Payload(v3) ${order.id}: to="${zipStr} ${cityStr}, ${countryRaw}", weight=${weightKg}kg, method=${shippingMethodId || 'default'} → code="${shippingOptionCode}"${toPostNumber ? `, po_box="${toPostNumber}"` : ''}`);
@@ -779,6 +846,7 @@ async function createParcel({
   };
 
   const shipRef = await getDb().collection(SHIPMENTS_COLLECTION).add(shipmentDoc);
+    ...(additionalLabel ? { additionalLabel: true } : {}),
 
   return {
     shipmentId: shipRef.id,
@@ -905,8 +973,26 @@ async function refreshShipmentFromSendCloud({ orderId, tenantId = 'default', lab
       return tb - ta;
     });
 
-  // Prefer the newest non-cancelled shipment so we don't reconcile against a stale 'problem' record.
-  const shipmentEntry = docs.find((d) => (d.data.status || '') !== 'cancelled') || docs[0];
+  // Order VOR der Shipment-Auswahl laden: order.shipmentId zeigt auf die
+  // PRIMÄR-Sendung. Ohne diese Präferenz gewinnt „neuestes Doc" — nach einem
+  // Zusatz-Label wäre das die Zusatz-Sendung, deren Tracking dann auf die
+  // Primär-Felder gespiegelt und von der Route zum Marktplatz gepusht würde
+  // (Review-Befund 1/8, 2026-08-21).
+  const orderRef = db.collection(ORDERS_COLLECTION).doc(orderId);
+  const orderSnap = await orderRef.get();
+  const orderData = orderSnap.exists ? orderSnap.data() : null;
+
+  const nonCancelled = (d) => (d.data.status || '') !== 'cancelled';
+  const notAdditional = (d) => d.data.additionalLabel !== true;
+  const preferredId = orderData?.shipmentId ? String(orderData.shipmentId) : '';
+  const shipmentEntry =
+    (preferredId && docs.find((d) => d.id === preferredId && nonCancelled(d))) ||
+    // Kein/toter Primär-Verweis (Incident-2026-04-29-Recovery): neuestes
+    // nicht-storniertes NICHT-Zusatz-Shipment; Zusatz-Sendungen nur als
+    // allerletzter Ausweg.
+    docs.find((d) => nonCancelled(d) && notAdditional(d)) ||
+    docs.find(nonCancelled) ||
+    docs[0];
   const shipment = shipmentEntry.data;
   const initialParcelId = Number(shipment.sendcloudParcelId || 0);
 
@@ -939,10 +1025,7 @@ async function refreshShipmentFromSendCloud({ orderId, tenantId = 'default', lab
   let reboundParcel = false;
 
   // ── 2. Fallback: search by order_number when the stored parcel is incomplete ──
-  const orderRef = db.collection(ORDERS_COLLECTION).doc(orderId);
-  const orderSnap = await orderRef.get();
-  const orderData = orderSnap.exists ? orderSnap.data() : null;
-
+  // (orderRef/orderData sind bereits oben geladen — Primär-Shipment-Präferenz.)
   const lacksTracking = !parcel?.tracking_number;
   const lacksLabel = !extractLabelUrl(parcel, isA4) || (parcel?.label && Object.keys(parcel.label).length === 0);
   let searchedAlternates = false;
@@ -1300,7 +1383,7 @@ function matchCarrierRule({ weight, rules }) {
  * @param {{ orderId: string, tenantId?: string, shippingMethodId?: number, shippingOptionCode?: string, weight?: number, labelFormat?: 'a6' | 'a4' }} opts
  * @returns {Promise<object>}
  */
-async function shipOrder({ orderId, tenantId = 'default', shippingMethodId, shippingOptionCode = null, weight, labelFormat = 'a6' }) {
+async function shipOrder({ orderId, tenantId = 'default', shippingMethodId, shippingOptionCode = null, weight, labelFormat = 'a6', additionalLabel = false }) {
   const db = getDb();
 
   // Load order
@@ -1352,7 +1435,11 @@ async function shipOrder({ orderId, tenantId = 'default', shippingMethodId, ship
     .where('orderId', '==', orderId)
     .limit(10)
     .get();
-  const activeShipment = shipmentSnap.docs.find((doc) => istAktiveSendung(doc.data().status));
+  // additionalLabel (Betreiber-Anweisung 2026-08-21): BEWUSSTES Zusatz-Label für
+  // Teil-/Ersatzsendung — der Duplikat-Guard wird absichtlich übersprungen. Der
+  // Schutz gegen VERSEHENTLICHE Doppel-Frankierung bleibt für den Normalweg voll
+  // erhalten; dieser Pfad ist nur über den expliziten Zusatz-Label-Endpoint erreichbar.
+  const activeShipment = additionalLabel ? null : shipmentSnap.docs.find((doc) => istAktiveSendung(doc.data().status));
   if (activeShipment) {
     const existing = activeShipment.data();
     console.warn(`[shipOrder] Order ${orderId} already has active shipment ${activeShipment.id} (status=${existing.status}, tracking=${existing.trackingNumber}). Skipping duplicate.`);
@@ -1391,8 +1478,29 @@ async function shipOrder({ orderId, tenantId = 'default', shippingMethodId, ship
   // Update order with tracking info
   await orderSnap.ref.set({
     trackingNumber: result.trackingNumber,
+    additionalLabel,
     trackingUrl: result.trackingUrl,
     shippingService: result.carrier,
+  if (additionalLabel) {
+    // Zusatz-Label: die Primär-Felder (trackingNumber/shipmentId — die Wahrheit
+    // am Marktplatz und in der UI) bleiben UNANGETASTET. Die neue Sendung wird
+    // additiv am Auftrag abgelegt; das shipments-Doc existiert ohnehin.
+    await orderSnap.ref.set({
+      additionalShipments: FieldValue.arrayUnion({
+        shipmentId: result.shipmentId || null,
+        sendcloudParcelId: result.parcel?.id || null,
+        trackingNumber: result.trackingNumber || null,
+        trackingUrl: result.trackingUrl || null,
+        labelUrl: result.labelUrl || null,
+        carrier: result.carrier || null,
+        weight: orderWeight || null,
+        createdAt: new Date().toISOString(),
+      }),
+      updatedAt: new Date().toISOString(),
+    }, { merge: true });
+    return { ...result, additionalLabel: true };
+  }
+
     shipmentId: result.shipmentId,
     updatedAt: new Date().toISOString(),
   }, { merge: true });
@@ -2016,7 +2124,7 @@ async function pollDeliveryStatus({ tenantId = 'default' } = {}) {
  * @returns {Promise<{ scope: string, country: string, warn: boolean, products: object[] }>}
  */
 async function listCuratedShippingOptions({ order, weightKg }) {
-  const { resolveCuratedOptions } = require('../lib/shipping-catalog-resolver');
+  const { resolveCuratedOptions, resolveOrderValueEur } = require('../lib/shipping-catalog-resolver');
   const auth = await getSendCloudAuth();
   const fromAddress = await _getV3FromAddress();
   const customer = order.customer || {};
@@ -2027,7 +2135,9 @@ async function listCuratedShippingOptions({ order, weightKg }) {
   else if (country === 'AT' && /^\d{1,3}$/.test(zip)) zip = zip.padStart(4, '0');
   const options = await _listV3ShippingOptions({ fromAddress, toCountry: country, toPostal: zip, weightKg, auth });
   const flags = { allowBuchersendung: String(process.env.ALLOW_BUCHERSENDUNG || 'false') === 'true' };
-  return resolveCuratedOptions(options, { country, weightKg, flags });
+  // Tracking-Pflicht ab 10 €: Bestellwert aus dem Order-Doc (totalAmount bzw.
+  // Positionssumme) — unbekannt (null) heißt fail-safe „nur mit Tracking".
+  return resolveCuratedOptions(options, { country, weightKg, flags, orderValueEur: resolveOrderValueEur(order) });
 }
 
 module.exports = {

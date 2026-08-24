@@ -1479,6 +1479,133 @@ router.post('/orders/:orderId/ship', requirePermission('orders', 'write'), async
 });
 
 /**
+ * POST /api/orders/:orderId/additional-label — Zusatz-Label für Teil-/Ersatzsendung
+ * (Betreiber-Anweisung 2026-08-21). Für Aufträge, die BEREITS versendet (oder
+ * zugestellt) sind: erstellt ein weiteres Versandlabel, OHNE das bestehende zu
+ * stornieren. Bewusste Unterschiede zum normalen /ship-Weg:
+ *   - Duplikat-Guard wird übersprungen (das ist der Zweck des Endpoints),
+ *   - KEIN Status-Übergang (shipped→shipped ist force-verboten, der Status stimmt schon),
+ *   - KEIN Marktplatz-Tracking-Push — die Original-Sendungsnummer bleibt die
+ *     Wahrheit am Marktplatz; die Zusatz-Sendung liegt additiv am Auftrag
+ *     (order.additionalShipments) und in der shipments-Collection.
+ */
+router.post('/orders/:orderId/additional-label', requirePermission('orders', 'write'), async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { shippingMethodId, shippingOptionCode, weight, labelFormat } = req.body || {};
+    const tenantId = req.user?.tenantId || 'default';
+    const validFormats = ['a4', 'a6'];
+    const resolvedFormat = validFormats.includes(labelFormat) ? labelFormat : 'a6';
+
+    const orderSnap = await firestore.collection('orders').doc(orderId).get();
+    if (!orderSnap.exists) {
+      return res.status(404).json({ ok: false, error: { code: 'NOT_FOUND', message: 'Auftrag nicht gefunden.' } });
+    }
+    const order = orderSnap.data() || {};
+    const omsStatus = String(order.omsStatus || '');
+    const hasShipmentEvidence = Boolean(
+      order.trackingNumber || order.shipmentId || ['shipped', 'delivered', 'completed'].includes(omsStatus)
+    );
+    // Stornierte Aufträge sind tot — eine stehengebliebene trackingNumber ist
+    // dort kein Freifahrtschein für neue Labels (evtl. schon erstattet).
+    // `returned` bleibt bewusst erlaubt: die Ersatzsendung ist genau der Use-Case.
+    if (!hasShipmentEvidence || omsStatus === 'cancelled') {
+      // Ohne bestehende Sendung ist der normale Versand-Weg zuständig — er setzt
+      // den Status auf Versendet und pusht das Tracking zum Marktplatz.
+      return res.status(409).json({ ok: false, error: {
+        code: 'NO_EXISTING_SHIPMENT',
+        message: omsStatus === 'cancelled'
+          ? 'Auftrag ist storniert — kein Zusatz-Label möglich.'
+          : 'Dieser Auftrag hat noch kein Versandlabel — bitte den normalen Weg „Versandlabel erstellen" nutzen.',
+      } });
+    }
+
+    const { shipOrder } = require('../services/shipping-engine');
+    const result = await shipOrder({
+      orderId, tenantId, shippingMethodId, shippingOptionCode, weight,
+      labelFormat: resolvedFormat, additionalLabel: true,
+    });
+
+    // Nur den Sendungs-Sync anstoßen — bewusst KEIN order:status_changed (es hat
+    // sich kein Status geändert) und kein pushTrackingToMarketplace.
+    emitSyncEvent('shipment:created', { entityId: orderId, tenantId, source: 'api:additional-label' });
+
+    res.json({ ok: true, data: result });
+  } catch (err) {
+    console.error(`[POST /api/orders/:orderId/additional-label] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
+/**
+ * POST /api/orders/:orderId/additional-label/cancel — GEZIELTER Storno EINER
+ * Zusatz-Sendung (Body: { shipmentId }). Fail-closed: nur Sendungen, die in
+ * order.additionalShipments stehen — das Primär-Label ist hier nie erreichbar
+ * (dafür gibt es /cancel-label). Kein Status-Übergang, kein Tracking-Reset.
+ */
+router.post('/orders/:orderId/additional-label/cancel', requirePermission('orders', 'write'), async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const shipmentId = String(req.body?.shipmentId || '').trim();
+    const tenantId = req.user?.tenantId || 'default';
+    if (!shipmentId) {
+      return res.status(400).json({ ok: false, error: { code: 'INVALID_INPUT', message: 'shipmentId erforderlich.' } });
+    }
+
+    const orderSnap = await firestore.collection('orders').doc(orderId).get();
+    if (!orderSnap.exists) {
+      return res.status(404).json({ ok: false, error: { code: 'NOT_FOUND', message: 'Auftrag nicht gefunden.' } });
+    }
+    const order = orderSnap.data() || {};
+    const list = Array.isArray(order.additionalShipments) ? order.additionalShipments : [];
+    const entry = list.find((s) => s && s.shipmentId === shipmentId);
+    if (!entry) {
+      return res.status(404).json({ ok: false, error: { code: 'NOT_FOUND', message: 'Diese Sendung ist keine Zusatz-Sendung dieses Auftrags.' } });
+    }
+
+    // Parcel-ID bevorzugt aus dem shipments-Doc (autoritativ), Fallback Array-Eintrag.
+    let parcelId = null;
+    const shipSnap = await firestore.collection('shipments').doc(shipmentId).get();
+    if (shipSnap.exists && shipSnap.data().orderId === orderId) {
+      parcelId = shipSnap.data().sendcloudParcelId || null;
+    }
+    if (!parcelId) parcelId = entry.sendcloudParcelId || null;
+
+    const nowIso = new Date().toISOString();
+    if (parcelId) {
+      const { cancelParcel } = require('../services/shipping-engine');
+      try {
+        await cancelParcel({ parcelId, tenantId });
+      } catch (cancelErr) {
+        // Bereits extern storniert (410) o. Ä. — Firestore trotzdem konsistent machen.
+        console.warn(`[additional-label/cancel] SendCloud cancel failed for parcel ${parcelId}: ${cancelErr.message}`);
+      }
+    }
+
+    await firestore.collection('shipments').doc(shipmentId).set({
+      status: 'cancelled',
+      cancelledAt: nowIso,
+      updatedAt: nowIso,
+    }, { merge: true });
+
+    // Array-Eintrag als storniert markieren (read-modify-write — arrayUnion kann
+    // Einträge nicht in-place ändern). Additiv: nur cancelledAt kommt hinzu.
+    const nextList = list.map((s) => (s && s.shipmentId === shipmentId ? { ...s, cancelledAt: nowIso } : s));
+    await firestore.collection('orders').doc(orderId).set({
+      additionalShipments: nextList,
+      updatedAt: nowIso,
+    }, { merge: true });
+
+    emitSyncEvent('shipment:updated', { entityId: orderId, tenantId, source: 'api:additional-label-cancel' });
+
+    res.json({ ok: true, data: { message: 'Zusatz-Label storniert.', shipmentId } });
+  } catch (err) {
+    console.error(`[POST /api/orders/:orderId/additional-label/cancel] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
+/**
  * POST /api/orders/:orderId/refresh-shipment — Reconcile order/shipment with SendCloud.
  *
  * Self-heal endpoint for the "label exists in SendCloud but order shows no
@@ -1546,7 +1673,10 @@ router.post('/orders/:orderId/cancel-label', requirePermission('orders', 'write'
       .orderBy('createdAt', 'desc')
       .get();
 
-    const activeDocs = snap.docs.filter((d) => (d.data().status || '') !== 'cancelled');
+    // Zusatz-Labels (Teil-/Ersatzsendung, 2026-08-21) werden NICHT mitstorniert —
+    // das Zusatz-Paket kann physisch unterwegs sein. Gezielter Einzelstorno:
+    // POST /orders/:orderId/additional-label/cancel.
+    const activeDocs = snap.docs.filter((d) => (d.data().status || '') !== 'cancelled' && d.data().additionalLabel !== true);
 
     if (!activeDocs.length) {
       // Kein (aktives) Shipment. Bei "shipped" trotzdem fortfahren — genau das
@@ -2091,19 +2221,45 @@ router.get('/orders/:orderId/label', requirePermission('orders', 'read'), async 
   try {
     const { orderId } = req.params;
     const format = req.query.format === 'a4' ? 'a4' : 'a6';
+    const requestedShipmentId = String(req.query.shipmentId || '').trim();
 
-    // Find shipment for this order
-    const snap = await firestore.collection('shipments')
-      .where('orderId', '==', orderId)
-      .orderBy('createdAt', 'desc')
-      .limit(1)
-      .get();
+    // Bestimmtes Shipment (z. B. Zusatz-Label) direkt laden — sonst die
+    // PRIMÄR-Sendung des Auftrags (order.shipmentId). „Neuestes Doc" wäre nach
+    // einem Zusatz-Label die Zusatz-Sendung — der Haupt-Druckknopf druckte dann
+    // still das falsche Label (Review-Befund 2/17, 2026-08-21).
+    let shipment = null;
+    if (requestedShipmentId) {
+      const shipSnap = await firestore.collection('shipments').doc(requestedShipmentId).get();
+      if (!shipSnap.exists || shipSnap.data().orderId !== orderId) {
+        return res.status(404).json({ ok: false, error: { code: 'NOT_FOUND', message: 'Sendung gehört nicht zu diesem Auftrag oder existiert nicht.' } });
+      }
+      shipment = shipSnap.data();
+    } else {
+      const orderSnap = await firestore.collection('orders').doc(orderId).get();
+      const primaryShipmentId = orderSnap.exists ? String(orderSnap.data().shipmentId || '') : '';
+      if (primaryShipmentId) {
+        const primSnap = await firestore.collection('shipments').doc(primaryShipmentId).get();
+        if (primSnap.exists && primSnap.data().orderId === orderId) {
+          shipment = primSnap.data();
+        }
+      }
+      if (!shipment) {
+        // Kein/toter Primär-Verweis (Alt-Aufträge, Incident 2026-04-29):
+        // neuestes NICHT-Zusatz-Shipment, Zusatz-Sendungen nur als letzter Ausweg.
+        const snap = await firestore.collection('shipments')
+          .where('orderId', '==', orderId)
+          .orderBy('createdAt', 'desc')
+          .limit(5)
+          .get();
 
-    if (snap.empty) {
-      return res.status(404).json({ ok: false, error: { code: 'NOT_FOUND', message: 'Kein Versandlabel für diesen Auftrag gefunden.' } });
+        if (snap.empty) {
+          return res.status(404).json({ ok: false, error: { code: 'NOT_FOUND', message: 'Kein Versandlabel für diesen Auftrag gefunden.' } });
+        }
+        const best = snap.docs.find((d) => d.data().additionalLabel !== true) || snap.docs[0];
+        shipment = best.data();
+      }
     }
 
-    const shipment = snap.docs[0].data();
     const parcelId = shipment.sendcloudParcelId;
 
     // Get actual label URL from SendCloud parcel API (not constructed from ID)

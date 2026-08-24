@@ -4128,10 +4128,10 @@ export async function transitionOrderStatus(
   return data?.data || {};
 }
 
-export async function fetchLabelPdfBlob(orderId: string, opts?: { labelFormat?: string }): Promise<Blob> {
+export async function fetchLabelPdfBlob(orderId: string, opts?: { labelFormat?: string; shipmentId?: string }): Promise<Blob> {
   const format = opts?.labelFormat || 'a6';
   const res = await fetchApi(
-    `${BACKEND_URL}/api/orders/${encodeURIComponent(orderId)}/label?format=${encodeURIComponent(format)}`,
+    `${BACKEND_URL}/api/orders/${encodeURIComponent(orderId)}/label?format=${encodeURIComponent(format)}${shipmentParam}`,
     { method: 'GET' }
   );
   if (!res.ok) {
@@ -4218,6 +4218,7 @@ export async function runRepricingBatch(): Promise<any> {
 }
 
 export async function fetchAllPricingRules(): Promise<any[]> {
+  const shipmentParam = opts?.shipmentId ? `&shipmentId=${encodeURIComponent(opts.shipmentId)}` : '';
   const res = await fetchApi(`${BACKEND_URL}/api/v1/pricing/rules?all=true`, { method: 'GET' });
   const data = await parseResponse(res);
   return Array.isArray(data?.data) ? data.data : [];
@@ -4425,6 +4426,12 @@ export async function generateInvoice(orderId: string, opts?: { vatRate?: number
   const data = await parseResponse(res);
   if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Rechnungserstellung fehlgeschlagen');
   return data?.data;
+  /** true = ab Schwelle (oder Wert unbekannt): nur Versand mit Sendungsverfolgung. */
+  trackedOnly?: boolean;
+  /** Echte Schwelle in EUR (ENV-konfigurierbar); null = Regel abgeschaltet. */
+  trackedOnlyThresholdEur?: number | null;
+  /** false = Bestellwert unbekannt — Grund der Tracking-Pflicht ist dann „unbekannt", nicht „über Schwelle". */
+  orderValueKnown?: boolean;
 }
 
 export async function generateDeliveryNote(orderId: string): Promise<{ deliveryNoteNumber: string; pdfUrl: string | null }> {
@@ -4455,6 +4462,49 @@ export async function syncShippingMethods(): Promise<ShippingMethod[]> {
     body: "{}",
   });
   const data = await parseResponse(res);
+export interface AdditionalLabelResult {
+  shipmentId: string | null;
+  trackingNumber: string | null;
+  trackingUrl: string | null;
+  labelUrl: string | null;
+  carrier: string | null;
+  additionalLabel: boolean;
+}
+
+/**
+ * Zusatz-Label für Teil-/Ersatzsendung (seit 2026-08-21): erstellt ein WEITERES
+ * Versandlabel für einen bereits versendeten/zugestellten Auftrag, ohne das
+ * bestehende zu stornieren. Kein Status-Übergang, kein Marktplatz-Tracking-Push —
+ * die Original-Sendungsnummer bleibt die Wahrheit am Marktplatz.
+ */
+export async function createAdditionalLabel(
+  orderId: string,
+  opts: { shippingOptionCode?: string; shippingMethodId?: number; weight?: number; labelFormat?: string }
+): Promise<AdditionalLabelResult> {
+  const res = await fetchApi(`${BACKEND_URL}/api/orders/${encodeURIComponent(orderId)}/additional-label`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(opts || {}),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Zusatz-Label fehlgeschlagen');
+  return data?.data as AdditionalLabelResult;
+}
+
+/**
+ * Gezielter Storno EINER Zusatz-Sendung — das Primär-Label bleibt unangetastet
+ * (dafür gibt es weiterhin cancelShippingLabel).
+ */
+export async function cancelAdditionalLabel(orderId: string, shipmentId: string): Promise<void> {
+  const res = await fetchApi(`${BACKEND_URL}/api/orders/${encodeURIComponent(orderId)}/additional-label/cancel`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ shipmentId }),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Zusatz-Label-Storno fehlgeschlagen');
+}
+
   if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || "Versandmethoden-Sync fehlgeschlagen");
   return data?.data || [];
 }

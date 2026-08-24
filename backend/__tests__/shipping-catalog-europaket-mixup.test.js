@@ -19,37 +19,46 @@
 //
 // Europaket ist zusätzlich gar nicht auf dem TrendOcean-Plakat — es darf nie
 // als „DHL Paket International" verkauft werden (anderes Produkt, andere Preise).
+//
+// Seit 2026-08-21 gilt zusätzlich die PREMIUM-PFLICHT (nur Premium trägt
+// Sendungsverfolgung): der kuratierte Slot liefert `dhl_de:weltpaket/premium`.
+// Der Kern dieses Tests bleibt unverändert — auch unter Premium-Codes darf
+// europaket NIE gewinnen und die API-Reihenfolge NIE entscheiden.
 
 const { resolveCuratedOptions } = require('../lib/shipping-catalog-resolver');
 
 const opt = (code, min = 0.01, max = 31.501) => ({ code, weight: { min: { value: min }, max: { value: max } } });
 
-// Beide Reihenfolgen, die die Live-API nachweislich liefert.
+// Beide Reihenfolgen, die die Live-API nachweislich liefert (plus Premium-Varianten).
 const EUROPAKET_ZUERST = [
   opt('dhl_de:europaket'),
+  opt('dhl_de:europaket/premium'),
   opt('dhl_de:weltpaket'),
+  opt('dhl_de:weltpaket/premium'),
   opt('dhl_de:weltpaket,flex_delivery'),
   opt('dpd:classic'),
 ];
 const WELTPAKET_ZUERST = [
   opt('dhl_de:weltpaket'),
+  opt('dhl_de:weltpaket/premium'),
   opt('dhl_de:europaket'),
+  opt('dhl_de:europaket/premium'),
   opt('dhl_de:weltpaket,flex_delivery'),
   opt('dpd:classic'),
 ];
 
 function dhlInt(liveOptions) {
-  const { products } = resolveCuratedOptions(liveOptions, { country: 'IT', weightKg: 2 });
+  const { products } = resolveCuratedOptions(liveOptions, { country: 'IT', weightKg: 2, orderValueEur: 50 });
   return products.find((p) => p.key === 'dhl_paket_int') || null;
 }
 
 describe('DHL Paket International vs. DHL Europaket', () => {
-  it('wählt weltpaket, wenn europaket in der Antwort ZUERST steht', () => {
-    expect(dhlInt(EUROPAKET_ZUERST).shippingOptionCode).toBe('dhl_de:weltpaket');
+  it('wählt weltpaket/premium, wenn europaket in der Antwort ZUERST steht', () => {
+    expect(dhlInt(EUROPAKET_ZUERST).shippingOptionCode).toBe('dhl_de:weltpaket/premium');
   });
 
-  it('wählt weltpaket auch, wenn weltpaket zuerst steht', () => {
-    expect(dhlInt(WELTPAKET_ZUERST).shippingOptionCode).toBe('dhl_de:weltpaket');
+  it('wählt weltpaket/premium auch, wenn weltpaket zuerst steht', () => {
+    expect(dhlInt(WELTPAKET_ZUERST).shippingOptionCode).toBe('dhl_de:weltpaket/premium');
   });
 
   it('ist unabhängig von der Reihenfolge der SendCloud-Antwort', () => {
@@ -59,21 +68,28 @@ describe('DHL Paket International vs. DHL Europaket', () => {
   });
 
   it('bietet Europaket nie als kuratiertes Produkt an', () => {
-    const { products } = resolveCuratedOptions([opt('dhl_de:europaket'), opt('dpd:classic')], { country: 'IT', weightKg: 2 });
+    const { products } = resolveCuratedOptions(
+      [opt('dhl_de:europaket'), opt('dhl_de:europaket/premium'), opt('dpd:classic')],
+      { country: 'IT', weightKg: 2, orderValueEur: 50 }
+    );
     const codes = products.map((p) => p.shippingOptionCode);
     expect(codes).not.toContain('dhl_de:europaket');
+    expect(codes).not.toContain('dhl_de:europaket/premium');
   });
 
   it('lässt den DHL-Slot lieber ganz weg, als Europaket unterzuschieben', () => {
     // Wenn SendCloud für eine Lane NUR europaket liefert, ist kein DHL-Angebot
     // ehrlicher als ein Produkt, das am Vertrag scheitert. DPD bleibt wählbar.
-    const { products } = resolveCuratedOptions([opt('dhl_de:europaket'), opt('dpd:classic')], { country: 'IT', weightKg: 2 });
+    const { products } = resolveCuratedOptions(
+      [opt('dhl_de:europaket'), opt('dhl_de:europaket/premium'), opt('dpd:classic')],
+      { country: 'IT', weightKg: 2, orderValueEur: 50 }
+    );
     expect(products.find((p) => p.key === 'dhl_paket_int')).toBeUndefined();
     expect(products.find((p) => p.key === 'dpd_classic_europa')).toBeTruthy();
   });
 
-  it('akzeptiert weiterhin die anderen Schreibweisen des echten Produkts', () => {
-    for (const code of ['dhl_de:paket_international', 'dhl_de:dhl_paket_international']) {
+  it('akzeptiert weiterhin die anderen Schreibweisen des echten Produkts (als Premium)', () => {
+    for (const code of ['dhl_de:paket_international/premium', 'dhl_de:dhl_paket_international/premium']) {
       expect(dhlInt([opt(code), opt('dpd:classic')]).shippingOptionCode).toBe(code);
     }
   });

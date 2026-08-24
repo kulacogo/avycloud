@@ -558,12 +558,29 @@ export interface Order {
   paymentStatus?: string | null;
   shippingService?: string | null;
   trackingNumber?: string | null;
+  shipmentId?: string | null;
+  /** Zusatz-Labels (Teil-/Ersatzsendung, seit 2026-08-21) — additiv, Primär-Tracking bleibt. */
+  additionalShipments?: AdditionalShipment[];
   weight?: number | null;
   buyerNote?: string | null;
   vatRate?: number;
   invoiceId?: string | null;
   invoiceNumber?: string | null;
   deliveryNoteNumber?: string | null;
+}
+
+/** Eine Zusatz-Sendung (weiteres Versandlabel ohne Storno des bestehenden). */
+export interface AdditionalShipment {
+  shipmentId?: string | null;
+  sendcloudParcelId?: number | string | null;
+  trackingNumber?: string | null;
+  trackingUrl?: string | null;
+  labelUrl?: string | null;
+  carrier?: string | null;
+  weight?: number | null;
+  createdAt?: string;
+  /** Gesetzt, wenn dieses Zusatz-Label gezielt storniert wurde. */
+  cancelledAt?: string | null;
 }
 
 export interface OrderTimelineEvent {

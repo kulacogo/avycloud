@@ -141,10 +141,44 @@ router.post('/webhooks/sendcloud', async (req, res) => {
 
     await shipDoc.ref.set(shipUpdate, { merge: true });
 
+    // Zusatz-Sendungen (Teil-/Ersatzsendung, 2026-08-21) sind NICHT autoritativ
+    // für den Auftrag: kein Status-Übergang (das Zusatz-Paket kann vor dem
+    // Primär-Paket zugestellt sein), kein Tracking-Backfill der Primär-Felder
+    // (order.trackingNumber ist die Marktplatz-Wahrheit der Primär-Sendung).
+    // Stattdessen wird nur der eigene Eintrag in order.additionalShipments
+    // nachgetragen (DPD liefert die Sendungsnummer asynchron).
+    const isAdditionalShipment = shipData.additionalLabel === true;
+    if (isAdditionalShipment && orderId && (trackingNumber || trackingUrl)) {
+      try {
+        const orderRef = db.collection(ORDERS_COLLECTION).doc(orderId);
+        const orderSnap = await orderRef.get();
+        if (orderSnap.exists) {
+          const order = orderSnap.data() || {};
+          const list = Array.isArray(order.additionalShipments) ? order.additionalShipments : [];
+          let changed = false;
+          const next = list.map((s) => {
+            const match = s && (s.shipmentId === shipDoc.id || Number(s.sendcloudParcelId) === Number(parcelId));
+            if (!match) return s;
+            changed = true;
+            return {
+              ...s,
+              ...(trackingNumber ? { trackingNumber } : {}),
+              ...(trackingUrl ? { trackingUrl } : {}),
+            };
+          });
+          if (changed) {
+            await orderRef.set({ additionalShipments: next, updatedAt: new Date().toISOString() }, { merge: true });
+          }
+        }
+      } catch (backfillErr) {
+        console.warn(`[webhook/sendcloud] additionalShipments backfill failed for ${orderId}: ${backfillErr.message}`);
+      }
+    }
+
     // Map SendCloud status to OMS status
     const omsStatus = SENDCLOUD_STATUS_MAP[statusId] || null;
 
-    if (omsStatus && orderId) {
+    if (omsStatus && orderId && !isAdditionalShipment) {
       const orderRef = db.collection(ORDERS_COLLECTION).doc(orderId);
       const orderSnap = await orderRef.get();
 

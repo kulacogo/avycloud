@@ -356,6 +356,12 @@ export const ShippingOptionModal: React.FC<ShippingOptionModalProps> = ({
   onConfirm,
   onCancel,
 }) => {
+  /** true = ab Schwelle (oder Wert unbekannt): nur Versandarten mit Sendungsverfolgung (2026-08-21). */
+  trackedOnly?: boolean;
+  /** Echte Schwelle in EUR (ENV-konfigurierbar, nicht hartkodiert). */
+  trackedOnlyThresholdEur?: number | null;
+  /** false = Bestellwert unbekannt — der Grund ist dann „unbekannt", nicht „über Schwelle". */
+  orderValueKnown?: boolean;
   const [selectedKey, setSelectedKey] = useState<string | null>(products[0]?.key ?? null);
   const selected = products.find((p) => p.key === selectedKey) || null;
 
@@ -368,6 +374,9 @@ export const ShippingOptionModal: React.FC<ShippingOptionModalProps> = ({
       onClose={onCancel}
       busy={busy}
       footer={
+  trackedOnly,
+  trackedOnlyThresholdEur,
+  orderValueKnown,
         <div className="flex items-center justify-end gap-2">
           <button
             type="button"
@@ -413,6 +422,13 @@ export const ShippingOptionModal: React.FC<ShippingOptionModalProps> = ({
                 } disabled:opacity-50`}
               >
                 <span
+      {trackedOnly ? (
+        <div className="mb-3 bg-info-dim border border-info/30 rounded-lg px-3 py-2 text-xs text-info">
+          {orderValueKnown === false
+            ? "Bestellwert unbekannt — zur Sicherheit nur Versand mit Sendungsverfolgung."
+            : `Ab ${(trackedOnlyThresholdEur ?? 10).toLocaleString("de-DE")} € Bestellwert: nur Versand mit Sendungsverfolgung — Maxibrief/Warensendung stehen deshalb nicht zur Auswahl.`}
+        </div>
+      ) : null}
                   className={`inline-flex items-center justify-center w-5 h-5 rounded-full border ${
                     active ? "border-accent bg-accent" : "border-app-border bg-app-elevated"
                   }`}

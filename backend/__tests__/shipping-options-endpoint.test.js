@@ -40,10 +40,12 @@ describe('listCuratedShippingOptions', () => {
         const data = to === 'FR'
           ? [
               { code: 'dhl_de:warenpostinternational', weight: { min: { value: 0 }, max: { value: 1 } } },
+              { code: 'dhl_de:warenpostinternational/premium', weight: { min: { value: 0 }, max: { value: 1 } } },
               { code: 'dpd:classic', weight: { min: { value: 0 }, max: { value: 5 } } },
               { code: 'dhl_de:weltpaket', weight: { min: { value: 0 }, max: { value: 31.5 } } },
             ]
           : [
+              { code: 'dp:maxibrief/mailbox', weight: { min: { value: 0 }, max: { value: 1 } } },
               { code: 'dhl_de:dhl_paket', weight: { min: { value: 0 }, max: { value: 31.5 } } },
               { code: 'dpd:classic', weight: { min: { value: 0 }, max: { value: 5 } } },
             ];
@@ -61,11 +63,33 @@ describe('listCuratedShippingOptions', () => {
     expect(r.products.map((p) => p.key)).toEqual(['dpd_classic', 'dhl_paket']);
   });
 
-  it('FR liefert internationale Produkte inkl. DPD Europa', async () => {
-    const order = { id: 'o', customer: { country: 'FR', zip: '75001', city: 'Paris', street: 'R 1', name: 'N' } };
+  it('FR liefert internationale Produkte inkl. DPD Europa; Warenpost Int NUR als Premium', async () => {
+    const order = { id: 'o', totalAmount: 25, customer: { country: 'FR', zip: '75001', city: 'Paris', street: 'R 1', name: 'N' } };
     const r = await engine.listCuratedShippingOptions({ order, weightKg: 0.8 });
     expect(r.scope).toBe('international');
     expect(r.products.map((p) => p.key)).toContain('dpd_classic_europa');
-    expect(r.products.find((p) => p.key === 'warenpost_int').shippingOptionCode).toBe('dhl_de:warenpostinternational');
+    expect(r.products.find((p) => p.key === 'warenpost_int').shippingOptionCode).toBe('dhl_de:warenpostinternational/premium');
+  });
+
+  // Tracking-Pflicht ab 10 €: der Bestellwert kommt aus dem Order-Doc (totalAmount).
+  it('Bestellwert unter 10 €: Maxibrief bleibt in der Auswahl', async () => {
+    const order = { id: 'o', totalAmount: 6.5, customer: { country: 'DE', zip: '10115', city: 'B', street: 'S 1', name: 'N' } };
+    const r = await engine.listCuratedShippingOptions({ order, weightKg: 0.4 });
+    expect(r.trackedOnly).toBe(false);
+    expect(r.products.map((p) => p.key)).toContain('maxibrief');
+  });
+
+  it('Bestellwert ab 10 €: Maxibrief fliegt raus, trackedOnly=true', async () => {
+    const order = { id: 'o', totalAmount: 25, customer: { country: 'DE', zip: '10115', city: 'B', street: 'S 1', name: 'N' } };
+    const r = await engine.listCuratedShippingOptions({ order, weightKg: 0.4 });
+    expect(r.trackedOnly).toBe(true);
+    expect(r.products.map((p) => p.key)).not.toContain('maxibrief');
+  });
+
+  it('ohne Betragsdaten am Auftrag: fail-safe Richtung Tracking', async () => {
+    const order = { id: 'o', customer: { country: 'DE', zip: '10115', city: 'B', street: 'S 1', name: 'N' } };
+    const r = await engine.listCuratedShippingOptions({ order, weightKg: 0.4 });
+    expect(r.trackedOnly).toBe(true);
+    expect(r.products.map((p) => p.key)).not.toContain('maxibrief');
   });
 });

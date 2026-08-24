@@ -200,6 +200,9 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
   const uploadInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const cameraInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const isUnmountedRef = useRef(false);
+  const [curatedTrackedOnly, setCuratedTrackedOnly] = useState(false);
+  const [curatedThreshold, setCuratedThreshold] = useState<number | null>(null);
+  const [curatedValueKnown, setCuratedValueKnown] = useState(true);
   const pickSubmitInFlightRef = useRef(false);
   // Doppel-Absenden-Sperre fuer Einlagern, exakt analog zu `pickSubmitInFlightRef`.
   // Ein Ref und kein State: der Scanner-Wagenrueclauf feuert mehrere Events im
@@ -2387,6 +2390,9 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
           shipDecisionWeight,
           null,
           product.shippingOptionCode
+          setCuratedTrackedOnly(!!opts.trackedOnly);
+          setCuratedThreshold(opts.trackedOnlyThresholdEur ?? null);
+          setCuratedValueKnown(opts.orderValueKnown !== false);
         );
         setShipDecisionStep('idle');
         setShipDecisionTarget(null);
@@ -2457,6 +2463,9 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
                 setLabelPrinting(true);
                 try {
                   const res = await printLabelBlob(pendingLabel.blob, `label-${pendingLabel.orderLabel}.pdf`);
+      setCuratedTrackedOnly(false);
+      setCuratedThreshold(null);
+      setCuratedValueKnown(true);
                   // Abbruch durch den Menschen: Knopf stehen lassen, damit ein
                   // zweiter Versuch moeglich ist.
                   if (res.ok) setPendingLabel(null);
@@ -2672,6 +2681,9 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
     },
   ];
 
+            trackedOnly={curatedTrackedOnly}
+            trackedOnlyThresholdEur={curatedThreshold}
+            orderValueKnown={curatedValueKnown}
   return (
     <div className="flex flex-col flex-1 min-h-0 max-w-xl mx-auto w-full">
       <h1 className="text-2xl font-semibold text-txt-primary mb-3 shrink-0">{t('ops.title')}</h1>

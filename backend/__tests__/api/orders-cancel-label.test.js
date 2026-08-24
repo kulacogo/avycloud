@@ -116,6 +116,25 @@ describe('POST /api/orders/:orderId/cancel-label', () => {
     }));
   });
 
+  it('Zusatz-Labels (additionalLabel:true) werden NICHT mitstorniert (2026-08-21)', async () => {
+    // Ein Zusatz-Paket (Teil-/Ersatzsendung) kann physisch unterwegs sein —
+    // der Primaer-Label-Storno darf es nicht bei SendCloud killen.
+    const docs = [
+      shipmentDoc('s-add', { sendcloudParcelId: 555, status: 'announced', additionalLabel: true }),
+      shipmentDoc('s-prim', { sendcloudParcelId: 111, status: 'announced' }),
+    ];
+    mockQuery.get.mockResolvedValue({ empty: false, docs, size: docs.length, forEach: () => {} });
+
+    const res = await request(app).post('/api/orders/order-mixed/cancel-label').send({});
+
+    expect(res.status).toBe(200);
+    const cancelledIds = cancelParcelMock.mock.calls.map((c) => c[0].parcelId);
+    expect(cancelledIds).toEqual([111]); // 555 (Zusatz) bleibt am Leben
+    // Nur EIN shipments-Doc wurde auf cancelled gesetzt:
+    const cancelledSets = mockDoc.set.mock.calls.filter((c) => c[0] && c[0].status === 'cancelled');
+    expect(cancelledSets).toHaveLength(1);
+  });
+
   it('SendCloud-Storno-Fehler (schon extern storniert) bricht den Reset nicht ab', async () => {
     cancelParcelMock.mockRejectedValue(new Error('410 Parcel has been deleted'));
     const docs = [shipmentDoc('s-gone', { sendcloudParcelId: 333, status: 'announced' })];
