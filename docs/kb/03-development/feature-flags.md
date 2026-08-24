@@ -219,6 +219,28 @@ Beide **default OFF** → exakt heutiges Verhalten. Rollback = Flag auf `false`.
 >
 > **Vor jedem Flip auf `on` lesen:** `generateInvoice` verwendet `order.invoiceSevdeskId` als „schon geprägt"-Marker **wieder** ([invoice-engine.js:285](../../../backend/services/invoice-engine.js#L285), Schutz gegen den Doppel-Rechnungs-Vorfall vom 20.07.2026). Zeigt das Feld auf einen in SevDesk gelöschten Beleg, läuft jeder Versuch gegen eine tote ID und der Auftrag bekommt **nie wieder** eine Rechnung. Deshalb räumt [scripts/purge-invoices.js](../../../backend/scripts/purge-invoices.js) SevDesk und Firestore immer zusammen auf.
 
+## Duplikat-Suche beim Erfassen (seit 2026-08-18)
+
+| ENV | Default | Wirkung | Anker |
+|-----|---------|---------|-------|
+| `DEDUP_SEARCH` | `on` (`off`\|`shadow`\|`on`) | Sucht nach der Identifikation, ob das Produkt schon existiert — nicht nur über Barcodes. `off` = exaktes Verhalten vor 2026-08-18 (reiner Barcode-Vergleich). `shadow` = entscheidet und protokolliert, liefert den Treffer aber NICHT aus (Beobachtungsmodus). `on` = ein gefundenes Bestandsprodukt wird wiederverwendet, es entsteht kein zweites Datenblatt und keine zweite SKU. | [services/duplicate-search.js](../../../backend/services/duplicate-search.js), [routes/identify.js](../../../backend/routes/identify.js) (`findReuseMatch`) |
+| `DEDUP_JUDGE_MIN_CONFIDENCE` | `0.85` | Ab welcher Sicherheit ein KI-Urteil „gleiches Produkt" als Treffer zählt. Darunter wird regulär neu angelegt. | [services/duplicate-judge.js](../../../backend/services/duplicate-judge.js) |
+| `CATALOG_INDEX_TTL_MS` | `300000` (5 min) | Gültigkeit des Katalog-Index im Speicher. Ein fehlgeschlagenes Nachladen behält den letzten guten Stand — ein leerer Index fände keine Duplikate. | [lib/catalog-index.js](../../../backend/lib/catalog-index.js) |
+
+> **Warum:** Der Duplikat-Check verglich ausschließlich Barcodes ([findProductByStrictIdentifier](../../../backend/lib/firestore.js#L3231) prüft `identification.barcodes`, `details.identifiers.ean`, `.gtin`, `.sku` — sonst nichts). Ohne lesbaren Barcode entstand IMMER ein neues Datenblatt mit neuer SKU. Gemessen aus der Konfliktanalyse vom 08.07.2026: **64 Paare „gleiches Produkt zweimal erfasst"**, 30 davon mit Bestand. Die Herstellernummer war nicht verdrahtet, obwohl 581 von 765 Bestandsprodukten eine haben.
+>
+> **Die eigentliche Lücke war ein Gate:** `if (hasReuseBarcode)` sperrte die Prüfung genau für die Produkte aus, um die es geht. Ohne Barcode wurde `findReuseMatch` nie aufgerufen.
+>
+> **Rollenverteilung (nicht verhandelbar, Lehre aus Incident 2026-07-08):** Kandidaten werden DETERMINISTISCH gefunden ([lib/product-match.js](../../../backend/lib/product-match.js)). Die KI darf einen vorgelegten Kandidaten nur BESTÄTIGEN oder VERWERFEN — nennt ihr Urteil eine ID, die nicht in der Vorlage stand, wird es verworfen. Würde die KI den Schlüssel liefern, wäre der Suchraum wieder die ganze Datenbank und eine Halluzination träfe ein beliebiges fremdes Datenblatt (damals: drei ATE-Produkte auf einem).
+>
+> **Drei Stufen, nur die letzte ist KI:** (1) Marke + Herstellernummer stimmen überein → sicherer Treffer ohne KI-Aufruf. (2) Modellnummer / Namensüberlappung → Kandidaten. (3) KI urteilt über die Kandidaten mit den Fotos.
+>
+> **Absicherung der ersten Stufe:** widersprechen sich die Bezeichnungen bei gleicher Herstellernummer deutlich, wird der Treffer NICHT blind übernommen, sondern der KI vorgelegt. Die Schwelle (0,5 Zeichen-Bigramm-Dice) ist gemessen, nicht geschätzt: gleiche Produkte lagen bei 0,667–0,848, verschiedene bei 0,267–0,400. Wort-Token taugen im Deutschen nicht — „Belagsatz" und „Bremsbelagsatz" teilen kein einziges Wort.
+>
+> **Fehlerrichtung:** im Zweifel KEIN Treffer. Ein verpasstes Duplikat kostet ein zusätzliches Datenblatt, das ein Mensch zusammenführen kann; ein falscher Treffer überschreibt ein fremdes, womöglich handgepflegtes Datenblatt. Fehler in der Suche brechen die Erfassung nie ab — dann wird angelegt wie vorher.
+>
+> **Sichtbarkeit:** wird ein Bestandsprodukt wiederverwendet, zeigt der Prüfschritt der Erfassung ein bleibendes Hinweisfeld ([utils/reuseNotice.ts](../../../utils/reuseNotice.ts), [components/capture/StepReview.tsx](../../../components/capture/StepReview.tsx)). Ohne diesen Hinweis hielte der Bediener die Bestandsdaten für das Ergebnis der frischen Erkennung — die Datenverlust-Klasse aus [CLAUDE.md](../../../CLAUDE.md) Punkt 16.
+
 ## Hinweise
 
 - **ENV-Var-Rename** ist verboten, wenn sie in CI/CD referenziert wird (Punkt 4 [CLAUDE.md](../../../CLAUDE.md)).

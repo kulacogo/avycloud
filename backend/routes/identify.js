@@ -474,6 +474,11 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
     const { buildReusePools, reuseMatchConsistent } = require('../lib/reuse-guard');
     const { explicit: explicitReuseBarcodes, ocr: ocrReuseBarcodes } =
       buildReusePools(explicitBarcodes, ocrPayload.barcodes || []);
+    // Reine Auskunft fuers Logging/Meta. Bis 2026-08-18 hing die gesamte
+    // Duplikat-Pruefung an diesem Wert — damit lief sie ausgerechnet fuer
+    // Produkte OHNE lesbaren Barcode nie, also genau fuer die, die deshalb
+    // doppelt angelegt wurden. Die Barcode-Zweige in findReuseMatch sind
+    // selbst gegated; ohne Barcode laeuft dort nur noch die Produktsuche.
     const hasReuseBarcode = explicitReuseBarcodes.length > 0 || ocrReuseBarcodes.length > 0;
     const reuseBarcodesForMeta = [...new Set([...explicitReuseBarcodes, ...ocrReuseBarcodes])];
     // Gemeinsamer Reuse-Lookup: explizit sofort vertrauen; OCR-Treffer nur bei
@@ -487,6 +492,28 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
         const m = await findProductByStrictIdentifier({ barcodes: ocrReuseBarcodes, sku: null });
         if (m?.id && reuseMatchConsistent(fresh, m)) return m;
       }
+
+      // Stufe 2+3 (seit 2026-08-18): Produkte ohne lesbaren Barcode bekamen bis
+      // hierhin IMMER ein neues Datenblatt und eine neue SKU — gemessen 64 Paare
+      // "gleiches Produkt zweimal erfasst". Die Suche findet Kandidaten
+      // deterministisch (Marke + Herstellernummer, Modellnummer) und laesst die
+      // KI hoechstens BESTAETIGEN. Sie bekommt bewusst nur das Produkt und die
+      // Fotos — nie Barcodes, sonst waere es wieder der Vektor aus Juli 2026.
+      // Siehe services/duplicate-search.js.
+      try {
+        const { searchExistingProduct } = require('../services/duplicate-search');
+        const suche = await searchExistingProduct({ fresh, images: files });
+        if (suche?.matchId) {
+          const gefunden = await getProduct(suche.matchId);
+          if (gefunden?.id) {
+            console.log(`[identify] Duplikat ueber Suche (${suche.stage}): ${gefunden.id}`);
+            return gefunden;
+          }
+        }
+      } catch (sucheErr) {
+        console.warn('[identify] Duplikat-Suche fehlgeschlagen, lege regulaer an:', sucheErr?.message || sucheErr);
+      }
+
       return null;
     };
 
@@ -551,7 +578,7 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
         // Post-V3 duplicate check — explizit-vs-OCR-getrennt + Konsistenz-Gate
         // (siehe findReuseMatch / reuse-guard.js). KI-aufgeloeste Identifier
         // sind TABU; OCR-EAN-8 wird gar nicht erst als Trigger zugelassen.
-        if (hasReuseBarcode) {
+        {
           const v3Existing = await findReuseMatch(product);
           if (v3Existing?.id) {
             console.log(`[identify] Post-V3 duplicate found: ${v3Existing.id}`);
@@ -750,7 +777,7 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
         // Post-grounding duplicate check — explizit-vs-OCR-getrennt +
         // Konsistenz-Gate (findReuseMatch). groundedRecord.ean/gtin/upc/sku sind
         // KI-Aufloesungen und TABU; OCR-EAN-8 wird nicht als Trigger zugelassen.
-        if (hasReuseBarcode) {
+        {
           const groundedExisting = await findReuseMatch(product);
           if (groundedExisting?.id) {
             console.log(`[identify] Post-grounding duplicate found: ${groundedExisting.id}`);
@@ -810,7 +837,7 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
           name: result?.record?.title_ebay || result?.record?.name || '',
         },
       };
-      const legacyExisting = hasReuseBarcode ? await findReuseMatch(legacyFresh) : null;
+      const legacyExisting = await findReuseMatch(legacyFresh);
       if (legacyExisting?.id) {
         try { await adjustPendingIntakeQuantity(legacyExisting.id, 1); } catch {}
         if (lotCode) {

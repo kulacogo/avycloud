@@ -1,0 +1,15 @@
+{
+  "name": "avycloud-foto-agent",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Liest neue Produktfotos vom lokalen Share, laesst sie von AvyCloud erfassen und legt sie danach nach IDENT ab.",
+  "//type": "CommonJS wie das Backend. Das Wurzel-package.json steht auf module, deshalb muss es hier ausdruecklich stehen.",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "node --test __tests__/",
+    "start": "node index.js",
+    "dry-run": "node index.js --dry-run"
+  },
+  "engines": { "node": ">=20" }
+}

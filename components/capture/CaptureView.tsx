@@ -10,6 +10,7 @@ import StepUpload from "./StepUpload";
 import StepGrouping from "./StepGrouping";
 import StepAnalysis from "./StepAnalysis";
 import StepReview from "./StepReview";
+import type { ReuseNotice } from "../../utils/reuseNotice";
 import StepSummary from "./StepSummary";
 import { PageTitle } from "../ui/PageTitle";
 
@@ -131,6 +132,16 @@ const CaptureView: React.FC<CaptureViewProps> = ({ onProductCreated }) => {
   );
 
   // Analysis → Review (now receives Product[])
+  // Produkte, die beim Erfassen als BEREITS VORHANDEN erkannt wurden. Der
+  // Hinweis bleibt am Datenblatt stehen, damit niemand die Bestandsdaten fuer
+  // das Ergebnis der frischen Erkennung haelt.
+  const [reuseNotices, setReuseNotices] = useState<ReuseNotice[]>([]);
+  // Stabile Referenz: StepAnalysis fuehrt onReused in seinen useEffect-Deps —
+  // eine neue Funktion je Render wuerde die Erkennung erneut starten.
+  const handleReused = useCallback((notices: ReuseNotice[]) => {
+    setReuseNotices((vorher) => [...vorher, ...notices]);
+  }, []);
+
   const handleAnalysisComplete = useCallback(
     (identified: Product | Product[]) => {
       const arr = Array.isArray(identified) ? identified : [identified];
@@ -308,6 +319,7 @@ const CaptureView: React.FC<CaptureViewProps> = ({ onProductCreated }) => {
             uploadData={uploadData}
             lotCode={lotCode}
             onComplete={handleAnalysisComplete}
+            onReused={handleReused}
             onError={handleAnalysisError}
             onBack={handleStepBack}
             onRetryWarning={handleRetryWarning}
@@ -320,6 +332,7 @@ const CaptureView: React.FC<CaptureViewProps> = ({ onProductCreated }) => {
             <StepReview
               key={currentProduct.id || activeProductIndex}
               product={currentProduct}
+              reuseNotice={reuseNotices.find((n) => n.productId === currentProduct.id) || null}
               onComplete={handleReviewComplete}
               onBack={handleStepBack}
               isLastProduct={activeProductIndex >= products.length - 1}

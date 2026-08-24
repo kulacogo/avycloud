@@ -7,6 +7,7 @@ import { ProgressBar } from "../ui/ProgressBar";
 import type { CaptureUploadData } from "./CaptureView";
 import { compressImagesForUpload } from "../../utils/imageCompress";
 import { beginIdentifyRun } from "../../utils/identifyRunFlag";
+import { buildReuseNotice, type ReuseNotice } from "../../utils/reuseNotice";
 
 interface StepAnalysisProps {
   /** Live-Los aus CaptureView — gewinnt über den Snapshot in uploadData,
@@ -14,6 +15,14 @@ interface StepAnalysisProps {
   lotCode?: string;
   uploadData: CaptureUploadData;
   onComplete: (products: Product | Product[]) => void;
+  /**
+   * Meldet Produkte, die bereits im Bestand waren. Seit 2026-08-18 findet die
+   * Erfassung ein vorhandenes Produkt auch OHNE Barcode (siehe
+   * services/duplicate-search.js) und legt dann kein zweites Datenblatt an.
+   * Das muss der Bediener sehen — sonst haelt er die alten Daten fuer das
+   * Ergebnis der frischen Erkennung.
+   */
+  onReused?: (notices: ReuseNotice[]) => void;
   onError: (error: string) => void;
   onBack: () => void;
   /**
@@ -87,6 +96,7 @@ const StepAnalysis: React.FC<StepAnalysisProps> = ({
   uploadData,
   lotCode,
   onComplete,
+  onReused,
   onError,
   onBack,
   onRetryWarning,
@@ -193,6 +203,11 @@ const StepAnalysis: React.FC<StepAnalysisProps> = ({
             if (result.ok && result.data) {
               setPhaseLabel(null);
               setPhase("done");
+              const reuseNotice = buildReuseNotice(result.meta, {
+                productName: result.data.identification?.name,
+                productId: result.data.id,
+              });
+              if (reuseNotice) onReused?.([reuseNotice]);
               // Erfolg NACH einem Fehlversuch: der erste Lauf kann serverseitig
               // durchgelaufen sein und ein zweites Produkt hinterlassen haben.
               if (attempt > 1) onRetryWarning?.({ attempts: attempt });
@@ -230,6 +245,7 @@ const StepAnalysis: React.FC<StepAnalysisProps> = ({
         // sequential pass to reduce transient overload/rate-limit failures.
         const CONCURRENCY = 2;
         const results: Product[] = [];
+        const reuseNotices: ReuseNotice[] = [];
         const errors: { label: string; error: string }[] = [];
         let completed = 0;
 
@@ -275,7 +291,7 @@ const StepAnalysis: React.FC<StepAnalysisProps> = ({
                 combinedHint
               );
               if (result.ok && result.data) {
-                return { ok: true as const, data: result.data };
+                return { ok: true as const, data: result.data, meta: result.meta };
               }
               const code = result.error?.code;
               const msg = result.error?.message || "Unbekannter Fehler";
@@ -329,6 +345,12 @@ const StepAnalysis: React.FC<StepAnalysisProps> = ({
               setGroupProgress({ current: completed, total });
               if (settled.status === "fulfilled" && settled.value.ok && settled.value.data) {
                 results.push(settled.value.data);
+                const reuseNotice = buildReuseNotice(settled.value.meta, {
+                  label: group.label,
+                  productName: settled.value.data.identification?.name,
+                  productId: settled.value.data.id,
+                });
+                if (reuseNotice) reuseNotices.push(reuseNotice);
               } else {
                 const msg = settled.status === "rejected"
                   ? settled.reason?.message || "Netzwerkfehler"
@@ -369,6 +391,7 @@ const StepAnalysis: React.FC<StepAnalysisProps> = ({
         }
 
         setPhase("done");
+        if (reuseNotices.length) onReused?.(reuseNotices);
         setTimeout(() => {
           if (!cancelled) onComplete(results);
         }, 600);
@@ -384,7 +407,7 @@ const StepAnalysis: React.FC<StepAnalysisProps> = ({
       // navigates away mid-identify), release immediately so polling resumes.
       releaseIdentifyFlag();
     };
-  }, [uploadData, onComplete, onError, retryNonce]);
+  }, [uploadData, onComplete, onReused, onError, retryNonce]);
 
   const currentIndex = PHASE_ORDER.indexOf(phase);
   const isMulti = groupProgress.total > 1;

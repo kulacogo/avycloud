@@ -5,8 +5,18 @@ import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 import { Badge } from "../ui/Badge";
 
+import type { ReuseNotice } from "../../utils/reuseNotice";
+
 interface StepReviewProps {
   product: Product;
+  /**
+   * Gesetzt, wenn dieses Produkt beim Erfassen als BEREITS VORHANDEN erkannt
+   * wurde. Dann zeigt das Datenblatt den Bestand, nicht das frische Ergebnis —
+   * das muss dranstehen, sonst haelt der Bediener die alten Werte fuer die
+   * frisch erkannten. Bleibt bewusst stehen (kein Auto-Ausblenden), siehe
+   * CLAUDE.md Punkt 16.
+   */
+  reuseNotice?: ReuseNotice | null;
   onComplete: (edited: Product) => void;
   onBack: () => void;
   isLastProduct?: boolean;
@@ -27,7 +37,7 @@ const ConfidenceBadge: React.FC<{ value: number }> = ({ value }) => {
   return <Badge variant="danger" size="sm">Geschätzt</Badge>;
 };
 
-const StepReview: React.FC<StepReviewProps> = ({ product, onComplete, onBack, isLastProduct = true }) => {
+const StepReview: React.FC<StepReviewProps> = ({ product, onComplete, onBack, isLastProduct = true, reuseNotice = null }) => {
   const [name, setName] = useState(product.identification?.name || "");
   const [brand, setBrand] = useState(product.identification?.brand || "");
   const [category, setCategory] = useState(product.identification?.category || "");
@@ -90,6 +100,16 @@ const StepReview: React.FC<StepReviewProps> = ({ product, onComplete, onBack, is
         </div>
         <ConfidenceBadge value={confidence} />
       </div>
+
+      {reuseNotice && (
+        <div
+          className="rounded-xl border border-warning/40 bg-warning/10 px-4 py-3"
+          role="status"
+        >
+          <p className="text-sm font-semibold text-txt-primary">{reuseNotice.title}</p>
+          <p className="text-sm text-txt-muted mt-0.5">{reuseNotice.detail}</p>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] gap-6">
         {/* Hero image */}
