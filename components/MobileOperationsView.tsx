@@ -21,6 +21,11 @@ import { compareBinCodesForPickRoute } from '../utils/warehouseRoute';
 import type { UploadGroupPayload } from '../hooks/useIdentification';
 import QuantityNumpad from './operations/QuantityNumpad';
 import { resolveScanCaptureMode } from './scanCaptureMode';
+import {
+  istEchterTastenanschlag, zaehleAnschlag, istTastenScanner, LEERER_BEWEIS,
+  type TastenBeweis,
+} from '../utils/scannerDetect';
+import { useTastaturHoehe } from '../hooks/useTastaturHoehe';
 import { printLabelBlob } from '../utils/labelPrint';
 import { fetchPrintStatus, enqueueLabelPrint, waitForPrintJob } from '../api/client';
 
@@ -1341,10 +1346,15 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
   // capture (the only variant proven to work with the NETUM scanner IME), so a
   // wrong per-device guess can never take the fleet down. See scanCaptureMode.ts
   // for the modes and for why no fleet-wide keyboard fix exists.
-  // Decided ONCE per mount and deliberately kept out of the focus effects'
-  // dependency chain — a changing value there would re-fire .focus() and could
-  // steal focus from the weight prompt (regression guarded since 28dcab8a).
-  const scanCaptureModeOverride = useMemo(() => {
+  // Beim Aufbau aus Adresse/Speicher gelesen — und seit 2026-08-24 zur Laufzeit
+  // aufwertbar, sobald sich das Gerät als Tasten-Scanner erwiesen hat.
+  //
+  // Die frühere Warnung, den Modus aus der Abhängigkeitskette der Fokus-Effekte
+  // herauszuhalten, zielte auf das Gewichtsfeld: ein neu feuerndes `.focus()`
+  // klaute ihm den Fokus und die Tastatur ging dort nicht auf. Dieses Feld gibt
+  // es nicht mehr (DecimalNumpad ist `readOnly` + `inputMode="none"`), damit ist
+  // der Grund entfallen — der Wächter `isRealEditable` bleibt trotzdem stehen.
+  const [scanCaptureModeOverride, setScanCaptureModeOverride] = useState<string | null>(() => {
     try {
       return (
         new URLSearchParams(window.location.search).get('scanCapture') ||
@@ -1353,11 +1363,18 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
     } catch {
       return null;
     }
-  }, []);
+  });
   const scanCaptureMode = useMemo(
     () => resolveScanCaptureMode(scanCaptureModeOverride),
     [scanCaptureModeOverride]
   );
+  /** Laufender Beweis, ob dieses Gerät echte Tastenanschläge sendet. */
+  const tastenBeweisRef = useRef<TastenBeweis>(LEERER_BEWEIS);
+  const [tastaturHinweis, setTastaturHinweis] = useState<string | null>(null);
+
+  // Solange die Tastatur nicht verhindert werden kann, soll sie wenigstens
+  // nichts verdecken: der Ziffernblock klebt dann über ihr.
+  useTastaturHoehe(scanCaptureMode === 'input');
 
   // Typing localStorage commands on a handheld is painful, so a ?scanCapture=…
   // URL configures the device permanently on first visit.
@@ -1526,6 +1543,24 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
   );
 
   const handleScanCaptureKeyDown = (e: React.KeyboardEvent<HTMLElement>) => {
+    // Liefert dieses Gerät echte Tastenanschläge? Dann braucht es die
+    // IME-Verbindung nicht — und die Tastatur darf dauerhaft weg. Nur
+    // AUFWERTEN, nie abwerten: der Beweis liegt vor dem Umschalten vor.
+    if (scanCaptureMode === 'input' && istEchterTastenanschlag(e as unknown as KeyboardEvent)) {
+      tastenBeweisRef.current = zaehleAnschlag(tastenBeweisRef.current, Date.now());
+      if (istTastenScanner(tastenBeweisRef.current)) {
+        tastenBeweisRef.current = LEERER_BEWEIS;
+        try {
+          window.localStorage.setItem('scanCapture', 'none');
+        } catch { /* Privatmodus: gilt dann nur bis zum Neuladen */ }
+        setScanCaptureModeOverride('none');
+        setTastaturHinweis(
+          'Scanner sendet echte Tastenanschläge — Bildschirmtastatur ist jetzt aus. '
+          + 'Umstellbar unter Betrieb → Gerät.'
+        );
+      }
+    }
+
     // Some configs send a discrete Enter/Tab key instead of a value suffix.
     if (e.key === 'Enter' || e.key === 'Tab') {
       e.preventDefault();
@@ -1559,9 +1594,15 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
   // Android scanner IME attaches an InputConnection and commits scans. Do NOT
   // use inputMode="none", readOnly, disabled, off-screen or opacity:0 here —
   // any of those breaks IME-mode scanners (NETUM/Honeywell). See comment above.
+  // OBEN, nicht unten: Chromium scrollt beim Öffnen der Tastatur zum
+  // fokussierten Feld. Saß es am UNTEREN Rand — genau dort, wo die Tastatur
+  // aufgeht —, riss dieser Sprung die ganze Ansicht nach oben und der Bediener
+  // musste zurückscrollen. Oben ist das Feld ohnehin schon sichtbar, der Sprung
+  // entfällt. Alles Übrige bleibt: gerendert, editierbar, inputMode nicht
+  // "none" — sonst stirbt der IME-Scanner (siehe Kommentar oben).
   const scanCaptureStyle: React.CSSProperties = {
     position: 'fixed',
-    bottom: 0,
+    top: 0,
     left: 0,
     width: 1,
     height: 1,
@@ -1588,7 +1629,31 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
     pointerEvents: 'none',
   };
 
-  const renderScanCapture = () =>
+  const renderScanCapture = () => (
+    <>
+      {/* Umschalten darf NIE still passieren: der Bediener muss wissen, warum
+          die Tastatur plötzlich wegbleibt — und wo er es zurückdreht. */}
+      {tastaturHinweis ? (
+        <div
+          role="status"
+          aria-live="polite"
+          className="rounded-2xl border border-accent/40 bg-accent/10 p-3 text-sm text-txt-primary flex items-start gap-2"
+        >
+          <span className="flex-1">{tastaturHinweis}</span>
+          <button
+            type="button"
+            onClick={() => setTastaturHinweis(null)}
+            className="shrink-0 rounded-lg bg-app-surface border border-app-border px-2 py-1 text-xs font-semibold"
+          >
+            OK
+          </button>
+        </div>
+      ) : null}
+      {renderScanCaptureFeld()}
+    </>
+  );
+
+  const renderScanCaptureFeld = () =>
     scanCaptureMode === 'contenteditable' ? (
       // EXPERIMENTAL, opt-in only (?scanCapture=ce): contenteditable host with
       // virtualkeyboardpolicy="manual" — in theory keeps the IME target while
@@ -2794,10 +2859,8 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
                   try {
                     window.localStorage.setItem('scanCapture', option.wert);
                   } catch { /* Privatmodus: dann gilt es nur bis zum Neuladen */ }
-                  // Neu laden, weil der Modus bewusst NICHT in der
-                  // Abhängigkeitskette der Fokus-Effekte hängt — ein Wechsel zur
-                  // Laufzeit würde dem Gewichts-Block den Fokus klauen.
-                  window.location.reload();
+                  setScanCaptureModeOverride(option.wert);
+                  setTastaturHinweis(null);
                 }}
                 className={`rounded-xl border p-2 text-left ${
                   scanCaptureMode === option.wert
@@ -2811,6 +2874,9 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
             ))}
           </div>
           <p className="text-[11px] text-txt-muted">
+            Wird automatisch auf „Tastatur aus" gestellt, sobald ein Scan als
+            echte Tastenanschläge ankommt — dann ist bewiesen, dass dieses Gerät
+            ohne Tastatur auskommt.
             Gilt nur für dieses Gerät. „Tastatur aus" schaltet auch den
             IME-Scanner ab — erst umstellen, wenn ein Scan noch ankommt.
             Dauerhaft ohne Tastatur geht nur über die Android-Einstellungen des

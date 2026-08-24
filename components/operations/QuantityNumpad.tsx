@@ -85,7 +85,10 @@ const QuantityNumpad: React.FC<QuantityNumpadProps> = ({
     <div
       className={
         stickyBottom
-          ? "sticky bottom-0 z-10 -mx-1 rounded-xl bg-app-bg border border-app-border p-2 space-y-1.5 shadow-[0_-8px_16px_-8px_rgba(0,0,0,0.45)]"
+          // `--tastatur-hoehe` kommt aus useTastaturHoehe: lässt sich die
+          // Android-Tastatur nicht verhindern (IME-Scanner), klebt der Block
+          // ÜBER ihr statt dahinter zu verschwinden.
+          ? "sticky bottom-[var(--tastatur-hoehe,0px)] z-10 -mx-1 rounded-xl bg-app-bg border border-app-border p-2 space-y-1.5 shadow-[0_-8px_16px_-8px_rgba(0,0,0,0.45)]"
           : "rounded-xl bg-app-bg/60 border border-app-border p-2.5 space-y-2"
       }
     >
