@@ -77,6 +77,10 @@ describe('reviseListingFromProduct — Sonderaktions-Preissperre (eBay 21919248)
     expect(reviseFixedPriceItemMock.mock.calls[0][0].startPrice).toBeGreaterThan(0);
     expect(reviseFixedPriceItemMock.mock.calls[1][0].startPrice).toBeUndefined();
     expect((r.warnings || []).join(' | ')).toMatch(/Sonderaktion/);
+    // Das Ergebnis darf NICHT behaupten, der Preis sei aktualisiert worden —
+    // updatedFields muss den tatsaechlich GESENDETEN Patch beschreiben.
+    expect(r.updatedFields).not.toContain('startPrice');
+    expect(r.updatedFields).toContain('title');
   });
 
   it('anderer eBay-Fehler: KEIN Preis-Retry, Fehler fliegt unveraendert durch', async () => {

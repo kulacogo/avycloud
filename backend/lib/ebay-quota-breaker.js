@@ -91,8 +91,13 @@ async function closeEbayQuotaBreaker({ firestore, now = Date.now() } = {}) {
 // zurueck. Der Drain (stock-failure-drain) nutzt dieses Fenster, um Retries
 // waehrend einer erschoepften Tagesquota nicht sinnlos zu verbrennen —
 // 2026-08-26: 378 abandoned Failure-Docs, weil alle 5 Versuche (~90 min)
-// komplett in die stundenlange Sperre fielen. DST-korrekt ueber Intl;
+// komplett in die stundenlange Sperre fielen. Zeitzonen-korrekt ueber Intl;
 // min. 60s, damit ein Aufrufer direkt vor Mitternacht nie 0/negativ plant.
+// BEKANNTE UNSCHAERFE (bewusst akzeptiert): an den zwei DST-Umstelltagen ist
+// der LA-Tag 23h/25h lang, die 86400s-Annahme liegt dann bis zu 1h daneben —
+// schlimmstenfalls ein verfruehter Probe-Versuch (kostet ein Deferral aus dem
+// Budget) bzw. ein um ~1h spaeterer Retry. Kein Korrektur-Code, um die
+// Scheduling-Funktion einfach und deterministisch testbar zu halten.
 const EBAY_QUOTA_TZ = 'America/Los_Angeles';
 
 function msUntilNextEbayQuotaReset(now = Date.now()) {

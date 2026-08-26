@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const { FieldValue } = require('@google-cloud/firestore');
+const { FieldValue, Timestamp } = require('@google-cloud/firestore');
 
 const { firestore, getAllProducts, getAllProductsForTenant, PRODUCTS_COLLECTION } = require('./firestore');
 const { getRequiredAspects, getCategoryAspectCatalog, findEbayCategory } = require('./ebay-taxonomy');
@@ -395,14 +395,14 @@ function cleanUndefined(value) {
   // ihre inneren Felder sind nicht enumerierbar, gespeichert wuerde ein leeres
   // {} — genau so verloren ALLE ebayListingsLive-Docs ihre updatedAt/
   // lastSeenAt-Zeitstempel und die Listings-Seite zeigte "Letzter Sync: —",
-  // obwohl der Sync alle 15 Minuten lief (2026-08-26). Duck-Typing statt
-  // instanceof, damit auch gemockte/fremde Firestore-Klassen durchgehen.
-  if (
-    typeof value === 'object' &&
-    !Array.isArray(value) &&
-    (value instanceof Date || typeof value.toDate === 'function' || typeof value.isEqual === 'function')
-  ) {
-    return value;
+  // obwohl der Sync alle 15 Minuten lief (2026-08-26). Erst instanceof gegen
+  // die echten Klassen, Duck-Typing (toDate/isEqual) nur als Fallback fuer
+  // gemockte GCP-Pakete in Tests.
+  if (typeof value === 'object' && !Array.isArray(value)) {
+    if (value instanceof Date) return value;
+    if (typeof FieldValue === 'function' && value instanceof FieldValue) return value;
+    if (typeof Timestamp === 'function' && value instanceof Timestamp) return value;
+    if (typeof value.toDate === 'function' || typeof value.isEqual === 'function') return value;
   }
   if (Array.isArray(value)) {
     return value.map((item) => cleanUndefined(item)).filter((item) => item !== undefined);
@@ -5729,10 +5729,13 @@ async function reviseListingFromProduct(itemId, product, { actor = null } = {}) 
 
   const callName = resolveReviseCallName(listing);
   const doRevise = (p) => (callName === 'ReviseFixedPriceItem' ? reviseFixedPriceItem(p) : reviseItem(p));
+  // sentPatch beschreibt, was WIRKLICH an eBay ging — updatedFields im
+  // Ergebnis muss darauf basieren, nicht auf dem urspruenglichen patch.
+  let sentPatch = patch;
   let response;
   let promoPriceLocked = false;
   try {
-    response = await doRevise(patch);
+    response = await doRevise(sentPatch);
   } catch (err) {
     // eBay 21919248 (2026-08-26, itemId 800315409133): Steckt der Artikel in
     // einer eBay-Sonderaktion, lehnt eBay den KOMPLETTEN Revise ab, sobald
@@ -5743,7 +5746,8 @@ async function reviseListingFromProduct(itemId, product, { actor = null } = {}) 
     if (!isPromoPriceLockError(err) || patch.startPrice == null) throw err;
     promoPriceLocked = true;
     const { startPrice: _lockedPrice, ...patchOhnePreis } = patch;
-    response = await doRevise(patchOhnePreis);
+    sentPatch = patchOhnePreis;
+    response = await doRevise(sentPatch);
   }
 
   // eBay-Warnings NIE mehr verschlucken (Incident 2026-07-21): Ack=Warning
@@ -5783,7 +5787,7 @@ async function reviseListingFromProduct(itemId, product, { actor = null } = {}) 
     callName,
     ack: response?.ack || 'Success',
     warnings: reviseWarnings,
-    updatedFields: Object.keys(patch).filter((k) => k !== 'itemId' && patch[k] != null),
+    updatedFields: Object.keys(sentPatch).filter((k) => k !== 'itemId' && sentPatch[k] != null),
   };
 }
 

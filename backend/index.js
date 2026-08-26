@@ -751,8 +751,8 @@ const server = app.listen(PORT, () => {
         const { drainStockFailures } = require('./services/stock-failure-drain');
         for (const tenantId of STOCK_DRAIN_TENANTS) {
           const r = await drainStockFailures({ tenantId, limit: 50 });
-          if (r && (r.resolved > 0 || r.abandoned > 0 || r.needsManual > 0)) {
-            console.log(`[stock-failure-drain] tenant=${tenantId} total=${r.total} resolved=${r.resolved} stillFailing=${r.stillFailing} abandoned=${r.abandoned} needsManual=${r.needsManual}`);
+          if (r && (r.resolved > 0 || r.abandoned > 0 || r.needsManual > 0 || r.quotaDeferred > 0)) {
+            console.log(`[stock-failure-drain] tenant=${tenantId} total=${r.total} resolved=${r.resolved} stillFailing=${r.stillFailing} abandoned=${r.abandoned} needsManual=${r.needsManual} quotaDeferred=${r.quotaDeferred || 0}`);
           }
         }
         heartbeat.beat('stock-failure-drain');

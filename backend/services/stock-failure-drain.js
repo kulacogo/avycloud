@@ -23,52 +23,66 @@ const { computeNextRetryAt } = require('../lib/retry-backoff');
 
 const MAX_ATTEMPTS = 5;
 
-// ── Quota-aware Retries (2026-08-26) ────────────────────────────────────────
-// Waehrend das eBay-Tageskontingent erschoepft ist ("exceeded usage limit",
-// shared Quota-Breaker offen), kann KEIN Retry gelingen. Vorher verbrannte der
-// Drain alle 5 Versuche (~18 min Abstand ≈ 90 min) innerhalb der stundenlangen
-// Sperre und gab endgueltig auf — gemessen 378 abandoned Docs, darunter
-// Zero-Stock-ENDs (naechtliches Oversell-Fenster). Ein Versuch, der in die
-// offene Sperre faellt, zaehlt deshalb NICHT als Versuch, sondern wird
-// verschoben: erst kurz (1h/3h — deckt Stunden-Limits), danach bis zum
-// naechsten Quota-Reset (Mitternacht US-Pazifik). MAX_QUOTA_DEFERRALS begrenzt
-// das hart — danach zaehlen Versuche wieder normal (kein Zombie-Doc).
+// ── Quota-aware Retries (2026-08-26, gehaertet nach 8-Winkel-Review) ─────────
+// Waehrend das eBay-Tageskontingent erschoepft ist ("exceeded usage limit"),
+// kann KEIN Retry gelingen. Vorher verbrannte der Drain alle 5 Versuche
+// (~18 min Abstand ≈ 90 min) innerhalb der stundenlangen Sperre und gab
+// endgueltig auf — gemessen 378 abandoned Docs, darunter Zero-Stock-ENDs
+// (naechtliches Oversell-Fenster). Ein Versuch, dessen Fehlschlag quota-artig
+// ist, zaehlt deshalb NICHT als Versuch, sondern wird verschoben: erst kurz
+// (1h/3h — deckt Stunden-Limits), danach bis zum naechsten Quota-Reset
+// (Mitternacht US-Pazifik). MAX_QUOTA_DEFERRALS begrenzt das je Sperr-Phase —
+// ein gezaehlter Versuch setzt den Zaehler zurueck (kein Zombie-Doc, aber
+// volle Deckung in der naechsten Quota-Nacht).
 const QUOTA_DEFERRAL_STEPS_MS = [60 * 60 * 1000, 3 * 60 * 60 * 1000];
 const QUOTA_DEFERRAL_JITTER_MS = 15 * 60 * 1000;
 const MAX_QUOTA_DEFERRALS = 8;
 
-// Notbremse: nur der exakte Wert 'off' schaltet zurueck aufs alte Verhalten.
+// Quota-artige eBay-Fehlertexte: echte eBay-Antwort ("exceeded usage limit")
+// plus die Fail-fast-Skips des Breakers ("quota cooldown"/"quota breaker").
+// Bewusst ENG — Auth-, Validierungs- oder dup_guard-Fehler zaehlen normal
+// weiter, sonst verspaetet sich der Abandoned-Alarm fuer unheilbare Fehler.
+const QUOTA_ERROR_PATTERN = /exceeded usage limit|quota cooldown|quota breaker/i;
+function isQuotaLikeError(text) {
+  return QUOTA_ERROR_PATTERN.test(String(text || ''));
+}
+
+// Notbremse: nur der exakte Wert 'off' (getrimmt, case-egal — gleiche Lesart
+// wie AUTO_INVOICE/LABEL_EXACT_SIZE) schaltet zurueck aufs alte Verhalten.
 function quotaAwareDrainEnabled() {
-  return String(process.env.DRAIN_QUOTA_AWARE || '').toLowerCase() !== 'off';
+  return String(process.env.DRAIN_QUOTA_AWARE || '').trim().toLowerCase() !== 'off';
 }
 
 /**
- * Entscheidet nach einem fehlgeschlagenen Retry, ob der Fehlschlag der offenen
+ * Entscheidet nach einem fehlgeschlagenen Retry, ob der Fehlschlag der
  * eBay-Quota-Sperre zuzurechnen ist. Wenn ja: Deferral-Payload (Versuch bleibt
- * unverbraucht), sonst null (normales Attempt-Zaehlen). Fail-safe: jede
- * Stoerung der Breaker-Abfrage → null.
+ * unverbraucht), sonst null (normales Attempt-Zaehlen).
+ *
+ * Kriterium ist die FEHLERMELDUNG des gescheiterten Kanals (quotaBlocked aus
+ * dem Retry-Mapping), NICHT der shared Breaker-Zustand: der haengt an
+ * EBAY_QUOTA_BREAKER_SHARED (Default aus) und wird fire-and-forget geschrieben
+ * (Race beim ersten Quota-Treffer). Deferral NUR, wenn JEDER Fehlschlag ein
+ * reiner eBay-Kanalfehler ist — Lookup-Fehler (product-not-found) oder ein
+ * Kaufland-Leg (ONHOLD-Oversell-Guard, CLAUDE.md Punkt 10) duerfen nie
+ * mitverschoben werden.
  */
-async function _maybeQuotaDeferral({ data, retryResults, now }) {
+function _maybeQuotaDeferral({ data, retryResults, now }) {
   if (!quotaAwareDrainEnabled()) return null;
-  const ebayFailed = (retryResults || []).some(
-    (r) => r && !r.ok && String(r.error || '').toLowerCase().includes('ebay')
+  const failed = (retryResults || []).filter((r) => r && !r.ok);
+  if (!failed.length) return null;
+  const allEbayOnly = failed.every(
+    (r) => Array.isArray(r.channels) && r.channels.length > 0 && r.channels.every((c) => c === 'ebay')
   );
-  if (!ebayFailed) return null;
+  if (!allEbayOnly) return null;
+  if (!failed.some((r) => r.quotaBlocked === true)) return null;
   const deferrals = Number(data?.quotaDeferrals || 0);
   if (deferrals >= MAX_QUOTA_DEFERRALS) return null;
-  let breaker;
-  try {
-    breaker = require('../lib/ebay-quota-breaker');
-    if (!(await breaker.isEbayQuotaBreakerOpen())) return null;
-  } catch (_) {
-    return null;
-  }
   let waitMs;
   if (deferrals < QUOTA_DEFERRAL_STEPS_MS.length) {
     waitMs = QUOTA_DEFERRAL_STEPS_MS[deferrals];
   } else {
     try {
-      waitMs = breaker.msUntilNextEbayQuotaReset(now);
+      waitMs = require('../lib/ebay-quota-breaker').msUntilNextEbayQuotaReset(now);
     } catch (_) {
       waitMs = QUOTA_DEFERRAL_STEPS_MS[QUOTA_DEFERRAL_STEPS_MS.length - 1];
     }
@@ -187,7 +201,12 @@ async function drainStockFailures({ tenantId, limit = 50 } = {}) {
     if (attempts >= MAX_ATTEMPTS) continue;
     // WP1 Task 5: respect backoff — only retry docs whose nextRetryAt is due.
     // Off by flag → legacy behaviour (every pending doc each run).
-    if (durable && !isDue(data, now)) {
+    // AUSNAHME (2026-08-26): quota-verschobene Docs (quotaDeferrals > 0)
+    // respektieren ihr nextRetryAt IMMER — sonst hinge die Warte-Logik still
+    // am fremden WP1-Flag und der 2-min-Cron wuerde das Deferral-Budget in
+    // ~16 min aufbrauchen (Review-Befund).
+    const quotaDeferredDoc = Number(data.quotaDeferrals || 0) > 0;
+    if ((durable || quotaDeferredDoc) && !isDue(data, now)) {
       results.skipped += 1;
       continue;
     }
@@ -249,7 +268,15 @@ async function drainStockFailures({ tenantId, limit = 50 } = {}) {
           ? r.results.filter((c) => c && (c.status === 'error' || c.status === 'failed'))
           : [];
         if (channelErrors.length > 0) {
-          retryResults.push({ sku, ok: false, error: `channels-failed:${channelErrors.map((c) => c.channel).join(',')}` });
+          retryResults.push({
+            sku,
+            ok: false,
+            error: `channels-failed:${channelErrors.map((c) => c.channel).join(',')}`,
+            // Strukturiert fuer die Quota-Entscheidung — NIE aus dem
+            // error-String parsen ('ebay' steckt auch in Exception-Prosa).
+            channels: channelErrors.map((c) => String(c?.channel || '').toLowerCase()),
+            quotaBlocked: channelErrors.some((c) => isQuotaLikeError(c?.error)),
+          });
           anyHardError = true;
         } else {
           retryResults.push({ sku, ok: true });
@@ -276,10 +303,13 @@ async function drainStockFailures({ tenantId, limit = 50 } = {}) {
       console.log(`[stock-failure-drain] ${doc.id} resolved after attempt ${nextAttempts} (${retryable.length} marketplaceSync)`);
     } else {
       // Quota-Sperre? Dann Versuch NICHT verbrauchen, sondern verschieben.
-      const deferral = await _maybeQuotaDeferral({ data, retryResults, now });
+      const deferral = _maybeQuotaDeferral({ data, retryResults, now });
       if (deferral) {
         await doc.ref.update({
           status: 'pending',
+          // Parity zum normalen Fehlpfad — sonst blieben quota-wartende
+          // Legacy-Docs ohne classification unsichtbar fuer Ops-Abfragen.
+          classification: data.classification || 'unknown',
           quotaDeferrals: deferral.deferrals,
           lastAttemptAt: new Date().toISOString(),
           drainResults: retryResults,
@@ -296,6 +326,11 @@ async function drainStockFailures({ tenantId, limit = 50 } = {}) {
         lastAttemptAt: new Date().toISOString(),
         drainResults: retryResults,
       };
+      // Gezaehlter Versuch beendet die Quota-Sperr-Phase: Deferral-Budget
+      // zuruecksetzen, damit die NAECHSTE Quota-Nacht wieder voll gedeckt ist.
+      if (Number(data.quotaDeferrals || 0) > 0) {
+        updatePayload.quotaDeferrals = 0;
+      }
       // WP1 Task 5: stamp the next backoff window so the doc is skipped until due.
       // classification was set at creation (Task 4); default unknown for legacy docs.
       if (durable && nextStatus === 'pending') {
