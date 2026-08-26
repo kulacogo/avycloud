@@ -186,22 +186,32 @@ async function generateInvoice({
     ? await getIntegrationSecret('SEVDESK_API_TOKEN').catch(() => null)
     : null;
 
-  // Calculate amounts — always derive from items
+  // Betraege — GEGEN DEN AKTUELLEN STAND DES AUFTRAGS, nicht gegen den
+  // Bestellwert. Marktplatz-Erstattungen liegen als order.marketplaceRefunds
+  // am Auftrag (services/order-financials.js) und werden hier als eigene
+  // Minus-Position gefuehrt. Ohne das wies die Rechnung den vollen Kaufpreis
+  // aus, obwohl der Marktplatz laengst zurueckgezahlt hatte —
+  // Vorfall Kaufland M63HGK5 (499 € verkauft, 49,90 € erstattet).
   const items = order.items || [];
   const shippingCost = order.shippingCost || 0;
-  const itemsBrutto = items.reduce((sum, item) => sum + (item.priceBrutto || 0) * (item.quantity || 1), 0);
-  const totalBrutto = Math.round((itemsBrutto > 0 ? itemsBrutto + shippingCost : (order.totalAmount || 0)) * 100) / 100;
   const vatRate = order.vatRate ?? 0.19;
-  const totalNetto = Math.round((totalBrutto / (1 + vatRate)) * 100) / 100;
-  const vatAmount = Math.round((totalBrutto - totalNetto) * 100) / 100;
+  const { computeInvoiceAmounts } = require('../lib/order-financials');
+  const betraege = computeInvoiceAmounts({
+    items,
+    shippingCost,
+    vatRate,
+    refunds: order.marketplaceRefunds || [],
+    fallbackTotal: order.totalAmount || 0,
+    fallbackName: `Bestellung ${order.marketplaceOrderId || order.orderId || orderId}`,
+  });
+  const itemsBrutto = betraege.itemsBrutto;
+  const totalBrutto = betraege.totalBrutto;
+  const totalNetto = betraege.totalNetto;
+  const vatAmount = betraege.vatAmount;
+  const refundedTotal = betraege.refundedTotal;
   const vatFactor = 1 + vatRate;
   const taxRate = Math.round(vatRate * 100);
-
-  // Add shipping as separate line item if present
-  const invoiceItems = [...items];
-  if (shippingCost > 0 && itemsBrutto > 0) {
-    invoiceItems.push({ name: 'Versandkosten', priceBrutto: shippingCost, quantity: 1 });
-  }
+  const invoiceItems = betraege.lines;
 
   const invoiceDate = new Date().toISOString().split('T')[0];
   const dueDate = new Date(Date.now() + paymentTermDays * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
@@ -418,6 +428,11 @@ async function generateInvoice({
     amountNet: totalNetto,
     amountBrutto: totalBrutto,
     amountGross: totalBrutto,
+    // Damit spaeter nachvollziehbar bleibt, gegen welchen Stand die Rechnung
+    // ausgestellt wurde — der Betreiber braucht das fuer Brutto-Umsatz,
+    // Retouren, Stornos und Teilerstattungen.
+    refundedTotal,
+    refundIds: (order.marketplaceRefunds || []).map((r) => r.refundId),
     vatRate,
     vatAmount,
     currency: order.currency || 'EUR',

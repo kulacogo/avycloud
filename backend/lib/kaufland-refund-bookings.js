@@ -73,4 +73,63 @@ function indexRefundBookingsByOrderUnit(bookings) {
   return index;
 }
 
-module.exports = { indexRefundBookingsByOrderUnit, ERSTATTUNG_RE, KEINE_ERSTATTUNG_RE };
+/** Bestellnummer aus dem Buchungstext: "Erstattung Bestell-Nr. M63HGK5". */
+const BESTELLNR_RE = /Bestell-Nr\.\s*([A-Z0-9]+)/i;
+
+/**
+ * Echte KUNDEN-Erstattungen aus dem Buchungsbericht — je Buchung eine Zeile.
+ *
+ * Anders als getKauflandRefunds() in lib/kaufland-api.js gilt hier:
+ *  - die Ausschlussregel greift: "Storno Freigabe Verkaufserloes" ist KEINE
+ *    Erstattung, sondern eine zurueckgenommene Erloes-Freigabe. Gemessen am
+ *    18.08.2026 waeren das 3 Buchungen ueber 97,23 € gewesen, die den Umsatz
+ *    faelschlich gemindert haetten.
+ *  - die Bestellnummer wird notfalls aus dem TEXT gelesen. Eine echte
+ *    Erstattung ueber 14,95 € (MTZXSS5) hat das Feld `order_id` leer und waere
+ *    sonst verlorengegangen.
+ *
+ * @param {Array<object>} bookings Ergebnis von getBookings().
+ * @returns {Array<{refundId: string, orderId: string, amount: number, date: string|null, unit: string|null}>}
+ */
+function extractCustomerRefunds(bookings) {
+  if (!Array.isArray(bookings)) return [];
+  const raus = [];
+  const gesehen = new Map();
+
+  for (const b of bookings) {
+    const beschreibung = text(b?.raw?.booking_text || b?.raw?.bookingText || b?.type);
+    if (!beschreibung) continue;
+    if (KEINE_ERSTATTUNG_RE.test(beschreibung)) continue;
+    if (!ERSTATTUNG_RE.test(beschreibung)) continue;
+
+    const cents = Number(b?.amount_cents);
+    if (!Number.isFinite(cents) || cents >= 0) continue; // nur Abgaenge
+
+    const nr = (text(b?.order_id).trim()
+      || text(b?.raw?.order_number).trim()
+      || (beschreibung.match(BESTELLNR_RE) || [])[1]
+      || '').trim();
+    if (!nr) continue;
+
+    const betrag = Math.round(Math.abs(cents)) / 100;
+    const datum = (text(b?.date).split(' ')[0] || '').split('T')[0] || null;
+
+    // Stabiler Schluessel fuer die Idempotenz. Kaufland vergibt keine
+    // Buchungs-ID, also aus Nummer + Betrag + Datum bilden; ein Zaehler haelt
+    // zwei betrags- und datumsgleiche Buchungen auseinander.
+    const basis = `kaufland:${nr}:${betrag.toFixed(2)}:${datum || '?'}`;
+    const lauf = (gesehen.get(basis) || 0) + 1;
+    gesehen.set(basis, lauf);
+
+    raus.push({
+      refundId: lauf > 1 ? `${basis}#${lauf}` : basis,
+      orderId: nr,
+      amount: betrag,
+      date: datum,
+      unit: text(b?.raw?.id_order_unit).trim() || null,
+    });
+  }
+  return raus;
+}
+
+module.exports = { indexRefundBookingsByOrderUnit, extractCustomerRefunds, ERSTATTUNG_RE, KEINE_ERSTATTUNG_RE, BESTELLNR_RE };

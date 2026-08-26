@@ -557,6 +557,40 @@ const server = app.listen(PORT, () => {
     console.warn('[delivery-poll] failed to start:', err?.message || err);
   }
 
+  // ─── Marktplatz-Finanzvorgaenge auf die Auftraege (alle 6h) ────────────
+  // Traegt Erstattungen/Teilerstattungen der Marktplaetze am Auftrag ein
+  // (order.marketplaceRefunds, refundedTotal, netAmount).
+  //
+  // BEWUSST NICHT durch AUTO_INVOICE gegatet: eine TATSACHE festzuhalten ist
+  // etwas anderes, als eine Rechnung auszustellen. Der Auftrag muss seinen
+  // aktuellen Betrag auch dann kennen, wenn nie eine Rechnung entsteht — das
+  // Finanz-Dashboard liest ihn ebenfalls.
+  //
+  // Anlass: Kaufland M63HGK5 (499 € verkauft, 49,90 € erstattet). Die
+  // Erstattung stand im Kaufland-Buchungsbericht, AvyCloud wusste nichts davon,
+  // und die Rechnung wies den vollen Kaufpreis aus. Gemessen ueber
+  // 01.05.–30.09.2026: 4 Bestellungen, 95,83 €, KEINE davon bekannt.
+  //
+  // Rueckschau 60 Tage, weil die Buchung Tage bis Wochen nach der Bestellung
+  // kommt (M63HGK5: bestellt 21.08., gebucht 26.08.).
+  const ORDER_FINANCIALS_INTERVAL_MS = parseInt(process.env.ORDER_FINANCIALS_INTERVAL_MS || String(6 * 60 * 60 * 1000), 10);
+  try {
+    const runOrderFinancials = async () => {
+      const { syncMarketplaceFinancials } = require('./services/order-financials');
+      await runForAllTenants('order-financials', async ({ tenantId }) => {
+        const r = await syncMarketplaceFinancials({ tenantId, lookbackDays: 60 });
+        if (r.eingetragen > 0 || r.fehler.length > 0) {
+          console.log(`[order-financials] tenant=${tenantId} eingetragen=${r.eingetragen} schonBekannt=${r.schonBekannt} ohneAuftrag=${r.ohneAuftrag} fehler=${r.fehler.length}`);
+        }
+      });
+    };
+    setTimeout(() => { runOrderFinancials().catch((err) => console.warn('[order-financials] failed:', err?.message)); }, 180_000);
+    setInterval(() => { runOrderFinancials().catch((err) => console.warn('[order-financials] failed:', err?.message)); }, ORDER_FINANCIALS_INTERVAL_MS);
+    console.log(`[order-financials] enabled: every ${ORDER_FINANCIALS_INTERVAL_MS}ms (ungegatet — haelt Tatsachen fest, stellt keine Rechnung aus)`);
+  } catch (err) {
+    console.warn('[order-financials] failed to start:', err?.message || err);
+  }
+
   // ─── Invoice Sync: SevDesk Import (+ Bulk Generate nur mit AUTO_INVOICE) ─
   // Der IMPORT laeuft immer: er liest SevDesk und spiegelt den Bestand in die
   // AvyCloud-Rechnungsliste — er praegt selbst KEINE Rechnung. So bleibt die
