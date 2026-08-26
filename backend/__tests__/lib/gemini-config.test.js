@@ -1,5 +1,11 @@
 // globals: true in vitest.config.js makes describe, it, expect, beforeEach, vi available globally
 // Pure unit tests — no GCP patching needed, gemini-config only depends on model-select.
+//
+// Seit dem Owner-Entscheid 2026-08-26 loest die zentrale Modellpolitik
+// (lib/model-select.js) ALLE Text-Modellnamen auf 'gemini-3.7-flash' auf.
+// Die Konstanten DEFAULT_MODEL/FLASH_MODEL bleiben 'gemini-2.5-pro'/'gemini-2.5-flash'
+// — sie sind nur noch FALLBACK-EINGABEN in resolveModel(), keine Ergebnisse.
+// IMAGE_MODEL und resolveImageEnhanceModel sind von der Text-Politik AUSGENOMMEN.
 
 const ORIGINAL_ENV = { ...process.env };
 
@@ -11,6 +17,7 @@ describe('gemini-config helpers', () => {
     delete process.env.INTENT_MODEL;
     delete process.env.IDENTIFY_V4_MODEL;
     delete process.env.IDENTIFY_V4_IMAGE_MODEL;
+    delete process.env.MODEL_POLICY;
     // Force re-require so process.env changes are re-read cleanly
     delete require.cache[require.resolve('../../lib/gemini-config')];
   });
@@ -20,14 +27,14 @@ describe('gemini-config helpers', () => {
     process.env = { ...ORIGINAL_ENV };
   });
 
-  it('exports Gemini-2.5 defaults (Kosten-Downgrade 2026-08-01)', () => {
+  it('exports 2.5-named constants as pure fallback INPUTS (policy resolves them to 3.7)', () => {
     const cfg = require('../../lib/gemini-config');
     expect(cfg.DEFAULT_MODEL).toBe('gemini-2.5-pro');
     expect(cfg.FLASH_MODEL).toBe('gemini-2.5-flash');
     expect(cfg.IMAGE_MODEL).toBe('gemini-2.5-flash-image');
   });
 
-  it('defaultThinkingConfig returns a 2.5-style thinkingBudget (no thinkingLevel)', () => {
+  it('defaultThinkingConfig returns thinkingBudget syntax (no thinkingLevel — family-safe, live-verified on 3.7)', () => {
     const { defaultThinkingConfig } = require('../../lib/gemini-config');
     const out = defaultThinkingConfig();
     expect(out).toEqual({ thinkingBudget: 4096, includeThoughts: true });
@@ -100,57 +107,65 @@ describe('gemini-config helpers', () => {
     });
   });
 
-  it('resolveChatModel defaults to gemini-2.5-pro when ENV unset', () => {
+  it('resolveChatModel defaults to gemini-3.7-flash when ENV unset (DEFAULT_MODEL is only the fallback input)', () => {
     const { resolveChatModel } = require('../../lib/gemini-config');
-    expect(resolveChatModel()).toBe('gemini-2.5-pro');
+    expect(resolveChatModel()).toBe('gemini-3.7-flash');
   });
 
-  it('resolveChatModel redirects stale Gemini-3 CHAT_MODEL pins to 2.5', () => {
+  it('resolveChatModel routes stale Gemini-3 CHAT_MODEL pins to gemini-3.7-flash', () => {
     process.env.CHAT_MODEL = 'gemini-3.1-pro-preview';
     const { resolveChatModel } = require('../../lib/gemini-config');
-    expect(resolveChatModel()).toBe('gemini-2.5-pro');
+    expect(resolveChatModel()).toBe('gemini-3.7-flash');
   });
 
-  it('resolveChatModel reroutes legacy gemini-3-pro-preview ENV to 2.5-pro', () => {
-    process.env.CHAT_MODEL = 'gemini-3-pro-preview';
+  it('resolveChatModel routes stale gemini-2.5 CHAT_MODEL pins to gemini-3.7-flash too', () => {
+    process.env.CHAT_MODEL = 'gemini-2.5-pro';
     const { resolveChatModel } = require('../../lib/gemini-config');
-    expect(resolveChatModel()).toBe('gemini-2.5-pro');
+    expect(resolveChatModel()).toBe('gemini-3.7-flash');
   });
 
-  it('resolveIdentifyModel defaults to 2.5-pro and redirects flash-lite pins', () => {
+  it('resolveIdentifyModel defaults to 3.7 and routes flash-lite pins there too', () => {
     const cfgA = require('../../lib/gemini-config');
-    expect(cfgA.resolveIdentifyModel()).toBe('gemini-2.5-pro');
+    expect(cfgA.resolveIdentifyModel()).toBe('gemini-3.7-flash');
 
     process.env.IDENTIFY_MODEL = 'gemini-3.1-flash-lite';
     delete require.cache[require.resolve('../../lib/gemini-config')];
     const cfgB = require('../../lib/gemini-config');
-    expect(cfgB.resolveIdentifyModel()).toBe('gemini-2.5-flash');
+    expect(cfgB.resolveIdentifyModel()).toBe('gemini-3.7-flash');
   });
 
-  it('resolveIntentModel defaults to FLASH_MODEL (gemini-2.5-flash)', () => {
+  it('resolveIntentModel resolves to gemini-3.7-flash (FLASH_MODEL is only the fallback input)', () => {
     const { resolveIntentModel, FLASH_MODEL } = require('../../lib/gemini-config');
-    expect(resolveIntentModel()).toBe(FLASH_MODEL);
-    expect(resolveIntentModel()).toBe('gemini-2.5-flash');
+    expect(FLASH_MODEL).toBe('gemini-2.5-flash');
+    expect(resolveIntentModel()).toBe('gemini-3.7-flash');
   });
 
-  it('resolveIdentifyV4Model() defaults to gemini-2.5-pro', () => {
+  it('resolveIdentifyV4Model() defaults to gemini-3.7-flash', () => {
     const { resolveIdentifyV4Model } = require('../../lib/gemini-config');
-    expect(resolveIdentifyV4Model()).toBe('gemini-2.5-pro');
+    expect(resolveIdentifyV4Model()).toBe('gemini-3.7-flash');
   });
 
-  it('resolveIdentifyV4Model() redirects IDENTIFY_V4_MODEL Gemini-3 pins', () => {
+  it('resolveIdentifyV4Model() routes IDENTIFY_V4_MODEL Gemini-3 pins to 3.7', () => {
     process.env.IDENTIFY_V4_MODEL = 'gemini-3.1-flash-lite';
     delete require.cache[require.resolve('../../lib/gemini-config')];
     const { resolveIdentifyV4Model } = require('../../lib/gemini-config');
-    expect(resolveIdentifyV4Model()).toBe('gemini-2.5-flash');
+    expect(resolveIdentifyV4Model()).toBe('gemini-3.7-flash');
   });
 
-  it('resolveImageEnhanceModel() defaults to gemini-2.5-flash-image', () => {
+  it('Notbremse MODEL_POLICY=gemini25 restores 2.5 resolutions for the text resolvers', () => {
+    process.env.MODEL_POLICY = 'gemini25';
+    const cfg = require('../../lib/gemini-config');
+    expect(cfg.resolveChatModel()).toBe('gemini-2.5-pro');
+    expect(cfg.resolveIntentModel()).toBe('gemini-2.5-flash');
+    expect(cfg.resolveIdentifyV4Model()).toBe('gemini-2.5-pro');
+  });
+
+  it('resolveImageEnhanceModel() defaults to gemini-2.5-flash-image (image models exempt from text policy)', () => {
     const { resolveImageEnhanceModel } = require('../../lib/gemini-config');
     expect(resolveImageEnhanceModel()).toBe('gemini-2.5-flash-image');
   });
 
-  it('resolveImageEnhanceModel() respects IDENTIFY_V4_IMAGE_MODEL env override', () => {
+  it('resolveImageEnhanceModel() respects IDENTIFY_V4_IMAGE_MODEL env override verbatim', () => {
     process.env.IDENTIFY_V4_IMAGE_MODEL = 'gemini-3-pro-image-preview-experimental';
     delete require.cache[require.resolve('../../lib/gemini-config')];
     const { resolveImageEnhanceModel } = require('../../lib/gemini-config');

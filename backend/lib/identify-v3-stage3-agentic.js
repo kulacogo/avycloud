@@ -33,6 +33,7 @@
 
 const atomicTools = require('../services/atomic-tools');
 const { resolveModel } = require('./model-select');
+const { trackGroundingQueries } = require('./grounding-usage');
 const { getGeminiApiKey } = require('./gemini-client');
 const {
   defaultThinkingConfig,
@@ -541,6 +542,7 @@ async function generateProductContentAgentic({
       () => chat.sendMessage({ message: userParts }),
       'sendMessage-initial',
     );
+    trackGroundingQueries(response, 'identify.stage3.agentic');
 
     let researchOnlyIters = 0;
 
@@ -628,6 +630,7 @@ async function generateProductContentAgentic({
             : chat.sendMessage({ message: toolResponses }),
         forceFinalize ? 'sendMessage-forced' : 'sendMessage-loop',
       );
+      trackGroundingQueries(response, 'identify.stage3.agentic');
     }
 
     // Ultimate fallback — if loop ran out without a write-call, send one
@@ -701,10 +704,14 @@ function isAgenticEnabled() {
   // direkt Single-Shot statt eines garantiert scheiternden Calls pro Produkt.
   // Gewinnt auch über explizites STAGE3_AGENTIC=true.
   {
-    const { resolveModel } = require('./model-select');
+    const { resolveModel, supportsToolContextCirculation } = require('./model-select');
     const { DEFAULT_MODEL } = require('./gemini-config');
-    const gateModel = resolveModel(process.env.GEMINI_IDENTIFY_MODEL, 'GEMINI_IDENTIFY_MODEL', DEFAULT_MODEL);
-    if (String(gateModel || '').startsWith('gemini-2')) return false;
+    // Gate und Ausfuehrung lesen denselben ENV-Key (IDENTIFY_MODEL, wie
+    // resolveStage3Model weiter unten) — vorher las das Gate GEMINI_IDENTIFY_MODEL
+    // und konnte von der echten Modellwahl abweichen. Faehigkeits-Check zentral:
+    // auf gemini-3.7-flash offen, unter MODEL_POLICY='gemini25' zu.
+    const gateModel = resolveModel(null, 'IDENTIFY_MODEL', DEFAULT_MODEL);
+    if (!supportsToolContextCirculation(gateModel)) return false;
   }
   // Explicit opt-in
   if (raw === 'true' || raw === '1' || raw === 'yes' || raw === 'on') return true;

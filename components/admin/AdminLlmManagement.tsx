@@ -30,8 +30,11 @@ const EMPTY_GENERATION_CONFIG: GenerationConfigFormState = {
 
 const MODEL_OVERRIDE_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
   { value: "", label: "Inherit (global default)" },
-  { value: "gemini-2.5-pro", label: "gemini-2.5-pro" },
-  { value: "gemini-2.5-flash", label: "gemini-2.5-flash" },
+  { value: "gemini-3.7-flash", label: "gemini-3.7-flash (Politik-Modell)" },
+  // Alt-Namen bleiben waehlbar, werden aber von der zentralen Modellpolitik
+  // (backend/lib/model-select.js) beim Lesen auf das Politik-Modell normalisiert.
+  { value: "gemini-2.5-pro", label: "gemini-2.5-pro (wird normalisiert)" },
+  { value: "gemini-2.5-flash", label: "gemini-2.5-flash (wird normalisiert)" },
 ];
 
 const THINKING_LEVEL_OPTIONS: ReadonlyArray<{ value: AdminLlmThinkingLevel; label: string }> = [

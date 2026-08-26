@@ -1038,7 +1038,12 @@ async function runProductChatV2(product, userMessage, {
   //   Phase A (Recherche): googleSearch(+urlContext), KEINE Custom-Functions.
   //   Phase B (Änderungen): Custom-Functions, KEIN googleSearch — bekommt die
   //   Recherche-Ergebnisse aus Phase A als Kontext mitgereicht.
-  const supportsCirculation = modelName.includes('customtools');
+  // Faehigkeits-Check zentral in model-select.js: gemini-3.7-flash kann die
+  // Tool-Kombination (live verifiziert 2026-08-26) → Ein-Request-Modus; unter
+  // der Notbremse MODEL_POLICY='gemini25' faellt das automatisch auf den
+  // Zwei-Request-Split zurueck (Incident-Fix vom 2026-08-04 bleibt erhalten).
+  const { supportsToolContextCirculation } = require('../lib/model-select');
+  const supportsCirculation = supportsToolContextCirculation(modelName);
   const splitMode = !supportsCirculation && chatV2SplitGroundingEnabled();
   const functionDeclarationsTool = {
     functionDeclarations: [
@@ -1509,6 +1514,8 @@ async function runProductChatV2(product, userMessage, {
 
 function extractGroundingMetadata(response, trace) {
   try {
+    // Freikontingent-Zaehler (3er-Familie rechnet pro Such-Query ab)
+    require('../lib/grounding-usage').trackGroundingQueries(response, 'chat.v2');
     const candidates = response?.candidates || [];
     const meta = candidates[0]?.groundingMetadata;
     if (!meta) return;
@@ -1610,7 +1617,8 @@ function chatV2SplitGroundingEnabled() {
 // Recherche bleibt dem Chat damit auch unter der 2.5-Kostenpolitik erhalten.
 function chatV2ModelSupported() {
   const { resolveChatModel } = require('../lib/gemini-config');
-  if (resolveChatModel().includes('customtools')) return true;
+  const { supportsToolContextCirculation } = require('../lib/model-select');
+  if (supportsToolContextCirculation(resolveChatModel())) return true;
   return chatV2SplitGroundingEnabled();
 }
 

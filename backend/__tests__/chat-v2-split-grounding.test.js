@@ -1,16 +1,22 @@
 'use strict';
 
-// Chat-Grounding auf Gemini 2.5 (Incident 2026-08-04):
-// Seit der Gemini-3-Kostensperre (01.08.) war der Chat strukturell auf die
-// Legacy-Pipeline gepinnt: V2 kombiniert googleSearch + functionDeclarations
-// in EINEM Request ("Context Circulation"), was 2.5 mit 400 ablehnt — also
-// wurde V2 komplett übersprungen und der Chat verlor jede Google-Recherche.
-// Neu: Auf Nicht-customtools-Modellen läuft V2 im ZWEI-REQUEST-Modus:
+// Chat-Grounding: Ein-Request-Modus vs. Zwei-Request-Split.
+//
+// Modellpolitik seit 2026-08-26: alle Text-Modellnamen lösen zentral auf
+// gemini-3.7-flash auf, das Context Circulation kann (googleSearch +
+// urlContext + functionDeclarations in EINEM Request, verlangt
+// toolConfig.includeServerSideToolInvocations=true — live gegen die echte
+// API verifiziert). V2 läuft damit standardmäßig im EIN-REQUEST-Modus.
+//
+// Der ZWEI-REQUEST-Split (Incident-Fix 2026-08-04) bleibt als NOTBREMSEN-Pfad
+// unter MODEL_POLICY='gemini25' vollständig erhalten: dort löst kein Name auf
+// ein circulation-fähiges Modell auf, und V2 splittet wieder:
 //   Phase A: googleSearch(+urlContext) OHNE functionDeclarations → Recherche
 //   Phase B: functionDeclarations OHNE googleSearch → Change-Cards aus den
 //            Recherche-Ergebnissen
-// Kill-Switch: CHAT_V2_SPLIT_GROUNDING=off → altes Verhalten (V2 nur auf
-// customtools, Kaskade startet auf 2.5 direkt bei Legacy).
+// Kill-Switch (nur im Split-Fall relevant): CHAT_V2_SPLIT_GROUNDING=off →
+// altes Verhalten (V2 nur auf circulation-fähigen Modellen, Kaskade startet
+// unter der Notbremse direkt bei Legacy).
 
 const path = require('path');
 
@@ -56,12 +62,32 @@ let phaseAGroundingMeta = null;
 
 function makeFakeChat(createOpts) {
   const messages = [];
+  // Ein-Request-Modus (Context Circulation): googleSearch UND
+  // functionDeclarations sitzen im SELBEN tools-Array. Der Fake antwortet
+  // dann wie das echte Modell: erster Turn = Recherche-Text + Function-Call,
+  // zweiter Turn (nach functionResponse) = Abschlusstext.
+  const circulation = hasGoogleSearch(createOpts.config) && hasFunctionDeclarations(createOpts.config);
   const grounding = hasGoogleSearch(createOpts.config);
   let phaseBCalls = 0;
+  let circulationCalls = 0;
   return {
     _messages: messages,
     sendMessage: async ({ message }) => {
       messages.push(message);
+      if (circulation) {
+        circulationCalls += 1;
+        if (circulationCalls === 1) {
+          return {
+            text: RESEARCH_TEXT,
+            functionCalls: [{
+              name: 'update_product_datasheet',
+              args: phaseBFunctionArgs,
+            }],
+            candidates: phaseAGroundingMeta ? [{ groundingMetadata: phaseAGroundingMeta }] : [],
+          };
+        }
+        return { text: 'Änderungen vorgeschlagen.', functionCalls: undefined, candidates: [] };
+      }
       if (grounding) {
         if (phaseAFailuresRemaining > 0) {
           phaseAFailuresRemaining -= 1;
@@ -137,8 +163,43 @@ beforeEach(() => {
   phaseAGroundingMeta = null;
 });
 
-describe('chatV2ModelSupported — Split-Modus öffnet V2 auf 2.5', () => {
-  it('ist unter der 2.5-Politik jetzt TRUE (Zwei-Request-Modus verfügbar)', () => {
+describe('chatV2ModelSupported — Default-Politik (gemini-3.7-flash, Ein-Request-Modus)', () => {
+  let originalPolicy;
+  beforeEach(() => {
+    originalPolicy = process.env.MODEL_POLICY;
+    delete process.env.MODEL_POLICY;
+  });
+  afterEach(() => {
+    if (originalPolicy === undefined) delete process.env.MODEL_POLICY;
+    else process.env.MODEL_POLICY = originalPolicy;
+  });
+
+  it('ist TRUE (Modell kann Context Circulation, kein Split nötig)', () => {
+    expect(chatV2ModelSupported()).toBe(true);
+  });
+
+  it('bleibt TRUE auch mit CHAT_V2_SPLIT_GROUNDING=off (Circulation trägt, Split-Flag irrelevant)', () => {
+    process.env.CHAT_V2_SPLIT_GROUNDING = 'off';
+    try {
+      expect(chatV2ModelSupported()).toBe(true);
+    } finally {
+      delete process.env.CHAT_V2_SPLIT_GROUNDING;
+    }
+  });
+});
+
+describe('chatV2ModelSupported — NOTBREMSE MODEL_POLICY=gemini25: Split-Modus öffnet V2 auf 2.5', () => {
+  let originalPolicy;
+  beforeEach(() => {
+    originalPolicy = process.env.MODEL_POLICY;
+    process.env.MODEL_POLICY = 'gemini25';
+  });
+  afterEach(() => {
+    if (originalPolicy === undefined) delete process.env.MODEL_POLICY;
+    else process.env.MODEL_POLICY = originalPolicy;
+  });
+
+  it('ist unter der 2.5-Notbremse TRUE (Zwei-Request-Modus verfügbar)', () => {
     expect(chatV2ModelSupported()).toBe(true);
   });
 
@@ -152,7 +213,22 @@ describe('chatV2ModelSupported — Split-Modus öffnet V2 auf 2.5', () => {
   });
 });
 
-describe('runProductChatV2 — Zwei-Request-Modus auf Nicht-customtools-Modellen', () => {
+// NOTBREMSEN-/FALLBACK-PFAD: Der Zwei-Request-Split ist seit der Modellpolitik
+// 2026-08-26 nicht mehr der Default, sondern der Rückfall-Pfad unter
+// MODEL_POLICY='gemini25' (Incident-Fix 2026-08-04 bleibt vollständig
+// erhalten). Alle Split-Ablauf-Verträge laufen deshalb hier unter gesetzter
+// Notbremse.
+describe('runProductChatV2 — NOTBREMSE MODEL_POLICY=gemini25: Zwei-Request-Modus auf Nicht-Circulation-Modellen', () => {
+  let originalPolicy;
+  beforeEach(() => {
+    originalPolicy = process.env.MODEL_POLICY;
+    process.env.MODEL_POLICY = 'gemini25';
+  });
+  afterEach(() => {
+    if (originalPolicy === undefined) delete process.env.MODEL_POLICY;
+    else process.env.MODEL_POLICY = originalPolicy;
+  });
+
   it('trennt Grounding (Phase A) und Function-Calls (Phase B) in zwei Requests', async () => {
     const result = await runProductChatV2(makeProduct(), 'Recherchiere Herstellerangaben für GPSR.', {});
 
@@ -278,5 +354,65 @@ describe('runProductChatV2 — Zwei-Request-Modus auf Nicht-customtools-Modellen
     } finally {
       delete process.env.CHAT_V2_ENHANCED;
     }
+  });
+});
+
+// DEFAULT-POLITIK (seit 2026-08-26): gemini-3.7-flash kann Context Circulation
+// — V2 läuft in EINEM Request mit googleSearch + urlContext +
+// functionDeclarations im selben tools-Array und dem Pflicht-Flag
+// toolConfig.includeServerSideToolInvocations=true (ohne das Flag lehnt die
+// API die Kombination mit 400 ab, live verifiziert 2026-08-26).
+describe('runProductChatV2 — Ein-Request-Modus unter der Default-Politik (gemini-3.7-flash)', () => {
+  let originalPolicy;
+  beforeEach(() => {
+    originalPolicy = process.env.MODEL_POLICY;
+    delete process.env.MODEL_POLICY;
+  });
+  afterEach(() => {
+    if (originalPolicy === undefined) delete process.env.MODEL_POLICY;
+    else process.env.MODEL_POLICY = originalPolicy;
+    delete process.env.CHAT_V2_ENHANCED;
+    delete process.env.CHAT_V2_SPLIT_GROUNDING;
+  });
+
+  it('kombiniert googleSearch + urlContext + functionDeclarations in EINEM tools-Array mit Circulation-Flag', async () => {
+    process.env.CHAT_V2_ENHANCED = 'true';
+    const result = await runProductChatV2(makeProduct(), 'Recherchiere Herstellerangaben für GPSR.', {});
+
+    // Genau EIN Chat — kein Phase-A/Phase-B-Split.
+    expect(createdChats.length).toBe(1);
+    const { opts } = createdChats[0];
+    expect(hasGoogleSearch(opts.config)).toBe(true);
+    expect(hasUrlContext(opts.config)).toBe(true);
+    expect(hasFunctionDeclarations(opts.config)).toBe(true);
+    // Pflicht-Flag für die Tool-Kombination auf gemini-3.7-flash.
+    expect(opts.config.toolConfig).toEqual({ includeServerSideToolInvocations: true });
+
+    // Der Function-Call desselben Requests wird zur Change-Card.
+    expect(result.datasheetChanges.length).toBe(1);
+    expect(result.datasheetChanges[0].gpsr.manufacturer_name).toBe('Fenix Outdoor AB');
+    expect(result.datasheetChanges[0].gpsr.url).toBe('https://www.fjallraven.com');
+    expect(result._split).toBe(false);
+    expect(result.message.length).toBeGreaterThan(0);
+  });
+
+  it('ohne CHAT_V2_ENHANCED entfällt nur urlContext — googleSearch + Functions bleiben in EINEM Request', async () => {
+    process.env.CHAT_V2_ENHANCED = 'false';
+    const result = await runProductChatV2(makeProduct(), 'Recherchiere Herstellerangaben.', {});
+    expect(createdChats.length).toBe(1);
+    const { opts } = createdChats[0];
+    expect(hasGoogleSearch(opts.config)).toBe(true);
+    expect(hasUrlContext(opts.config)).toBe(false);
+    expect(hasFunctionDeclarations(opts.config)).toBe(true);
+    expect(opts.config.toolConfig).toEqual({ includeServerSideToolInvocations: true });
+    expect(result._split).toBe(false);
+  });
+
+  it('CHAT_V2_SPLIT_GROUNDING=off ändert am Ein-Request-Modus nichts (Flag betrifft nur den Notbremsen-Fall)', async () => {
+    process.env.CHAT_V2_SPLIT_GROUNDING = 'off';
+    const result = await runProductChatV2(makeProduct(), 'Recherchiere Herstellerangaben.', {});
+    expect(createdChats.length).toBe(1);
+    expect(result._split).toBe(false);
+    expect(result.datasheetChanges.length).toBe(1);
   });
 });

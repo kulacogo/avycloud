@@ -30,6 +30,7 @@ async function trackExternalCall({
   errorCode = null,
   errorMessage = null,
   tenantId = 'default',
+  queryCount = null,
 } = {}) {
   if (!shouldRecord()) return;
   try {
@@ -42,6 +43,9 @@ async function trackExternalCall({
       latencyMs: Number(latencyMs) || 0,
       errorCode: errorCode ? String(errorCode).slice(0, 100) : null,
       errorMessage: errorMessage ? String(errorMessage).slice(0, 300) : null,
+      // Additiv (Grounding-Abrechnung der 3er-Familie zaehlt PRO Such-Query,
+      // 5.000 frei/Monat): Anzahl der vom Modell ausgefuehrten Suchanfragen.
+      ...(Number(queryCount) > 0 ? { queryCount: Number(queryCount) } : {}),
     });
   } catch (err) {
     logger.warn({ err: err?.message }, '[external-api-tracker] failed to write');

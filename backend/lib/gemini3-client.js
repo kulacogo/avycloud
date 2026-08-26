@@ -18,6 +18,7 @@
 
 const { getGeminiApiKey } = require('./gemini-client');
 const { resolveModel } = require('./model-select');
+const { trackGroundingQueries } = require('./grounding-usage');
 const {
   defaultThinkingConfig,
   defaultSafetySettings,
@@ -819,6 +820,7 @@ ${improveContext ? buildImprovePromptExtension(improveContext) : ''}WICHTIG:
   // Attach grounding metadata for traceability
   const candidates = response.candidates || [];
   const groundingMeta = candidates[0]?.groundingMetadata || {};
+  trackGroundingQueries(response, 'identify.grounding');
   record._grounding = {
     model: modelName,
     searchQueries: groundingMeta.webSearchQueries || [],
@@ -914,6 +916,7 @@ REGELN:
 
   const candidates = response.candidates || [];
   const groundingMeta = candidates[0]?.groundingMetadata || {};
+  trackGroundingQueries(response, 'identify.focused');
   record._grounding = {
     model: modelName,
     searchQueries: groundingMeta.webSearchQueries || [],
@@ -1155,6 +1158,7 @@ AUFGABE: Erstelle ein VOLLSTAENDIGES Produktdatenblatt basierend auf den obigen 
     config: _stripJsonForceWhenToolsUnsupported(modelName, contentConfig),
   });
 
+  trackGroundingQueries(response, 'identify.stage3.content');
   const rawText = (response.text || '').trim();
   if (!rawText) throw new Error('Gemini returned empty response for content generation');
   const parsed = await _parseGroundedJson({

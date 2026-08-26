@@ -134,9 +134,15 @@ describe('autoFixEbayProduct', () => {
       errors: [{ longMessage: "Item Specifics 'Marke' is required" }],
     };
     const slowGemini = () => new Promise(() => { /* never resolves */ });
-    const out = await autoFixEbayProduct(baseProduct, { lastError, generateText: slowGemini });
-    // Sollte ohne throw zurückkehren — und da kein anderer Fix greift, skip:true
-    expect(out.skip).toBe(true);
+    // Prod-Timeout ist 20s (Thinking-Modell) — fuer den Test per ENV verkuerzen.
+    process.env.EBAY_ASPECT_GEMINI_TIMEOUT_MS = '80';
+    try {
+      const out = await autoFixEbayProduct(baseProduct, { lastError, generateText: slowGemini });
+      // Sollte ohne throw zurückkehren — und da kein anderer Fix greift, skip:true
+      expect(out.skip).toBe(true);
+    } finally {
+      delete process.env.EBAY_ASPECT_GEMINI_TIMEOUT_MS;
+    }
   });
 
   it('handles missing product gracefully', async () => {

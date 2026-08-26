@@ -14,69 +14,95 @@ describe('identify-v3-stage3-agentic — pure helpers', () => {
   });
 
   describe('isAgenticEnabled', () => {
-    it('is OFF by default under the 2.5 model gate (context circulation is Gemini-3-only)', () => {
-      const original = process.env.STAGE3_AGENTIC;
-      delete process.env.STAGE3_AGENTIC;
-      delete process.env.STAGE3_AGENTIC_SAMPLE;
-      try {
-        expect(agentic.isAgenticEnabled()).toBe(false);
-      } finally {
-        if (original !== undefined) process.env.STAGE3_AGENTIC = original;
+    // Modellpolitik seit 2026-08-26: das Modell-Gate liest resolveModel(null,
+    // 'IDENTIFY_MODEL', DEFAULT_MODEL) (derselbe ENV-Key wie die Ausführung —
+    // vorher las das Gate GEMINI_IDENTIFY_MODEL und konnte abweichen) und
+    // prüft supportsToolContextCirculation. Unter der Default-Politik löst
+    // alles auf gemini-3.7-flash auf → Gate OFFEN (Default ON). Unter der
+    // Notbremse MODEL_POLICY='gemini25' → Gate ZU, gewinnt auch über
+    // explizites STAGE3_AGENTIC=true.
+    const ENV_KEYS = [
+      'STAGE3_AGENTIC',
+      'STAGE3_AGENTIC_SAMPLE',
+      'MODEL_POLICY',
+      'IDENTIFY_MODEL',
+      'GEMINI_IDENTIFY_MODEL',
+    ];
+    let saved;
+    beforeEach(() => {
+      saved = {};
+      for (const key of ENV_KEYS) {
+        saved[key] = process.env[key];
+        delete process.env[key];
+      }
+    });
+    afterEach(() => {
+      for (const key of ENV_KEYS) {
+        if (saved[key] === undefined) delete process.env[key];
+        else process.env[key] = saved[key];
       }
     });
 
-    it('stays OFF with STAGE3_AGENTIC=true (model gate wins)', () => {
-      const original = process.env.STAGE3_AGENTIC;
+    it('is ON by default under the default policy (gemini-3.7-flash supports circulation)', () => {
+      expect(agentic.isAgenticEnabled()).toBe(true);
+    });
+
+    it('truthy aliases stay ON under the default policy', () => {
+      for (const v of ['true', '1', 'yes', 'on', 'TRUE']) {
+        process.env.STAGE3_AGENTIC = v;
+        expect(agentic.isAgenticEnabled()).toBe(true);
+      }
+    });
+
+    it('returns false on explicit opt-out values (flag wins over capable model)', () => {
+      for (const v of ['false', '0', 'no', 'off']) {
+        process.env.STAGE3_AGENTIC = v;
+        expect(agentic.isAgenticEnabled()).toBe(false);
+      }
+    });
+
+    it('STAGE3_AGENTIC_SAMPLE is a partial-disable knob when STAGE3_AGENTIC is unset', () => {
+      process.env.STAGE3_AGENTIC_SAMPLE = '0';
+      expect(agentic.isAgenticEnabled()).toBe(false);
+      process.env.STAGE3_AGENTIC_SAMPLE = '1';
+      expect(agentic.isAgenticEnabled()).toBe(true);
+    });
+
+    it('STAGE3_AGENTIC_SAMPLE is NOT consulted when STAGE3_AGENTIC is set explicitly', () => {
       process.env.STAGE3_AGENTIC = 'true';
-      try {
+      process.env.STAGE3_AGENTIC_SAMPLE = '0';
+      expect(agentic.isAgenticEnabled()).toBe(true);
+    });
+
+    it('is OFF under the MODEL_POLICY=gemini25 emergency brake', () => {
+      process.env.MODEL_POLICY = 'gemini25';
+      expect(agentic.isAgenticEnabled()).toBe(false);
+    });
+
+    it('stays OFF under the emergency brake even with STAGE3_AGENTIC=true (model gate wins)', () => {
+      process.env.MODEL_POLICY = 'gemini25';
+      for (const v of ['true', '1', 'yes', 'on', 'TRUE']) {
+        process.env.STAGE3_AGENTIC = v;
         expect(agentic.isAgenticEnabled()).toBe(false);
-      } finally {
-        if (original === undefined) delete process.env.STAGE3_AGENTIC;
-        else process.env.STAGE3_AGENTIC = original;
       }
     });
 
-    it('truthy aliases are also model-gated OFF', () => {
-      const original = process.env.STAGE3_AGENTIC;
-      try {
-        for (const v of ['1', 'yes', 'on', 'TRUE']) {
-          process.env.STAGE3_AGENTIC = v;
-          expect(agentic.isAgenticEnabled()).toBe(false);
-        }
-      } finally {
-        if (original === undefined) delete process.env.STAGE3_AGENTIC;
-        else process.env.STAGE3_AGENTIC = original;
-      }
+    it('STAGE3_AGENTIC_SAMPLE cannot bypass the emergency-brake model gate', () => {
+      process.env.MODEL_POLICY = 'gemini25';
+      process.env.STAGE3_AGENTIC_SAMPLE = '1.0';
+      expect(agentic.isAgenticEnabled()).toBe(false);
+      process.env.STAGE3_AGENTIC_SAMPLE = '0';
+      expect(agentic.isAgenticEnabled()).toBe(false);
     });
 
-    it('returns false on explicit opt-out values', () => {
-      const original = process.env.STAGE3_AGENTIC;
-      try {
-        for (const v of ['false', '0', 'no', 'off']) {
-          process.env.STAGE3_AGENTIC = v;
-          expect(agentic.isAgenticEnabled()).toBe(false);
-        }
-      } finally {
-        if (original === undefined) delete process.env.STAGE3_AGENTIC;
-        else process.env.STAGE3_AGENTIC = original;
-      }
+    it('legacy GEMINI_IDENTIFY_MODEL=gemini-2.5-flash alone changes NOTHING (gate reads IDENTIFY_MODEL, policy normalizes)', () => {
+      process.env.GEMINI_IDENTIFY_MODEL = 'gemini-2.5-flash';
+      expect(agentic.isAgenticEnabled()).toBe(true);
     });
 
-    it('STAGE3_AGENTIC_SAMPLE cannot bypass the model gate', () => {
-      const originalSample = process.env.STAGE3_AGENTIC_SAMPLE;
-      const originalFlag = process.env.STAGE3_AGENTIC;
-      delete process.env.STAGE3_AGENTIC;
-      try {
-        process.env.STAGE3_AGENTIC_SAMPLE = '1.0';
-        expect(agentic.isAgenticEnabled()).toBe(false);
-        // Sample 0 is a partial-disable knob.
-        process.env.STAGE3_AGENTIC_SAMPLE = '0';
-        expect(agentic.isAgenticEnabled()).toBe(false);
-      } finally {
-        if (originalSample === undefined) delete process.env.STAGE3_AGENTIC_SAMPLE;
-        else process.env.STAGE3_AGENTIC_SAMPLE = originalSample;
-        if (originalFlag !== undefined) process.env.STAGE3_AGENTIC = originalFlag;
-      }
+    it('IDENTIFY_MODEL=gemini-2.5-flash under the default policy still resolves to a circulation-capable model', () => {
+      process.env.IDENTIFY_MODEL = 'gemini-2.5-flash';
+      expect(agentic.isAgenticEnabled()).toBe(true);
     });
   });
 

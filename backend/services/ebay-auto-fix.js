@@ -23,8 +23,14 @@ const { buildGenerationConfig } = require('../lib/gemini-config');
 
 const EBAY_ASPECTS_CAP = 45;
 
-const ASPECT_GEMINI_TIMEOUT_MS = 8000;
-const ASPECT_GEMINI_MAX_TOKENS = 600;
+// Auf einem Thinking-Modell (gemini-3.7-flash, Politik seit 2026-08-26) fressen
+// Denk-Tokens kleine Output-Budgets komplett auf (live gemessen: 17 Denk-Tokens
+// toeteten ein 20-Token-Budget) — deshalb 2048 statt 600 Tokens und 20s statt 8s.
+function aspectGeminiTimeoutMs() {
+  const raw = parseInt(process.env.EBAY_ASPECT_GEMINI_TIMEOUT_MS || '', 10);
+  return Number.isFinite(raw) && raw > 0 ? raw : 20000;
+}
+const ASPECT_GEMINI_MAX_TOKENS = 2048;
 const ASPECT_GEMINI_CONFIG = buildGenerationConfig({
   temperature: 0.3,
   maxOutputTokens: ASPECT_GEMINI_MAX_TOKENS,
@@ -236,7 +242,7 @@ async function fillAspectsViaGemini(product, missingNames, generateText) {
       new Promise((_, reject) =>
         setTimeout(
           () => reject(new Error('Gemini timeout')),
-          ASPECT_GEMINI_TIMEOUT_MS
+          aspectGeminiTimeoutMs()
         )
       ),
     ]);

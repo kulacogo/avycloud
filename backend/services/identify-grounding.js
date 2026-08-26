@@ -14,6 +14,13 @@
 
 const crypto = require('crypto');
 const { identifyProductWithGrounding } = require('../lib/gemini3-client');
+const { resolveModel } = require('../lib/model-select');
+
+// Tatsaechlich aufgeloestes Identify-Modell fuer Trace-/Telemetrie-Felder —
+// hartkodierte Namen luegen nach jedem Politik-Wechsel.
+function identifyModelName() {
+  return resolveModel(null, 'IDENTIFY_MODEL', null);
+}
 const { ensureCategories, applyEbayTaxonomy, applyKauflandTaxonomy } = require('./enrichment');
 const { enrichKTypIfPossible } = require('../lib/ktype-enrichment');
 const { searchProductImages } = require('../lib/image-search');
@@ -65,7 +72,7 @@ async function runProductIdentificationGrounding({
 
       const serpTrace = meta.stages?.stage1?.groundingUsed ? [{
         type: 'google_search_grounding_v3',
-        model: 'gemini-2.5-pro',
+        model: identifyModelName(),
         queries: [],
         sources: [],
       }] : [];
@@ -73,7 +80,7 @@ async function runProductIdentificationGrounding({
       return {
         bundle: { products: [product] },
         serpTrace,
-        modelUsed: 'gemini-2.5-pro',
+        modelUsed: identifyModelName(),
       };
     } catch (v3Error) {
       console.warn('[identify-grounding] V3 pipeline failed, falling back to V2:', v3Error?.message);
@@ -299,7 +306,7 @@ async function runProductIdentificationGrounding({
       products: [product],
     },
     serpTrace,
-    modelUsed: groundedRecord._grounding?.model || 'gemini-2.5-pro',
+    modelUsed: groundedRecord._grounding?.model || identifyModelName(),
   };
 }
 

@@ -14,8 +14,13 @@
  */
 
 const { getGenAIClient } = require('./gemini3-client');
+const { resolveModel } = require('./model-select');
 
-const MODEL = process.env.GPSR_IMAGE_MODEL || 'gemini-2.5-flash';
+// Trotz des ENV-Namens ein TEXT-/Vision-Call (GPSR-Etikett lesen), KEIN
+// Bildgenerator — laeuft deshalb durch die zentrale Modellpolitik.
+function resolveGpsrImageModel() {
+  return resolveModel(process.env.GPSR_IMAGE_MODEL, 'GPSR_IMAGE_MODEL', 'gemini-2.5-flash');
+}
 const MAX_IMAGES = parseInt(process.env.GPSR_IMAGE_MAX || '4', 10);
 const IMAGE_TIMEOUT_MS = parseInt(process.env.GPSR_IMAGE_FETCH_TIMEOUT_MS || '8000', 10);
 const CALL_TIMEOUT_MS = parseInt(process.env.GPSR_IMAGE_CALL_TIMEOUT_MS || '30000', 10);
@@ -102,7 +107,7 @@ async function _extractOnce(imageParts, aiClient) {
   const contents = [{ role: 'user', parts: [{ text: PROMPT }, ...imageParts] }];
   const response = await Promise.race([
     ai.models.generateContent({
-      model: MODEL,
+      model: resolveGpsrImageModel(),
       contents,
       config: {
         temperature: 0.1,

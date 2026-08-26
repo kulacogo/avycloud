@@ -118,7 +118,12 @@ async function detectIntent(message) {
     // Phase F.1b.3 — best-effort scope-config (additive, never throws).
     // Intent detection is a tight single-token classifier — preserve the
     // current temperature=0/maxOutputTokens=10 defaults via callerOverrides.
-    const _intentLegacy = { temperature: 0, maxOutputTokens: 10 };
+    // Auf Thinking-Modellen (gemini-3.7-flash-Politik seit 2026-08-26) fressen
+    // Denk-Tokens kleine Output-Budgets komplett — live gemessen: 17 Denk-Tokens
+    // toeteten ein 20-Token-Budget, die Antwort kam LEER zurueck. Mit dem alten
+    // maxOutputTokens:10 fiele die Intent-Erkennung auf JEDEM Turn still auf den
+    // Regex-Fallback. Deshalb 512 Tokens; das Ein-Wort-Ergebnis bleibt billig.
+    const _intentLegacy = { temperature: 0, maxOutputTokens: 512 };
     let _intentScopeConfig = null;
     try {
       const { resolveScopeConfig } = require('../lib/llm-config');
@@ -155,7 +160,7 @@ User message: "${msg.slice(0, 500)}"
 
 Intent:`
       ),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('Intent detection timeout')), 3000)),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Intent detection timeout')), 8000)),
     ]);
 
     const text = (result?.response?.text?.() || '').trim().toLowerCase();

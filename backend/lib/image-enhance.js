@@ -1,6 +1,7 @@
 'use strict';
 
 const { FLASH_MODEL, resolveImageEnhanceModel, buildGenerationConfig } = require('./gemini-config');
+const { resolveModel } = require('./model-select');
 
 /**
  * image-enhance.js
@@ -179,7 +180,9 @@ async function classifyImageAngle(imagePart, options = {}) {
 
   try {
     const response = await geminiClient.generateContent({
-      model: FLASH_MODEL,
+      // Bildwinkel-Klassifikation ist ein TEXT-/Vision-Call (kein Bildgenerator)
+      // — laeuft durch die zentrale Modellpolitik statt roh auf der Konstante.
+      model: resolveModel(FLASH_MODEL, 'IDENTIFY_MODEL', FLASH_MODEL),
       contents: [imagePart, { text: instruction }],
       config: buildGenerationConfig({ responseMimeType: 'application/json', temperature: 0.1 }),
     });

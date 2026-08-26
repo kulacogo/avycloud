@@ -93,6 +93,7 @@ async function lookupPricesViaGemini(product, opts = {}) {
         httpOptions: { timeout: timeoutMs },
       },
     });
+    require('./grounding-usage').trackGroundingQueries(response, 'price.gemini_lookup');
     const rawText = (response.text || '').trim();
     if (!rawText) return [];
     parsed = await gemini3._parseGroundedJson({

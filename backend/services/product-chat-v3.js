@@ -126,13 +126,15 @@ function chatV3Enabled() {
     if (v === 'false' || v === '0' || v === 'no' || v === 'off') return false;
   }
   // V3 (Context Circulation: googleSearch + urlContext + custom functions in
-  // EINEM Request) existiert nur auf den -customtools-Modellvarianten. Auf
-  // Gemini 2.5 (Kosten-Downgrade 2026-08-01) lehnt die API die Tool-Kombination
-  // ab — dann direkt mit V2 starten, statt pro Nachricht einen garantiert
-  // scheiternden Call zu bezahlen. Kommt je ein customtools-Klasse-Modell
-  // zurück, aktiviert sich V3 hierüber von selbst.
+  // EINEM Request) braucht ein Modell, das Server-Tools mit Custom-Functions
+  // kombinieren kann. Das entscheidet ZENTRAL supportsToolContextCirculation()
+  // (model-select.js): auf gemini-3.7-flash (Politik seit 2026-08-26, live
+  // gegen die echte API verifiziert) wahr, unter der Notbremse
+  // MODEL_POLICY='gemini25' automatisch falsch → Kaskade startet bei V2-Split,
+  // statt pro Nachricht einen garantiert scheiternden Call zu bezahlen.
   const { resolveChatModel } = require('../lib/gemini-config');
-  return resolveChatModel().includes('customtools');
+  const { supportsToolContextCirculation } = require('../lib/model-select');
+  return supportsToolContextCirculation(resolveChatModel());
 }
 
 // ---------------------------------------------------------------------------
@@ -744,6 +746,8 @@ function emitThoughts(response, trace, onProgress) {
 
 function collectGrounding(response, trace, onProgress) {
   try {
+    // Freikontingent-Zaehler (3er-Familie rechnet pro Such-Query ab)
+    require('../lib/grounding-usage').trackGroundingQueries(response, 'chat.v3');
     const candidates = response?.candidates || [];
     const meta = candidates[0]?.groundingMetadata;
     if (meta) {

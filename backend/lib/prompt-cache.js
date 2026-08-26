@@ -13,7 +13,12 @@ const crypto = require('node:crypto');
 const MEMORY_CACHE = new Map(); // cacheKey -> { name, model, expiresAt, createdAt, tokensEstimated }
 const MEMORY_CACHE_MAX = 50;
 
-const MIN_TOKENS = 4096; // Gemini harter Minimum
+// Cache-Mindestgroesse ist MODELLABHAENGIG (2.5-pro: 4096, 2.5-flash: 1024;
+// fuer gemini-3.7-flash ungemessen) — deshalb ENV-tunable statt hart.
+const MIN_TOKENS = (() => {
+  const raw = parseInt(process.env.PROMPT_CACHE_MIN_TOKENS || '', 10);
+  return Number.isFinite(raw) && raw > 0 ? raw : 4096;
+})();
 const DEFAULT_TTL_SECONDS = 3600; // 60min — matches most batch flows
 
 /**

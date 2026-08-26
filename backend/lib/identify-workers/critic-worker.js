@@ -190,7 +190,10 @@ async function maybeFlashFixHints(aiClient, product, issues) {
   // values as callerOverrides so behaviour is unchanged when scope-version has
   // no generationConfig override.
   const fallbackTemperature = 0.1;
-  const fallbackModel = FLASH_MODEL;
+  // Auch der Scope-Resolution-Fallback laeuft durch die zentrale Modellpolitik —
+  // sonst ginge die rohe FLASH_MODEL-Konstante bei Scope-Fehlern direkt an die API.
+  const { resolveModel } = require('../model-select');
+  const fallbackModel = resolveModel(FLASH_MODEL, 'GEMINI_CRITIC_MODEL', FLASH_MODEL);
   let scopeModel = fallbackModel;
   let scopeGenCfg = { temperature: fallbackTemperature, responseMimeType: 'application/json' };
   if (typeof _resolveScopeConfig === 'function') {

@@ -266,7 +266,8 @@ describe('resolveScopeConfig', () => {
     expect(cfg.versionId).toBe('v1');
     expect(cfg.system_prompt).toBe('sys prompt');
     expect(cfg.rules_text).toBe('rules');
-    expect(cfg.model).toBe('gemini-2.5-pro');
+    // Modellpolitik seit 2026-08-26: DEFAULT_MODEL wird zentral auf 3.7 normalisiert.
+    expect(cfg.model).toBe('gemini-3.7-flash');
     // gemini-config defaults baked in
     expect(cfg.generationConfig.temperature).toBe(1.0);
     expect(cfg.generationConfig.maxOutputTokens).toBe(8192);
@@ -295,7 +296,7 @@ describe('resolveScopeConfig', () => {
     const cfg = await llmConfig.resolveScopeConfig('chat.product', 'tenant-A');
     expect(cfg.versionId).toBe('v2');
     expect(cfg.system_prompt).toBe('P2');
-    expect(cfg.model).toBe('gemini-2.5-flash');
+    expect(cfg.model).toBe('gemini-3.7-flash');
     expect(cfg.generationConfig.temperature).toBe(0.4);
     expect(cfg.generationConfig.maxOutputTokens).toBe(8192); // gemini-config default still present
   });
@@ -349,7 +350,7 @@ describe('resolveScopeConfig', () => {
       modelOverride: 'gemini-3.1-flash-lite',
     });
     const cfg = await llmConfig.resolveScopeConfig('identify.v2', null);
-    expect(cfg.model).toBe('gemini-2.5-flash');
+    expect(cfg.model).toBe('gemini-3.7-flash');
   });
 
   it('propagates userTemplate + outputSchemaHint from the version doc', async () => {
@@ -440,8 +441,97 @@ describe('resolveScopeConfig', () => {
       model: 'gemini-3-flash-preview',
       generationConfig: { temperature: 0.1 },
     });
-    expect(cfg.model).toBe('gemini-2.5-flash');
+    expect(cfg.model).toBe('gemini-3.7-flash');
     expect(cfg.generationConfig.temperature).toBe(0.1);
+  });
+});
+
+// ─── _sanitizeGenerationConfigForModel (via resolveScopeConfig) ────────────
+//
+// Admin-UI-Scopes können `thinkingLevel`/`mediaResolution` als FLACHE Keys in
+// generationConfig tragen — beides sind keine gültigen v1beta-GenerationConfig-
+// Felder und wären beim Spread in echte Requests 400-Kandidaten. Seit
+// 2026-08-26 sanitisiert resolveScopeConfig das gemergte generationConfig:
+// flache Keys raus, thinkingLevel → thinkingConfig-Übersetzung nur auf
+// circulation-fähigen Modellen (3.x), 'none' ersatzlos verworfen.
+
+describe('resolveScopeConfig generationConfig sanitize (thinkingLevel/mediaResolution)', () => {
+  it('entfernt flache thinkingLevel/mediaResolution-Keys und übersetzt thinkingLevel auf 3.7 in thinkingConfig', async () => {
+    seedScope('chat.product', { activeVersionId: 'v1' });
+    seedVersion('chat.product', 'v1', {
+      promptText: 'P',
+      rulesText: 'R',
+      generationConfig: { thinkingLevel: 'high', mediaResolution: 'HIGH' },
+    });
+
+    const cfg = await llmConfig.resolveScopeConfig('chat.product', null);
+    expect(cfg.model).toBe('gemini-3.7-flash');
+    // Die flachen Keys dürfen NIE im Ergebnis stehen (400-Kandidaten).
+    expect(cfg.generationConfig).not.toHaveProperty('thinkingLevel');
+    expect(cfg.generationConfig).not.toHaveProperty('mediaResolution');
+    // Der Scope-Wunsch "thinkingLevel high" muss als thinkingConfig ankommen —
+    // sonst wird die Admin-UI-Einstellung still verschluckt.
+    //
+    // BEKANNTER IMPLEMENTIERUNGS-BUG (Stand 2026-08-26, Test bewusst NICHT
+    // an das Ist-Verhalten angepasst): `_baseGenerationConfig()` in
+    // lib/llm-config.js legt IMMER `thinkingConfig: defaultThinkingConfig()`
+    // ({thinkingBudget:4096}) in die unterste Merge-Schicht. Dadurch ist die
+    // `!out.thinkingConfig`-Wache in `_sanitizeGenerationConfigForModel`
+    // über resolveScopeConfig NIE erfüllt — der Übersetzungszweig ist dort
+    // toter Code und ein Scope-thinkingLevel wird still verschluckt.
+    // Fix gehört in lib/llm-config.js (Wache muss den eingebauten Default
+    // ignorieren bzw. nur EXPLIZIT gesetzte thinkingConfig schützen).
+    expect(cfg.generationConfig.thinkingConfig).toEqual({
+      thinkingLevel: 'high',
+      includeThoughts: true,
+    });
+  });
+
+  it("thinkingLevel:'none' wird ersatzlos verworfen (kein flacher Key, keine thinkingLevel-Übersetzung)", async () => {
+    seedScope('chat.product', { activeVersionId: 'v1' });
+    seedVersion('chat.product', 'v1', {
+      promptText: 'P',
+      rulesText: 'R',
+      generationConfig: { thinkingLevel: 'none', mediaResolution: 'HIGH' },
+    });
+
+    const cfg = await llmConfig.resolveScopeConfig('chat.product', null);
+    expect(cfg.generationConfig).not.toHaveProperty('thinkingLevel');
+    expect(cfg.generationConfig).not.toHaveProperty('mediaResolution');
+    // 'none' kennt gemini-3.7-flash nicht (live gemessen 26.08.2026) — es darf
+    // KEINE thinkingLevel-Übersetzung entstehen. Der familienübergreifend
+    // sichere thinkingBudget-Default aus gemini-config bleibt unangetastet.
+    expect(cfg.generationConfig.thinkingConfig).toEqual({
+      thinkingBudget: 4096,
+      includeThoughts: true,
+    });
+  });
+
+  it("Notbremse MODEL_POLICY=gemini25: flache Keys entfernt UND kein thinkingLevel-thinkingConfig ergänzt (2.5 kennt thinkingLevel nicht)", async () => {
+    const originalPolicy = process.env.MODEL_POLICY;
+    process.env.MODEL_POLICY = 'gemini25';
+    try {
+      seedScope('chat.product', { activeVersionId: 'v1' });
+      seedVersion('chat.product', 'v1', {
+        promptText: 'P',
+        rulesText: 'R',
+        generationConfig: { thinkingLevel: 'high', mediaResolution: 'HIGH' },
+      });
+
+      const cfg = await llmConfig.resolveScopeConfig('chat.product', null);
+      expect(cfg.model).toBe('gemini-2.5-pro');
+      expect(cfg.generationConfig).not.toHaveProperty('thinkingLevel');
+      expect(cfg.generationConfig).not.toHaveProperty('mediaResolution');
+      // 2.5 lehnt thinkingLevel mit 400 INVALID_ARGUMENT ab — es darf keine
+      // Übersetzung entstehen; nur der thinkingBudget-Default (2.5-Syntax) bleibt.
+      expect(cfg.generationConfig.thinkingConfig).toEqual({
+        thinkingBudget: 4096,
+        includeThoughts: true,
+      });
+    } finally {
+      if (originalPolicy === undefined) delete process.env.MODEL_POLICY;
+      else process.env.MODEL_POLICY = originalPolicy;
+    }
   });
 });
 
@@ -525,14 +615,16 @@ describe('loadScopeWithFallback', () => {
       ],
     });
     const cfg = await llmConfig.loadScopeWithFallback('chat.product');
-    // Legacy fields preserved (backwards-compat)
+    // Legacy fields preserved (backwards-compat).
+    // INVARIANT: modelOverride wird VERBATIM gespeichert/zurückgegeben —
+    // nur das aufgelöste `model`-Feld läuft durch die zentrale Politik.
     expect(cfg.promptText).toBe('snapshot sys prompt');
     expect(cfg.rulesText).toBe('snapshot rules text');
     expect(cfg.modelOverride).toBe('gemini-3.1-pro-preview');
     // Normalized fields (mirrors resolveScopeConfig contract)
     expect(cfg.system_prompt).toBe('snapshot sys prompt');
     expect(cfg.rules_text).toBe('snapshot rules text');
-    expect(cfg.model).toBe('gemini-2.5-pro');
+    expect(cfg.model).toBe('gemini-3.7-flash');
     expect(cfg.user_template).toBe('tpl {{x}}');
     expect(cfg.output_schema_hint).toBe('{"type":"string"}');
     expect(cfg.generation_config).toEqual({ temperature: 0.42, maxOutputTokens: 2048 });
@@ -561,7 +653,7 @@ describe('loadScopeWithFallback', () => {
         ],
       });
       const cfg = await llmConfig.loadScopeWithFallback('chat.product');
-      expect(cfg.model).toBe('gemini-2.5-pro');
+      expect(cfg.model).toBe('gemini-3.7-flash');
       expect(cfg.modelOverride).toBeNull();
     } finally {
       if (originalEnv === undefined) delete process.env.GEMINI_CHAT_MODEL;

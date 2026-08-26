@@ -1,6 +1,15 @@
+const { resolveModel } = require('./model-select');
+
 const GEMINI_API_KEY = process.env.GOOGLE_GENAI_API_KEY || process.env.GEMINI_API_KEY;
-const GEMINI_TEXT_MODEL = process.env.GEMINI_TEXT_MODEL || 'gemini-2.5-pro';
-const GEMINI_TEXT_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_TEXT_MODEL}:generateContent`;
+
+// Modellwahl laeuft durch die zentrale Politik (model-select.js) und wird pro
+// Request aufgeloest — vorher war der Endpoint zur Modul-Ladezeit auf den rohen
+// GEMINI_TEXT_MODEL-ENV-Pin gebacken und umging die Modellpolitik komplett
+// (einziger Prod-Aufrufer: services/ebay-auto-fix.js Aspect-Generierung).
+function resolveTextEndpoint() {
+  const model = resolveModel(null, 'GEMINI_TEXT_MODEL', null);
+  return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+}
 
 function ensureGeminiApiKey() {
   if (!GEMINI_API_KEY) {
@@ -29,7 +38,7 @@ async function generateText(prompt, options = {}) {
         },
     };
 
-  const response = await fetch(`${GEMINI_TEXT_ENDPOINT}?key=${encodeURIComponent(GEMINI_API_KEY)}`, {
+  const response = await fetch(`${resolveTextEndpoint()}?key=${encodeURIComponent(GEMINI_API_KEY)}`, {
         method: 'POST',
         headers: {
       'Content-Type': 'application/json',

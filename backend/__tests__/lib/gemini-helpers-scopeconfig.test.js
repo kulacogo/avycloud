@@ -136,13 +136,14 @@ describe('Phase F.1b — gemini helper-layer scopeConfig augmentation', () => {
     it('with scopeConfig.model: uses overridden model (caller arg wins when set)', async () => {
       _gemini3GenerateContentMock.mockResolvedValueOnce({ text: '{"ok":true}' });
       // Use an allowed model name so resolveModel does not fall back.
+      // Modellpolitik seit 2026-08-26: alle Text-Modellnamen → gemini-3.7-flash.
       await gemini3.gemini3GenerateJSON({
         prompt: 'p',
         schema: { type: 'object' },
         scopeConfig: { model: 'gemini-3-flash-preview' },
       });
       let call = _gemini3GenerateContentMock.mock.calls[0][0];
-      expect(call.model).toBe('gemini-2.5-flash');
+      expect(call.model).toBe('gemini-3.7-flash');
 
       _gemini3GenerateContentMock.mockResolvedValueOnce({ text: '{"ok":true}' });
       await gemini3.gemini3GenerateJSON({
@@ -152,7 +153,7 @@ describe('Phase F.1b — gemini helper-layer scopeConfig augmentation', () => {
         scopeConfig: { model: 'gemini-3-flash-preview' },
       });
       call = _gemini3GenerateContentMock.mock.calls[1][0];
-      expect(call.model).toBe('gemini-2.5-flash');
+      expect(call.model).toBe('gemini-3.7-flash');
     });
 
     it('scopeConfig: callerOverrides (explicit temperature) win over scopeConfig.generationConfig', async () => {
@@ -229,7 +230,7 @@ describe('Phase F.1b — gemini helper-layer scopeConfig augmentation', () => {
         },
       });
       const modelArg = _getGenerativeModelMock.mock.calls.pop()[0];
-      expect(modelArg.model).toBe('gemini-2.5-flash');
+      expect(modelArg.model).toBe('gemini-3.7-flash');
 
       const callArg = _generateContentMock.mock.calls[0][0];
       expect(callArg.generationConfig.temperature).toBe(0.5);
@@ -282,7 +283,7 @@ describe('Phase F.1b — gemini helper-layer scopeConfig augmentation', () => {
         },
       });
       const modelArg = _getGenerativeModelMock.mock.calls.pop()[0];
-      expect(modelArg.model).toBe('gemini-2.5-flash');
+      expect(modelArg.model).toBe('gemini-3.7-flash');
 
       const callArg = _generateContentMock.mock.calls[0][0];
       expect(callArg.generationConfig.temperature).toBe(0.42);

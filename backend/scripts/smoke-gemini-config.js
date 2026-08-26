@@ -15,7 +15,7 @@
  * Prints a JSON result blob to stdout for machine consumption.
  */
 
-const MODEL = process.env.SMOKE_MODEL || 'gemini-3.1-pro-preview-customtools';
+const MODEL = process.env.SMOKE_MODEL || 'gemini-3.7-flash';
 // Thinking models (V2/V3 with thinkingLevel=high) can legitimately take 20-40s
 // even on minimal prompts, so we give each call 60s to prove config validity.
 // A timeout is NOT a config rejection — rerun if hit.

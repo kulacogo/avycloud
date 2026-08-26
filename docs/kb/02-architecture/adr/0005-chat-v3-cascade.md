@@ -27,7 +27,7 @@ Drei historische Pfade existieren parallel — V3 ist heute der bevorzugte; V2 u
 
 [backend/services/product-chat-v3.js](../../../../backend/services/product-chat-v3.js):
 
-- Modell: Gemini 3.1 Pro Customtools (Default via [backend/lib/model-select.js](../../../../backend/lib/model-select.js), ENV-Override `CHAT_MODEL`).
+- Modell: `gemini-3.7-flash` (Politik-Modell seit 2026-08-26, zentral via [backend/lib/model-select.js](../../../../backend/lib/model-select.js); ENV-Override `CHAT_MODEL` wird normalisiert. Fähigkeits-Gate: `supportsToolContextCirculation()` statt `-customtools`-Namenssuffix; Notbremse `MODEL_POLICY='gemini25'` deaktiviert V3 automatisch).
 - Tools in **einem** Request: `googleSearch` + `urlContext` + 7 atomic-tools + `update_datasheet`.
 - **Thinking Mode** `high`, `includeThoughts: true` (Thoughts-Streaming an SPA).
 - Cross-Reference + Confidence-Scoring **post-generation** via [backend/lib/cross-reference.js](../../../../backend/lib/cross-reference.js) + [backend/lib/confidence-scoring.js](../../../../backend/lib/confidence-scoring.js).

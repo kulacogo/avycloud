@@ -428,12 +428,14 @@ describe('F.1b.3 snapshot: product-chat.js legacy detectIntent', () => {
     expect(['change', 'info', 'analysis']).toContain(out);
     expect(resolveScopeConfigMock).toHaveBeenCalledWith('chat.product', null, expect.objectContaining({
       temperature: 0,
-      maxOutputTokens: 10,
+      maxOutputTokens: 512,
     }));
-    // getGenerativeModel called with temperature=0/maxOutputTokens=10 fallback.
+    // getGenerativeModel called with temperature=0/maxOutputTokens=512 fallback
+    // (512 statt 10 seit der 3.7-Politik: Denk-Tokens fressen Mini-Budgets,
+    // live gemessen 2026-08-26 — 17 Denk-Tokens toeteten ein 20-Token-Budget).
     const args = getGenerativeModelMock.mock.calls[0][0];
     expect(args.generationConfig.temperature).toBe(0);
-    expect(args.generationConfig.maxOutputTokens).toBe(10);
+    expect(args.generationConfig.maxOutputTokens).toBe(512);
   });
 });
 

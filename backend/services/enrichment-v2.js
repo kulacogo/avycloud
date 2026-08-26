@@ -586,7 +586,9 @@ async function runSerpapiFreePipeline({ files = [], barcodes = '', locale = 'de-
     record: mergedRecord,
     llm: {
       applied: Boolean(llmRecord),
-      model: process.env.GEMINI_MULTIMODAL_MODEL || process.env.GEMINI_STRUCTURED_MODEL || 'gemini-2.5-pro',
+      // Tatsaechlich aufgeloestes Modell statt rohem ENV-Pin — sonst luegt die
+      // Telemetrie nach jedem Politik-Wechsel.
+      model: require('../lib/gemini-structured').getStructuredModelName(),
       error: llmError,
     },
     quality,

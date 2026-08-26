@@ -183,48 +183,69 @@ describe('product-chat-v3 — module shape', () => {
 });
 
 describe('chatV3Enabled feature flag', () => {
-  let original;
+  // Modellpolitik seit 2026-08-26: ALLE Text-Modellnamen lösen zentral auf
+  // gemini-3.7-flash auf, das Context Circulation (googleSearch + urlContext +
+  // custom functions in EINEM Request) kann — live gegen die echte API
+  // verifiziert. chatV3Enabled() fragt supportsToolContextCirculation
+  // (model-select.js) über das aufgelöste Chat-Modell → unter der Default-
+  // Politik TRUE. Notbremse MODEL_POLICY='gemini25' stellt die 2.5-Politik
+  // wieder her; dort löst KEIN Name mehr auf ein circulation-fähiges Modell
+  // auf → V3 strukturell aus, die Kaskade startet bei V2 (Split-Modus).
+  let originalChatV3;
+  let originalPolicy;
+  let originalChatModel;
   beforeEach(() => {
-    original = process.env.CHAT_V3;
+    originalChatV3 = process.env.CHAT_V3;
+    originalPolicy = process.env.MODEL_POLICY;
+    originalChatModel = process.env.CHAT_MODEL;
+    delete process.env.CHAT_V3;
+    delete process.env.MODEL_POLICY;
+    delete process.env.CHAT_MODEL;
   });
   afterEach(() => {
-    if (original === undefined) delete process.env.CHAT_V3;
-    else process.env.CHAT_V3 = original;
+    if (originalChatV3 === undefined) delete process.env.CHAT_V3;
+    else process.env.CHAT_V3 = originalChatV3;
+    if (originalPolicy === undefined) delete process.env.MODEL_POLICY;
+    else process.env.MODEL_POLICY = originalPolicy;
+    if (originalChatModel === undefined) delete process.env.CHAT_MODEL;
+    else process.env.CHAT_MODEL = originalChatModel;
   });
 
-  // Seit dem 2.5-Downgrade (2026-08-01) ist chatV3Enabled zusätzlich modell-
-  // gegated: V3 (googleSearch + custom functions in EINEM Request) existiert
-  // nur auf -customtools-Varianten. Unter der 2.5-Politik löst KEIN Modell
-  // mehr auf customtools auf → V3 ist strukturell aus, Kaskade startet bei V2.
-  it('is OFF when the resolved chat model lacks customtools (2.5 policy)', () => {
-    delete process.env.CHAT_V3;
-    expect(chatV3Enabled()).toBe(false);
+  it('is ON under the default policy (gemini-3.7-flash supports circulation)', () => {
+    expect(chatV3Enabled()).toBe(true);
   });
 
-  it('stays OFF even when CHAT_V3=true (model gate wins)', () => {
+  it('stays ON for explicit truthy CHAT_V3 values under the default policy', () => {
     for (const v of ['true', '1', 'yes', 'on', 'TRUE', 'On']) {
       process.env.CHAT_V3 = v;
-      expect(chatV3Enabled()).toBe(false);
+      expect(chatV3Enabled()).toBe(true);
     }
   });
 
-  it('returns false on explicit opt-out values', () => {
+  it('returns false on explicit opt-out values (flag wins over capable model)', () => {
     for (const v of ['false', '0', 'no', 'off']) {
       process.env.CHAT_V3 = v;
       expect(chatV3Enabled()).toBe(false);
     }
   });
 
-  it('stale customtools CHAT_MODEL pins do not re-enable V3 (redirected to 2.5)', () => {
-    delete process.env.CHAT_V3;
-    const prev = process.env.CHAT_MODEL;
-    process.env.CHAT_MODEL = 'gemini-3.1-pro-preview-customtools';
-    try {
+  it('is OFF under the MODEL_POLICY=gemini25 emergency brake (model gate)', () => {
+    process.env.MODEL_POLICY = 'gemini25';
+    expect(chatV3Enabled()).toBe(false);
+  });
+
+  it('stays OFF under the emergency brake even when CHAT_V3=true (model gate wins)', () => {
+    process.env.MODEL_POLICY = 'gemini25';
+    for (const v of ['true', '1', 'yes', 'on', 'TRUE', 'On']) {
+      process.env.CHAT_V3 = v;
       expect(chatV3Enabled()).toBe(false);
-    } finally {
-      if (prev === undefined) delete process.env.CHAT_MODEL;
-      else process.env.CHAT_MODEL = prev;
     }
+  });
+
+  it('stale customtools CHAT_MODEL pins do not re-enable V3 under the emergency brake (redirected to 2.5)', () => {
+    process.env.MODEL_POLICY = 'gemini25';
+    process.env.CHAT_MODEL = 'gemini-3.1-pro-preview-customtools';
+    expect(chatV3Enabled()).toBe(false);
   });
 });
 

@@ -8,7 +8,7 @@ const {
   defaultThinkingConfig,
   buildGenerationConfig,
 } = require('./gemini-config');
-const { resolveModel: resolveModelPolicy } = require('./model-select');
+const { resolveModel: resolveModelPolicy, supportsToolContextCirculation } = require('./model-select');
 
 const SCOPES_COLLECTION = 'llmScopes';
 const SNAPSHOT_FILE = path.join(__dirname, 'llm-scopes-snapshot.json');
@@ -399,6 +399,35 @@ function _mergeGenerationConfig(...layers) {
 }
 
 /**
+ * Admin-UI-Scopes koennen `thinkingLevel`/`mediaResolution` als FLACHE Keys in
+ * generationConfig tragen — beides sind keine gueltigen v1beta-GenerationConfig-
+ * Felder und wuerden beim Spread in echte Requests zum 400-Kandidaten.
+ * thinkingLevel wird familienbewusst in thinkingConfig uebersetzt (nur fuer die
+ * 3er-Familie; 'minimal'/'none' kennt gemini-3.7-flash nicht — live gemessen
+ * 2026-08-26), mediaResolution wird verworfen (v1beta-400, siehe product-chat-v3).
+ */
+function _sanitizeGenerationConfigForModel(cfg, model) {
+  if (!cfg || typeof cfg !== 'object') return cfg;
+  const out = { ...cfg };
+  const lvlRaw = typeof out.thinkingLevel === 'string' ? out.thinkingLevel.trim().toLowerCase() : '';
+  delete out.thinkingLevel;
+  delete out.mediaResolution;
+  if (lvlRaw && supportsToolContextCirculation(model)) {
+    const mapped = lvlRaw === 'minimal' ? 'low' : lvlRaw;
+    if (mapped === 'low' || mapped === 'medium' || mapped === 'high') {
+      // Das flache thinkingLevel kommt NUR aus Scope-/Tenant-/Caller-Schichten
+      // (Admin-UI) — die Basis-Schicht legt immer defaultThinkingConfig
+      // (thinkingBudget) ins Merge. Deshalb OVERRIDE statt "nur wenn leer":
+      // eine !out.thinkingConfig-Wache waere toter Code, das Admin-Level
+      // wuerde still verschluckt (Befund Testsuite B, 2026-08-26).
+      const includeThoughts = out.thinkingConfig && out.thinkingConfig.includeThoughts === false ? false : true;
+      out.thinkingConfig = { thinkingLevel: mapped, includeThoughts };
+    }
+  }
+  return out;
+}
+
+/**
  * Resolves the effective config for a scope considering optional tenant
  * override and per-call caller overrides.
  *
@@ -513,7 +542,7 @@ async function resolveScopeConfig(scopeName, tenantId, callerOverrides = {}) {
     rulesMode: versionData.rulesMode === 'replace' ? 'replace' : 'append',
     userTemplate: typeof versionData.userTemplate === 'string' ? versionData.userTemplate : '',
     outputSchemaHint: typeof versionData.outputSchemaHint === 'string' ? versionData.outputSchemaHint : '',
-    generationConfig,
+    generationConfig: _sanitizeGenerationConfigForModel(generationConfig, model),
     model,
   };
 }

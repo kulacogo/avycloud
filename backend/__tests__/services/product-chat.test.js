@@ -52,10 +52,10 @@ describe('product-chat legacy hardening', () => {
       expect(_testables.MAX_CHAT_ITERATIONS).toBe(10);
     });
 
-    it('CHAT_MODEL resolves to a valid 2.5 model', () => {
+    it('CHAT_MODEL resolves to the policy model (gemini-3.7-flash seit 2026-08-26)', () => {
       const { _testables } = require(modPath);
       expect(typeof _testables.CHAT_MODEL).toBe('string');
-      expect(_testables.CHAT_MODEL).toMatch(/^gemini-2\.5/);
+      expect(_testables.CHAT_MODEL).toBe('gemini-3.7-flash');
     });
 
     it('INTENT_MODEL resolves to a flash model', () => {

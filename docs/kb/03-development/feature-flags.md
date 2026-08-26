@@ -87,8 +87,10 @@ lastReviewed: 2026-05-18
 | `CHAT_V2_ENHANCED` | `true` | V2-Härtungen: urlContext, Temperature 1.0, Thinking Mode (high, includeThoughts), maxOutputTokens 8192, mediaResolution HIGH. `=false` revertet auf altes V2-Verhalten. | [backend/services/product-chat-v2.js](../../../backend/services/product-chat-v2.js) |
 | `CHAT_LEGACY_ENHANCED` | `true` | Legacy-Härtungen: ASIN-Detection, Amazon-Routing via SerpAPI `engine='amazon'`, forceOneEvidencePass bei allen Intents, Thinking Mode, erweitertes Evidence-URL-Scoring. | [backend/services/product-chat.js](../../../backend/services/product-chat.js) |
 | `CHAT_GROUNDING` | `true` | Chat-V2 (Google Search Grounding) als Fallback hinter V3. | product-chat-v2.js, [backend/routes/identify.js](../../../backend/routes/identify.js) Z. 1290 |
-| `CHAT_MODEL` | via model-select (`gemini-3.1-pro-preview-customtools`) | Optionaler Default-Chat-Model-Override. | [backend/lib/model-select.js](../../../backend/lib/model-select.js) |
-| `INTENT_MODEL` | via model-select (`gemini-3-flash-preview`) | Optionaler Intent-Model-Override. | model-select.js |
+| `MODEL_POLICY` | unset (= Politik-Modell `gemini-3.7-flash`) | **Zentrale Modellpolitik seit 2026-08-26**: model-select.js normalisiert ALLE Text-Modellnamen auf `gemini-3.7-flash`; Bild-/TTS-/Live-Modelle ausgenommen. NOTBREMSE: nur exakt `'gemini25'` stellt die 2.5-Politik wieder her — dann kippen `chatV3Enabled`, Ein-Request-V2, Agentic-Gate und JSON-Strip automatisch konsistent mit (`supportsToolContextCirculation()`). | [backend/lib/model-select.js](../../../backend/lib/model-select.js) |
+| `CHAT_MODEL` | via model-select (→ `gemini-3.7-flash`) | Optionaler Default-Chat-Model-Override (wird von der Politik normalisiert). | [backend/lib/model-select.js](../../../backend/lib/model-select.js) |
+| `INTENT_MODEL` | via model-select (→ `gemini-3.7-flash`) | Optionaler Intent-Model-Override (wird normalisiert). | model-select.js |
+| `PROMPT_CACHE_MIN_TOKENS` | `4096` | Mindestgröße für Context-Cache-Eligibility — modellabhängig (2.5-pro: 4096, 2.5-flash: 1024; für 3.7-flash ungemessen), deshalb tunable. | [backend/lib/prompt-cache.js](../../../backend/lib/prompt-cache.js) |
 | `GEMINI_CHAT_MODEL` | unset | Scope-Override (ENV-Key in [backend/lib/llm-prompts/scopes/chat-context.json](../../../backend/lib/llm-prompts/scopes/chat-context.json) `defaultModelEnvKey`). Nur für gezielte Canary/Rollback-Tests pro Scope. | llm-config.js |
 
 ## Gemini-Infrastructure

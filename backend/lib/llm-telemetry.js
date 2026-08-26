@@ -35,6 +35,11 @@ const BATCH_MAX_SIZE = 100;
 // `gemini-config.js` keine Preise exposed. Werte konservativ (Listen-Preise),
 // nicht für Buchhaltung — nur für Telemetrie-Aggregate.
 const MODEL_PRICING_USD_PER_M = Object.freeze({
+  // Politik-Modell seit 2026-08-26 (Aktionspreis bis 31.12.2026, danach 1.50/7.50
+  // laut ai.google.dev/gemini-api/docs/pricing — Eintrag dann nachziehen)
+  'gemini-3.7-flash': { input: 0.75, output: 3.75 },
+  'gemini-3.6-flash': { input: 0.75, output: 3.75 },
+  'gemini-3.5-flash': { input: 1.5, output: 9.0 },
   // Gemini 3 family
   'gemini-3.1-pro-preview-customtools': { input: 1.25, output: 5.0 },
   'gemini-3.1-pro-preview': { input: 1.25, output: 5.0 },

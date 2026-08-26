@@ -1,6 +1,8 @@
 // CommonJS. 2 Spaces. Single Quotes.
 // Zentrale Konfigurations-Helfer für Gemini-Calls.
-// Seit 2026-08-01 (Owner-Entscheid Kosten): Gemini 2.5 statt Gemini 3.
+// Seit 2026-08-26 (Owner-Entscheid): Politik-Modell ist gemini-3.7-flash —
+// die Konstanten hier sind nur noch FALLBACK-Eingaben, model-select.js
+// normalisiert jeden Text-Modellnamen zentral (Notbremse MODEL_POLICY='gemini25').
 
 const { resolveModel } = require('./model-select');
 
@@ -10,9 +12,13 @@ const IMAGE_MODEL = 'gemini-2.5-flash-image';
 
 /**
  * Standard thinking-Config für Agentic Use Cases (Chat + Identify).
- * Gemini 2.5 kennt KEIN thinkingLevel (das war Gemini-3-Syntax und würde
- * mit 400 INVALID_ARGUMENT abgelehnt) — 2.5 steuert über thinkingBudget
- * (Token). Die Budgets sind bewusst moderat: Denk-Tokens kosten Geld.
+ * thinkingBudget (Token) ist die familienübergreifend sichere Syntax:
+ * Gemini 2.5 kennt NUR thinkingBudget (thinkingLevel → 400), und
+ * gemini-3.7-flash akzeptiert BEIDE Knöpfe (live gegen die echte API
+ * gemessen am 26.08.2026: thinkingBudget 512 → 58 Denk-Tokens, thinkingLevel
+ * low/medium/high ok, 'minimal' → 400). Deshalb bleibt thinkingBudget der
+ * Default — er funktioniert auch unter der Notbremse MODEL_POLICY='gemini25'.
+ * Die Budgets sind bewusst moderat: Denk-Tokens kosten Geld.
  * includeThoughts macht Thought-Parts im Response verfügbar (Frontend "Thinking…"-Panel).
  */
 const THINKING_BUDGETS = { low: 1024, medium: 2048, high: 4096 };
@@ -69,8 +75,7 @@ function buildGenerationConfig(overrides = {}) {
 }
 
 /**
- * Prüft via ENV ob wir auf customtools-Variant (stabileres function calling) gehen.
- * Fallback: gemini-3.1-pro-preview (kein -customtools).
+ * Chat-Modell — läuft durch die zentrale Politik (heute: gemini-3.7-flash).
  */
 function resolveChatModel() {
   const envKey = process.env.CHAT_MODEL;
@@ -88,8 +93,7 @@ function resolveIntentModel() {
 }
 
 /**
- * Identify-V4 Haupt-Modell (Multi-Stage Pipeline).
- * Default: DEFAULT_MODEL (gemini-3.1-pro-preview-customtools).
+ * Identify-V4 Haupt-Modell (Multi-Stage Pipeline) — zentrale Politik.
  * Override via IDENTIFY_V4_MODEL ENV.
  */
 function resolveIdentifyV4Model() {
@@ -98,9 +102,9 @@ function resolveIdentifyV4Model() {
 
 /**
  * Identify-V4 Image-Enhance-Modell (Hintergrund-Entfernung, Cleanup).
- * Default: IMAGE_MODEL (gemini-3-pro-image-preview). Das Image-Modell steht
- * nicht in ALLOWED_MODELS von model-select.js (bewusst — es ist ein Spezial-
- * Modell), daher kurzer Direkt-Lookup statt resolveModel().
+ * Default: IMAGE_MODEL. BILD-Modelle sind von der Text-Modellpolitik
+ * AUSGENOMMEN (model-select normalisiert *-image/-tts/-live-Namen nie),
+ * daher bewusst Direkt-Lookup statt resolveModel().
  * Override via IDENTIFY_V4_IMAGE_MODEL ENV.
  */
 function resolveImageEnhanceModel() {
