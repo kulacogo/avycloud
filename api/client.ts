@@ -4565,6 +4565,32 @@ export async function generateInvoice(orderId: string, opts?: { vatRate?: number
   return data?.data;
 }
 
+/**
+ * Korrigiert die Rechnung eines Auftrags auf den aktuellen Stand.
+ *
+ * Noetig, weil die Erstattungsbuchung des Marktplatzes Tage bis Wochen NACH
+ * dem Versand kommt — die Rechnung entsteht aber beim Versand und kann die
+ * Erstattung zu dem Zeitpunkt nicht kennen. Erzeugt eine NEUE Rechnung; die
+ * alte bleibt als "korrigiert" erhalten.
+ */
+export async function correctInvoice(orderId: string): Promise<{
+  skipped?: boolean;
+  sollBrutto: number;
+  istBrutto: number;
+  differenz: number;
+  grund: string | null;
+  previousInvoiceNumber?: string | null;
+  invoice?: { invoiceId: string; invoiceNumber: string };
+}> {
+  const res = await fetchApi(`${BACKEND_URL}/api/orders/${encodeURIComponent(orderId)}/invoice/correct`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  const data = await parseResponse(res);
+  if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Rechnungskorrektur fehlgeschlagen');
+  return data?.data;
+}
+
 export async function generateDeliveryNote(orderId: string): Promise<{ deliveryNoteNumber: string; pdfUrl: string | null }> {
   const res = await fetchApi(`${BACKEND_URL}/api/orders/${encodeURIComponent(orderId)}/delivery-note`, {
     method: 'POST',

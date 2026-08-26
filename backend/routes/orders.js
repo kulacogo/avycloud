@@ -1908,6 +1908,38 @@ router.post('/orders/:orderId/invoice', requirePermission('orders', 'write'), as
 });
 
 /**
+ * POST /api/orders/:orderId/invoice/correct — Rechnung auf den aktuellen
+ * Stand des Auftrags korrigieren (z. B. nach einer Marktplatz-Teilerstattung).
+ *
+ * Bewusst NICHT durch AUTO_INVOICE gegatet: das ist eine ausdrueckliche
+ * Handlung eines Menschen am Auftrag, genau wie "Rechnung erstellen".
+ */
+router.post('/orders/:orderId/invoice/correct', requirePermission('orders', 'write'), async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const tenantId = req.user?.tenantId || 'default';
+    const { correctInvoiceForOrder } = require('../services/invoice-engine');
+    const result = await correctInvoiceForOrder({
+      orderId,
+      tenantId,
+      actor: { uid: req.user?.uid || '', email: req.user?.email || '' },
+    });
+
+    if (!result.ok) {
+      const codes = { no_invoice: 409, invoice_missing: 409, tenant_mismatch: 403 };
+      return res.status(codes[result.reason] || 400).json({
+        ok: false,
+        error: { code: 'CORRECTION_NOT_POSSIBLE', message: `Korrektur nicht moeglich: ${result.reason}` },
+      });
+    }
+    res.json({ ok: true, data: result });
+  } catch (err) {
+    console.error(`[POST /api/orders/:orderId/invoice/correct] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
+/**
  * POST /api/orders/:orderId/delivery-note — Generate delivery note PDF.
  */
 router.post('/orders/:orderId/delivery-note', requirePermission('orders', 'write'), async (req, res) => {

@@ -10,6 +10,7 @@ import {
   transitionOrderStatus,
   shipOrder,
   generateInvoice,
+  correctInvoice,
   generateDeliveryNote,
   updateOrderCustomer,
   updateOrderWeight,
@@ -152,6 +153,7 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
   const [weightInput, setWeightInput] = useState("");
   const [savingWeight, setSavingWeight] = useState(false);
   const [selectedVatRate, setSelectedVatRate] = useState<number>(0.19);
+  const [korrigiereRechnung, setKorrigiereRechnung] = useState(false);
   const [labelFormat, setLabelFormat] = useState<string>(
     () => localStorage.getItem("avycloud_label_format") || "a6",
   );
@@ -1405,6 +1407,46 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
                           label="Versanddaten von SendCloud holen"
                           icon="↻"
                           onClick={handleRefreshShipment}
+                        />
+                      </div>
+                    )}
+                    {/* BLEIBENDES Hinweisfeld — kein Auto-Ausblenden. Die
+                        Erstattungsbuchung des Marktplatzes kommt Tage bis Wochen
+                        nach dem Versand, die Rechnung ist dann veraltet. Ein
+                        Hinweis, der von selbst verschwindet, waere hier genau
+                        der Fehler: der falsche Betrag bliebe stehen und niemand
+                        wuesste davon. */}
+                    {order.invoiceNeedsCorrection && (
+                      <div className="mb-2 flex flex-wrap items-center gap-2 rounded-lg border border-warning/20 bg-warning/10 px-3 py-2 text-xs text-warning">
+                        <span className="flex-1 min-w-[12rem]">
+                          Die Rechnung {order.invoiceNumber} ist nicht mehr aktuell:{" "}
+                          {order.invoiceCorrectionReason || "der Auftragsbetrag hat sich geändert"}.
+                          {typeof order.netAmount === "number" && (
+                            <> Aktueller Betrag: {order.netAmount.toFixed(2)} €.</>
+                          )}
+                        </span>
+                        <ActionButton
+                          label={korrigiereRechnung ? "Korrigiere…" : "Rechnung korrigieren"}
+                          icon="↻"
+                          disabled={korrigiereRechnung}
+                          onClick={async () => {
+                            setKorrigiereRechnung(true);
+                            try {
+                              const r = await correctInvoice(orderId);
+                              if (r.skipped) {
+                                toast.info("Die Rechnung stimmt bereits mit dem Auftrag überein.");
+                              } else {
+                                toast.success(
+                                  `Neue Rechnung ${r.invoice?.invoiceNumber ?? ""} über ${r.sollBrutto.toFixed(2)} € — ${r.previousInvoiceNumber ?? "die alte"} wurde als korrigiert markiert.`,
+                                );
+                              }
+                              await loadData();
+                            } catch (err: any) {
+                              toast.error(err?.message || "Rechnungskorrektur fehlgeschlagen");
+                            } finally {
+                              setKorrigiereRechnung(false);
+                            }
+                          }}
                         />
                       </div>
                     )}

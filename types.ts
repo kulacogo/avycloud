@@ -567,6 +567,35 @@ export interface Order {
   invoiceId?: string | null;
   invoiceNumber?: string | null;
   deliveryNoteNumber?: string | null;
+  /**
+   * Marktplatz-Finanzstand des Auftrags (services/order-financials.js).
+   * Die Erstattungsbuchung kommt Tage bis Wochen nach dem Versand — deshalb
+   * weicht der aktuelle Betrag oft von der bereits erstellten Rechnung ab.
+   */
+  marketplaceRefunds?: Array<{
+    refundId: string;
+    marketplace?: string | null;
+    amount: number;
+    date?: string | null;
+    source?: string | null;
+  }> | null;
+  /** Bruttoumsatz laut Bestellung. */
+  grossAmount?: number | null;
+  /** Summe aller Marktplatz-Erstattungen. */
+  refundedTotal?: number | null;
+  /** Was tatsaechlich bleibt: brutto minus erstattet, storniert = 0. */
+  netAmount?: number | null;
+  /** Die ausgestellte Rechnung passt nicht mehr zum aktuellen Betrag. */
+  invoiceNeedsCorrection?: boolean | null;
+  invoiceCorrectionReason?: string | null;
+  /** Frueher ausgestellte, inzwischen korrigierte Rechnungen. */
+  previousInvoices?: Array<{
+    invoiceId?: string | null;
+    invoiceNumber?: string | null;
+    amountBrutto?: number | null;
+    correctedAt?: string | null;
+    reason?: string | null;
+  }> | null;
 }
 
 /** Eine Zusatz-Sendung (weiteres Versandlabel ohne Storno des bestehenden). */

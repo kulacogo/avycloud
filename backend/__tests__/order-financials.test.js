@@ -158,3 +158,39 @@ describe('computeInvoiceAmounts — Auftrag ohne Positionen', () => {
     expect(a.lines).toHaveLength(2);
   });
 });
+
+describe('needsInvoiceCorrection — weicht die Rechnung vom Auftrag ab?', () => {
+  const { needsInvoiceCorrection } = require('../lib/order-financials');
+  const auftrag = (refunds = []) => ({
+    items: [{ name: 'Klimaanlage', quantity: 1, priceBrutto: 499 }],
+    shippingCost: 0, vatRate: 0.19, totalAmount: 499, marketplaceRefunds: refunds,
+  });
+
+  it('erkennt den Fall M63HGK5: Rechnung 499 €, Auftrag inzwischen 449,10 €', () => {
+    const r = needsInvoiceCorrection(auftrag([{ refundId: 'a', amount: 49.9 }]), { amountBrutto: 499 });
+    expect(r.needed).toBe(true);
+    expect(r.sollBrutto).toBe(449.1);
+    expect(r.istBrutto).toBe(499);
+    expect(r.differenz).toBe(-49.9);
+    expect(r.grund).toMatch(/49\.90/);
+  });
+
+  it('ohne Abweichung keine Korrektur', () => {
+    expect(needsInvoiceCorrection(auftrag(), { amountBrutto: 499 }).needed).toBe(false);
+  });
+
+  it('ein Cent ist Rundung, kein Korrekturgrund', () => {
+    expect(needsInvoiceCorrection(auftrag(), { amountBrutto: 499.01 }).needed).toBe(false);
+    expect(needsInvoiceCorrection(auftrag(), { amountBrutto: 498.99 }).needed).toBe(false);
+  });
+
+  it('zwei Cent sind echtes Geld', () => {
+    expect(needsInvoiceCorrection(auftrag(), { amountBrutto: 498.98 }).needed).toBe(true);
+  });
+
+  it('liest auch das Alt-Feld amountGross', () => {
+    const r = needsInvoiceCorrection(auftrag([{ refundId: 'a', amount: 49.9 }]), { amountGross: 499 });
+    expect(r.istBrutto).toBe(499);
+    expect(r.needed).toBe(true);
+  });
+});

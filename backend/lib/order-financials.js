@@ -157,3 +157,38 @@ function computeInvoiceAmounts({ items = [], shippingCost = 0, vatRate = 0.19, r
 }
 
 module.exports = { mergeRefund, computeOrderFinancials, computeInvoiceAmounts, cent };
+
+/**
+ * Weicht eine bereits ausgestellte Rechnung vom aktuellen Stand des Auftrags ab?
+ *
+ * Der Normalfall, nicht die Ausnahme: die Rechnung entsteht beim Versand, die
+ * Erstattungsbuchung des Marktplatzes kommt Tage bis Wochen spaeter.
+ *
+ * @param {object} order Auftragsdokument.
+ * @param {object} invoice Rechnungsdokument.
+ * @returns {{needed: boolean, sollBrutto: number, istBrutto: number, differenz: number, grund: string|null}}
+ */
+function needsInvoiceCorrection(order = {}, invoice = {}) {
+  const soll = computeInvoiceAmounts({
+    items: order.items || [],
+    shippingCost: order.shippingCost || 0,
+    vatRate: order.vatRate ?? 0.19,
+    refunds: order.marketplaceRefunds || [],
+    fallbackTotal: order.totalAmount || 0,
+  });
+  const sollBrutto = soll.totalBrutto;
+  const istBrutto = cent(invoice.amountBrutto ?? invoice.amountGross ?? 0);
+  const differenz = cent(sollBrutto - istBrutto);
+
+  // Ein Cent Abweichung ist Rundung, kein Korrekturgrund. Alles darueber ist
+  // echtes Geld und muss auf den Beleg.
+  if (Math.abs(differenz) <= 0.01) {
+    return { needed: false, sollBrutto, istBrutto, differenz, grund: null };
+  }
+  const grund = soll.refundedTotal > 0
+    ? `Erstattung ${soll.refundedTotal.toFixed(2)} € nach Rechnungsstellung`
+    : `Betrag weicht um ${Math.abs(differenz).toFixed(2)} € ab`;
+  return { needed: true, sollBrutto, istBrutto, differenz, grund };
+}
+
+module.exports.needsInvoiceCorrection = needsInvoiceCorrection;

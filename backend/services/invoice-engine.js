@@ -460,6 +460,104 @@ async function generateInvoice({
 }
 
 /**
+ * Korrigiert die Rechnung eines Auftrags auf den AKTUELLEN Stand.
+ *
+ * Betreiber-Anweisung 2026-08-18: "es gibt nach der rechnungserstellung
+ * entsprechend die moeglichkeit eine korrektur der rechnung vorzunehmen, dabei
+ * muss der aktuelle betrag dann auch von avycloud festgehalten werden".
+ *
+ * WARUM DAS PFLICHT IST und nicht die Kuer: die Erstattungsbuchung des
+ * Marktplatzes kommt Tage bis Wochen NACH der Bestellung (Kaufland M63HGK5:
+ * bestellt 21.08., gebucht 26.08.). Die Rechnung entsteht beim Versand und
+ * kann die Erstattung zum Erstellzeitpunkt gar nicht kennen. "Die Rechnung
+ * richtig erstellen" allein loest das Problem also grundsaetzlich nicht.
+ *
+ * Der Weg ist bewusst NEUE RECHNUNG statt stiller Aenderung: ein einmal
+ * ausgestellter Beleg wird nicht nachtraeglich umgeschrieben. Die alte
+ * Rechnung bleibt als `status:'korrigiert'` erhalten und verweist auf die
+ * neue; der Auftrag fuehrt beide in `previousInvoices`. Additiv, nichts
+ * verschwindet.
+ *
+ * @param {{orderId: string, tenantId?: string, actor?: object}} opts
+ */
+async function correctInvoiceForOrder({ orderId, tenantId = 'default', actor = null }) {
+  const db = getDb();
+  const orderRef = db.collection(ORDERS_COLLECTION).doc(orderId);
+  const orderSnap = await orderRef.get();
+  if (!orderSnap.exists) throw new Error('Auftrag nicht gefunden');
+  const order = { id: orderSnap.id, ...orderSnap.data() };
+
+  if (order.tenantId && tenantId && order.tenantId !== tenantId) {
+    return { ok: false, reason: 'tenant_mismatch' };
+  }
+  if (!order.invoiceId) return { ok: false, reason: 'no_invoice' };
+
+  const invRef = db.collection(INVOICES_COLLECTION).doc(String(order.invoiceId));
+  const invSnap = await invRef.get();
+  if (!invSnap.exists) return { ok: false, reason: 'invoice_missing' };
+  const alt = { id: invSnap.id, ...invSnap.data() };
+
+  const { needsInvoiceCorrection } = require('../lib/order-financials');
+  const pruefung = needsInvoiceCorrection(order, alt);
+  if (!pruefung.needed) {
+    return { ok: true, skipped: true, reason: 'no_change', ...pruefung };
+  }
+
+  const jetzt = new Date().toISOString();
+
+  // 1. Alte Rechnung stilllegen — BEVOR die neue entsteht. Bricht der Lauf
+  //    danach ab, steht da eine als korrigiert markierte Rechnung ohne
+  //    Nachfolger; das ist sichtbar. Andersherum haette man zwei gueltige.
+  await invRef.set({
+    status: 'korrigiert',
+    correctedAt: jetzt,
+    correctedReason: pruefung.grund,
+    correctedFromBrutto: pruefung.istBrutto,
+    correctedToBrutto: pruefung.sollBrutto,
+  }, { merge: true });
+
+  // 2. Auftrag loesen, damit generateInvoice erneut praegen darf. Die alte
+  //    Rechnung bleibt additiv in previousInvoices erhalten.
+  //    invoiceSevdeskId wird mit geleert: die neue Rechnung ist ein NEUES
+  //    Dokument und darf die SevDesk-ID der alten nicht wiederverwenden
+  //    (der Mint-Once-Guard in generateInvoice wuerde sonst genau das tun).
+  await orderRef.set({
+    previousInvoices: FieldValue.arrayUnion({
+      invoiceId: alt.id,
+      invoiceNumber: alt.invoiceNumber || null,
+      amountBrutto: pruefung.istBrutto,
+      correctedAt: jetzt,
+      reason: pruefung.grund,
+    }),
+    invoiceId: null,
+    invoiceNumber: null,
+    invoiceClaimedAt: null,
+    invoiceSevdeskId: null,
+    invoiceNeedsCorrection: false,
+    invoiceCorrectionReason: null,
+    updatedAt: jetzt,
+  }, { merge: true });
+
+  // 3. Neue Rechnung mit den aktuellen Betraegen
+  const neu = await generateInvoice({ orderId, tenantId, actor });
+
+  if (neu && neu.invoiceId) {
+    await db.collection(INVOICES_COLLECTION).doc(neu.invoiceId).set({
+      correctsInvoiceId: alt.id,
+      correctsInvoiceNumber: alt.invoiceNumber || null,
+      correctionReason: pruefung.grund,
+    }, { merge: true });
+    await invRef.set({
+      replacedByInvoiceId: neu.invoiceId,
+      replacedByInvoiceNumber: neu.invoiceNumber || null,
+    }, { merge: true });
+  }
+
+  console.log(`[invoice-engine] Rechnung korrigiert fuer ${orderId}: ${alt.invoiceNumber} (${pruefung.istBrutto} €) → ${neu?.invoiceNumber} (${pruefung.sollBrutto} €)`);
+  return { ok: true, ...pruefung, previousInvoiceNumber: alt.invoiceNumber || null, invoice: neu };
+}
+
+/**
  * Generate a delivery note for an order.
  *
  * @param {{ orderId: string, tenantId?: string }} opts
@@ -1377,6 +1475,7 @@ async function createCorrectionInvoice({ orderId, tenantId = 'default', type = '
 }
 
 module.exports = {
+  correctInvoiceForOrder,
   generateInvoice,
   generateDeliveryNote,
   exportToSevDesk,
