@@ -390,6 +390,20 @@ function filterPatchItemSpecificsForListing({ categoryId, listing, itemSpecifics
 function cleanUndefined(value) {
   if (value === undefined) return undefined;
   if (value === null) return null;
+  // Firestore-Spezialwerte (FieldValue-Sentinels wie serverTimestamp(),
+  // Timestamp, DocumentReference) und Dates NIE per Object.entries zerlegen:
+  // ihre inneren Felder sind nicht enumerierbar, gespeichert wuerde ein leeres
+  // {} — genau so verloren ALLE ebayListingsLive-Docs ihre updatedAt/
+  // lastSeenAt-Zeitstempel und die Listings-Seite zeigte "Letzter Sync: —",
+  // obwohl der Sync alle 15 Minuten lief (2026-08-26). Duck-Typing statt
+  // instanceof, damit auch gemockte/fremde Firestore-Klassen durchgehen.
+  if (
+    typeof value === 'object' &&
+    !Array.isArray(value) &&
+    (value instanceof Date || typeof value.toDate === 'function' || typeof value.isEqual === 'function')
+  ) {
+    return value;
+  }
   if (Array.isArray(value)) {
     return value.map((item) => cleanUndefined(item)).filter((item) => item !== undefined);
   }
@@ -5616,6 +5630,15 @@ async function bulkUpdateListedProducts({ itemIds = null, applyAll = false, acto
  * Direct full-listing update: push ALL AvyCloud product data to an existing eBay listing.
  * Bypasses the gap system — builds a complete revise payload from product data.
  */
+// eBay-Fehlercode "Preis gesperrt, Artikel in Sonderaktion" — der einzige
+// Fall, in dem ein Revise gezielt ohne Preisfeld wiederholt werden darf.
+const EBAY_PROMO_PRICE_LOCK_CODE = '21919248';
+
+function isPromoPriceLockError(err) {
+  const errors = asArray(err && err.details && err.details.errors);
+  return errors.some((e) => safeString(e && e.code) === EBAY_PROMO_PRICE_LOCK_CODE);
+}
+
 async function reviseListingFromProduct(itemId, product, { actor = null } = {}) {
   const id = safeString(itemId);
   if (!id) throw Object.assign(new Error('itemId is required'), { code: 'EBAY_REVISE_ITEM_ID_REQUIRED' });
@@ -5705,9 +5728,23 @@ async function reviseListingFromProduct(itemId, product, { actor = null } = {}) 
   console.info(`[reviseListingFromProduct] itemId=${id} productId=${product?.id || '?'} title="${patch.title}" imgs=${patch.pictureUrls?.length || 0} price=${patch.startPrice} qty=${patch.quantity} cat=${patch.primaryCategoryId} cond=${patch.conditionId} weight=${patch.weightKg || '-'} specifics=${Object.keys(patch.itemSpecifics || {}).length} compat=${patch.itemCompatibilityList?.length || 0} gpsr=${patch.gpsr ? 1 : 0} rp=${patch.responsiblePerson ? 1 : 0} catalogMode=${patch.catalogMode || '-'}`);
 
   const callName = resolveReviseCallName(listing);
-  const response = callName === 'ReviseFixedPriceItem'
-    ? await reviseFixedPriceItem(patch)
-    : await reviseItem(patch);
+  const doRevise = (p) => (callName === 'ReviseFixedPriceItem' ? reviseFixedPriceItem(p) : reviseItem(p));
+  let response;
+  let promoPriceLocked = false;
+  try {
+    response = await doRevise(patch);
+  } catch (err) {
+    // eBay 21919248 (2026-08-26, itemId 800315409133): Steckt der Artikel in
+    // einer eBay-Sonderaktion, lehnt eBay den KOMPLETTEN Revise ab, sobald
+    // <StartPrice> enthalten ist — Titel/Bilder/Merkmale/Menge blieben dann
+    // ALLE ungepusht, obwohl nur der Preis gesperrt ist. Genau EIN
+    // Wiederholungsversuch ohne Preisfeld (buildReviseItemRequestXml laesst
+    // <StartPrice> dann weg); jeder andere Fehler fliegt unveraendert durch.
+    if (!isPromoPriceLockError(err) || patch.startPrice == null) throw err;
+    promoPriceLocked = true;
+    const { startPrice: _lockedPrice, ...patchOhnePreis } = patch;
+    response = await doRevise(patchOhnePreis);
+  }
 
   // eBay-Warnings NIE mehr verschlucken (Incident 2026-07-21): Ack=Warning
   // gilt als Erfolg, aber die Warnings sagen z. B. "Kompatibilitätsliste
@@ -5715,6 +5752,9 @@ async function reviseListingFromProduct(itemId, product, { actor = null } = {}) 
   const reviseWarnings = asArray(response?.warnings)
     .map((w) => safeString(w?.message || w?.shortMessage || w))
     .filter(Boolean);
+  if (promoPriceLocked) {
+    reviseWarnings.push('Preis nicht aktualisiert: Artikel ist Teil einer eBay-Sonderaktion (eBay-Fehler 21919248). Alle übrigen Felder wurden aktualisiert.');
+  }
   if (reviseWarnings.length) {
     console.warn(`[reviseListingFromProduct] itemId=${id} Ack=${response?.ack || '?'} WARNINGS: ${reviseWarnings.join(' | ').slice(0, 500)}`);
   }
@@ -5892,6 +5932,7 @@ module.exports = {
   bulkUpdateListedProducts,
   reviseListingFromProduct,
   bulkReviseListingsFromProducts,
+  cleanUndefined,
   reactivateWronglyDeactivatedListings,
   deactivateListingsMissingFromActiveSet,
   resolveCategoryNameFromId,

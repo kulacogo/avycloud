@@ -23,6 +23,64 @@ const { computeNextRetryAt } = require('../lib/retry-backoff');
 
 const MAX_ATTEMPTS = 5;
 
+// ── Quota-aware Retries (2026-08-26) ────────────────────────────────────────
+// Waehrend das eBay-Tageskontingent erschoepft ist ("exceeded usage limit",
+// shared Quota-Breaker offen), kann KEIN Retry gelingen. Vorher verbrannte der
+// Drain alle 5 Versuche (~18 min Abstand ≈ 90 min) innerhalb der stundenlangen
+// Sperre und gab endgueltig auf — gemessen 378 abandoned Docs, darunter
+// Zero-Stock-ENDs (naechtliches Oversell-Fenster). Ein Versuch, der in die
+// offene Sperre faellt, zaehlt deshalb NICHT als Versuch, sondern wird
+// verschoben: erst kurz (1h/3h — deckt Stunden-Limits), danach bis zum
+// naechsten Quota-Reset (Mitternacht US-Pazifik). MAX_QUOTA_DEFERRALS begrenzt
+// das hart — danach zaehlen Versuche wieder normal (kein Zombie-Doc).
+const QUOTA_DEFERRAL_STEPS_MS = [60 * 60 * 1000, 3 * 60 * 60 * 1000];
+const QUOTA_DEFERRAL_JITTER_MS = 15 * 60 * 1000;
+const MAX_QUOTA_DEFERRALS = 8;
+
+// Notbremse: nur der exakte Wert 'off' schaltet zurueck aufs alte Verhalten.
+function quotaAwareDrainEnabled() {
+  return String(process.env.DRAIN_QUOTA_AWARE || '').toLowerCase() !== 'off';
+}
+
+/**
+ * Entscheidet nach einem fehlgeschlagenen Retry, ob der Fehlschlag der offenen
+ * eBay-Quota-Sperre zuzurechnen ist. Wenn ja: Deferral-Payload (Versuch bleibt
+ * unverbraucht), sonst null (normales Attempt-Zaehlen). Fail-safe: jede
+ * Stoerung der Breaker-Abfrage → null.
+ */
+async function _maybeQuotaDeferral({ data, retryResults, now }) {
+  if (!quotaAwareDrainEnabled()) return null;
+  const ebayFailed = (retryResults || []).some(
+    (r) => r && !r.ok && String(r.error || '').toLowerCase().includes('ebay')
+  );
+  if (!ebayFailed) return null;
+  const deferrals = Number(data?.quotaDeferrals || 0);
+  if (deferrals >= MAX_QUOTA_DEFERRALS) return null;
+  let breaker;
+  try {
+    breaker = require('../lib/ebay-quota-breaker');
+    if (!(await breaker.isEbayQuotaBreakerOpen())) return null;
+  } catch (_) {
+    return null;
+  }
+  let waitMs;
+  if (deferrals < QUOTA_DEFERRAL_STEPS_MS.length) {
+    waitMs = QUOTA_DEFERRAL_STEPS_MS[deferrals];
+  } else {
+    try {
+      waitMs = breaker.msUntilNextEbayQuotaReset(now);
+    } catch (_) {
+      waitMs = QUOTA_DEFERRAL_STEPS_MS[QUOTA_DEFERRAL_STEPS_MS.length - 1];
+    }
+  }
+  const waitTotalMs = waitMs + Math.floor(Math.random() * QUOTA_DEFERRAL_JITTER_MS);
+  return {
+    deferrals: deferrals + 1,
+    waitTotalMs,
+    nextRetryAt: new Date(now + waitTotalMs).toISOString(),
+  };
+}
+
 // WP1 Kill-Switch (Teil E, Task 5). Spiegelt das Flag im Dispatcher.
 // OFF → heutiges Verhalten (alle pending Docs jeden Lauf retrien, kein Backoff).
 // ON → nur fällige Docs (nextRetryAt <= now), Backoff-Stempel bei Fehlschlag.
@@ -119,7 +177,7 @@ async function drainStockFailures({ tenantId, limit = 50 } = {}) {
   // Falls back automatically if index is not ready yet.
   const snap = await loadPendingFailureDocs({ firestore, tenantId, limit });
 
-  const results = { total: 0, resolved: 0, stillFailing: 0, abandoned: 0, skipped: 0, needsManual: 0 };
+  const results = { total: 0, resolved: 0, stillFailing: 0, abandoned: 0, skipped: 0, needsManual: 0, quotaDeferred: 0 };
 
   for (const doc of snap.docs) {
     if (results.total >= limit) break;
@@ -217,6 +275,20 @@ async function drainStockFailures({ tenantId, limit = 50 } = {}) {
       }
       console.log(`[stock-failure-drain] ${doc.id} resolved after attempt ${nextAttempts} (${retryable.length} marketplaceSync)`);
     } else {
+      // Quota-Sperre? Dann Versuch NICHT verbrauchen, sondern verschieben.
+      const deferral = await _maybeQuotaDeferral({ data, retryResults, now });
+      if (deferral) {
+        await doc.ref.update({
+          status: 'pending',
+          quotaDeferrals: deferral.deferrals,
+          lastAttemptAt: new Date().toISOString(),
+          drainResults: retryResults,
+          nextRetryAt: deferral.nextRetryAt,
+        });
+        results.quotaDeferred += 1;
+        console.warn(`[stock-failure-drain] QUOTA-DEFERRED ${doc.id}: eBay-Tageslimit erschoepft — Versuch bleibt unverbraucht (Deferral ${deferral.deferrals}/${MAX_QUOTA_DEFERRALS}), naechster Versuch in ~${Math.round(deferral.waitTotalMs / 60000)} min`);
+        continue;
+      }
       const nextStatus = nextAttempts >= MAX_ATTEMPTS ? 'abandoned' : 'pending';
       const updatePayload = {
         status: nextStatus,
@@ -304,4 +376,4 @@ async function _emitTerminalAlert({ tenantId, failureDocId, terminalStatus, reas
   }
 }
 
-module.exports = { drainStockFailures, MAX_ATTEMPTS };
+module.exports = { drainStockFailures, MAX_ATTEMPTS, MAX_QUOTA_DEFERRALS };

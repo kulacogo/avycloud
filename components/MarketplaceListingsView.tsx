@@ -30,6 +30,7 @@ import {
 } from "../utils/product";
 import { useListPaging } from "../hooks/useListPaging";
 import { isListingRowActive } from "../utils/listingRowStatus";
+import { baueBulkUpdateMeldung } from "../utils/bulkUpdateMessage";
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -593,12 +594,13 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
       } else if (!summary) {
         setBulkActionResult({ ok: false, message: "Listing-Aktualisierung: keine Rückmeldung vom Server erhalten." });
       } else {
-        const teile = [`Aktualisiert: ${summary.success}/${summary.total}`];
-        // Übersprungen ist kein Fehlschlag (kein Produkt verknüpft), muss aber
-        // sichtbar sein — sonst bleibt "nichts passiert" wieder unerklärt.
-        if (summary.skipped > 0) teile.push(`${summary.skipped} übersprungen`);
-        if (summary.failed > 0) teile.push(`${summary.failed} fehlgeschlagen`);
-        setBulkActionResult({ ok: summary.failed === 0, message: teile.join(" · ") });
+        // Zähler PLUS Klartext-Gründe/Hinweise aus results[] (2026-08-26):
+        // "1 fehlgeschlagen" ohne den eBay-Grund (z. B. Preissperre durch
+        // Sonderaktion) war vom Systemausfall nicht zu unterscheiden.
+        setBulkActionResult({
+          ok: summary.failed === 0,
+          message: baueBulkUpdateMeldung(summary, result?.results),
+        });
       }
       // Auswahl nur bei sauberem Erfolg leeren — sonst verschwindet mit der
       // Sammel-Leiste auch die Meldung, die den Fehlschlag erklärt.
