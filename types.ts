@@ -241,6 +241,10 @@ export interface Ops {
   sync_status: SyncStatus;
   last_saved_iso?: string | null; // ISO-8601
   last_synced_iso?: string | null; // ISO-8601
+  // Serverseitig immer befuellt (Fallback: natives Firestore createTime).
+  created_at_iso?: string | null; // ISO-8601
+  // Wer das Produkt zuerst identifiziert hat (seit ~08/2026, nie ueberschrieben).
+  identified_by?: { uid?: string; email?: string; name?: string; at?: string } | null;
   base_product_id?: string | null;
   pending_intake_quantity?: number;
   revision: number;

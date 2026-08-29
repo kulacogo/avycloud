@@ -1,7 +1,38 @@
 
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { Product, Readiness } from '../types';
-import { readinessLabel, readinessBadgeClasses, normalizeReadiness } from '../utils/readiness';
+import { Product } from '../types';
+import { readinessLabel, readinessBadgeClasses } from '../utils/readiness';
+import {
+  applyProductFilters,
+  effectiveSellPrice,
+  FILTERS_STORAGE_KEY,
+  getFilterDefs,
+  isEbayListed,
+  isKauflandListed,
+  loadFilterState,
+  productWeightKg,
+  serializeFilters,
+  type ActiveFilter,
+  type FilterContext,
+  type FilterOption,
+  type FilterValue,
+} from '../utils/productFilters';
+import {
+  buildProductComparator,
+  DEFAULT_SORT,
+  migrateSortState,
+  SORT_STORAGE_KEY,
+  toggleSortLevel,
+  type SortLevel,
+} from '../utils/productSort';
+import {
+  deleteSavedView,
+  loadSavedViews,
+  serializeSavedViews,
+  upsertSavedView,
+  VIEWS_STORAGE_KEY,
+  type SavedView,
+} from '../utils/savedViews';
 import { fetchProducts, getProductBulkJob, runProductBulkAction, deleteProductsBulk, openProductLabelBatchWindow, assignInventoryToProducts, uploadKTypeCsv, bulkVerifyEbayPublish, bulkPublishToEbay, fetchEbaySkuIndex, lightSyncEbayLiveListings, bulkUpdateEbayListings, fetchKauflandSkuIndex, syncKauflandListings, getProductNotesCounts, type ProductBulkActionName } from '../api/client';
 import { SearchIcon } from './icons/Icons';
 import {
@@ -19,7 +50,8 @@ import { isInventoryItem, isProductBacklogItem } from '../utils/inventorySplit';
 import { Notice } from './ui/Notice';
 import { ConfirmDialog } from './ui/ConfirmDialog';
 import { AdminTableHeader, AdminTableRow, AdminTableFilters, BulkActions } from './admin-table';
-import type { ColumnId, ColumnPreset, ColumnDefinition, SortConfig } from './admin-table';
+import { COLUMN_PRESETS } from './admin-table/types';
+import type { ColumnId, ColumnPreset, ColumnDefinition } from './admin-table';
 import { useGridEdit } from '../hooks/useGridEdit';
 import { useBulkUpdate } from '../hooks/useBulkUpdate';
 import { useAuth } from '../context/AuthContext';
@@ -32,13 +64,23 @@ const safeCurrency = (code?: string) => {
 };
 
 const COLUMN_STORAGE_KEY = 'avystock:admin-table:visible-columns';
-const COLUMN_PRESETS: Record<ColumnPreset, ColumnId[]> = {
-  // 'erfasstVon' ist admin-only: für Nicht-Admins existiert die Spalten-Definition
-  // nicht, die Id wird beim Rendern schlicht ignoriert.
-  standard: ['thumbnail', 'images', 'nameBrand', 'sku', 'barcode', 'category', 'price', 'inventory', 'sold', 'notizen', 'pendingIntake', 'storage', 'ebay', 'kaufland', 'readiness', 'createdAt', 'erfasstVon', 'lastSaved'],
-  warehouse: ['nameBrand', 'sku', 'barcode', 'inventory', 'sold', 'pendingIntake', 'storage', 'ebay', 'kaufland', 'readiness', 'saveStatus'],
-  pricing: ['nameBrand', 'price', 'sku', 'barcode', 'pendingIntake', 'ebay', 'kaufland', 'readiness', 'lastSynced'],
-  minimal: ['nameBrand', 'sku', 'barcode', 'inventory', 'sold', 'pendingIntake', 'ebay', 'kaufland', 'readiness'],
+
+// Schon der PROPERTY-Zugriff window.sessionStorage/localStorage wirft, wenn
+// der Browser Website-Daten blockiert — dann darf nicht die ganze Ansicht
+// crashen, sondern es gilt: kein gespeicherter Zustand.
+const safeSessionStorage = (): Storage | null => {
+  try {
+    return typeof window !== 'undefined' ? window.sessionStorage : null;
+  } catch {
+    return null;
+  }
+};
+const safeLocalStorage = (): Storage | null => {
+  try {
+    return typeof window !== 'undefined' ? window.localStorage : null;
+  } catch {
+    return null;
+  }
 };
 
 const normalizeMarketplaceColumnOrder = (columns: ColumnId[]): ColumnId[] => {
@@ -124,87 +166,33 @@ const AdminTable: React.FC<AdminTableProps> = ({
 }) => {
   const { t } = useI18n();
   const [searchTerm, setSearchTerm] = useState(() => readInitialGlobalSearch());
-  const [filterStatus, setFilterStatus] = useState<Readiness | 'all' | 'empty'>(() => {
-    if (typeof window === 'undefined') return 'all';
-    const stored = window.sessionStorage.getItem('avystock:admin-table:filterStatus') as Readiness | 'all' | 'empty';
-    return stored === 'ready' || stored === 'pending' || stored === 'in_progress' ? stored : 'all';
-  });
-  const [filterCategorySelection, setFilterCategorySelection] = useState<string[]>(() => {
-    if (typeof window === 'undefined') return [];
-    const raw = window.sessionStorage.getItem('avystock:admin-table:filterCategorySelection');
-    if (!raw) {
-      const legacy = window.sessionStorage.getItem('avystock:admin-table:filterCategory');
-      return legacy && legacy !== 'all' ? [legacy] : [];
-    }
+  // EIN Filterzustand fuer alle Dimensionen (utils/productFilters.ts).
+  // Reihenfolge = Aktivierungs-Reihenfolge (fuer Chips + "letzten entfernen").
+  // Alt-Schluessel (avystock:admin-table:filter*) werden beim ersten Laden
+  // einmalig migriert.
+  const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>(() =>
+    loadFilterState(safeSessionStorage())
+  );
+  const setFilterValue = useCallback((id: string, value: FilterValue) => {
+    setActiveFilters((prev) => {
+      const idx = prev.findIndex((f) => f.id === id);
+      if (idx < 0) return [...prev, { id, value }];
+      const next = [...prev];
+      next[idx] = { id, value };
+      return next;
+    });
+  }, []);
+  const removeFilter = useCallback((id: string) => {
+    setActiveFilters((prev) => prev.filter((f) => f.id !== id));
+  }, []);
+  const clearAllFilters = useCallback(() => setActiveFilters([]), []);
+  // Multi-Sort: Klick ersetzt, Shift-Klick ergaenzt (utils/productSort.ts).
+  const [sortLevels, setSortLevels] = useState<SortLevel[]>(() => {
+    if (typeof window === 'undefined') return DEFAULT_SORT;
     try {
-      const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) ? parsed.filter(Boolean).map((v) => String(v)) : [];
+      return migrateSortState(window.sessionStorage.getItem(SORT_STORAGE_KEY));
     } catch {
-      return [];
-    }
-  });
-  const [filterBin, setFilterBin] = useState<'all' | 'withBin' | 'withoutBin'>(() => {
-    if (typeof window === 'undefined') return 'all';
-    return (window.sessionStorage.getItem('avystock:admin-table:filterBin') as 'all' | 'withBin' | 'withoutBin') || 'all';
-  });
-  const [filterBinSplit, setFilterBinSplit] = useState<'all' | 'singleBin' | 'multiBin'>(() => {
-    if (typeof window === 'undefined') return 'all';
-    return (window.sessionStorage.getItem('avystock:admin-table:filterBinSplit') as any) || 'all';
-  });
-  const [filterEanValid, setFilterEanValid] = useState<'all' | 'valid' | 'invalid' | 'missing'>(() => {
-    if (typeof window === 'undefined') return 'all';
-    return (window.sessionStorage.getItem('avystock:admin-table:filterEanValid') as any) || 'all';
-  });
-  const [filterGpsr, setFilterGpsr] = useState<'all' | 'complete' | 'incomplete'>(() => {
-    if (typeof window === 'undefined') return 'all';
-    return (window.sessionStorage.getItem('avystock:admin-table:filterGpsr') as any) || 'all';
-  });
-  const [filterWeight, setFilterWeight] = useState<'all' | 'withWeight' | 'noWeight'>(() => {
-    if (typeof window === 'undefined') return 'all';
-    return (window.sessionStorage.getItem('avystock:admin-table:filterWeight') as any) || 'all';
-  });
-  const [filterReserved, setFilterReserved] = useState<'all' | 'reserved' | 'notReserved'>(() => {
-    if (typeof window === 'undefined') return 'all';
-    return (window.sessionStorage.getItem('avystock:admin-table:filterReserved') as any) || 'all';
-  });
-  const [filterSold, setFilterSold] = useState<'all' | 'sold' | 'unsold'>(() => {
-    if (typeof window === 'undefined') return 'all';
-    return (window.sessionStorage.getItem('avystock:admin-table:filterSold') as any) || 'all';
-  });
-  const [filterEbay, setFilterEbay] = useState<'all' | 'listed' | 'notListed'>(() => {
-    if (typeof window === 'undefined') return 'all';
-    return (window.sessionStorage.getItem('avystock:admin-table:filterEbay') as any) || 'all';
-  });
-  const [filterKaufland, setFilterKaufland] = useState<'all' | 'listed' | 'notListed'>(() => {
-    if (typeof window === 'undefined') return 'all';
-    return (window.sessionStorage.getItem('avystock:admin-table:filterKaufland') as any) || 'all';
-  });
-  const [filterEditor, setFilterEditor] = useState<string[]>(() => {
-    if (typeof window === 'undefined') return [];
-    const raw = window.sessionStorage.getItem('avystock:admin-table:filterEditor');
-    if (!raw) return [];
-    try {
-      const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) ? parsed.filter(Boolean).map((v) => String(v)) : [];
-    } catch {
-      return [];
-    }
-  });
-  const [editorFilterOpen, setEditorFilterOpen] = useState(false);
-  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(() => {
-    if (typeof window === 'undefined') return { key: 'ops.last_saved_iso', direction: 'desc' };
-    try {
-      const raw = window.sessionStorage.getItem('avystock:admin-table:sort');
-      if (!raw) return { key: 'ops.last_saved_iso', direction: 'desc' };
-      const parsed = JSON.parse(raw);
-      if (parsed?.key && parsed?.direction) {
-        const migratedKey =
-          parsed.key === 'ops.data_quality.last_quality_gate_iso' ? 'ops.last_saved_iso' : parsed.key;
-        return { key: migratedKey, direction: parsed.direction };
-      }
-      return { key: 'ops.last_saved_iso', direction: 'desc' };
-    } catch {
-      return { key: 'ops.last_saved_iso', direction: 'desc' };
+      return DEFAULT_SORT;
     }
   });
   const [pageSize, setPageSize] = useState<number>(() => {
@@ -418,71 +406,8 @@ const AdminTable: React.FC<AdminTableProps> = ({
     }));
   }, [products]);
 
-  const [categoryFilterOpen, setCategoryFilterOpen] = useState(false);
-
-  const categorySelectionSet = useMemo(
-    () => new Set(filterCategorySelection.map((s) => String(s).trim()).filter(Boolean)),
-    [filterCategorySelection]
-  );
-
-  const isCategorySelected = (key: string) => categorySelectionSet.has(key);
-
-  const toggleCategoryKey = (key: string) => {
-    const next = new Set(categorySelectionSet);
-    if (next.has(key)) next.delete(key);
-    else next.add(key);
-    setFilterCategorySelection(Array.from(next));
-  };
-
-  const toggleTopCategory = (top: string) => {
-    const next = new Set(categorySelectionSet);
-    const node = categoryTree.find((t) => t.top === top);
-    const childKeys = node ? node.children.map((c) => `${top} > ${c.sub}`) : [];
-    const allKeys = [top, ...childKeys];
-    const allOn = allKeys.length ? allKeys.every((k) => next.has(k)) : next.has(top);
-    if (allOn) {
-      allKeys.forEach((k) => next.delete(k));
-    } else {
-      allKeys.forEach((k) => next.add(k));
-    }
-    setFilterCategorySelection(Array.from(next));
-  };
-
   const { user, isAdmin } = useAuth();
   const myInitials = useMemo(() => deriveInitials(user?.email || ''), [user?.email]);
-
-  const EDITOR_NONE = '__none__';
-  const editorOptions = useMemo(() => {
-    const counts = new Map<string, number>();
-    products.forEach((p) => {
-      const key = p.ops?.readiness_editor || EDITOR_NONE;
-      counts.set(key, (counts.get(key) || 0) + 1);
-    });
-    const entries = Array.from(counts.entries());
-    entries.sort((a, b) => {
-      if (a[0] === myInitials && b[0] !== myInitials) return -1;
-      if (b[0] === myInitials && a[0] !== myInitials) return 1;
-      if (a[0] === EDITOR_NONE) return 1;
-      if (b[0] === EDITOR_NONE) return -1;
-      return a[0].localeCompare(b[0]);
-    });
-    return entries.map(([value, count]) => ({ value, count }));
-  }, [products, myInitials]);
-
-  const editorSelectionSet = useMemo(() => new Set(filterEditor), [filterEditor]);
-
-  const toggleEditor = (value: string) => {
-    const next = new Set(editorSelectionSet);
-    if (next.has(value)) next.delete(value);
-    else next.add(value);
-    setFilterEditor(Array.from(next));
-  };
-
-  const isMyItemsActive = filterEditor.length === 1 && filterEditor[0] === myInitials;
-  const toggleMyItems = () => {
-    if (isMyItemsActive) setFilterEditor([]);
-    else setFilterEditor([myInitials]);
-  };
 
   // Alle http-Bildkandidaten in Reihenfolge (fuer onError-Fallback aufs naechste).
   // Incident 2026-07-09: einzelne GCS-Bilder liefern 404 — nicht das erste blind
@@ -549,19 +474,96 @@ const AdminTable: React.FC<AdminTableProps> = ({
     return field?.name || field?.email || identifiedByMap[p?.id]?.name || '';
   }, [identifiedByMap]);
 
-  // Filter "Erfasst von" (admin-only): 'all' | '__none__' | Anzeigename.
-  const [filterErfasser, setFilterErfasser] = useState<string>('all');
-  const erfasserOptions = useMemo(() => {
-    if (!isAdmin) return null;
-    const counts = new Map<string, number>();
-    for (const p of products) {
-      const name = resolveErfasstVon(p);
-      if (name) counts.set(name, (counts.get(name) || 0) + 1);
+  // Sichtbare Filter-Definitionen (Erfasser nur fuer Admins) + Live-Kontext
+  // fuer Predicates und Options-Counts. `now` wird beim FILTERN frisch gesetzt
+  // — hier dient es nur als Platzhalter fuer Chip-Texte.
+  const filterDefs = useMemo(() => getFilterDefs(isAdmin), [isAdmin]);
+  const filterCtx = useMemo<FilterContext>(
+    () => ({
+      now: new Date(),
+      myInitials,
+      ebaySkuUrlMap: ebayLinkedMap,
+      ebayProductIdMap,
+      ebayActiveItemIds,
+      kauflandSkuSet,
+      kauflandEanSet,
+      resolveErfasstVon,
+      getDisplayCategory: getProductDisplayCategory,
+    }),
+    [myInitials, ebayLinkedMap, ebayProductIdMap, ebayActiveItemIds, kauflandSkuSet, kauflandEanSet, resolveErfasstVon]
+  );
+  const filterOptionsById = useMemo(() => {
+    const map = new Map<string, FilterOption[]>();
+    for (const def of filterDefs) {
+      if (def.buildOptions) map.set(def.id, def.buildOptions(products, filterCtx));
     }
-    return Array.from(counts.entries())
-      .sort((a, b) => b[1] - a[1])
-      .map(([value, count]) => ({ value, count }));
-  }, [isAdmin, products, resolveErfasstVon]);
+    return map;
+  }, [filterDefs, products, filterCtx]);
+
+  // Gespeicherte Ansichten (Filter + Sortierung) — lokal je Geraet.
+  const [savedViews, setSavedViews] = useState<SavedView[]>(() => loadSavedViews(safeLocalStorage()));
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem(VIEWS_STORAGE_KEY, serializeSavedViews(savedViews));
+    } catch {
+      // ignore storage errors
+    }
+  }, [savedViews]);
+  // Aktive Ansicht + Dirty-State (Polaris/Attio-Muster: veraenderte Ansicht
+  // zeigt einen Punkt und bietet "aktualisieren"/"verwerfen" an).
+  const [appliedViewId, setAppliedViewId] = useState<string | null>(() => {
+    try {
+      return safeSessionStorage()?.getItem('avystock:admin-table:appliedView') || null;
+    } catch {
+      return null;
+    }
+  });
+  useEffect(() => {
+    try {
+      const storage = safeSessionStorage();
+      if (!storage) return;
+      if (appliedViewId) storage.setItem('avystock:admin-table:appliedView', appliedViewId);
+      else storage.removeItem('avystock:admin-table:appliedView');
+    } catch {
+      // ignore storage errors
+    }
+  }, [appliedViewId]);
+  const appliedView = useMemo(
+    () => (appliedViewId ? savedViews.find((v) => v.id === appliedViewId) ?? null : null),
+    [appliedViewId, savedViews]
+  );
+  const appliedViewDirty = useMemo(() => {
+    if (!appliedView) return false;
+    return (
+      JSON.stringify(appliedView.filters) !== JSON.stringify(activeFilters) ||
+      JSON.stringify(appliedView.sort) !== JSON.stringify(sortLevels)
+    );
+  }, [appliedView, activeFilters, sortLevels]);
+  const applySavedView = useCallback((view: SavedView) => {
+    setActiveFilters(structuredClone(view.filters));
+    setSortLevels(structuredClone(view.sort));
+    setAppliedViewId(view.id);
+  }, []);
+  const saveCurrentView = useCallback(
+    (name: string) => {
+      const next = upsertSavedView(savedViews, name, activeFilters, sortLevels);
+      setSavedViews(next);
+      const saved = next.find((v) => v.name === name.trim());
+      if (saved) setAppliedViewId(saved.id);
+    },
+    [savedViews, activeFilters, sortLevels]
+  );
+  const updateAppliedView = useCallback(() => {
+    if (appliedView) saveCurrentView(appliedView.name);
+  }, [appliedView, saveCurrentView]);
+  const discardViewChanges = useCallback(() => {
+    if (appliedView) applySavedView(appliedView);
+  }, [appliedView, applySavedView]);
+  const deleteSavedViewById = useCallback((id: string) => {
+    setSavedViews((prev) => deleteSavedView(prev, id));
+    setAppliedViewId((prev) => (prev === id ? null : prev));
+  }, []);
 
   const columnDefinitions: ColumnDefinition[] = useMemo(() => {
     const baseRenderers: ColumnDefinition[] = [
@@ -1069,13 +1071,6 @@ const AdminTable: React.FC<AdminTableProps> = ({
     resolveErfasstVon,
   ]);
 
-  const statusFilters: Array<{ value: Readiness | 'all'; label: string }> = [
-    { value: 'all', label: t('table.readiness.all') },
-    { value: 'pending', label: t('table.readiness.pending') },
-    { value: 'in_progress', label: t('table.readiness.in_progress') },
-    { value: 'ready', label: t('table.readiness.ready') },
-  ];
-
   const resolveInitialColumns = (): ColumnId[] => {
     if (typeof window !== 'undefined') {
       try {
@@ -1222,322 +1217,89 @@ const AdminTable: React.FC<AdminTableProps> = ({
           ? scoped.filter(isProductBacklogItem)
           : scoped;
 
-    let filtered = modeFiltered.filter(p => {
-      // Gleiche Normalisierung wie die Anzeige: "kein Status" zählt als "Ausstehend"
-      // (pending). Sonst zeigt das Badge "Ausstehend", der Filter findet es aber nicht.
-      const productReadiness = normalizeReadiness(p.ops?.readiness);
-      const term = (searchTerm || '').toLowerCase().trim();
-      const name = (p.identification?.name || '').toLowerCase();
-      const brand = (p.identification?.brand || '').toLowerCase();
-      const identifiers = [
-        p.details?.identifiers?.sku,
-        p.identification?.sku,
-        p.details?.identifiers?.ean,
-        p.details?.identifiers?.gtin,
-        p.details?.identifiers?.upc,
-        p.id,
-      ]
-        .filter(Boolean)
-        .map((v) => String(v).toLowerCase());
-      const matchesSearch =
-        term === '' ||
-        name.includes(term) ||
-        brand.includes(term) ||
-        identifiers.some((idVal) => idVal.includes(term));
-      const matchesStatus = (() => {
-        if (filterStatus === 'all') return true;
-        return productReadiness === filterStatus;
-      })();
-      const resolvedCategory = getProductDisplayCategory(p);
-      const productCategory = resolvedCategory && resolvedCategory !== '—' ? resolvedCategory : 'Unbekannt';
-      const matchesCategory = (() => {
-        if (filterCategorySelection.length === 0) return true;
-        const raw = (productCategory || '').toString();
-        const parts = raw.split('>').map((s) => s.trim()).filter(Boolean);
-        const top = parts[0] || 'Unbekannt';
-        const sub = parts.length >= 2 ? parts[1] : '';
-        const topKey = top;
-        const subKey = sub ? `${top} > ${sub}` : '';
-        return categorySelectionSet.has(topKey) || (subKey && categorySelectionSet.has(subKey));
-      })();
-      const hasBin = Boolean(p.storage?.binCode) || (Array.isArray(p.storageBins) && p.storageBins.length > 0);
-      const matchesBin =
-        filterBin === 'all' || (filterBin === 'withBin' && hasBin) || (filterBin === 'withoutBin' && !hasBin);
+    // Volltextsuche (Name, Marke, SKU/EAN/GTIN/UPC, Id) — bleibt bewusst
+    // ausserhalb der Registry: sie hat ein eigenes Eingabefeld und einen
+    // eigenen Kanal (Topbar-Suche via utils/globalSearch.ts).
+    const term = (searchTerm || '').toLowerCase().trim();
+    const searchFiltered =
+      term === ''
+        ? modeFiltered
+        : modeFiltered.filter((p) => {
+            const name = (p.identification?.name || '').toLowerCase();
+            const brand = (p.identification?.brand || '').toLowerCase();
+            const identifiers = [
+              p.details?.identifiers?.sku,
+              p.identification?.sku,
+              p.details?.identifiers?.ean,
+              p.details?.identifiers?.gtin,
+              p.details?.identifiers?.upc,
+              p.id,
+            ]
+              .filter(Boolean)
+              .map((v) => String(v).toLowerCase());
+            return name.includes(term) || brand.includes(term) || identifiers.some((idVal) => idVal.includes(term));
+          });
 
-      const binCodesWithStock = new Set<string>();
-      const storageBins = Array.isArray(p.storageBins) ? p.storageBins : [];
-      storageBins
-        .filter((bin) => Boolean(bin?.code))
-        .forEach((bin) => {
-          const qty = Number(bin?.quantity || 0) || 0;
-          if (qty > 0) {
-            binCodesWithStock.add(String(bin.code).toUpperCase());
-          }
-        });
-      // Fallback: if we have no storageBins (or all 0), use primary storage bin if present
-      if (binCodesWithStock.size === 0 && p.storage?.binCode) {
-        binCodesWithStock.add(String(p.storage.binCode).toUpperCase());
+    // Alle Dimensionen laufen durch die Registry — `now` frisch, damit
+    // rollierende Datums-Presets ("Letzte 7 Tage") korrekt bleiben.
+    const liveCtx = { ...filterCtx, now: new Date() };
+    const filtered = applyProductFilters(searchFiltered, activeFilters, liveCtx, { isAdmin });
+
+    if (sortLevels.length === 0) return filtered;
+
+    const getNestedValue = (obj: any, path: string) => path.split('.').reduce((o, k) => (o || {})[k], obj);
+    const getSortValue = (product: Product, key: string): unknown => {
+      switch (key) {
+        case 'category.display':
+          return getProductDisplayCategory(product).toLowerCase();
+        case 'details.pricing.sellPrice':
+          // Effektiver Preis (sellPrice, sonst Marktpreis); ohne Preis → ans Ende.
+          return effectiveSellPrice(product);
+        case 'images.count':
+          return Array.isArray(product.details?.images) ? product.details.images.length : 0;
+        case 'inventory.quantity':
+          // Sort by effektiver Bestand (summe aus inventory + storageBins)
+          return getProductQuantity(product);
+        case 'storage.binCode':
+          return (primaryBin(product) || '').toString().toLowerCase();
+        case 'erfasstVon':
+          // Anzeigename (Feld am Produkt oder Protokoll-Map); leer sortiert ans Ende.
+          return resolveErfasstVon(product).toLowerCase();
+        case 'details.weight':
+          // Gleiche Kette wie Spalte + Filter (utils/productFilters.ts).
+          return productWeightKg(product);
+        case 'identification.name':
+          return (product.identification?.name || '').toString().toLowerCase();
+        // Gelistet-Sortierung nutzt dieselbe Wahrheit wie Badge + Filter:
+        // den Live-Index. ops.listingStatus kann stale sein (Incident 2026-08-20)
+        // — vorher widersprach die Sortierung dem eigenen Badge.
+        case 'ebay.listed':
+          return isEbayListed(product, liveCtx) ? 1 : 0;
+        case 'kaufland.listed':
+          return isKauflandListed(product, liveCtx) ? 1 : 0;
+        default:
+          return getNestedValue(product, key);
       }
-      const binCount = binCodesWithStock.size;
-      const matchesBinSplit =
-        filterBinSplit === 'all' ||
-        (filterBinSplit === 'singleBin' && binCount <= 1) ||
-        (filterBinSplit === 'multiBin' && binCount >= 2);
+    };
 
-      const weight = Number((p.details?.attributes as any)?.weight || 0);
-      const hasWeight = Number.isFinite(weight) && weight > 0;
-      const matchesWeight =
-        filterWeight === 'all' ||
-        (filterWeight === 'withWeight' && hasWeight) ||
-        (filterWeight === 'noWeight' && !hasWeight);
-
-      const reservedQuantity = Number(p.inventory?.reservedQuantity || 0) || 0;
-      const matchesReserved =
-        filterReserved === 'all' ||
-        (filterReserved === 'reserved' && reservedQuantity > 0) ||
-        (filterReserved === 'notReserved' && reservedQuantity <= 0);
-      const soldQuantity = Number(p.inventory?.soldQuantity || 0) || 0;
-      const openOrders = Number(p.inventory?.openOrderQuantity || 0) || 0;
-      const matchesSold =
-        filterSold === 'all' ||
-        (filterSold === 'sold' && (soldQuantity > 0 || openOrders > 0)) ||
-        (filterSold === 'unsold' && soldQuantity <= 0 && openOrders <= 0);
-      // EAN/GTIN validity filter
-      const pBarcode = primaryBarcode(p);
-      const pBarcodePresent = pBarcode !== '—';
-      const pBarcodeValid = pBarcodePresent && isValidMarketplaceEan(pBarcode);
-      const matchesEanValid =
-        filterEanValid === 'all' ||
-        (filterEanValid === 'valid' && pBarcodeValid) ||
-        (filterEanValid === 'invalid' && pBarcodePresent && !pBarcodeValid) ||
-        (filterEanValid === 'missing' && !pBarcodePresent);
-
-      // GPSR completeness filter
-      const gpsr = p.details?.gpsr;
-      const gs = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
-      const gpsrHasName = Boolean(gs(gpsr?.manufacturer_name));
-      const gpsrHasAddress = Boolean(gs(gpsr?.manufacturer_address));
-      const gpsrHasCity = Boolean(gs(gpsr?.manufacturer_city));
-      const gpsrHasPostal = Boolean(gs(gpsr?.manufacturer_postalcode));
-      const gpsrHasCountry = Boolean(gs(gpsr?.entity_country) || gs(gpsr?.country_code));
-      const gpsrHasContact = Boolean(gs(gpsr?.email) || gs(gpsr?.manufacturer_phone));
-      const gpsrComplete = gpsrHasName && gpsrHasAddress && gpsrHasCity && gpsrHasPostal && gpsrHasCountry && gpsrHasContact;
-      const matchesGpsr =
-        filterGpsr === 'all' ||
-        (filterGpsr === 'complete' && gpsrComplete) ||
-        (filterGpsr === 'incomplete' && !gpsrComplete);
-
-      // eBay listing filter: cross-reference against ebayListingsLive (active=true) is authoritative.
-      // ops.listingStatus.ebay can be stale — do NOT use it as filter fallback.
-      const pSkuCandidates = Array.from(
-        new Set(
-          [
-            normalizeSku(p.details?.identifiers?.sku),
-            normalizeSku((p as any)?.identification?.sku),
-          ].filter(Boolean)
-        )
-      );
-      const marketplaceItemId = String((p as any)?.marketplace?.ebay?.itemId || '').trim();
-      // Resolve viewItemUrl same way as badge render (line ~664-669)
-      const pSkuUrl = pSkuCandidates.map((sku) => ebayLinkedMap.get(sku)).find(Boolean) || null;
-      const pPidItemId = ebayProductIdMap.get(p.id);
-      const pViewItemUrl =
-        pSkuUrl ||
-        (pPidItemId ? true : null) ||
-        (marketplaceItemId && ebayActiveItemIds.has(marketplaceItemId) ? true : null);
-      const isEbayListed = !!pViewItemUrl;
-      const matchesEbay =
-        filterEbay === 'all' ||
-        (filterEbay === 'listed' && isEbayListed) ||
-        (filterEbay === 'notListed' && !isEbayListed);
-      // Kaufland listing filter: cross-reference against kauflandUnitsLive is authoritative.
-      // ops.listingStatus.kaufland can be stale — do NOT use it as filter fallback.
-      const pSku = normalizeSku(
-        (p as any)?.identification?.sku ||
-        p?.details?.identifiers?.sku ||
-        (p as any)?.id ||
-        ''
-      );
-      const pEanCandidates = Array.from(
-        new Set(
-          [
-            p?.details?.identifiers?.ean,
-            p?.details?.identifiers?.gtin,
-            p?.details?.identifiers?.upc,
-            ...((p as any)?.identification?.barcodes || []),
-          ]
-            .map((v) => normalizeEan(String(v || '')))
-            .filter(Boolean)
-        )
-      );
-      // Match badge logic: SKU/EAN index presence = listed, regardless of stale ops status
-      const pKauflandByIndex = (pSku && kauflandSkuSet.has(pSku)) || pEanCandidates.some((ean) => kauflandEanSet.has(ean));
-      const isKauflandListed = pKauflandByIndex;
-      const matchesKaufland =
-        filterKaufland === 'all' ||
-        (filterKaufland === 'listed' && isKauflandListed) ||
-        (filterKaufland === 'notListed' && !isKauflandListed);
-
-      const matchesEditor = (() => {
-        if (filterEditor.length === 0) return true;
-        const editor = p.ops?.readiness_editor || EDITOR_NONE;
-        return editorSelectionSet.has(editor);
-      })();
-
-      const matchesErfasser = (() => {
-        if (filterErfasser === 'all') return true;
-        const name = resolveErfasstVon(p);
-        if (filterErfasser === '__none__') return !name;
-        return name === filterErfasser;
-      })();
-
-      return (
-        matchesSearch &&
-        matchesStatus &&
-        matchesCategory &&
-        matchesBin &&
-        matchesBinSplit &&
-        matchesWeight &&
-        matchesReserved &&
-        matchesSold &&
-        matchesEanValid &&
-        matchesGpsr &&
-        matchesEbay &&
-        matchesKaufland &&
-        matchesEditor &&
-        matchesErfasser
-      );
-    });
-
-    if (sortConfig !== null) {
-        const getNestedValue = (obj: any, path: string) => path.split('.').reduce((o, k) => (o || {})[k], obj);
-      const getSortValue = (product: Product, key: string) => {
-        switch (key) {
-          case 'category.display':
-            return getProductDisplayCategory(product).toLowerCase();
-          case 'details.pricing.sellPrice': {
-            // Sort by the effective price (sellPrice override, else researched lowest_price)
-            const sell = Number(product.details?.pricing?.sellPrice);
-            if (Number.isFinite(sell) && sell > 0) return sell;
-            return Number(product.details?.pricing?.lowest_price?.amount) || 0;
-          }
-          case 'images.count':
-            return Array.isArray(product.details?.images) ? product.details.images.length : 0;
-          case 'inventory.quantity':
-            // Sort by effektiver Bestand (summe aus inventory + storageBins)
-            return getProductQuantity(product);
-          case 'storage.binCode':
-            return (primaryBin(product) || '').toString().toLowerCase();
-          case 'erfasstVon':
-            // Anzeigename (Feld am Produkt oder Protokoll-Map); leer sortiert ans Ende via ''.
-            return resolveErfasstVon(product).toLowerCase();
-          case 'details.weight': {
-            const d: any = product.details || {};
-            const w =
-              d.weight ??
-              d.attributes?.weight ??
-              d.attributes?.['Gewicht (kg)'] ??
-              d.attributes?.['Gewicht'];
-            return Number(w) || 0;
-          }
-          case 'identification.name':
-            return (product.identification?.name || '').toString().toLowerCase();
-          case 'ebay.listed': {
-            const sortEbayStatus = (product as any)?.ops?.listingStatus?.ebay;
-            if (sortEbayStatus) return sortEbayStatus === 'active' ? 1 : 0;
-            // Fallback to cross-reference
-            const sortSkuCandidates = Array.from(
-              new Set(
-                [
-                  normalizeSku(product.details?.identifiers?.sku),
-                  normalizeSku((product as any)?.identification?.sku),
-                ].filter(Boolean)
-              )
-            );
-            const hasSkuMatch = sortSkuCandidates.some((sku) => Boolean(ebayLinkedMap.get(sku)));
-            const marketplaceItemId = String((product as any)?.marketplace?.ebay?.itemId || '').trim();
-            return Boolean(
-              hasSkuMatch ||
-              ebayProductIdMap.get(product.id) ||
-              (marketplaceItemId && ebayActiveItemIds.has(marketplaceItemId))
-            ) ? 1 : 0;
-          }
-          case 'kaufland.listed': {
-            const sortKauflandStatus = (product as any)?.ops?.listingStatus?.kaufland;
-            if (sortKauflandStatus) return sortKauflandStatus === 'active' ? 1 : 0;
-            // Fallback to cross-reference
-            const sku = normalizeSku(
-              (product as any)?.identification?.sku ||
-              product?.details?.identifiers?.sku ||
-              (product as any)?.id ||
-              ''
-            );
-            const eanCandidates = Array.from(
-              new Set(
-                [
-                  product?.details?.identifiers?.ean,
-                  product?.details?.identifiers?.gtin,
-                  product?.details?.identifiers?.upc,
-                  ...((product as any)?.identification?.barcodes || []),
-                ]
-                  .map((v) => normalizeEan(String(v || '')))
-                  .filter(Boolean)
-              )
-            );
-            const listedByIndex = (sku && kauflandSkuSet.has(sku)) || eanCandidates.some((ean) => kauflandEanSet.has(ean));
-            return listedByIndex ? 1 : 0;
-          }
-          default:
-            return getNestedValue(product, key);
-        }
-      };
-
-      filtered.sort((a, b) => {
-        let aValue = getSortValue(a, sortConfig.key);
-        let bValue = getSortValue(b, sortConfig.key);
-
-        const isNumber = typeof aValue === 'number' || typeof bValue === 'number';
-        if (isNumber) {
-          aValue = Number(aValue) || 0;
-          bValue = Number(bValue) || 0;
-        } else {
-          aValue = (aValue ?? '').toString().toLowerCase();
-          bValue = (bValue ?? '').toString().toLowerCase();
-        }
-
-        if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
-        if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
-        return 0;
-      });
-    }
-
-    return filtered;
+    // Kopie vor sort(): applyProductFilters liefert bei leerem Filterzustand
+    // das Original-Array (die products-Prop) zurueck.
+    return [...filtered].sort(buildProductComparator(sortLevels, getSortValue));
   }, [
     products,
     scopeProductIds,
     mode,
     searchTerm,
-    filterStatus,
-    filterCategorySelection,
-    filterBin,
-    filterBinSplit,
-    filterWeight,
-    filterReserved,
-    filterSold,
-    filterEanValid,
-    filterGpsr,
-    filterEbay,
-    filterKaufland,
-    filterEditor,
-    editorSelectionSet,
-    filterErfasser,
+    activeFilters,
+    filterCtx,
+    isAdmin,
     resolveErfasstVon,
     ebayLinkedMap,
     ebayProductIdMap,
     ebayActiveItemIds,
     kauflandSkuSet,
     kauflandEanSet,
-    sortConfig,
+    sortLevels,
   ]);
 
   const totalPages = Math.max(1, Math.ceil(filteredAndSortedProducts.length / pageSize));
@@ -1556,11 +1318,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
   // jeher richtig; ausgerechnet die groesste Tabelle nicht.
   useEffect(() => {
     setCurrentPage(1);
-  }, [
-    searchTerm, filterStatus, filterCategorySelection, filterBin, filterBinSplit,
-    filterWeight, filterReserved, filterEanValid, filterGpsr, filterEbay,
-    filterKaufland, filterEditor, filterSold, filterErfasser, pageSize, mode,
-  ]);
+  }, [searchTerm, activeFilters, pageSize, mode]);
 
   const pageProducts = useMemo(() => {
     const safePage = Math.min(Math.max(currentPage, 1), totalPages);
@@ -1568,12 +1326,8 @@ const AdminTable: React.FC<AdminTableProps> = ({
     return filteredAndSortedProducts.slice(start, start + pageSize);
   }, [filteredAndSortedProducts, currentPage, pageSize, totalPages]);
 
-  const requestSort = (key: string) => {
-    let direction: 'asc' | 'desc' = 'asc';
-    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
-      direction = 'desc';
-    }
-    setSortConfig({ key, direction });
+  const requestSort = (key: string, additive: boolean) => {
+    setSortLevels((prev) => toggleSortLevel(prev, key, additive));
   };
 
   /**
@@ -2148,22 +1902,8 @@ const AdminTable: React.FC<AdminTableProps> = ({
 
   const resetFilters = () => {
     setSearchTerm('');
-    setFilterStatus('all');
-    setFilterCategorySelection([]);
-    setFilterBin('all');
-    setFilterBinSplit('all');
-    setFilterWeight('all');
-    setFilterReserved('all');
-    setFilterEanValid('all');
-    setFilterGpsr('all');
-    setFilterEbay('all');
-    setFilterKaufland('all');
-    setFilterEditor([]);
-    // Diese zwei fehlten: "Zuruecksetzen" liess die Liste gefiltert stehen,
-    // die Filter-Kachel zeigte weiter eine 1 und der uebrig gebliebene Chip
-    // war nicht mehr wegzubekommen.
-    setFilterSold('all');
-    setFilterErfasser('all');
+    clearAllFilters();
+    setAppliedViewId(null);
     setPageSize(50);
     setCurrentPage(1);
   };
@@ -2171,214 +1911,40 @@ const AdminTable: React.FC<AdminTableProps> = ({
     if (typeof window === 'undefined') return;
     window.sessionStorage.setItem('avystock:admin-table:search', searchTerm);
   }, [searchTerm]);
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    window.sessionStorage.setItem('avystock:admin-table:filterStatus', filterStatus);
-  }, [filterStatus]);
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    try {
-      window.sessionStorage.setItem('avystock:admin-table:filterCategorySelection', JSON.stringify(filterCategorySelection));
-      // Keep legacy key for backwards compatibility (best-effort).
-      window.sessionStorage.setItem(
-        'avystock:admin-table:filterCategory',
-        filterCategorySelection.length === 1 ? filterCategorySelection[0] : 'all'
-      );
-    } catch {
-      // ignore session storage errors
-    }
-  }, [filterCategorySelection]);
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    window.sessionStorage.setItem('avystock:admin-table:filterBin', filterBin);
-  }, [filterBin]);
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    window.sessionStorage.setItem('avystock:admin-table:filterBinSplit', filterBinSplit);
-  }, [filterBinSplit]);
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    window.sessionStorage.setItem('avystock:admin-table:filterEanValid', filterEanValid);
-  }, [filterEanValid]);
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    window.sessionStorage.setItem('avystock:admin-table:filterGpsr', filterGpsr);
-  }, [filterGpsr]);
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    window.sessionStorage.setItem('avystock:admin-table:filterWeight', filterWeight);
-  }, [filterWeight]);
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    window.sessionStorage.setItem('avystock:admin-table:filterReserved', filterReserved);
-  }, [filterReserved]);
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    window.sessionStorage.setItem('avystock:admin-table:filterSold', filterSold);
-  }, [filterSold]);
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    window.sessionStorage.setItem('avystock:admin-table:filterEbay', filterEbay);
-  }, [filterEbay]);
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    window.sessionStorage.setItem('avystock:admin-table:filterKaufland', filterKaufland);
-  }, [filterKaufland]);
+  // EIN Persistenz-Effekt fuer alle Filter (ersetzt die frueheren ~12
+  // Einzel-Effekte je Alt-Schluessel).
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
-      window.sessionStorage.setItem('avystock:admin-table:filterEditor', JSON.stringify(filterEditor));
+      window.sessionStorage.setItem(FILTERS_STORAGE_KEY, serializeFilters(activeFilters));
     } catch {
       // ignore session storage errors
     }
-  }, [filterEditor]);
-  // Note: legacy filters (inventoryId, eBay category) removed to reduce UI clutter.
+  }, [activeFilters]);
   useEffect(() => {
     if (typeof window === 'undefined') return;
     window.sessionStorage.setItem('avystock:admin-table:pageSize', String(pageSize));
   }, [pageSize]);
   useEffect(() => {
-    if (typeof window === 'undefined' || !sortConfig) return;
+    if (typeof window === 'undefined') return;
     try {
-      window.sessionStorage.setItem('avystock:admin-table:sort', JSON.stringify(sortConfig));
+      window.sessionStorage.setItem(SORT_STORAGE_KEY, JSON.stringify(sortLevels));
     } catch {
       // ignore session storage errors
     }
-  }, [sortConfig]);
+  }, [sortLevels]);
 
-  const activeFilterCount = useMemo(() => {
-    let count = 0;
-    if (filterStatus !== 'all') count++;
-    if (filterCategorySelection.length > 0) count++;
-    if (filterBin !== 'all') count++;
-    if (filterEbay !== 'all') count++;
-    if (filterKaufland !== 'all') count++;
-    if (filterWeight !== 'all') count++;
-    if (filterReserved !== 'all') count++;
-    if (filterSold !== 'all') count++;
-    if (filterBinSplit !== 'all') count++;
-    if (filterEanValid !== 'all') count++;
-    if (filterGpsr !== 'all') count++;
-    if (filterEditor.length > 0) count++;
-    if (filterErfasser !== 'all') count++;
-    return count;
-  }, [filterStatus, filterCategorySelection, filterBin, filterEbay, filterKaufland, filterWeight, filterReserved, filterSold, filterBinSplit, filterEanValid, filterGpsr, filterEditor, filterErfasser]);
-
-  const activeFilterChips = useMemo(() => {
-    const chips: Array<{ key: string; label: string; onClear: () => void }> = [];
-    const s = String(searchTerm || '').trim();
-    if (s) chips.push({ key: 'search', label: `Suche: ${s}`, onClear: () => setSearchTerm('') });
-
-    if (filterStatus !== 'all') {
-      const label = statusFilters.find((o) => o.value === filterStatus)?.label || `Status: ${filterStatus}`;
-      chips.push({ key: 'status', label, onClear: () => setFilterStatus('all') });
-    }
-
-    if (filterCategorySelection.length > 0) {
-      chips.push({
-        key: 'category',
-        label: `Kategorie: ${filterCategorySelection.length}`,
-        onClear: () => setFilterCategorySelection([]),
-      });
-    }
-
-    if (filterBin !== 'all') {
-      const label = filterBin === 'withBin' ? t('table.binFilter.withBin') : t('table.binFilter.withoutBin');
-      chips.push({ key: 'bin', label, onClear: () => setFilterBin('all') });
-    }
-
-    if (filterEanValid !== 'all') {
-      const label = filterEanValid === 'valid' ? 'EAN/GTIN: Gültig' : filterEanValid === 'invalid' ? 'EAN/GTIN: Ungültig' : 'EAN/GTIN: Fehlt';
-      chips.push({ key: 'eanValid', label, onClear: () => setFilterEanValid('all') });
-    }
-
-    if (filterGpsr !== 'all') {
-      const label = filterGpsr === 'complete' ? 'GPSR: Vollständig' : 'GPSR: Unvollständig';
-      chips.push({ key: 'gpsr', label, onClear: () => setFilterGpsr('all') });
-    }
-
-    if (filterErfasser !== 'all') {
-      const label = filterErfasser === '__none__' ? 'Erfasst von: —' : `Erfasst von: ${filterErfasser}`;
-      chips.push({ key: 'erfasser', label, onClear: () => setFilterErfasser('all') });
-    }
-
-    if (filterEbay !== 'all') {
-      chips.push({
-        key: 'ebay',
-        label: filterEbay === 'listed' ? 'eBay: Gelistet' : 'eBay: Nicht gelistet',
-        onClear: () => setFilterEbay('all'),
-      });
-    }
-
-    if (filterKaufland !== 'all') {
-      chips.push({
-        key: 'kaufland',
-        label: filterKaufland === 'listed' ? 'Kaufland: Gelistet' : 'Kaufland: Nicht gelistet',
-        onClear: () => setFilterKaufland('all'),
-      });
-    }
-
-    if (filterWeight !== 'all') {
-      chips.push({
-        key: 'weight',
-        label: filterWeight === 'withWeight' ? 'Gewicht: vorhanden' : 'Gewicht: fehlt',
-        onClear: () => setFilterWeight('all'),
-      });
-    }
-
-    if (filterReserved !== 'all') {
-      chips.push({
-        key: 'reserved',
-        label: filterReserved === 'reserved' ? 'Reserviert > 0' : 'Reserviert = 0',
-        onClear: () => setFilterReserved('all'),
-      });
-    }
-    if (filterSold !== 'all') {
-      chips.push({
-        key: 'sold',
-        label: filterSold === 'sold' ? 'Verkauft: Ja' : 'Verkauft: Nein',
-        onClear: () => setFilterSold('all'),
-      });
-    }
-
-    if (filterBinSplit !== 'all') {
-      chips.push({
-        key: 'binSplit',
-        label: filterBinSplit === 'singleBin' ? 'Bins: 1 BIN' : 'Bins: mehrere BINs',
-        onClear: () => setFilterBinSplit('all'),
-      });
-    }
-
-    if (filterEditor.length > 0) {
-      const labelParts = filterEditor.map((v) =>
-        v === EDITOR_NONE ? t('table.editor.none') : v === myInitials ? `${v} ${t('table.editor.you')}` : v
-      );
-      chips.push({
-        key: 'editor',
-        label: `${t('table.editor.label')}: ${labelParts.join(', ')}`,
-        onClear: () => setFilterEditor([]),
-      });
-    }
-
-    return chips;
-  }, [
-    filterBin,
-    filterBinSplit,
-    filterCategorySelection,
-    filterEanValid,
-    filterEbay,
-    filterEditor,
-    filterErfasser,
-    filterGpsr,
-    filterKaufland,
-    filterReserved,
-    filterStatus,
-    filterWeight,
-    myInitials,
-    searchTerm,
-    statusFilters,
-    t,
-  ]);
+  // Zaehler + "letzter aktiver Filter" kommen aus der Registry — nicht mehr
+  // aus einer handgepflegten Aufzaehlung.
+  const activeFilterEntries = useMemo(
+    () =>
+      activeFilters.filter((f) => {
+        const def = filterDefs.find((d) => d.id === f.id);
+        return def ? def.isActive(f.value) : false;
+      }),
+    [activeFilters, filterDefs]
+  );
+  const activeFilterCount = activeFilterEntries.length;
 
   const hasSelectedEbayListings = useMemo(() => {
     return Array.from(selectedIds).some((pid) => {
@@ -2462,135 +2028,102 @@ const AdminTable: React.FC<AdminTableProps> = ({
                 aria-label="Produkte durchsuchen"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 bg-app-surface border border-app-border rounded-lg focus:ring-2 focus:ring-accent text-sm"
+                className="w-full pl-9 pr-8 py-2 bg-app-surface border border-app-border rounded-lg focus:ring-2 focus:ring-accent text-sm"
               />
-            </div>
-            <button
-              type="button"
-              onClick={() => setFilterPanelOpen((v) => !v)}
-              aria-expanded={filterPanelOpen}
-              aria-label="Filter ein-/ausblenden"
-              className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition ${
-                filterPanelOpen
-                  ? 'border-accent/40 bg-accent-dim text-accent'
-                  : activeFilterCount > 0
-                    ? 'border-accent/30 bg-app-surface text-accent hover:border-accent/50'
-                    : 'border-app-border bg-app-surface text-txt-secondary hover:border-app-border/80'
-              }`}
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-              </svg>
-              Filter
-              {activeFilterCount > 0 && (
-                <span className="inline-flex items-center justify-center min-w-[20px] h-5 rounded-full bg-accent text-txt-primary text-[11px] font-bold px-1">
-                  {activeFilterCount}
-                </span>
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm('')}
+                  aria-label="Suche leeren"
+                  title="Suche leeren"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-txt-muted hover:text-txt-primary text-sm leading-none"
+                >
+                  ×
+                </button>
               )}
-            </button>
+            </div>
+            {isMobile && (
+              <button
+                type="button"
+                onClick={() => setFilterPanelOpen((v) => !v)}
+                aria-expanded={filterPanelOpen}
+                aria-label="Filter ein-/ausblenden"
+                className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition ${
+                  filterPanelOpen
+                    ? 'border-accent/40 bg-accent-dim text-accent'
+                    : activeFilterCount > 0
+                      ? 'border-accent/30 bg-app-surface text-accent hover:border-accent/50'
+                      : 'border-app-border bg-app-surface text-txt-secondary hover:border-app-border/80'
+                }`}
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                </svg>
+                Filter
+                {activeFilterCount > 0 && (
+                  <span className="inline-flex items-center justify-center min-w-[20px] h-5 rounded-full bg-accent text-txt-primary text-[11px] font-bold px-1">
+                    {activeFilterCount}
+                  </span>
+                )}
+              </button>
+            )}
             <span className="text-xs text-txt-muted whitespace-nowrap">
               {filteredAndSortedProducts.length} / {products.length}
             </span>
-            {activeFilterCount > 0 && (
+            {(activeFilterCount > 0 || searchTerm.trim() !== '') && (
               <button type="button" onClick={resetFilters} className="text-xs text-accent hover:underline whitespace-nowrap">
                 Zurücksetzen
               </button>
             )}
           </div>
-          {filterPanelOpen && (
-            <div className="rounded-xl border border-app-border bg-app-bg/40 p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
-              <AdminTableFilters
-                filterStatus={filterStatus}
-                setFilterStatus={setFilterStatus}
-                statusFilters={statusFilters}
-                filterCategorySelection={filterCategorySelection}
-                setFilterCategorySelection={setFilterCategorySelection}
-                categoryTree={categoryTree}
-                categorySelectionSet={categorySelectionSet}
-                categoryFilterOpen={categoryFilterOpen}
-                setCategoryFilterOpen={setCategoryFilterOpen}
-                isCategorySelected={isCategorySelected}
-                toggleCategoryKey={toggleCategoryKey}
-                toggleTopCategory={toggleTopCategory}
-                filterBin={filterBin}
-                setFilterBin={setFilterBin}
-                filterEanValid={filterEanValid}
-                setFilterEanValid={setFilterEanValid}
-                filterGpsr={filterGpsr}
-                setFilterGpsr={setFilterGpsr}
-                filterEbay={filterEbay}
-                setFilterEbay={setFilterEbay}
-                filterKaufland={filterKaufland}
-                setFilterKaufland={setFilterKaufland}
-                filterWeight={filterWeight}
-                setFilterWeight={setFilterWeight}
-                filterReserved={filterReserved}
-                setFilterReserved={setFilterReserved}
-                filterSold={filterSold}
-                setFilterSold={setFilterSold}
-                filterEditor={filterEditor}
-                setFilterEditor={setFilterEditor}
-                editorOptions={editorOptions}
-                editorSelectionSet={editorSelectionSet}
-                toggleEditor={toggleEditor}
-                editorFilterOpen={editorFilterOpen}
-                setEditorFilterOpen={setEditorFilterOpen}
-                myInitials={myInitials}
-                isMyItemsActive={isMyItemsActive}
-                toggleMyItems={toggleMyItems}
-                editorNoneSentinel={EDITOR_NONE}
-                columnPreset={columnPreset}
-                setColumnPreset={setColumnPreset}
-                visibleColumns={visibleColumns}
-                setVisibleColumns={setVisibleColumns}
-                columnDefinitions={columnDefinitions}
-                isColumnPanelOpen={isColumnPanelOpen}
-                setIsColumnPanelOpen={setIsColumnPanelOpen}
-                toggleColumnVisibility={toggleColumnVisibility}
-                moveColumn={moveColumn}
-                moveColumnTo={moveColumnTo}
-                erfasserOptions={erfasserOptions}
-                filterErfasser={filterErfasser}
-                setFilterErfasser={setFilterErfasser}
-                resetColumns={resetColumns}
-                normalizeMarketplaceColumnOrder={normalizeMarketplaceColumnOrder}
-                mode={mode}
-                handleExportCsv={handleExportCsv}
-                onBulkImprove={onBulkImprove}
-                enqueueBulkForAllInCurrentMode={enqueueBulkForAllInCurrentMode}
-                setKtypeModalOpen={setKtypeModalOpen}
-                setKtypeFile={setKtypeFile}
-                setKtypeReport={setKtypeReport}
-                setKtypeMessage={setKtypeMessage}
-                setConfirmDialog={setConfirmDialog}
-                t={t}
-              />
-            </div>
+          {/* Filter-Leiste: auf dem Desktop DAUERHAFT sichtbar (versteckte
+              Filter werden messbar uebersehen — Baymard), mobil hinter dem
+              Filter-Knopf. Chips + Editoren leben in AdminTableFilters. */}
+          {(!isMobile || filterPanelOpen) && (
+            <AdminTableFilters
+              filterDefs={filterDefs}
+              activeFilters={activeFilters}
+              optionsById={filterOptionsById}
+              filterCtx={filterCtx}
+              setFilterValue={setFilterValue}
+              removeFilter={removeFilter}
+              clearAllFilters={clearAllFilters}
+              myInitials={myInitials}
+              categoryTree={categoryTree}
+              savedViews={savedViews}
+              onApplyView={applySavedView}
+              onSaveView={saveCurrentView}
+              onDeleteView={deleteSavedViewById}
+              appliedViewId={appliedViewId}
+              appliedViewDirty={appliedViewDirty}
+              onUpdateAppliedView={updateAppliedView}
+              onDiscardViewChanges={discardViewChanges}
+              sortLevels={sortLevels}
+              setSortLevels={setSortLevels}
+              columnPreset={columnPreset}
+              setColumnPreset={setColumnPreset}
+              visibleColumns={visibleColumns}
+              setVisibleColumns={setVisibleColumns}
+              columnDefinitions={columnDefinitions}
+              isColumnPanelOpen={isColumnPanelOpen}
+              setIsColumnPanelOpen={setIsColumnPanelOpen}
+              toggleColumnVisibility={toggleColumnVisibility}
+              moveColumn={moveColumn}
+              moveColumnTo={moveColumnTo}
+              resetColumns={resetColumns}
+              normalizeMarketplaceColumnOrder={normalizeMarketplaceColumnOrder}
+              mode={mode}
+              handleExportCsv={handleExportCsv}
+              onBulkImprove={onBulkImprove}
+              enqueueBulkForAllInCurrentMode={enqueueBulkForAllInCurrentMode}
+              setKtypeModalOpen={setKtypeModalOpen}
+              setKtypeFile={setKtypeFile}
+              setKtypeReport={setKtypeReport}
+              setKtypeMessage={setKtypeMessage}
+              setConfirmDialog={setConfirmDialog}
+              t={t}
+            />
           )}
-
-          {activeFilterChips.length > 0 ? (
-            <div className="flex flex-wrap items-center gap-1.5">
-              {activeFilterChips.map((chip) => (
-                <button
-                  key={chip.key}
-                  type="button"
-                  onClick={chip.onClear}
-                  className="group inline-flex items-center gap-1.5 rounded-lg border border-accent/20 bg-accent/10 px-2.5 py-1 text-xs font-medium text-accent hover:bg-accent/20 hover:border-accent/30 transition"
-                  title="Filter entfernen"
-                >
-                  <span className="whitespace-nowrap">{chip.label}</span>
-                  <span className="text-accent/70 group-hover:text-accent text-sm leading-none">×</span>
-                </button>
-              ))}
-              <button
-                type="button"
-                onClick={resetFilters}
-                className="text-xs text-txt-muted hover:text-txt-secondary ml-1 transition"
-              >
-                Alle entfernen
-              </button>
-            </div>
-          ) : null}
 
           {selectedIds.size > 0 && (
             <BulkActions
@@ -2686,7 +2219,37 @@ const AdminTable: React.FC<AdminTableProps> = ({
                 <div className="mt-1 text-txt-muted">Prüfe Suche/Filter oder ob alle Produkte bereits Inventory-Kriterien erfüllen.</div>
               </>
             ) : (
-              <b>Keine Produkte gefunden.</b>
+              <b>Keine Produkte für diese Filter gefunden.</b>
+            )}
+            {/* Sackgassen vermeiden: konkrete Auswege statt nur "keine Treffer". */}
+            {(activeFilterCount > 0 || searchTerm.trim() !== '') && (
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                {activeFilterEntries.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => removeFilter(activeFilterEntries[activeFilterEntries.length - 1].id)}
+                    className="rounded-xl border border-app-border bg-app-surface px-3 py-1.5 text-xs font-semibold text-txt-primary transition hover:border-app-border/80"
+                  >
+                    Letzten Filter entfernen
+                  </button>
+                )}
+                {searchTerm.trim() !== '' && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchTerm('')}
+                    className="rounded-xl border border-app-border bg-app-surface px-3 py-1.5 text-xs font-semibold text-txt-primary transition hover:border-app-border/80"
+                  >
+                    Suche leeren
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={resetFilters}
+                  className="rounded-xl bg-accent-dim px-3 py-1.5 text-xs font-semibold text-accent transition hover:bg-accent/20"
+                >
+                  Alle Filter zurücksetzen
+                </button>
+              </div>
             )}
           </div>
         ) : null}
@@ -2695,7 +2258,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
           <table id="grid" className="w-full text-left min-w-[1000px]" aria-label="Produkttabelle">
             <AdminTableHeader
               visibleColumnDefinitions={visibleColumnDefinitions}
-              sortConfig={sortConfig}
+              sortLevels={sortLevels}
               onSort={requestSort}
               selectedIds={selectedIds}
               pageProducts={pageProducts}

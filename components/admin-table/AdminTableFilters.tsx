@@ -1,63 +1,49 @@
 import React from "react";
-import { Readiness, ColumnDefinition, ColumnId, ColumnPreset, ProductBulkActionName } from "./types";
+import {
+  ColumnDefinition,
+  ColumnId,
+  ColumnPreset,
+  COLUMN_PRESETS,
+  ProductBulkActionName,
+} from "./types";
+import {
+  chipSegments,
+  NUMBER_OP_LABELS,
+  type ActiveFilter,
+  type DateRangeValue,
+  type FilterContext,
+  type FilterOption,
+  type FilterValue,
+  type NumberCompareValue,
+  type NumberOp,
+  type ProductFilterDef,
+} from "../../utils/productFilters";
+import { DEFAULT_SORT, type SortLevel } from "../../utils/productSort";
+import type { SavedView } from "../../utils/savedViews";
+import {
+  AddFilterMenu,
+  DateRangeEditor,
+  FilterKindIcon,
+  FilterPopover,
+  MultiFilterEditor,
+  NumberCompareEditor,
+  SelectFilterEditor,
+} from "./FilterValueEditor";
 
-const COLUMN_PRESETS: Record<ColumnPreset, ColumnId[]> = {
-  // Muss mit COLUMN_PRESETS in AdminTable.tsx übereinstimmen.
-  standard: [
-    "thumbnail",
-    "nameBrand",
-    "sku",
-    "barcode",
-    "category",
-    "price",
-    "inventory",
-    "sold",
-    "notizen",
-    "pendingIntake",
-    "storage",
-    "ebay",
-    "kaufland",
-    "readiness",
-    "createdAt",
-    "erfasstVon",
-    "lastSaved",
-  ],
-  warehouse: [
-    "nameBrand",
-    "sku",
-    "barcode",
-    "inventory",
-    "sold",
-    "pendingIntake",
-    "storage",
-    "ebay",
-    "kaufland",
-    "readiness",
-    "saveStatus",
-  ],
-  pricing: [
-    "nameBrand",
-    "price",
-    "sku",
-    "barcode",
-    "pendingIntake",
-    "ebay",
-    "kaufland",
-    "readiness",
-    "lastSynced",
-  ],
-  minimal: [
-    "nameBrand",
-    "sku",
-    "barcode",
-    "inventory",
-    "sold",
-    "pendingIntake",
-    "ebay",
-    "kaufland",
-    "readiness",
-  ],
-};
+/**
+ * Filter-Leiste der Produkttabelle — registry-getrieben.
+ *
+ * Aufbau (UX-Research 2026-08-26, Baymard/NN-g/Enterprise-Muster):
+ * - Dauerhaft sichtbare Leiste statt verstecktem Panel (versteckte Filter
+ *   werden messbar uebersehen).
+ * - Quick-Filter fuer die haeufigsten Dimensionen (Status, Kategorie,
+ *   Bearbeiter) + "+ Filter" fuer ALLE uebrigen Dimensionen.
+ * - Aktive Filter als Chips: Klick oeffnet den Wert-Editor, × entfernt.
+ * - Gespeicherte Ansichten (Filter + Sortierung) wie in Linear/Airtable.
+ *
+ * Die Filter-Definitionen (Predicate, Chip-Text, Optionen) kommen aus
+ * utils/productFilters.ts — hier lebt NUR die Darstellung.
+ */
 
 interface CategoryNode {
   top: string;
@@ -66,56 +52,34 @@ interface CategoryNode {
 }
 
 interface AdminTableFiltersProps {
-  // Status filter
-  filterStatus: Readiness | "all" | "empty";
-  setFilterStatus: (v: Readiness | "all" | "empty") => void;
-  statusFilters: Array<{ value: Readiness | "all" | "empty"; label: string }>;
-
-  // Category filter
-  filterCategorySelection: string[];
-  setFilterCategorySelection: (v: string[]) => void;
-  categoryTree: CategoryNode[];
-  categorySelectionSet: Set<string>;
-  categoryFilterOpen: boolean;
-  setCategoryFilterOpen: (v: boolean) => void;
-  isCategorySelected: (key: string) => boolean;
-  toggleCategoryKey: (key: string) => void;
-  toggleTopCategory: (top: string) => void;
-
-  // Bin filter
-  filterBin: "all" | "withBin" | "withoutBin";
-  setFilterBin: (v: "all" | "withBin" | "withoutBin") => void;
-
-  // Advanced filters
-  filterEanValid: "all" | "valid" | "invalid" | "missing";
-  setFilterEanValid: (v: "all" | "valid" | "invalid" | "missing") => void;
-  filterGpsr: "all" | "complete" | "incomplete";
-  setFilterGpsr: (v: "all" | "complete" | "incomplete") => void;
-  filterEbay: "all" | "listed" | "notListed";
-  setFilterEbay: (v: "all" | "listed" | "notListed") => void;
-  filterKaufland: "all" | "listed" | "notListed";
-  setFilterKaufland: (v: "all" | "listed" | "notListed") => void;
-  filterWeight: "all" | "withWeight" | "noWeight";
-  setFilterWeight: (v: "all" | "withWeight" | "noWeight") => void;
-  filterReserved: "all" | "reserved" | "notReserved";
-  setFilterReserved: (v: "all" | "reserved" | "notReserved") => void;
-  filterSold: "all" | "sold" | "unsold";
-  setFilterSold: (v: "all" | "sold" | "unsold") => void;
-
-  // Editor (Bearbeiter) filter
-  filterEditor: string[];
-  setFilterEditor: (v: string[]) => void;
-  editorOptions: Array<{ value: string; count: number }>;
-  editorSelectionSet: Set<string>;
-  toggleEditor: (value: string) => void;
-  editorFilterOpen: boolean;
-  setEditorFilterOpen: (v: boolean) => void;
+  // Registry-getriebene Filter
+  filterDefs: ProductFilterDef[];
+  activeFilters: ActiveFilter[];
+  optionsById: ReadonlyMap<string, FilterOption[]>;
+  filterCtx: FilterContext;
+  setFilterValue: (id: string, value: FilterValue) => void;
+  removeFilter: (id: string) => void;
+  clearAllFilters: () => void;
   myInitials: string;
-  isMyItemsActive: boolean;
-  toggleMyItems: () => void;
-  editorNoneSentinel: string;
 
-  // Column presets & visibility
+  // Kategorie-Baum (hierarchisches Sonder-UI)
+  categoryTree: CategoryNode[];
+
+  // Gespeicherte Ansichten (inkl. Dirty-State der aktiven Ansicht)
+  savedViews: SavedView[];
+  onApplyView: (view: SavedView) => void;
+  onSaveView: (name: string) => void;
+  onDeleteView: (id: string) => void;
+  appliedViewId: string | null;
+  appliedViewDirty: boolean;
+  onUpdateAppliedView: () => void;
+  onDiscardViewChanges: () => void;
+
+  // Sortierung: sichtbare Heimat neben den Spaltenkoepfen
+  sortLevels: SortLevel[];
+  setSortLevels: (levels: SortLevel[]) => void;
+
+  // Spalten-Presets & Sichtbarkeit
   columnPreset: ColumnPreset;
   setColumnPreset: (v: ColumnPreset) => void;
   visibleColumns: ColumnId[];
@@ -125,15 +89,11 @@ interface AdminTableFiltersProps {
   setIsColumnPanelOpen: (v: boolean) => void;
   toggleColumnVisibility: (id: ColumnId) => void;
   moveColumn: (id: ColumnId, direction: "up" | "down") => void;
-  // "Erfasst von" (admin-only): null ⇒ Feld wird nicht gerendert.
-  erfasserOptions?: Array<{ value: string; count: number }> | null;
-  filterErfasser?: string;
-  setFilterErfasser?: (v: string) => void;
   moveColumnTo: (id: ColumnId, targetIndex: number) => void;
   resetColumns: () => void;
   normalizeMarketplaceColumnOrder: (columns: ColumnId[]) => ColumnId[];
 
-  // Tools menu
+  // Tools-Menue
   mode: "inventory" | "products" | "all";
   handleExportCsv: () => void;
   onBulkImprove?: () => void;
@@ -161,63 +121,121 @@ interface AdminTableFiltersProps {
   t: (key: string) => string;
 }
 
-const filterControlClass =
-  "p-2 text-sm bg-app-surface border border-app-border rounded-xl text-txt-primary";
-const filterButtonClass =
-  "w-full p-2 text-sm bg-app-surface border border-app-border rounded-xl text-txt-primary text-left";
+// Ruhige Ghost-Buttons fuer die Quick-Filter: die Filterzeile ist leicht und
+// textbasiert (Linear-Muster), nur AKTIVE Filter tragen Farbe. Die Rahmen-
+// Pillen bleiben rechts der Konfiguration (Preset/Spalten/Tools) vorbehalten
+// — das ist die Hierarchie, die der Zeile vorher fehlte.
+const quickFilterClass = (active: boolean) =>
+  `inline-flex h-9 items-center gap-1 whitespace-nowrap rounded-lg px-2.5 text-sm transition ${
+    active
+      ? "bg-accent/10 font-medium text-accent"
+      : "text-txt-secondary hover:bg-app-elevated/60 hover:text-txt-primary"
+  }`;
+
+const ChevronDown: React.FC = () => (
+  <svg className="h-3 w-3 opacity-60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M6 9l6 6 6-6" />
+  </svg>
+);
 const menuItemClass =
   "w-full text-left px-3 py-2 text-sm text-txt-primary hover:bg-app-elevated/60 rounded-xl transition";
-const toolbarButtonClass =
-  "p-2 text-sm bg-app-surface border border-app-border rounded-xl text-txt-primary text-left whitespace-nowrap";
-
-// Beschriftetes Feld im "Weitere Filter"-Popover.
-const FilterField: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
-  <label className="flex flex-col gap-1 text-xs text-txt-muted">
-    {label}
-    {children}
-  </label>
-);
+/** Kategorie-Baum mit Top-/Sub-Checkboxen und indeterminate-Zustand. */
+const CategoryTreeEditor: React.FC<{
+  categoryTree: CategoryNode[];
+  selection: string[];
+  onChange: (selection: string[]) => void;
+}> = ({ categoryTree, selection, onChange }) => {
+  const selectionSet = React.useMemo(
+    () => new Set(selection.map((s) => String(s).trim()).filter(Boolean)),
+    [selection]
+  );
+  const toggleKey = (key: string) => {
+    const next = new Set(selectionSet);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    onChange(Array.from(next));
+  };
+  const toggleTop = (top: string) => {
+    const next = new Set(selectionSet);
+    const node = categoryTree.find((t) => t.top === top);
+    const childKeys = node ? node.children.map((c) => `${top} > ${c.sub}`) : [];
+    const allKeys = [top, ...childKeys];
+    const allOn = allKeys.length ? allKeys.every((k) => next.has(k)) : next.has(top);
+    if (allOn) allKeys.forEach((k) => next.delete(k));
+    else allKeys.forEach((k) => next.add(k));
+    onChange(Array.from(next));
+  };
+  return (
+    <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
+      {categoryTree.map((node) => {
+        const topKey = node.top;
+        const childKeys = node.children.map((c) => `${node.top} > ${c.sub}`);
+        const allKeys = [topKey, ...childKeys];
+        const selectedCount = allKeys.filter((k) => selectionSet.has(k)).length;
+        const isAllSelected = selectedCount === allKeys.length && allKeys.length > 0;
+        const isIndeterminate = selectedCount > 0 && selectedCount < allKeys.length;
+        return (
+          <div key={node.top} className="rounded-xl border border-app-border bg-app-surface">
+            <label className="flex items-center gap-2 px-2 py-2 text-sm text-txt-primary">
+              <input
+                type="checkbox"
+                checked={isAllSelected}
+                ref={(el) => {
+                  if (el) el.indeterminate = isIndeterminate;
+                }}
+                onChange={() => toggleTop(node.top)}
+              />
+              <span className="flex-1">{node.top}</span>
+              <span className="text-xs text-txt-muted">({node.count})</span>
+            </label>
+            {node.children.length > 0 && (
+              <div className="space-y-1 border-t border-app-border px-2 py-2">
+                {node.children.map((c) => {
+                  const key = `${node.top} > ${c.sub}`;
+                  return (
+                    <label
+                      key={key}
+                      className="flex items-center gap-2 py-1 pl-5 pr-2 text-sm text-txt-secondary"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectionSet.has(key)}
+                        onChange={() => toggleKey(key)}
+                      />
+                      <span className="flex-1">{c.sub}</span>
+                      <span className="text-xs text-txt-muted">({c.count})</span>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+};
 
 const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
-  filterStatus,
-  setFilterStatus,
-  statusFilters,
-  filterCategorySelection,
-  setFilterCategorySelection,
-  categoryTree,
-  categorySelectionSet,
-  categoryFilterOpen,
-  setCategoryFilterOpen,
-  isCategorySelected,
-  toggleCategoryKey,
-  toggleTopCategory,
-  filterBin,
-  setFilterBin,
-  filterEanValid,
-  setFilterEanValid,
-  filterGpsr,
-  setFilterGpsr,
-  filterEbay,
-  setFilterEbay,
-  filterKaufland,
-  setFilterKaufland,
-  filterWeight,
-  setFilterWeight,
-  filterReserved,
-  setFilterReserved,
-  filterSold,
-  setFilterSold,
-  filterEditor,
-  setFilterEditor,
-  editorOptions,
-  editorSelectionSet,
-  toggleEditor,
-  editorFilterOpen,
-  setEditorFilterOpen,
+  filterDefs,
+  activeFilters,
+  optionsById,
+  filterCtx,
+  setFilterValue,
+  removeFilter,
+  clearAllFilters,
   myInitials,
-  isMyItemsActive,
-  toggleMyItems,
-  editorNoneSentinel,
+  categoryTree,
+  savedViews,
+  onApplyView,
+  onSaveView,
+  onDeleteView,
+  appliedViewId,
+  appliedViewDirty,
+  onUpdateAppliedView,
+  onDiscardViewChanges,
+  sortLevels,
+  setSortLevels,
   columnPreset,
   setColumnPreset,
   visibleColumns,
@@ -228,9 +246,6 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
   toggleColumnVisibility,
   moveColumn,
   moveColumnTo,
-  erfasserOptions = null,
-  filterErfasser = "all",
-  setFilterErfasser,
   resetColumns,
   normalizeMarketplaceColumnOrder,
   mode,
@@ -248,387 +263,600 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
   const [dragColId, setDragColId] = React.useState<ColumnId | null>(null);
   const [dropIdx, setDropIdx] = React.useState<number | null>(null);
 
-  // "Weitere Filter"-Popover + aktive-Filter-Zähler für die Toolbar.
-  const [moreFiltersOpen, setMoreFiltersOpen] = React.useState(false);
+  // Genau EIN offenes Popover: Wert-Editor (Filter-Id + Anker, damit Quick-
+  // Button und Chip derselben Dimension nie zwei Popovers zugleich zeigen),
+  // "+ Filter" oder Ansichten.
+  const [openEditor, setOpenEditor] = React.useState<{ id: string; anchor: "quick" | "chip" | "op" } | null>(null);
+  const [addMenuOpen, setAddMenuOpen] = React.useState(false);
+  const [viewsMenuOpen, setViewsMenuOpen] = React.useState(false);
+  const [sortMenuOpen, setSortMenuOpen] = React.useState(false);
+  const [sortAddOpen, setSortAddOpen] = React.useState(false);
+  const [viewName, setViewName] = React.useState("");
+  const toolsDetailsRef = React.useRef<HTMLDetailsElement | null>(null);
+
+  const closeAllPopovers = React.useCallback(() => {
+    setOpenEditor(null);
+    setAddMenuOpen(false);
+    setViewsMenuOpen(false);
+    setSortMenuOpen(false);
+    setSortAddOpen(false);
+  }, []);
 
   // Klick außerhalb / Escape schließt jedes offene Popover (Standard-UX).
-  const categoryWrapRef = React.useRef<HTMLDivElement | null>(null);
-  const editorWrapRef = React.useRef<HTMLDivElement | null>(null);
-  const moreWrapRef = React.useRef<HTMLDivElement | null>(null);
-  const toolsDetailsRef = React.useRef<HTMLDetailsElement | null>(null);
+  // Ein Handler für alle: Popovers und ihre Trigger tragen data-filter-pop.
   React.useEffect(() => {
     const onPointerDown = (e: MouseEvent) => {
-      const t = e.target as Node;
-      if (categoryFilterOpen && categoryWrapRef.current && !categoryWrapRef.current.contains(t)) {
-        setCategoryFilterOpen(false);
-      }
-      if (editorFilterOpen && editorWrapRef.current && !editorWrapRef.current.contains(t)) {
-        setEditorFilterOpen(false);
-      }
-      if (moreFiltersOpen && moreWrapRef.current && !moreWrapRef.current.contains(t)) {
-        setMoreFiltersOpen(false);
-      }
-      if (toolsDetailsRef.current?.open && !toolsDetailsRef.current.contains(t)) {
+      const target = e.target as Element | null;
+      // Tools-Menue ZUERST schliessen — auch ein Klick auf einen Filter-Button
+      // ([data-filter-pop]) ist "ausserhalb" des Tools-Menues.
+      if (toolsDetailsRef.current?.open && target && !toolsDetailsRef.current.contains(target)) {
         toolsDetailsRef.current.open = false;
       }
+      if (target?.closest?.("[data-filter-pop]")) return;
+      closeAllPopovers();
     };
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      setCategoryFilterOpen(false);
-      setEditorFilterOpen(false);
-      setMoreFiltersOpen(false);
+      if (e.key !== "Escape") return;
+      closeAllPopovers();
       if (toolsDetailsRef.current) toolsDetailsRef.current.open = false;
     };
-    document.addEventListener('mousedown', onPointerDown);
-    document.addEventListener('keydown', onKeyDown);
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
     return () => {
-      document.removeEventListener('mousedown', onPointerDown);
-      document.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
     };
-  }, [categoryFilterOpen, editorFilterOpen, moreFiltersOpen, setCategoryFilterOpen, setEditorFilterOpen]);
-  const advancedActiveCount = [filterBin, filterEanValid, filterGpsr, filterEbay, filterKaufland, filterWeight, filterReserved, filterSold, filterErfasser]
-    .filter((v) => v !== "all").length;
-  const anyActiveCount =
-    advancedActiveCount +
-    (filterStatus !== "all" ? 1 : 0) +
-    (filterCategorySelection.length > 0 ? 1 : 0) +
-    (filterEditor.length > 0 ? 1 : 0);
-  const resetAllFilters = () => {
-    setFilterStatus("all");
-    setFilterCategorySelection([]);
-    setFilterBin("all");
-    setFilterEanValid("all");
-    setFilterGpsr("all");
-    setFilterEbay("all");
-    setFilterKaufland("all");
-    setFilterWeight("all");
-    setFilterReserved("all");
-    setFilterSold("all");
-    setFilterEditor([]);
-    setFilterErfasser?.("all");
+  }, [closeAllPopovers]);
+
+  // Taste F oeffnet das Filter-Menue (Linear-Konvention) — nie, wenn gerade
+  // getippt wird.
+  React.useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.key !== "f" && e.key !== "F") || e.metaKey || e.ctrlKey || e.altKey) return;
+      const el = document.activeElement as HTMLElement | null;
+      if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || el.isContentEditable)) {
+        return;
+      }
+      e.preventDefault();
+      setOpenEditor(null);
+      setViewsMenuOpen(false);
+      setSortMenuOpen(false);
+      setAddMenuOpen(true);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
+
+  const defsById = React.useMemo(() => {
+    const map = new Map<string, ProductFilterDef>();
+    filterDefs.forEach((d) => map.set(d.id, d));
+    return map;
+  }, [filterDefs]);
+
+  const getValue = (id: string): FilterValue | undefined =>
+    activeFilters.find((f) => f.id === id)?.value;
+
+  // Chips: ALLE vorhandenen Eintraege — auch frisch hinzugefuegte, deren Wert
+  // noch leer ist (Linear-Muster: leerer Chip, der Editor haengt daran).
+  const chipEntries = React.useMemo(
+    () =>
+      activeFilters
+        .map((entry) => ({ entry, def: defsById.get(entry.id) }))
+        .filter((x): x is { entry: ActiveFilter; def: ProductFilterDef } => Boolean(x.def)),
+    [activeFilters, defsById]
+  );
+  const activeEntries = React.useMemo(
+    () => chipEntries.filter((x) => x.def.isActive(x.entry.value)),
+    [chipEntries]
+  );
+  const activeIds = React.useMemo(() => new Set(activeEntries.map((x) => x.entry.id)), [activeEntries]);
+
+  // Wird ein Editor geschlossen, ohne dass ein Wert gesetzt wurde, verschwindet
+  // der leere Chip wieder — sonst sammeln sich wirkungslose Filter an.
+  const prevEditorRef = React.useRef<typeof openEditor>(null);
+  React.useEffect(() => {
+    const prev = prevEditorRef.current;
+    prevEditorRef.current = openEditor;
+    if (!prev || openEditor?.id === prev.id) return;
+    const entry = activeFilters.find((f) => f.id === prev.id);
+    const def = entry ? defsById.get(entry.id) : undefined;
+    if (entry && def && !def.isActive(entry.value)) {
+      removeFilter(entry.id);
+    }
+  }, [openEditor, activeFilters, defsById, removeFilter]);
+
+  const statusDef = defsById.get("status");
+  const statusValue = (getValue("status") as string) || "all";
+
+  const categorySelection = (getValue("category") as string[]) || [];
+  const editorSelection = (getValue("editor") as string[]) || [];
+  const isMyItemsActive = editorSelection.length === 1 && editorSelection[0] === myInitials;
+
+  const openEditorAt = (id: string, anchor: "quick" | "chip" | "op") => {
+    setAddMenuOpen(false);
+    setViewsMenuOpen(false);
+    setSortMenuOpen(false);
+    setOpenEditor((prev) => (prev && prev.id === id && prev.anchor === anchor ? null : { id, anchor }));
   };
-  const popoverSelectClass = `${filterControlClass} w-full`;
+
+  // Aktive Ansicht + sortierbare Spalten (Label je sortKey) fuer das Sort-Menue.
+  const appliedView = appliedViewId ? savedViews.find((v) => v.id === appliedViewId) ?? null : null;
+  const sortableColumns = React.useMemo(() => {
+    const seen = new Set<string>();
+    const out: Array<{ key: string; label: string }> = [];
+    for (const col of columnDefinitions) {
+      if (!col.sortKey || seen.has(col.sortKey)) continue;
+      seen.add(col.sortKey);
+      out.push({ key: col.sortKey, label: String(col.label) });
+    }
+    return out;
+  }, [columnDefinitions]);
+  const sortLabelFor = (key: string) => sortableColumns.find((c) => c.key === key)?.label ?? key;
+
+  /** Wert-Editor für eine Dimension — nach `kind` bzw. Sonderfall Kategorie. */
+  const renderEditor = (def: ProductFilterDef) => {
+    const value = getValue(def.id) ?? def.defaultValue;
+    const remove = () => {
+      removeFilter(def.id);
+      setOpenEditor(null);
+    };
+    if (def.id === "category") {
+      return (
+        <FilterPopover title="Kategorien" onClose={() => setOpenEditor(null)} onRemove={remove} widthClass="w-[360px]">
+          <CategoryTreeEditor
+            categoryTree={categoryTree}
+            selection={(value as string[]) || []}
+            onChange={(next) => setFilterValue("category", next)}
+          />
+        </FilterPopover>
+      );
+    }
+    if (def.kind === "multi") {
+      return (
+        <FilterPopover title={def.label} onClose={() => setOpenEditor(null)} onRemove={remove}>
+          <MultiFilterEditor
+            options={optionsById.get(def.id) || []}
+            values={(value as string[]) || []}
+            onChange={(next) => setFilterValue(def.id, next)}
+          />
+        </FilterPopover>
+      );
+    }
+    if (def.kind === "numberCompare") {
+      return (
+        <FilterPopover title={def.label} onClose={() => setOpenEditor(null)} onRemove={remove}>
+          <NumberCompareEditor
+            def={def}
+            value={value as NumberCompareValue}
+            onChange={(next) => setFilterValue(def.id, next)}
+          />
+        </FilterPopover>
+      );
+    }
+    if (def.kind === "dateRange") {
+      return (
+        <FilterPopover title={def.label} onClose={() => setOpenEditor(null)} onRemove={remove}>
+          <DateRangeEditor value={value as DateRangeValue} onChange={(next) => setFilterValue(def.id, next)} />
+        </FilterPopover>
+      );
+    }
+    return (
+      <FilterPopover title={def.label} onClose={() => setOpenEditor(null)} onRemove={remove}>
+        <SelectFilterEditor
+          def={def}
+          value={(value as string) || ""}
+          onChange={(next) => {
+            setFilterValue(def.id, next);
+            // Einzelwahl ist mit einem Klick fertig — Popover zu.
+            setOpenEditor(null);
+          }}
+        />
+      </FilterPopover>
+    );
+  };
 
   return (
     <>
       <div className="flex flex-wrap items-center gap-2">
-        <select
-          id="table-filter-status"
-          value={filterStatus}
-          onChange={(e) =>
-            setFilterStatus(e.target.value as Readiness | "all")
-          }
-          className={filterControlClass}
-        >
-          {statusFilters.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-
-        <div ref={categoryWrapRef} className="relative">
+        {/* Gespeicherte Ansichten (Filter + Sortierung, lokal je Gerät) */}
+        <div data-filter-pop className="relative">
           <button
             type="button"
-            onClick={() => setCategoryFilterOpen(!categoryFilterOpen)}
-            aria-expanded={categoryFilterOpen}
-            className={toolbarButtonClass}
+            onClick={() => {
+              setViewsMenuOpen((v) => !v);
+              setAddMenuOpen(false);
+              setOpenEditor(null);
+            }}
+            aria-expanded={viewsMenuOpen}
+            className={`${quickFilterClass(false)} gap-1.5`}
+            title="Gespeicherte Ansichten (Filter + Sortierung)"
           >
-            {filterCategorySelection.length === 0
-              ? "Kategorie: Alle"
-              : `Kategorie: ${filterCategorySelection.length} ausgewählt`}
+            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M17.5 21l-5.5-4-5.5 4V5a2 2 0 012-2h7a2 2 0 012 2v16z" />
+            </svg>
+            {appliedView ? (
+              <span className="max-w-[160px] truncate text-txt-primary">{appliedView.name}</span>
+            ) : (
+              "Ansichten"
+            )}
+            {appliedView && appliedViewDirty && (
+              <span
+                className="h-1.5 w-1.5 rounded-full bg-accent"
+                title="Ansicht wurde verändert — im Menü aktualisieren oder verwerfen"
+                aria-label="Ungespeicherte Änderungen an der Ansicht"
+              />
+            )}
+            {!appliedView && savedViews.length > 0 && (
+              <span className="rounded-full bg-accent/15 px-1.5 text-[11px] font-semibold text-accent">
+                {savedViews.length}
+              </span>
+            )}
+            <ChevronDown />
           </button>
-          {categoryFilterOpen && (
-            <div className="absolute z-30 mt-2 w-[360px] max-w-[90vw] rounded-xl border border-app-border bg-app-bg p-3 shadow-lg">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-semibold uppercase tracking-wide text-txt-secondary">
-                  Kategorien
+          {viewsMenuOpen && (
+            <div
+              data-filter-pop
+              className="absolute left-0 z-30 mt-2 w-[300px] max-w-[92vw] rounded-xl border border-app-border bg-app-bg p-2 shadow-xl shadow-black/40"
+            >
+              {appliedView && appliedViewDirty && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onUpdateAppliedView();
+                      setViewsMenuOpen(false);
+                    }}
+                    className={`${menuItemClass} font-medium text-accent`}
+                  >
+                    „{appliedView.name}“ aktualisieren
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onDiscardViewChanges();
+                      setViewsMenuOpen(false);
+                    }}
+                    className={menuItemClass}
+                  >
+                    Änderungen verwerfen
+                  </button>
+                  <div className="my-1.5 border-t border-app-border/60" />
+                </>
+              )}
+              <p className="px-2 pt-1 pb-1 text-[10px] font-semibold uppercase tracking-wider text-txt-muted">
+                Gespeicherte Ansichten
+              </p>
+              {savedViews.length === 0 ? (
+                <p className="px-2 py-2 text-xs text-txt-muted">
+                  Noch keine. Filter + Sortierung einstellen, unten benennen und speichern.
                 </p>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setFilterCategorySelection([])}
-                    className="text-xs text-accent hover:underline"
-                  >
-                    Alle
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCategoryFilterOpen(false)}
-                    className="text-xs text-txt-secondary hover:underline"
-                  >
-                    Schließen
-                  </button>
-                </div>
-              </div>
-              <div className="max-h-72 overflow-y-auto space-y-2 pr-1">
-                {categoryTree.map((node) => {
-                  const topKey = node.top;
-                  const childKeys = node.children.map(
-                    (c) => `${node.top} > ${c.sub}`
-                  );
-                  const allKeys = [topKey, ...childKeys];
-                  const selectedCount = allKeys.filter((k) =>
-                    categorySelectionSet.has(k)
-                  ).length;
-                  const isAllSelected =
-                    selectedCount === allKeys.length && allKeys.length > 0;
-                  const isIndeterminate =
-                    selectedCount > 0 && selectedCount < allKeys.length;
-                  return (
-                    <div
-                      key={node.top}
-                      className="rounded-xl border border-app-border bg-app-surface"
-                    >
-                      <label className="flex items-center gap-2 px-2 py-2 text-sm text-txt-primary">
-                        <input
-                          type="checkbox"
-                          checked={isAllSelected}
-                          ref={(el) => {
-                            if (el) el.indeterminate = isIndeterminate;
-                          }}
-                          onChange={() => toggleTopCategory(node.top)}
-                        />
-                        <span className="flex-1">{node.top}</span>
-                        <span className="text-xs text-txt-muted">
-                          ({node.count})
-                        </span>
-                      </label>
-                      {node.children.length > 0 && (
-                        <div className="border-t border-app-border px-2 py-2 space-y-1">
-                          {node.children.map((c) => {
-                            const key = `${node.top} > ${c.sub}`;
-                            return (
-                              <label
-                                key={key}
-                                className="flex items-center gap-2 pl-5 pr-2 py-1 text-sm text-txt-secondary"
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={isCategorySelected(key)}
-                                  onChange={() => toggleCategoryKey(key)}
-                                />
-                                <span className="flex-1">{c.sub}</span>
-                                <span className="text-xs text-txt-muted">
-                                  ({c.count})
-                                </span>
-                              </label>
-                            );
-                          })}
-                        </div>
-                      )}
+              ) : (
+                <div className="max-h-56 space-y-0.5 overflow-y-auto pr-1">
+                  {savedViews.map((view) => (
+                    <div key={view.id} className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onApplyView(view);
+                          setViewsMenuOpen(false);
+                        }}
+                        className={`${menuItemClass} flex flex-1 items-center gap-2 truncate`}
+                        title={`Ansicht „${view.name}“ anwenden`}
+                      >
+                        <span className="flex-1 truncate">{view.name}</span>
+                        {appliedViewId === view.id && (
+                          <svg className="h-3.5 w-3.5 shrink-0 text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onDeleteView(view.id)}
+                        aria-label={`Ansicht „${view.name}“ löschen`}
+                        title="Ansicht löschen"
+                        className="rounded-lg px-2 py-1 text-sm text-txt-muted transition hover:bg-danger-dim hover:text-danger"
+                      >
+                        ×
+                      </button>
                     </div>
-                  );
-                })}
+                  ))}
+                </div>
+              )}
+              <div className="mt-2 flex items-center gap-2 border-t border-app-border pt-2">
+                <input
+                  type="text"
+                  value={viewName}
+                  onChange={(e) => setViewName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && viewName.trim()) {
+                      e.preventDefault();
+                      onSaveView(viewName);
+                      setViewName("");
+                    }
+                  }}
+                  placeholder="Aktuelle Ansicht benennen …"
+                  aria-label="Name der Ansicht"
+                  className="min-w-0 flex-1 rounded-xl border border-app-border bg-app-surface p-2 text-sm text-txt-primary outline-none focus:ring-2 focus:ring-accent"
+                />
+                <button
+                  type="button"
+                  disabled={!viewName.trim()}
+                  onClick={() => {
+                    onSaveView(viewName);
+                    setViewName("");
+                  }}
+                  className="rounded-xl bg-accent-dim px-3 py-2 text-xs font-semibold text-accent transition hover:bg-accent/20 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Speichern
+                </button>
               </div>
             </div>
           )}
         </div>
 
-        <div className="flex items-stretch gap-2">
-          <button
-            type="button"
-            onClick={toggleMyItems}
-            disabled={!myInitials}
-            aria-pressed={isMyItemsActive}
-            title={t("table.editor.title")}
-            className={
-              isMyItemsActive
-                ? "px-3 py-2 text-sm rounded-xl border border-accent bg-accent-dim text-accent whitespace-nowrap"
-                : `${filterButtonClass} w-auto whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed`
-            }
-          >
-            {t("table.editor.mine")}
-          </button>
-          <div ref={editorWrapRef} className="relative">
+        <span aria-hidden className="mx-0.5 hidden h-5 w-px bg-app-border sm:block" />
+
+        {/* Quick-Filter: Status */}
+        {statusDef && (
+          <div data-filter-pop className="relative">
             <button
               type="button"
-              onClick={() => setEditorFilterOpen(!editorFilterOpen)}
-              aria-expanded={editorFilterOpen}
-              className={toolbarButtonClass}
+              onClick={() => openEditorAt("status", "quick")}
+              aria-expanded={openEditor?.id === "status" && openEditor.anchor === "quick"}
+              className={quickFilterClass(statusValue !== "all")}
             >
-              {filterEditor.length === 0
-                ? `${t("table.editor.label")}: ${t("table.editor.all")}`
-                : `${t("table.editor.label")}: ${filterEditor.length}`}
+              {statusValue === "all"
+                ? "Status"
+                : `Status · ${statusDef.selectOptions?.find((o) => o.value === statusValue)?.label ?? statusValue}`}
+              <ChevronDown />
             </button>
-            {editorFilterOpen && (
-              <div className="absolute z-30 mt-2 w-[280px] max-w-[90vw] rounded-xl border border-app-border bg-app-bg p-3 shadow-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-txt-secondary">
-                    {t("table.editor.label")}
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setFilterEditor([])}
-                      className="text-xs text-accent hover:underline"
-                    >
-                      {t("table.editor.all")}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setEditorFilterOpen(false)}
-                      className="text-xs text-txt-secondary hover:underline"
-                    >
-                      Schließen
-                    </button>
-                  </div>
-                </div>
-                {editorOptions.length === 0 ? (
-                  <p className="text-xs text-txt-muted px-1 py-2">—</p>
-                ) : (
-                  <div className="max-h-64 overflow-y-auto space-y-1 pr-1">
-                    {editorOptions.map((opt) => {
-                      const isNone = opt.value === editorNoneSentinel;
-                      const isMe = opt.value === myInitials;
-                      const label = isNone
-                        ? t("table.editor.none")
-                        : isMe
-                          ? `${opt.value} ${t("table.editor.you")}`
-                          : opt.value;
-                      return (
-                        <label
-                          key={opt.value}
-                          className="flex items-center gap-2 rounded-xl border border-app-border bg-app-surface px-2 py-2 text-sm text-txt-primary"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={editorSelectionSet.has(opt.value)}
-                            onChange={() => toggleEditor(opt.value)}
-                          />
-                          <span className="flex-1">{label}</span>
-                          <span className="text-xs text-txt-muted">({opt.count})</span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
+            {openEditor?.id === "status" && openEditor.anchor === "quick" && renderEditor(statusDef)}
           </div>
-        </div>
+        )}
 
-        {/* Weitere Filter — gebündelt in einem Popover statt als Dauer-Wand */}
-        <div ref={moreWrapRef} className="relative">
+        {/* Quick-Filter: Kategorie (Baum) */}
+        <div data-filter-pop className="relative">
           <button
             type="button"
-            onClick={() => setMoreFiltersOpen(!moreFiltersOpen)}
-            aria-expanded={moreFiltersOpen}
-            className={`${toolbarButtonClass} inline-flex items-center gap-1.5 ${advancedActiveCount > 0 ? "border-accent/40 text-accent" : ""}`}
+            onClick={() => openEditorAt("category", "quick")}
+            aria-expanded={openEditor?.id === "category" && openEditor.anchor === "quick"}
+            className={quickFilterClass(categorySelection.length > 0)}
           >
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-              <path d="M3 5h18M6 10h12M9 15h6M11 20h2" />
-            </svg>
-            Weitere Filter
-            {advancedActiveCount > 0 && (
-              <span className="rounded-full bg-accent/15 px-1.5 text-[11px] font-semibold text-accent">{advancedActiveCount}</span>
-            )}
+            {categorySelection.length === 0 ? "Kategorie" : `Kategorie · ${categorySelection.length}`}
+            <ChevronDown />
           </button>
-          {moreFiltersOpen && (
-            <div className="absolute z-30 mt-2 w-[560px] max-w-[92vw] rounded-xl border border-app-border bg-app-bg p-4 shadow-xl shadow-black/40">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-txt-secondary">Weitere Filter</p>
-                <button type="button" onClick={() => setMoreFiltersOpen(false)} className="text-xs text-txt-secondary hover:underline">
-                  Schließen
-                </button>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
-                <FilterField label="eBay">
-                  <select id="table-filter-ebay" value={filterEbay} onChange={(e) => setFilterEbay(e.target.value as any)} className={popoverSelectClass}>
-                    <option value="all">Alle</option>
-                    <option value="listed">Gelistet</option>
-                    <option value="notListed">Nicht gelistet</option>
-                  </select>
-                </FilterField>
-                <FilterField label="Kaufland">
-                  <select id="table-filter-kaufland" value={filterKaufland} onChange={(e) => setFilterKaufland(e.target.value as any)} className={popoverSelectClass}>
-                    <option value="all">Alle</option>
-                    <option value="listed">Gelistet</option>
-                    <option value="notListed">Nicht gelistet</option>
-                  </select>
-                </FilterField>
-                <FilterField label="EAN/GTIN">
-                  <select id="table-filter-ean-valid" value={filterEanValid} onChange={(e) => setFilterEanValid(e.target.value as any)} className={popoverSelectClass}>
-                    <option value="all">Alle</option>
-                    <option value="valid">Gültig</option>
-                    <option value="invalid">Ungültig</option>
-                    <option value="missing">Fehlt</option>
-                  </select>
-                </FilterField>
-                <FilterField label="GPSR">
-                  <select id="table-filter-gpsr" value={filterGpsr} onChange={(e) => setFilterGpsr(e.target.value as any)} className={popoverSelectClass}>
-                    <option value="all">Alle</option>
-                    <option value="complete">Vollständig</option>
-                    <option value="incomplete">Unvollständig</option>
-                  </select>
-                </FilterField>
-                <FilterField label="Gewicht">
-                  <select id="table-filter-weight" value={filterWeight} onChange={(e) => setFilterWeight(e.target.value as any)} className={popoverSelectClass}>
-                    <option value="all">Alle</option>
-                    <option value="withWeight">Vorhanden</option>
-                    <option value="noWeight">Fehlt</option>
-                  </select>
-                </FilterField>
-                <FilterField label="Lagerplatz">
-                  <select id="table-filter-bin" value={filterBin} onChange={(e) => setFilterBin(e.target.value as "all" | "withBin" | "withoutBin")} className={popoverSelectClass}>
-                    <option value="all">{t("table.binFilter.all")}</option>
-                    <option value="withBin">{t("table.binFilter.withBin")}</option>
-                    <option value="withoutBin">{t("table.binFilter.withoutBin")}</option>
-                  </select>
-                </FilterField>
-                <FilterField label="Reserviert">
-                  <select id="table-filter-reserved" value={filterReserved} onChange={(e) => setFilterReserved(e.target.value as any)} className={popoverSelectClass}>
-                    <option value="all">Alle</option>
-                    <option value="reserved">&gt; 0</option>
-                    <option value="notReserved">0</option>
-                  </select>
-                </FilterField>
-                <FilterField label="Verkauft">
-                  <select id="table-filter-sold" value={filterSold} onChange={(e) => setFilterSold(e.target.value as any)} className={popoverSelectClass}>
-                    <option value="all">Alle</option>
-                    <option value="sold">Ja</option>
-                    <option value="unsold">Nein</option>
-                  </select>
-                </FilterField>
-                {erfasserOptions && setFilterErfasser && (
-                  <FilterField label="Erfasst von">
-                    <select id="table-filter-erfasser" value={filterErfasser} onChange={(e) => setFilterErfasser(e.target.value)} className={popoverSelectClass}>
-                      <option value="all">Alle</option>
-                      {erfasserOptions.map((o) => (
-                        <option key={o.value} value={o.value}>{o.value} ({o.count})</option>
-                      ))}
-                      <option value="__none__">Ohne Zuordnung</option>
-                    </select>
-                  </FilterField>
-                )}
-              </div>
-              <div className="mt-3 flex justify-end border-t border-app-border pt-3">
-                <button type="button" onClick={resetAllFilters} className="text-xs text-accent hover:underline">
-                  Alle Filter zurücksetzen
-                </button>
-              </div>
-            </div>
+          {openEditor?.id === "category" && openEditor.anchor === "quick" && defsById.get("category") && renderEditor(defsById.get("category")!)}
+        </div>
+
+        {/* Quick-Filter: Bearbeiter + Meine (Kurz-Toggle auf die eigenen Initialen) */}
+        <div data-filter-pop className="relative">
+          <button
+            type="button"
+            onClick={() => openEditorAt("editor", "quick")}
+            aria-expanded={openEditor?.id === "editor" && openEditor.anchor === "quick"}
+            className={quickFilterClass(editorSelection.length > 0)}
+          >
+            {editorSelection.length === 0 ? "Bearbeiter" : `Bearbeiter · ${editorSelection.length}`}
+            <ChevronDown />
+          </button>
+          {openEditor?.id === "editor" && openEditor.anchor === "quick" && defsById.get("editor") && renderEditor(defsById.get("editor")!)}
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            if (isMyItemsActive) removeFilter("editor");
+            else setFilterValue("editor", [myInitials]);
+          }}
+          disabled={!myInitials}
+          aria-pressed={isMyItemsActive}
+          title={t("table.editor.title")}
+          className={`${quickFilterClass(isMyItemsActive)} disabled:cursor-not-allowed disabled:opacity-40`}
+        >
+          Meine
+        </button>
+
+        {/* + Filter: alle Dimensionen, gruppiert + durchsuchbar */}
+        <div data-filter-pop className="relative">
+          <button
+            type="button"
+            onClick={() => {
+              setAddMenuOpen((v) => !v);
+              setOpenEditor(null);
+              setViewsMenuOpen(false);
+            }}
+            aria-expanded={addMenuOpen}
+            className={`inline-flex h-9 items-center gap-1.5 whitespace-nowrap rounded-lg border border-dashed px-2.5 text-sm transition ${
+              addMenuOpen ? "border-accent/60 bg-accent/10 text-accent" : "border-accent/40 text-accent hover:bg-accent/10"
+            }`}
+          >
+            <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+              <path strokeLinecap="round" d="M12 5v14M5 12h14" />
+            </svg>
+            Filter
+            <kbd className="rounded border border-current/30 px-1 text-[10px] leading-4 opacity-60">F</kbd>
+          </button>
+          {addMenuOpen && (
+            <AddFilterMenu
+              defs={filterDefs}
+              activeIds={activeIds}
+              optionsById={optionsById}
+              getValue={getValue}
+              setFilterValue={setFilterValue}
+              removeFilter={removeFilter}
+              renderCustomEditor={(def) =>
+                def.id === "category" ? (
+                  <CategoryTreeEditor
+                    categoryTree={categoryTree}
+                    selection={(getValue("category") as string[]) || []}
+                    onChange={(next) => setFilterValue("category", next)}
+                  />
+                ) : null
+              }
+              onClose={() => setAddMenuOpen(false)}
+            />
           )}
         </div>
 
-        {anyActiveCount > 0 && (
-          <button type="button" onClick={resetAllFilters} className="text-xs text-accent hover:underline whitespace-nowrap">
-            Zurücksetzen ({anyActiveCount})
+        {activeEntries.length > 0 && (
+          <button
+            type="button"
+            onClick={clearAllFilters}
+            className="whitespace-nowrap text-xs text-accent hover:underline"
+          >
+            Zurücksetzen ({activeEntries.length})
           </button>
         )}
 
-        {/* Ansicht & Tools — rechtsbündig in derselben Toolbar */}
-        <div className="ml-auto flex items-center gap-2 flex-wrap">
+        {/* Anzeige & Tools — rechtsbündig: WIE die Daten gezeigt werden
+            (Sortierung, Spalten, Tools) — getrennt von den Filtern links. */}
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          <div data-filter-pop className="relative">
+            <button
+              type="button"
+              onClick={() => {
+                setSortMenuOpen((v) => !v);
+                setSortAddOpen(false);
+                setOpenEditor(null);
+                setAddMenuOpen(false);
+                setViewsMenuOpen(false);
+              }}
+              aria-expanded={sortMenuOpen}
+              className={`inline-flex h-9 items-center gap-1 whitespace-nowrap rounded-lg border px-2.5 text-xs font-semibold transition ${
+                sortMenuOpen ? "border-accent/30 bg-accent-dim text-accent" : "border-app-border bg-app-surface text-txt-primary hover:border-app-border/80"
+              }`}
+              title="Sortierung anzeigen und ändern (Spaltenkopf: Klick sortiert, Shift-Klick ergänzt)"
+            >
+              <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M7 4v13m0 0l-3-3m3 3l3-3M17 20V7m0 0l-3 3m3-3l3 3" />
+              </svg>
+              Sortierung
+              {sortLevels.length > 0 && (
+                <span className="rounded-full bg-accent/15 px-1.5 text-[11px] font-semibold text-accent">{sortLevels.length}</span>
+              )}
+              <ChevronDown />
+            </button>
+            {sortMenuOpen && (
+              <div
+                data-filter-pop
+                className="absolute right-0 z-30 mt-2 w-[300px] max-w-[92vw] rounded-xl border border-app-border bg-app-bg p-2 shadow-xl shadow-black/40"
+              >
+                <p className="px-2 pt-1 pb-1 text-[10px] font-semibold uppercase tracking-wider text-txt-muted">
+                  Sortierung
+                </p>
+                {sortLevels.length === 0 ? (
+                  <p className="px-2 py-2 text-xs text-txt-muted">
+                    Keine Sortierung aktiv — Zeilen folgen der Ladereihenfolge.
+                  </p>
+                ) : (
+                  <div className="space-y-0.5">
+                    {sortLevels.map((level, idx) => (
+                      <div key={level.key} className="flex items-center gap-1 rounded-lg px-1 py-0.5 hover:bg-app-elevated/40">
+                        <span className="w-4 text-center text-[10px] font-semibold text-txt-muted">{idx + 1}</span>
+                        <span className="flex-1 truncate text-sm text-txt-primary">{sortLabelFor(level.key)}</span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setSortLevels(
+                              sortLevels.map((l, i) =>
+                                i === idx ? { ...l, direction: l.direction === "asc" ? "desc" : "asc" } : l
+                              )
+                            )
+                          }
+                          className="rounded-md px-1.5 py-0.5 text-xs text-txt-secondary transition hover:bg-app-elevated hover:text-txt-primary"
+                          title={level.direction === "asc" ? "Aufsteigend — Klick dreht um" : "Absteigend — Klick dreht um"}
+                        >
+                          {level.direction === "asc" ? "▲ Aufst." : "▼ Abst."}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={idx === 0}
+                          onClick={() => {
+                            const next = [...sortLevels];
+                            [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
+                            setSortLevels(next);
+                          }}
+                          aria-label="Priorität erhöhen"
+                          className="rounded-md px-1 py-0.5 text-xs text-txt-muted transition hover:bg-app-elevated hover:text-txt-primary disabled:opacity-30"
+                        >
+                          ↑
+                        </button>
+                        <button
+                          type="button"
+                          disabled={idx === sortLevels.length - 1}
+                          onClick={() => {
+                            const next = [...sortLevels];
+                            [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]];
+                            setSortLevels(next);
+                          }}
+                          aria-label="Priorität senken"
+                          className="rounded-md px-1 py-0.5 text-xs text-txt-muted transition hover:bg-app-elevated hover:text-txt-primary disabled:opacity-30"
+                        >
+                          ↓
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSortLevels(sortLevels.filter((_, i) => i !== idx))}
+                          aria-label={`Sortierung nach ${sortLabelFor(level.key)} entfernen`}
+                          className="rounded-md px-1.5 py-0.5 text-sm leading-none text-txt-muted transition hover:bg-danger-dim hover:text-danger"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="mt-1.5 border-t border-app-border/60 pt-1.5">
+                  {sortAddOpen ? (
+                    <div className="max-h-48 space-y-0.5 overflow-y-auto pr-1">
+                      {sortableColumns
+                        .filter((c) => !sortLevels.some((l) => l.key === c.key))
+                        .map((c) => (
+                          <button
+                            key={c.key}
+                            type="button"
+                            onClick={() => {
+                              setSortLevels([...sortLevels, { key: c.key, direction: "asc" }]);
+                              setSortAddOpen(false);
+                            }}
+                            className={menuItemClass}
+                          >
+                            {c.label}
+                          </button>
+                        ))}
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setSortAddOpen(true)}
+                        className="rounded-lg px-2 py-1 text-xs font-medium text-accent transition hover:bg-accent/10"
+                      >
+                        + Kriterium
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSortLevels(DEFAULT_SORT)}
+                        className="rounded-lg px-2 py-1 text-xs text-txt-muted transition hover:bg-app-elevated hover:text-txt-secondary"
+                        title="Zurück zur Standard-Sortierung (zuletzt gespeichert zuerst)"
+                      >
+                        Standard
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
           <select
             value={columnPreset}
             onChange={(e) => {
               const preset = e.target.value as ColumnPreset;
-              setVisibleColumns(
-                normalizeMarketplaceColumnOrder(COLUMN_PRESETS[preset])
-              );
+              setVisibleColumns(normalizeMarketplaceColumnOrder(COLUMN_PRESETS[preset]));
               setColumnPreset(preset);
             }}
-            className={filterControlClass}
+            aria-label="Spalten-Preset"
+            className="h-9 rounded-lg border border-app-border bg-app-surface px-2 text-sm text-txt-primary"
           >
             <option value="standard">{t("table.presets.standard")}</option>
             <option value="warehouse">{t("table.presets.warehouse")}</option>
@@ -638,10 +866,10 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
           <button
             type="button"
             onClick={() => setIsColumnPanelOpen(!isColumnPanelOpen)}
-            className={`inline-flex items-center gap-1 rounded-xl border px-3 py-2 text-xs font-semibold transition ${isColumnPanelOpen ? "border-accent/30 bg-accent-dim text-accent" : "border-app-border bg-app-surface text-txt-primary hover:border-app-border/80"}`}
+            className={`inline-flex h-9 items-center gap-1 rounded-lg border px-2.5 text-xs font-semibold transition ${isColumnPanelOpen ? "border-accent/30 bg-accent-dim text-accent" : "border-app-border bg-app-surface text-txt-primary hover:border-app-border/80"}`}
           >
             <svg
-              className="w-3.5 h-3.5"
+              className="h-3.5 w-3.5"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -653,179 +881,262 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
           </button>
 
           <details ref={toolsDetailsRef} className="relative">
-          <summary className="cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden inline-flex items-center gap-1 rounded-xl border border-app-border bg-app-surface px-3 py-2 text-xs font-semibold text-txt-primary hover:border-app-border/80 transition">
-            <svg
-              className="w-3.5 h-3.5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.573-1.066z" />
-              <circle cx="12" cy="12" r="3" />
-            </svg>
-            Tools
-          </summary>
-          <div className="absolute right-0 mt-2 w-[340px] max-w-[90vw] rounded-xl border border-app-border bg-app-bg p-1.5 shadow-xl shadow-black/40 z-30">
-            <div className="px-2.5 pt-1 pb-1 text-[10px] uppercase tracking-wider font-semibold text-txt-muted">
-              Export &amp; Import
+            <summary className="inline-flex h-9 cursor-pointer select-none list-none items-center gap-1 rounded-lg border border-app-border bg-app-surface px-2.5 text-xs font-semibold text-txt-primary transition hover:border-app-border/80 [&::-webkit-details-marker]:hidden">
+              <svg
+                className="h-3.5 w-3.5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.573-1.066z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+              Tools
+            </summary>
+            <div className="absolute right-0 z-30 mt-2 w-[340px] max-w-[90vw] rounded-xl border border-app-border bg-app-bg p-1.5 shadow-xl shadow-black/40">
+              <div className="px-2.5 pt-1 pb-1 text-[10px] font-semibold uppercase tracking-wider text-txt-muted">
+                Export &amp; Import
+              </div>
+              <button type="button" onClick={handleExportCsv} className={menuItemClass}>
+                Export CSV
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setKtypeModalOpen(true);
+                  setKtypeFile(null);
+                  setKtypeReport(null);
+                  setKtypeMessage(null);
+                }}
+                className={menuItemClass}
+              >
+                K‑Typ importieren
+              </button>
+
+              {onBulkImprove ? (
+                <>
+                  <div className="my-1.5 border-t border-app-border/60" />
+                  <div className="px-2.5 pt-1 pb-1 text-[10px] font-semibold uppercase tracking-wider text-txt-muted">
+                    KI
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setConfirmDialog({
+                        title: "Alle Produkte verbessern?",
+                        tone: "default",
+                        description:
+                          "Startet KI/Improve-Jobs für alle Produkte. Das kann viele Jobs erzeugen und je nach Menge dauern.",
+                        confirmLabel: "Verbessern (alle) starten",
+                        onConfirm: () => {
+                          setConfirmDialog(null);
+                          onBulkImprove();
+                        },
+                      });
+                    }}
+                    className={menuItemClass}
+                  >
+                    Verbessern (alle)
+                  </button>
+                </>
+              ) : null}
+
+              {mode === "inventory" ? (
+                <>
+                  <div className="my-1.5 border-t border-app-border/60" />
+                  <div className="px-2.5 pt-1 pb-1 text-[10px] font-semibold uppercase tracking-wider text-txt-muted">
+                    Inventory Fix + Sync
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setConfirmDialog({
+                        title: "Titel-Fix für alle Inventory-Produkte?",
+                        tone: "default",
+                        description:
+                          "Entfernt einen Bindestrich am Ende (inkl. Leerzeichen) und stößt anschließend einen Text-Sync an.",
+                        confirmLabel: "Starten",
+                        onConfirm: async () => {
+                          setConfirmDialog(null);
+                          await enqueueBulkForAllInCurrentMode("title_cleanup");
+                        },
+                      });
+                    }}
+                    className={menuItemClass}
+                  >
+                    Titel Cleanup + Sync
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setConfirmDialog({
+                        title: "Highlights als HTML formatieren?",
+                        tone: "default",
+                        description:
+                          'Speichert Highlights als <ul><li>…</li></ul> (kein „•“) und synchronisiert sie per Text-Only Sync.',
+                        confirmLabel: "Starten",
+                        onConfirm: async () => {
+                          setConfirmDialog(null);
+                          await enqueueBulkForAllInCurrentMode("highlights_html");
+                        },
+                      });
+                    }}
+                    className={menuItemClass}
+                  >
+                    Highlights → HTML + Sync
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setConfirmDialog({
+                        title: "Beschreibung als HTML formatieren?",
+                        tone: "default",
+                        description:
+                          'Formatiert Absätze zu <p>…</p> und Label wie „Zustand:“ zu <strong>…</strong>. Danach Text-Only Sync.',
+                        confirmLabel: "Starten",
+                        onConfirm: async () => {
+                          setConfirmDialog(null);
+                          await enqueueBulkForAllInCurrentMode("description_html");
+                        },
+                      });
+                    }}
+                    className={menuItemClass}
+                  >
+                    Beschreibung → HTML + Sync
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setConfirmDialog({
+                        title: "Listing-Readiness Audit ausführen?",
+                        tone: "default",
+                        description:
+                          "Korrigiert/vereinheitlicht Titel/Highlights/Beschreibung/Attribute und stößt anschließend Text-Only Sync an.",
+                        confirmLabel: "Starten",
+                        onConfirm: async () => {
+                          setConfirmDialog(null);
+                          await enqueueBulkForAllInCurrentMode("listing_readiness");
+                        },
+                      });
+                    }}
+                    className={menuItemClass}
+                  >
+                    Listing-Readiness Audit + Fix + Sync
+                  </button>
+                </>
+              ) : null}
             </div>
-            <button
-              type="button"
-              onClick={handleExportCsv}
-              className={menuItemClass}
-            >
-              Export CSV
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setKtypeModalOpen(true);
-                setKtypeFile(null);
-                setKtypeReport(null);
-                setKtypeMessage(null);
-              }}
-              className={menuItemClass}
-            >
-              K\u2011Typ importieren
-            </button>
-
-            {onBulkImprove ? (
-              <>
-                <div className="my-1.5 border-t border-app-border/60" />
-                <div className="px-2.5 pt-1 pb-1 text-[10px] uppercase tracking-wider font-semibold text-txt-muted">
-                  KI
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setConfirmDialog({
-                      title: "Alle Produkte verbessern?",
-                      tone: "default",
-                      description:
-                        "Startet KI/Improve-Jobs für alle Produkte. Das kann viele Jobs erzeugen und je nach Menge dauern.",
-                      confirmLabel: "Verbessern (alle) starten",
-                      onConfirm: () => {
-                        setConfirmDialog(null);
-                        onBulkImprove();
-                      },
-                    });
-                  }}
-                  className={menuItemClass}
-                >
-                  Verbessern (alle)
-                </button>
-              </>
-            ) : null}
-
-            {mode === "inventory" ? (
-              <>
-                <div className="my-1.5 border-t border-app-border/60" />
-                <div className="px-2.5 pt-1 pb-1 text-[10px] uppercase tracking-wider font-semibold text-txt-muted">
-                  Inventory Fix + Sync
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setConfirmDialog({
-                      title: "Titel-Fix für alle Inventory-Produkte?",
-                      tone: "default",
-                      description:
-                        "Entfernt einen Bindestrich am Ende (inkl. Leerzeichen) und stößt anschließend einen Text-Sync an.",
-                      confirmLabel: "Starten",
-                      onConfirm: async () => {
-                        setConfirmDialog(null);
-                        await enqueueBulkForAllInCurrentMode("title_cleanup");
-                      },
-                    });
-                  }}
-                  className={menuItemClass}
-                >
-                  Titel Cleanup + Sync
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setConfirmDialog({
-                      title: "Highlights als HTML formatieren?",
-                      tone: "default",
-                      description:
-                        'Speichert Highlights als <ul><li>\u2026</li></ul> (kein \u201E\u2022\u201C) und synchronisiert sie per Text-Only Sync.',
-                      confirmLabel: "Starten",
-                      onConfirm: async () => {
-                        setConfirmDialog(null);
-                        await enqueueBulkForAllInCurrentMode("highlights_html");
-                      },
-                    });
-                  }}
-                  className={menuItemClass}
-                >
-                  Highlights \u2192 HTML + Sync
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setConfirmDialog({
-                      title: "Beschreibung als HTML formatieren?",
-                      tone: "default",
-                      description:
-                        'Formatiert Absätze zu <p>\u2026</p> und Label wie \u201EZustand:\u201C zu <strong>\u2026</strong>. Danach Text-Only Sync.',
-                      confirmLabel: "Starten",
-                      onConfirm: async () => {
-                        setConfirmDialog(null);
-                        await enqueueBulkForAllInCurrentMode(
-                          "description_html"
-                        );
-                      },
-                    });
-                  }}
-                  className={menuItemClass}
-                >
-                  Beschreibung \u2192 HTML + Sync
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setConfirmDialog({
-                      title: "Listing-Readiness Audit ausführen?",
-                      tone: "default",
-                      description:
-                        "Korrigiert/vereinheitlicht Titel/Highlights/Beschreibung/Attribute und stößt anschließend Text-Only Sync an.",
-                      confirmLabel: "Starten",
-                      onConfirm: async () => {
-                        setConfirmDialog(null);
-                        await enqueueBulkForAllInCurrentMode(
-                          "listing_readiness"
-                        );
-                      },
-                    });
-                  }}
-                  className={menuItemClass}
-                >
-                  Listing-Readiness Audit + Fix + Sync
-                </button>
-              </>
-            ) : null}
-          </div>
           </details>
         </div>
       </div>
 
+      {/* Aktive Filter als SEGMENTIERTE Chips (Linear-Signatur):
+          [Typ-Icon + Feld] [Operator] [Wert] [×] mit 1px-Fugen — jedes Segment
+          ist eine eigene Klickflaeche; beim Zahlenfilter wechselt der Klick
+          auf den Operator direkt den Vergleich. */}
+      {chipEntries.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {chipEntries.map(({ entry, def }) => {
+            const segments = chipSegments(def, entry.value, filterCtx);
+            const isInactive = !def.isActive(entry.value);
+            const segBase = "inline-flex items-center bg-app-surface px-2 py-1 transition";
+            return (
+              <div key={entry.id} data-filter-pop className="relative">
+                <span className="inline-flex items-stretch gap-px overflow-hidden rounded-md border border-app-border bg-app-border/60 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => openEditorAt(entry.id, "chip")}
+                    className={`${segBase} gap-1 text-txt-secondary hover:bg-app-elevated hover:text-txt-primary`}
+                    title="Filter bearbeiten"
+                  >
+                    <FilterKindIcon kind={def.kind} className="h-3 w-3" />
+                    <span className="whitespace-nowrap">{segments.field}</span>
+                  </button>
+                  {segments.op &&
+                    (def.kind === "numberCompare" ? (
+                      <button
+                        type="button"
+                        onClick={() => openEditorAt(entry.id, "op")}
+                        className={`${segBase} text-txt-muted hover:bg-app-elevated hover:text-txt-primary`}
+                        title="Vergleich wechseln"
+                      >
+                        {segments.op}
+                      </button>
+                    ) : (
+                      <span className={`${segBase} text-txt-muted`}>{segments.op}</span>
+                    ))}
+                  <button
+                    type="button"
+                    onClick={() => openEditorAt(entry.id, "chip")}
+                    className={`${segBase} whitespace-nowrap font-medium hover:bg-app-elevated ${
+                      isInactive ? "italic text-txt-muted" : "text-txt-primary"
+                    }`}
+                    title="Wert ändern"
+                  >
+                    {segments.value}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      removeFilter(entry.id);
+                      if (openEditor?.id === entry.id) setOpenEditor(null);
+                    }}
+                    aria-label={`Filter ${def.label} entfernen`}
+                    title="Filter entfernen"
+                    className={`${segBase} text-txt-muted hover:bg-danger-dim hover:text-danger`}
+                  >
+                    ×
+                  </button>
+                </span>
+                {openEditor?.id === entry.id && openEditor.anchor === "chip" && renderEditor(def)}
+                {openEditor?.id === entry.id && openEditor.anchor === "op" && def.kind === "numberCompare" && (
+                  <div
+                    data-filter-pop
+                    className="absolute left-0 z-30 mt-2 w-[180px] rounded-xl border border-app-border bg-app-bg p-1.5 shadow-lg"
+                  >
+                    {NUMBER_OP_LABELS.map((op) => {
+                      const current = (entry.value as NumberCompareValue).op === op.value;
+                      return (
+                        <button
+                          key={op.value}
+                          type="button"
+                          onClick={() => {
+                            setFilterValue(entry.id, { ...(entry.value as NumberCompareValue), op: op.value as NumberOp });
+                            setOpenEditor(null);
+                          }}
+                          className={`flex w-full items-center rounded-lg px-2.5 py-1.5 text-left text-sm transition ${
+                            current ? "bg-accent/10 font-medium text-accent" : "text-txt-primary hover:bg-app-elevated/60"
+                          }`}
+                        >
+                          {op.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          <button
+            type="button"
+            onClick={clearAllFilters}
+            className="ml-1 text-xs text-txt-muted transition hover:text-txt-secondary"
+          >
+            Alle entfernen
+          </button>
+        </div>
+      )}
+
       {isColumnPanelOpen && (
-        <div className="rounded-2xl border border-app-border bg-app-surface p-5 space-y-3">
+        <div className="space-y-3 rounded-2xl border border-app-border bg-app-surface p-5">
           <div className="flex items-center justify-between">
-            <p className="text-sm font-semibold text-white">
-              {t("table.columns.visible")}
-            </p>
-            <button
-              type="button"
-              className="text-xs text-accent hover:underline"
-              onClick={resetColumns}
-            >
+            <p className="text-sm font-semibold text-txt-primary">{t("table.columns.visible")}</p>
+            <button type="button" className="text-xs text-accent hover:underline" onClick={resetColumns}>
               {t("table.columns.reset")}
             </button>
           </div>
-          <div className="space-y-1 max-h-64 overflow-y-auto">
+          <div className="max-h-64 space-y-1 overflow-y-auto">
             {visibleColumns.map((colId, idx) => {
               const col = columnDefinitions.find((c) => c.id === colId);
               if (!col) return null;
@@ -856,8 +1167,8 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
                     setDropIdx(null);
                   }}
                   className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-txt-primary transition-colors ${
-                    isDragging ? "opacity-40 bg-app-elevated/40" : "bg-app-elevated/40"
-                  } ${isDropTarget ? "ring-1 ring-accent bg-accent/10" : ""}`}
+                    isDragging ? "bg-app-elevated/40 opacity-40" : "bg-app-elevated/40"
+                  } ${isDropTarget ? "bg-accent/10 ring-1 ring-accent" : ""}`}
                 >
                   {/* Grip: Maus = Drag & Drop, Tastatur = Pfeiltasten */}
                   <span
@@ -865,16 +1176,25 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
                     tabIndex={0}
                     aria-label={`${col.label} verschieben (Pfeiltasten oder ziehen)`}
                     onKeyDown={(e) => {
-                      if (e.key === "ArrowUp") { e.preventDefault(); moveColumn(col.id, "up"); }
-                      if (e.key === "ArrowDown") { e.preventDefault(); moveColumn(col.id, "down"); }
+                      if (e.key === "ArrowUp") {
+                        e.preventDefault();
+                        moveColumn(col.id, "up");
+                      }
+                      if (e.key === "ArrowDown") {
+                        e.preventDefault();
+                        moveColumn(col.id, "down");
+                      }
                     }}
-                    className="shrink-0 cursor-grab active:cursor-grabbing text-txt-muted hover:text-txt-primary focus:outline-none focus:text-accent"
+                    className="shrink-0 cursor-grab text-txt-muted hover:text-txt-primary focus:text-accent focus:outline-none active:cursor-grabbing"
                     title="Ziehen zum Sortieren"
                   >
-                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
-                      <circle cx="9" cy="6" r="1.5" /><circle cx="15" cy="6" r="1.5" />
-                      <circle cx="9" cy="12" r="1.5" /><circle cx="15" cy="12" r="1.5" />
-                      <circle cx="9" cy="18" r="1.5" /><circle cx="15" cy="18" r="1.5" />
+                    <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor">
+                      <circle cx="9" cy="6" r="1.5" />
+                      <circle cx="15" cy="6" r="1.5" />
+                      <circle cx="9" cy="12" r="1.5" />
+                      <circle cx="15" cy="12" r="1.5" />
+                      <circle cx="9" cy="18" r="1.5" />
+                      <circle cx="15" cy="18" r="1.5" />
                     </svg>
                   </span>
                   <input
@@ -882,7 +1202,7 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
                     checked
                     onChange={() => toggleColumnVisibility(col.id)}
                     disabled={visibleColumns.length === 1}
-                    className="bg-app-border border-app-border shrink-0"
+                    className="shrink-0 border-app-border bg-app-border"
                   />
                   <span className="flex-1 truncate">{col.label}</span>
                 </div>
@@ -891,21 +1211,19 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
           </div>
           {columnDefinitions.some((c) => !visibleColumns.includes(c.id)) && (
             <div className="space-y-1 border-t border-app-border pt-3">
-              <p className="text-[10px] uppercase tracking-wider font-semibold text-txt-muted">
-                Ausgeblendet
-              </p>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-txt-muted">Ausgeblendet</p>
               {columnDefinitions
                 .filter((c) => !visibleColumns.includes(c.id))
                 .map((col) => (
                   <label
                     key={col.id}
-                    className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-txt-muted hover:text-txt-secondary cursor-pointer"
+                    className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-txt-muted hover:text-txt-secondary"
                   >
                     <input
                       type="checkbox"
                       checked={false}
                       onChange={() => toggleColumnVisibility(col.id)}
-                      className="bg-app-border border-app-border shrink-0"
+                      className="shrink-0 border-app-border bg-app-border"
                     />
                     <span className="truncate">{col.label}</span>
                   </label>

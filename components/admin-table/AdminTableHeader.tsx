@@ -1,19 +1,25 @@
 import React from "react";
-import { ColumnDefinition, SortConfig } from "./types";
+import { ColumnDefinition } from "./types";
+import type { SortLevel } from "../../utils/productSort";
 
 interface SortableHeaderProps {
   sortKey?: string;
   children: React.ReactNode;
   widthClass?: string;
-  sortConfig: SortConfig;
-  onSort: (key: string) => void;
+  sortLevels: SortLevel[];
+  onSort: (key: string, additive: boolean) => void;
 }
 
+/**
+ * Spaltenkopf: Klick sortiert (asc/desc im Wechsel), Shift-Klick haengt die
+ * Spalte als weiteres Kriterium an. Bei Multi-Sort zeigt eine kleine Ziffer
+ * die Prioritaet (Airtable-/Handsontable-Konvention).
+ */
 const SortableHeader: React.FC<SortableHeaderProps> = ({
   sortKey,
   children,
   widthClass,
-  sortConfig,
+  sortLevels,
   onSort,
 }) => {
   if (!sortKey) {
@@ -25,36 +31,47 @@ const SortableHeader: React.FC<SortableHeaderProps> = ({
       </th>
     );
   }
-  const ariaSortValue: "ascending" | "descending" | "none" =
-    sortConfig?.key === sortKey
-      ? sortConfig.direction === "asc"
-        ? "ascending"
-        : "descending"
-      : "none";
+  const levelIndex = sortLevels.findIndex((l) => l.key === sortKey);
+  const level = levelIndex >= 0 ? sortLevels[levelIndex] : null;
+  const ariaSortValue: "ascending" | "descending" | "none" = level
+    ? level.direction === "asc"
+      ? "ascending"
+      : "descending"
+    : "none";
   return (
     <th
-      className={`p-3 cursor-pointer text-xs font-semibold uppercase tracking-wide text-txt-secondary whitespace-nowrap ${widthClass || ""}`}
-      onClick={() => onSort(sortKey)}
+      className={`p-3 cursor-pointer select-none text-xs font-semibold uppercase tracking-wide text-txt-secondary whitespace-nowrap ${widthClass || ""}`}
+      onClick={(e) => onSort(sortKey, e.shiftKey)}
+      onMouseDown={(e) => {
+        // Shift-Klick ist Multi-Sort — der Browser darf daraus keine
+        // Textselektion ueber die halbe Tabelle machen.
+        if (e.shiftKey) e.preventDefault();
+      }}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
-          onSort(sortKey);
+          onSort(sortKey, e.shiftKey);
         }
       }}
       tabIndex={0}
       aria-sort={ariaSortValue}
+      title="Klick: sortieren · Shift-Klick: als weiteres Kriterium"
     >
       {children}
-      {sortConfig?.key === sortKey &&
-        (sortConfig.direction === "asc" ? " \u25B2" : " \u25BC")}
+      {level && (level.direction === "asc" ? " ▲" : " ▼")}
+      {level && sortLevels.length > 1 && (
+        <span className="ml-0.5 inline-flex items-center justify-center min-w-[14px] h-3.5 rounded-full bg-accent/15 px-1 text-[9px] font-bold text-accent align-middle">
+          {levelIndex + 1}
+        </span>
+      )}
     </th>
   );
 };
 
 interface AdminTableHeaderProps {
   visibleColumnDefinitions: ColumnDefinition[];
-  sortConfig: SortConfig;
-  onSort: (key: string) => void;
+  sortLevels: SortLevel[];
+  onSort: (key: string, additive: boolean) => void;
   selectedIds: Set<string>;
   pageProducts: { id: string }[];
   onSelectAll: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -64,7 +81,7 @@ interface AdminTableHeaderProps {
 
 const AdminTableHeader: React.FC<AdminTableHeaderProps> = ({
   visibleColumnDefinitions,
-  sortConfig,
+  sortLevels,
   onSort,
   selectedIds,
   pageProducts,
@@ -112,7 +129,7 @@ const AdminTableHeader: React.FC<AdminTableHeaderProps> = ({
               key={column.id}
               sortKey={column.sortKey}
               widthClass={column.widthClass}
-              sortConfig={sortConfig}
+              sortLevels={sortLevels}
               onSort={onSort}
             >
               {column.label}
