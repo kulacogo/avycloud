@@ -15,6 +15,8 @@
 import type { Product } from "../types";
 import { getProductBinCode, getProductBinZone } from "./product.ts";
 import { readinessLabel } from "./readiness.ts";
+// Preis-Kette NUR von hier: dieselbe Lesart wie Tabelle, Filter und Sortierung.
+import { resolveSellPrice, type SellPriceSource } from "./sellPrice.ts";
 
 // ---------------------------------------------------------------------------
 // Typen
@@ -136,6 +138,24 @@ const BUY_PRICE_SOURCE_LABELS: Record<"recorded" | "estimated" | "none", string>
   none: "fehlt",
 };
 
+/**
+ * VK-Herkunft, dieselbe Frage wie beim EK — nur andersherum.
+ *
+ * `resolveSellPrice` lebt in `productFilters.ts`, damit Export, Preis-Filter und
+ * die Preis-Spalte der Produkttabelle nicht auseinanderlaufen. Hier stehen nur
+ * die Beschriftungen fuer die Datei.
+ *
+ * "Marktpreis" heisst NICHT "kein Verkaufspreis": mit genau diesem Wert geht der
+ * Artikel bei eBay/Kaufland online (`backend/lib/listing-price-source.js`). Er ist
+ * nur von niemandem entschieden worden — und das muss in der Datei stehen
+ * bleiben, sonst sieht ein recherchierter Preis wie ein kalkulierter aus.
+ */
+const SELL_PRICE_SOURCE_LABELS: Record<SellPriceSource, string> = {
+  confirmed: "bestätigt",
+  market: "Marktpreis",
+  missing: "fehlt",
+};
+
 // ---------------------------------------------------------------------------
 // Feldkatalog
 // ---------------------------------------------------------------------------
@@ -193,7 +213,23 @@ export const INVENTORY_EXPORT_FIELDS: InventoryExportField[] = [
     type: "money",
     value: (p) => num(p.inventory?.quantity) * resolveBuyPrice(p).amount,
   },
-  { key: "sellPrice", label: "VK (€)", group: "pricing", type: "money", value: (p) => (p.details?.pricing as any)?.sellPrice ?? "" },
+  /**
+   * VK = der Preis, mit dem der Artikel tatsaechlich verkauft wird.
+   *
+   * Vorher stand hier roh `details.pricing.sellPrice`. Gemessen am Export vom
+   * 28.08.2026: 392 von 837 Zeilen blieben leer, 301 davon bei aktivem
+   * eBay-/Kaufland-Angebot. Fuer die geht der recherchierte Marktpreis als
+   * Angebotspreis online — die leere Zelle behauptete das Gegenteil.
+   * Die Herkunft steht in der Nachbarspalte, sie wird nicht verschwiegen.
+   */
+  { key: "sellPrice", label: "VK (€)", group: "pricing", type: "money", value: (p) => resolveSellPrice(p).amount ?? "" },
+  {
+    key: "sellPriceSource",
+    label: "VK-Quelle",
+    group: "pricing",
+    type: "text",
+    value: (p) => SELL_PRICE_SOURCE_LABELS[resolveSellPrice(p).source],
+  },
   { key: "marketPrice", label: "Marktpreis (€)", group: "pricing", type: "money", value: (p) => (p.details?.pricing as any)?.lowest_price?.amount ?? "" },
   { key: "weight", label: "Gewicht (kg)", group: "pricing", type: "decimal", value: (p) => p.details?.weight ?? "" },
 
@@ -237,7 +273,14 @@ export const INVENTORY_EXPORT_FIELDS: InventoryExportField[] = [
 
 const FIELD_BY_KEY = new Map(INVENTORY_EXPORT_FIELDS.map((f) => [f.key, f]));
 
-/** Vorauswahl = die Spalten, die die Inventar-Tabelle heute zeigt, plus EK-Quelle. */
+/**
+ * Vorauswahl = die Spalten, die die Inventar-Tabelle heute zeigt, plus die
+ * beiden Herkunftsspalten und der VK.
+ *
+ * Der VK steht bewusst drin, obwohl die Tabelle ihn nicht fuehrt: eine
+ * Bestandsliste ohne Verkaufspreis beantwortet die haeufigste Frage an sie
+ * nicht. Er kommt nie ohne seine Quellenspalte.
+ */
 export const INVENTORY_EXPORT_DEFAULT_FIELDS: string[] = [
   "name",
   "brand",
@@ -248,6 +291,8 @@ export const INVENTORY_EXPORT_DEFAULT_FIELDS: string[] = [
   "buyPrice",
   "buyPriceSource",
   "stockValue",
+  "sellPrice",
+  "sellPriceSource",
   "ebayStatus",
   "kauflandStatus",
 ];
@@ -346,10 +391,39 @@ export function buildInventoryExportFilename(scope: "filtered" | "all", now: Dat
 
 export const INVENTORY_EXPORT_STORAGE_KEY = "avystock:inventory-export:preferences";
 
+/**
+ * Stand der gespeicherten Auswahl. Wird beim Speichern mitgeschrieben und
+ * verhindert, dass eine einmalige Nachreichung bei jedem Laden erneut greift
+ * und damit eine bewusste Abwahl ueberstimmt.
+ */
+const INVENTORY_EXPORT_PREFS_VERSION = 2;
+
 export const INVENTORY_EXPORT_DEFAULT_PREFERENCES: InventoryExportPreferences = {
   fields: INVENTORY_EXPORT_DEFAULT_FIELDS,
   numberFormat: "de",
 };
+
+/**
+ * ENG BEGRENZTE Ausnahme zur Regel darunter: die VK-Quelle wird einer
+ * gespeicherten Auswahl nachgereicht, die den VK bereits enthaelt.
+ *
+ * Grund: der VK zeigt seit der Reparatur den effektiven Preis und damit ohne
+ * gepflegten `sellPrice` den recherchierten Marktpreis. Wer weiter ohne
+ * Quellenspalte exportiert, bekaeme geschaetzte Preise ununterscheidbar neben
+ * entschiedenen — genau die stille Verwechslung, gegen die es die Spalte gibt.
+ * Sie ist keine neue Spalte, sondern der Beipackzettel zur geaenderten
+ * Bedeutung einer vorhandenen.
+ *
+ * Greift NUR wenn der VK gewaehlt ist, NUR einmal (danach traegt die Auswahl
+ * ihre Version) und fuegt nichts anderes hinzu.
+ */
+function migrateFields(fields: string[], storedVersion: unknown): string[] {
+  if (storedVersion === INVENTORY_EXPORT_PREFS_VERSION) return fields;
+  if (!fields.includes("sellPrice") || fields.includes("sellPriceSource")) return fields;
+  const out = [...fields];
+  out.splice(out.indexOf("sellPrice") + 1, 0, "sellPriceSource");
+  return out;
+}
 
 /**
  * Gespeicherte Auswahl lesen.
@@ -372,7 +446,7 @@ export function loadInventoryExportPreferences(
       ? parsed.fields.filter((k: unknown) => typeof k === "string" && FIELD_BY_KEY.has(k))
       : [];
     return {
-      fields: fields.length ? fields : INVENTORY_EXPORT_DEFAULT_FIELDS,
+      fields: fields.length ? migrateFields(fields, parsed?.v) : INVENTORY_EXPORT_DEFAULT_FIELDS,
       numberFormat: parsed?.numberFormat === "intl" ? "intl" : "de",
     };
   } catch {
@@ -387,7 +461,7 @@ export function saveInventoryExportPreferences(
   const store = storage ?? (typeof window !== "undefined" ? window.localStorage : null);
   if (!store) return;
   try {
-    store.setItem(INVENTORY_EXPORT_STORAGE_KEY, JSON.stringify(prefs));
+    store.setItem(INVENTORY_EXPORT_STORAGE_KEY, JSON.stringify({ ...prefs, v: INVENTORY_EXPORT_PREFS_VERSION }));
   } catch {
     // Privater Modus / volles Kontingent — kein Grund, den Export zu verweigern.
   }

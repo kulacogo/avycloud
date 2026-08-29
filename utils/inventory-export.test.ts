@@ -11,6 +11,9 @@ import {
   resolveFields,
   type InventoryExportContext,
 } from "./inventory-export.ts";
+// Die Preis-Kette liegt in ihrem eigenen Modul; hier wird geprueft, dass die
+// Datei sie benutzt statt eine eigene Lesart zu erfinden.
+import { resolveSellPrice } from "./sellPrice.ts";
 
 // Der Export ist die Datei, die aus dem System herausgeht — in Excel, zum
 // Steuerberater, in die Inventur. Was hier falsch formatiert oder still
@@ -102,6 +105,48 @@ test("Bestandswert rechnet mit dem aufgeloesten EK", () => {
 });
 
 // ---------------------------------------------------------------------------
+// VK-Herkunft — dieselbe Frage wie beim EK, nur andersherum
+// ---------------------------------------------------------------------------
+
+test("gepflegter Verkaufspreis gewinnt und gilt als bestaetigt", () => {
+  const p = product({ details: { identifiers: {}, pricing: { sellPrice: 24.9, lowest_price: { amount: 19.99 } } } });
+  assert.deepStrictEqual(resolveSellPrice(p), { amount: 24.9, source: "confirmed" });
+});
+
+test("ohne sellPrice zeigt VK den Preis, mit dem der Artikel wirklich online steht", () => {
+  // Gemessen am Export vom 28.08.2026: 301 von 837 Zeilen liessen VK leer,
+  // obwohl der Artikel bei eBay/Kaufland aktiv war. Der Marktplatz nimmt in
+  // genau diesem Fall lowest_price.amount als Angebotspreis
+  // (backend/lib/listing-price-source.js resolveListingPrice). Eine leere
+  // Zelle behauptet dort "kein Verkaufspreis" — der Artikel ist aber verkaeuflich.
+  const p = product({ details: { identifiers: {}, pricing: { lowest_price: { amount: 18.99 } } } });
+  assert.deepStrictEqual(resolveSellPrice(p), { amount: 18.99, source: "market" });
+
+  const { rows } = buildInventoryExport([p], ["sellPrice", "sellPriceSource"], NO_MARKETPLACE, "de");
+  assert.deepStrictEqual(rows[0], ["18,99", "Marktpreis"]);
+});
+
+test("VK-Quelle unterscheidet bestaetigt von geschaetzt", () => {
+  const bestaetigt = product({ details: { identifiers: {}, pricing: { sellPrice: 24.9, lowest_price: { amount: 19.99 } } } });
+  const { rows } = buildInventoryExport([bestaetigt], ["sellPrice", "sellPriceSource"], NO_MARKETPLACE, "de");
+  // Ohne diese Spalte waeren 24,90 (entschieden) und 18,99 (geraten) in der
+  // Datei nicht mehr voneinander zu unterscheiden.
+  assert.deepStrictEqual(rows[0], ["24,90", "bestätigt"]);
+});
+
+test("ohne jeden Preis bleibt VK leer statt 0,00 zu behaupten", () => {
+  const p = product();
+  assert.deepStrictEqual(resolveSellPrice(p), { amount: null, source: "missing" });
+  const { rows } = buildInventoryExport([p], ["sellPrice", "sellPriceSource"], NO_MARKETPLACE, "de");
+  assert.deepStrictEqual(rows[0], ["", "fehlt"]);
+});
+
+test("ein sellPrice von 0 ist kein Preis und faellt auf den Marktpreis", () => {
+  const p = product({ details: { identifiers: {}, pricing: { sellPrice: 0, lowest_price: { amount: 12.5 } } } });
+  assert.deepStrictEqual(resolveSellPrice(p), { amount: 12.5, source: "market" });
+});
+
+// ---------------------------------------------------------------------------
 // Feldauswahl
 // ---------------------------------------------------------------------------
 
@@ -181,6 +226,30 @@ test("spaeter ergaenzte Felder werden NICHT in eine gespeicherte Auswahl eingemi
   // wird, ohne dass jemand etwas geklickt hat.
   const prefs = loadInventoryExportPreferences(fakeStorage(JSON.stringify({ fields: ["sku"], numberFormat: "de" })));
   assert.deepStrictEqual(prefs.fields, ["sku"]);
+});
+
+test("eine gespeicherte Auswahl mit VK bekommt die VK-Quelle nachgereicht", () => {
+  // Eng begrenzte Ausnahme zur Regel darueber: seit VK den effektiven Preis
+  // zeigt, gehoert die Herkunft zur Spalte. Wer VK ohne Quelle exportiert,
+  // bekaeme geschaetzte Preise ununterscheidbar neben entschiedenen.
+  const prefs = loadInventoryExportPreferences(
+    fakeStorage(JSON.stringify({ fields: ["sku", "sellPrice", "marketPrice"], numberFormat: "de" }))
+  );
+  assert.deepStrictEqual(prefs.fields, ["sku", "sellPrice", "sellPriceSource", "marketPrice"]);
+});
+
+test("ohne VK-Spalte wird auch keine VK-Quelle nachgereicht", () => {
+  const prefs = loadInventoryExportPreferences(fakeStorage(JSON.stringify({ fields: ["sku", "quantity"], numberFormat: "de" })));
+  assert.deepStrictEqual(prefs.fields, ["sku", "quantity"]);
+});
+
+test("wer die VK-Quelle bewusst abwaehlt, bekommt sie nicht wieder aufgedraengt", () => {
+  // Nach einmaligem Speichern traegt die Auswahl ihre Version; die Nachreichung
+  // ist dann erledigt und darf eine Entscheidung nicht ueberstimmen.
+  const prefs = loadInventoryExportPreferences(
+    fakeStorage(JSON.stringify({ v: 2, fields: ["sku", "sellPrice"], numberFormat: "de" }))
+  );
+  assert.deepStrictEqual(prefs.fields, ["sku", "sellPrice"]);
 });
 
 test("kaputter oder leerer Speicher faellt auf die Vorauswahl zurueck", () => {
