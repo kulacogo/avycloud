@@ -8,6 +8,7 @@ import {
   WarehouseLayout,
   WarehouseBin,
   WarehouseLot,
+  WarehouseLotsMeta,
   IdentifyPhase,
   Order,
   ProductImage,
@@ -5089,6 +5090,28 @@ export const fetchWarehouseLots = async (withCounts = false): Promise<WarehouseL
     throw new Error(result?.error?.message || "Lose konnten nicht geladen werden");
   }
   return result?.data || [];
+};
+
+/**
+ * Lose samt Kennzahlen (Einheiten erfasst/Bestand/verkauft, Los-Wert).
+ *
+ * Eigene Funktion statt eines weiteren Parameters an `fetchWarehouseLots`:
+ * die Kennzahlen kosten zwei Voll-Scans im Backend, und der zweite Aufrufer
+ * (LotSelector im Erfassen-Assistenten) braucht sie nicht.
+ *
+ * `meta.metricsError` bedeutet: die Lose stehen, die Kennzahlen nicht — das
+ * muss die Oberflaeche sagen, statt leere Spalten wie "0 Einheiten" zu zeigen.
+ */
+export const fetchWarehouseLotsWithMetrics = async (): Promise<{
+  lots: WarehouseLot[];
+  meta: WarehouseLotsMeta;
+}> => {
+  const response = await fetchApi(`${BACKEND_URL}/api/warehouse/lots?withCounts=1&withMetrics=1`);
+  const result = await parseResponse(response);
+  if (!response.ok) {
+    throw new Error(result?.error?.message || "Lose konnten nicht geladen werden");
+  }
+  return { lots: result?.data || [], meta: result?.meta || {} };
 };
 
 export const createWarehouseLotsApi = async (payload: {
