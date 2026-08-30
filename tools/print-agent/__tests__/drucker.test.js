@@ -108,3 +108,61 @@ test('waehleDrucker weicht NIE auf den Standarddrucker aus', () => {
   assert.throws(() => waehleDrucker('parcel', { letter: 'Brother' }), /kein Drucker eingerichtet/);
   assert.throws(() => waehleDrucker('letter', {}), /kein Drucker eingerichtet/);
 });
+
+// ── Drucker automatisch finden ────────────────────────────────────────────────
+// Am Geraet gemessen 2026-08-24, NACH der Umbenennung "Versandlabel" ->
+// "DHL_DPD_Label". Genau diese Umbenennung liess die Einrichtung auflaufen,
+// weil der Name fest eingetragen war.
+const GERAETE = [
+  { name: 'Brother_QL_1110NWB_2', beschreibung: 'Brother QL-1110NWB', medien: ['62x29mm'] },
+  { name: 'Brother_QL_820NWB', beschreibung: 'Brother QL-820NWB', medien: ['62x29mm'] },
+  { name: 'DHL_DPD_Label', beschreibung: 'DHL/DPD Label', medien: ['103x164mm', '62x100mm', '4x6'] },
+  { name: 'DP_Label', beschreibung: 'DP Label', medien: ['62x100mm', '29x62mm'] },
+  { name: 'DYMO_LabelWriter_4XL', beschreibung: 'DYMO LabelWriter 4XL', medien: ['4x6'] },
+  { name: 'HP_LaserJet', beschreibung: 'HP LaserJet', medien: ['A4'] },
+  { name: 'SKU_Label', beschreibung: 'SKU Label', medien: ['62x100mm', '62x29mm'] },
+];
+
+const { ermittleDrucker, bewerteDrucker } = require('../lib/drucker');
+
+test('findet die Paketrolle ueber das Format, nicht ueber den Namen', () => {
+  // Aus "Versandlabel" wurde "DHL_DPD_Label" — der Name traegt nichts mehr vom
+  // alten Eintrag, das Rollenformat schon.
+  assert.strictEqual(ermittleDrucker('parcel', GERAETE).name, 'DHL_DPD_Label');
+});
+
+test('findet die Briefrolle und verwechselt sie nicht mit dem SKU-Drucker', () => {
+  // SKU_Label fuehrt AUCH 62x100mm — nur die Bezeichnung trennt die beiden.
+  assert.strictEqual(ermittleDrucker('letter', GERAETE).name, 'DP_Label');
+});
+
+test('der Paketdrucker kommt fuer die Briefrolle NICHT in Frage', () => {
+  // Er fuehrt beide Masse. Waere er auch die Briefrolle, laege alles auf einem
+  // Geraet und die Trennung waere sinnlos.
+  const paket = GERAETE.find((g) => g.name === 'DHL_DPD_Label');
+  assert.ok(bewerteDrucker('letter', paket) <= 0);
+  assert.ok(bewerteDrucker('parcel', paket) > 0);
+});
+
+test('ein Drucker ohne das Rollenformat scheidet aus', () => {
+  const laser = GERAETE.find((g) => g.name === 'HP_LaserJet');
+  assert.ok(bewerteDrucker('parcel', laser) <= 0);
+  assert.ok(bewerteDrucker('letter', laser) <= 0);
+});
+
+test('bei Gleichstand wird NICHT geraten', () => {
+  // Zwei gleich gute Kandidaten -> kein Name, der Mensch entscheidet. Ein
+  // 103-mm-Etikett auf der falschen Rolle hat einen abgeschnittenen Barcode.
+  const zwilling = [
+    { name: 'Label_A', beschreibung: 'DHL Label', medien: ['103x164mm'] },
+    { name: 'Label_B', beschreibung: 'DPD Label', medien: ['103x164mm'] },
+  ];
+  const r = ermittleDrucker('parcel', zwilling);
+  assert.strictEqual(r.name, null);
+  assert.deepStrictEqual(r.kandidaten.sort(), ['Label_A', 'Label_B']);
+});
+
+test('gar kein passender Drucker liefert null', () => {
+  assert.strictEqual(ermittleDrucker('parcel', []).name, null);
+  assert.strictEqual(ermittleDrucker('parcel', [GERAETE[6]]).name, null);
+});

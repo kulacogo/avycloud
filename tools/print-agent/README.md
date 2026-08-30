@@ -48,12 +48,22 @@ Bricht einer der Schritte ab, wird nichts halb eingerichtet zurückgelassen.
 
 ### Am Gerät gemessen (2026-08-24)
 
-| CUPS-Name      | Beschreibung   | Gerät              | Rolle    |
-|----------------|----------------|--------------------|----------|
-| `Versandlabel` | DHL/DPD Label  | Brother QL-1110NWB | `parcel` |
-| `DP_Label`     | DP Label       | Brother QL-820NWB  | `letter` |
+| CUPS-Name       | Beschreibung   | Gerät              | Rolle    |
+|-----------------|----------------|--------------------|----------|
+| `DHL_DPD_Label` | DHL/DPD Label  | Brother QL-1110NWB | `parcel` |
+| `DP_Label`      | DP Label       | Brother QL-820NWB  | `letter` |
 
 Beide führen die Rollenformate **benannt**: `103x164mm` bzw. `62x100mm`.
+
+**Die Namen stehen nirgends fest verdrahtet.** Setup und Agent erkennen den
+Drucker am eingelegten **Rollenformat**: nur ein Gerät führt `103x164mm`. Für die
+Briefrolle reicht das Maß allein nicht (`DP_Label` und `SKU_Label` führen beide
+`62x100mm`), deshalb scheidet der Paketdrucker dort aus (er führt beide Maße) und
+`SKU` wird abgewertet. Bei Gleichstand wird **nicht geraten** — dann
+`PRINTER_PARCEL` / `PRINTER_LETTER` setzen, die gewinnen immer.
+
+Hintergrund: Am 2026-08-24 wurde `Versandlabel` in `DHL_DPD_Label` umbenannt und
+die Einrichtung brach ab, weil der Name fest eingetragen war.
 
 ### Manueller Betrieb (ohne launchd)
 
@@ -62,7 +72,7 @@ export AVYCLOUD_URL="https://product-hub-backend-79205549235.europe-west3.run.ap
 export FIREBASE_API_KEY="…"   # steht in .env.local als VITE_FIREBASE_API_KEY
 export AGENT_EMAIL="…@trendocean.de"
 export AGENT_PASSWORT="…"
-export PRINTER_PARCEL="Versandlabel"
+export PRINTER_PARCEL="DHL_DPD_Label"   # nur noetig, wenn die Erkennung nicht eindeutig ist
 export PRINTER_LETTER="DP_Label"
 
 npm run dry-run   # holt Aufträge, druckt aber nichts
@@ -81,7 +91,7 @@ benannten Eintrag, wenn der Drucker ihn führt. Beim Start meldet er, welcher We
 gilt:
 
 ```
-103x164 mm -> "Versandlabel" (media=103x164mm, kalibriert)
+103x164 mm -> "DHL_DPD_Label" (media=103x164mm, kalibriert)
 62x100 mm -> "DP_Label" (media=62x100mm, kalibriert)
 ```
 
@@ -121,7 +131,7 @@ Seitenverhältnis bei, es verzerrt nichts.
     <key>FIREBASE_API_KEY</key><string>…</string>
     <key>AGENT_EMAIL</key><string>…</string>
     <key>AGENT_PASSWORT</key><string>…</string>
-    <key>PRINTER_PARCEL</key><string>…</string>
+    <key>PRINTER_PARCEL</key><string>…</string>  <!-- optional, Erkennung reicht -->
     <key>PRINTER_LETTER</key><string>…</string>
   </dict>
   <key>RunAtLoad</key><true/>
@@ -146,5 +156,5 @@ ohne dass es jemand merkt.
 ## Tests
 
 ```bash
-npm test    # 9 Tests, laufen auch im Wurzel-`npm test` mit
+npm test    # 19 Tests, laufen auch im Wurzel-`npm test` mit
 ```

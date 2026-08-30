@@ -162,6 +162,83 @@ function listeDrucker({ execImpl = execFile } = {}) {
   });
 }
 
+/** Rollenmass je Rolle — dieselbe Wahrheit wie backend/lib/label-format.js. */
+const ROLLEN_MASS = { parcel: [103, 164], letter: [62, 100] };
+
+/**
+ * Bewertet, wie gut ein Drucker zu einer Rolle passt.
+ *
+ * WARUM NICHT UEBER DEN NAMEN: Namen aendern sich (aus "Versandlabel" wurde am
+ * 2026-08-24 "DHL_DPD_Label" und die Einrichtung brach ab). Das ROLLENFORMAT ist
+ * die stabile Eigenschaft — ein Drucker, der 103x164 mm fuehrt, hat die
+ * Paketrolle eingelegt, wie er auch heisst.
+ *
+ * @param {{name:string, beschreibung?:string, medien:string[]}} drucker
+ * @returns {number} Punkte; <= 0 bedeutet "kommt nicht in Frage"
+ */
+function bewerteDrucker(rolle, drucker) {
+  const mass = ROLLEN_MASS[rolle];
+  if (!mass) return -1;
+  const noetig = `${mass[0]}x${mass[1]}mm`;
+  const medien = drucker.medien || [];
+  // Ohne das Mass kommt der Drucker gar nicht in Frage.
+  if (!medien.includes(noetig)) return -1;
+  // Der Paketdrucker fuehrt BEIDE Masse. Fuer die Briefrolle scheidet er aus,
+  // sonst laegen beide Rollen auf demselben Geraet und die Trennung waere
+  // sinnlos.
+  if (rolle === 'letter' && medien.includes('103x164mm')) return -1;
+
+  const text = `${drucker.name} ${drucker.beschreibung || ''}`.toLowerCase();
+  const passend = rolle === 'parcel' ? /dhl|dpd|paket|versand/ : /\bdp\b|post|brief/;
+  const unpassend = /sku|bin\b|produkt|inventur/;
+  let punkte = 1;
+  if (passend.test(text)) punkte += 10;
+  if (unpassend.test(text)) punkte -= 5;
+  return punkte;
+}
+
+/**
+ * Den Drucker fuer eine Rolle bestimmen.
+ *
+ * Bei Gleichstand an der Spitze wird NICHT geraten — ein 103-mm-Etikett auf der
+ * falschen Rolle hat einen abgeschnittenen Barcode. Dann muss der Mensch
+ * entscheiden (PRINTER_PARCEL / PRINTER_LETTER setzen).
+ *
+ * @returns {{name: string|null, kandidaten: string[]}}
+ */
+function ermittleDrucker(rolle, drucker = []) {
+  const bewertet = drucker
+    .map((d) => ({ d, punkte: bewerteDrucker(rolle, d) }))
+    .filter((x) => x.punkte > 0)
+    .sort((a, b) => b.punkte - a.punkte);
+
+  const kandidaten = bewertet.map((x) => x.d.name);
+  if (!bewertet.length) return { name: null, kandidaten: [] };
+  if (bewertet.length > 1 && bewertet[0].punkte === bewertet[1].punkte) {
+    return { name: null, kandidaten };
+  }
+  return { name: bewertet[0].d.name, kandidaten };
+}
+
+/** Alle Drucker samt Beschreibung und gefuehrten Medien einsammeln. */
+async function sammleDrucker({ execImpl = execFile } = {}) {
+  const namen = await listeDrucker({ execImpl });
+  const ergebnis = [];
+  for (const name of namen) {
+    const medien = await listeMedien(name, { execImpl });
+    const beschreibung = await new Promise((resolve) => {
+      execImpl('lpstat', ['-l', '-p', name], { encoding: 'utf8' }, (fehler, stdout) => {
+        if (fehler) return resolve('');
+        const zeile = String(stdout || '').split('\n')
+          .find((z) => /(Beschreibung|Description):/i.test(z));
+        resolve(zeile ? zeile.split(':').slice(1).join(':').trim() : '');
+      });
+    });
+    ergebnis.push({ name, beschreibung, medien });
+  }
+  return ergebnis;
+}
+
 module.exports = {
   medienName,
   benutzerMedienName,
@@ -171,4 +248,8 @@ module.exports = {
   waehleDrucker,
   druckeBuffer,
   listeDrucker,
+  ROLLEN_MASS,
+  bewerteDrucker,
+  ermittleDrucker,
+  sammleDrucker,
 };
