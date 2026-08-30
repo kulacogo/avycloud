@@ -293,14 +293,21 @@ export const AdminFinancials: React.FC = () => {
   // 10.796 € → 8.121 € „Gebühren" = 75 %).
   const view = useMemo(() => {
     if (!report || !pnl) return null;
-    const umsatz = pnl.umsatzBrutto ?? 0;
-    const retouren = pnl.retouren ?? 0;
+    // Seit 30.08.2026 rechnet der Gewinn durchgaengig NETTO (Backend-Feld
+    // `pnlBasis`). Der Balken muss dann ebenfalls netto rechnen — ein
+    // Netto-Gewinn gegen einen Brutto-Umsatz liesse die Umsatzsteuer als
+    // unerklaerte Luecke im Balken stehen. Faellt das Backend per Notbremse
+    // auf brutto zurueck (oder ist es noch aelter), gelten die Brutto-Werte.
+    const nettoBasis = pnl.pnlBasis === "netto";
+    const umsatz = (nettoBasis ? pnl.umsatzNetto : pnl.umsatzBrutto) ?? pnl.umsatzBrutto ?? 0;
+    const umsatzsteuer = nettoBasis ? pnl.umsatzsteuerAnteil ?? 0 : 0;
+    const retouren = (nettoBasis ? pnl.retourenNetto : pnl.retouren) ?? pnl.retouren ?? 0;
     const ware = pnl.cogs ?? 0;
     // null heisst "noch nicht abgebucht", nicht "kostenlos". Frueher wurde
     // daraus 0 € — und der Gewinn sah um die kompletten Versandkosten zu gut
     // aus. Gemessen im August: 270 Sendungen, 0 € gezeigt, Marge 71,8 %.
     const versandOffen = pnl.versandBrutto == null;
-    const versand = pnl.versandBrutto ?? 0;
+    const versand = (nettoBasis ? pnl.versandNetto : pnl.versandBrutto) ?? pnl.versandBrutto ?? 0;
     // Retouren an STORNIERTEN Auftraegen werden nicht abgezogen (ihr Umsatz war
     // nie gebucht). Sie muessen aber sichtbar bleiben: auf der Retouren-Seite
     // sieht der Bediener ALLE Vorgaenge, hier stand bisher nur der Rest — eine
@@ -308,7 +315,7 @@ export const AdminFinancials: React.FC = () => {
     const retourenStorno = pnl.retourenStorno ?? 0;
     const retourenStornoAnzahl = pnl.retourenStornoAnzahl ?? 0;
     const retourenGesamt = pnl.retourenGesamt ?? (retouren + retourenStorno);
-    const gebuehren = pnl.marketplaceFees ?? 0;
+    const gebuehren = (nettoBasis ? pnl.gebuehrenNetto : pnl.marketplaceFees) ?? pnl.marketplaceFees ?? 0;
 
     // Kompatibilität im Deploy-Fenster: das Frontend kann vor dem Backend live sein.
     // Am neuen Feld erkennen wir, ob der Gewinn schon accrual gerechnet wurde.
@@ -323,7 +330,7 @@ export const AdminFinancials: React.FC = () => {
         : null;
 
     const feeApprox = pnl.feeSource === "rates" || pnl.feeSource === "mixed";
-    return { umsatz, retouren, retourenStorno, retourenStornoAnzahl, retourenGesamt, gebuehren, ware, versand, versandOffen, gewinn, marge, feeApprox, approx: feeApprox || cogsModelActive };
+    return { umsatz, umsatzsteuer, nettoBasis, retouren, retourenStorno, retourenStornoAnzahl, retourenGesamt, gebuehren, ware, versand, versandOffen, gewinn, marge, feeApprox, approx: feeApprox || cogsModelActive };
   }, [report, pnl, cogsModelActive]);
 
   // Geldeingang: Erwartung (accrual) gegen Bank-Ist. Eigene Größe, KEIN Balkensegment —
@@ -480,7 +487,9 @@ export const AdminFinancials: React.FC = () => {
           {/* ③ Wohin geht der Umsatz? — die G&V als EIN Balken */}
           <div className="rounded-xl border border-app-border bg-app-surface p-5">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-txt-primary">Wohin geht der Umsatz?</h3>
+              <h3 className="text-sm font-semibold text-txt-primary">
+                Wohin geht der Umsatz?{view.nettoBasis ? " (ohne MwSt.)" : ""}
+              </h3>
               {view.approx ? <span className="text-xs text-txt-muted" title={approxHint}>≈ Näherung</span> : null}
             </div>
             {flow ? (
@@ -514,6 +523,17 @@ export const AdminFinancials: React.FC = () => {
                     </span>
                   ))}
                 </div>
+                {view.nettoBasis && view.umsatzsteuer > 0 ? (
+                  // Ohne diese Zeile fehlt im Balken unerklaert Geld: der
+                  // Bruttoumsatz war groesser, die Differenz ist die
+                  // Umsatzsteuer — sie war nie Ertrag des Betriebs.
+                  <p className="mt-2 text-xs text-txt-muted">
+                    Ohne Mehrwertsteuer gerechnet. Vom Bruttoumsatz{" "}
+                    {fmtCur(pnl?.umsatzBrutto ?? 0, cur, true)} gehen{" "}
+                    <span className="font-semibold text-txt-secondary">{fmtCur(view.umsatzsteuer, cur, true)}</span>{" "}
+                    als Umsatzsteuer ans Finanzamt — sie waren nie Ertrag.
+                  </p>
+                ) : null}
                 {view.gewinn < 0 ? (
                   <p className="mt-2 text-xs text-danger">Die Kosten übersteigen den Umsatz in diesem Zeitraum.</p>
                 ) : null}

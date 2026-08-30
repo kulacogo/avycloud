@@ -1,7 +1,11 @@
 'use strict';
 
-// P&L-Assembly. EINE Buchhaltungsbasis: ACCRUAL.
-//   Umsatz − Retouren − Gebühren − Ware − Versand = Rohgewinn
+// P&L-Assembly. EINE Buchhaltungsbasis: ACCRUAL, und seit 30.08.2026
+// durchgängig NETTO (vorher gemischt: alles brutto, nur die Ware netto —
+// der Gewinn enthielt damit die Umsatzsteuer, die dem Finanzamt gehört).
+//   Umsatz − Retouren − Gebühren − Ware − Versand = Rohgewinn, alles ohne MwSt
+// Die Erwartungswerte unten sind entsprechend die Netto-Werte; die BRUTTO-Felder
+// (marketplaceFees, auszahlungErwartet, versandBrutto) sind unverändert.
 // Gebühren sind gemessen oder modelliert — NIE `Umsatz − Retouren − Auszahlung`.
 // Die Bank-Auszahlung ist eine EIGENE Größe (auszahlungIst/offeneAuszahlung) und
 // verankert den Gewinn nicht mehr am Zahlungszyklus der Marktplätze.
@@ -60,13 +64,18 @@ describe('buildPnl — REGRESSION Juli 2026 (Produktion zeigte 75 % Gebührenquo
   });
 
   it('Gewinn ist accrual und positiv — nicht −760,96', () => {
-    expect(p.rohgewinn).toBe(6021.88);
-    expect(p.margePct).toBe(55.8);
+    // netto: 9.072,61 − 524,55 − 1.124,64 − 1.494,00 − 1.107,56
+    // (brutto gerechnet waren es 6.021,88 € — die Differenz ist die Umsatzsteuer)
+    expect(p.rohgewinn).toBe(4821.86);
+    expect(p.margePct).toBe(53.1);
+    expect(p.pnlBasis).toBe('netto');
   });
 
-  it('der Umsatz-Balken schließt bei genau 100 %', () => {
-    const sum = p.rohgewinn + p.cogs + p.marketplaceFees + p.versandBrutto + p.retouren;
-    expect(Math.round(sum * 100) / 100).toBe(p.umsatzBrutto);
+  it('der Umsatz-Balken schließt bei genau 100 % — NETTO gegen NETTO', () => {
+    // Der Balken muss auf EINER Basis rechnen. Netto-Gewinn gegen Brutto-Umsatz
+    // liesse die Umsatzsteuer als unerklaerte Luecke im Balken stehen.
+    const sum = p.rohgewinn + p.cogs + p.gebuehrenNetto + p.versandNetto + p.retourenNetto;
+    expect(Math.round(sum * 100) / 100).toBe(p.umsatzNetto);
   });
 
   it('Gewinn ist unabhängig vom Zahlungseingang (kein Cash-Anker mehr)', () => {
@@ -79,7 +88,8 @@ describe('buildPnl — REGRESSION Juli 2026 (Produktion zeigte 75 % Gebührenquo
 
   it('Retouren werden genau EINMAL abgezogen', () => {
     const more = buildPnl({ ...JULY, returnsValue: 1248.42 });
-    expect(Math.round((p.rohgewinn - more.rohgewinn) * 100) / 100).toBe(624.21);
+    // 624,21 € brutto mehr Retouren = 524,54 € netto weniger Gewinn — einmal.
+    expect(Math.round((p.rohgewinn - more.rohgewinn) * 100) / 100).toBe(524.54);
   });
 });
 
@@ -98,7 +108,10 @@ describe('buildPnl — abgerechnetes Fenster nutzt weiter den echten Flow (Owner
 
   it('reproduziert das ALTE Ergebnis exakt, wenn das Fenster wirklich abgerechnet ist', () => {
     // Konservativitäts-Nachweis: der Fix ändert NUR unabgerechnete Fenster.
-    expect(p.rohgewinn).toBe(347.68); // identisch zur Vor-Fix-Formel
+    // Netto: 840,34 − 42,02 − 154,05 − 300 − 100. Der Konservativitaets-Nachweis
+    // gilt unveraendert — die Gebuehren (183,32 € brutto) kommen weiter aus dem
+    // echten Geldfluss, nur die Gewinnbasis ist jetzt netto (brutto: 347,68 €).
+    expect(p.rohgewinn).toBe(244.27);
     expect(p.auszahlung).toBe(766.68);
     expect(p.auszahlungSource).toBe('sevdesk');
     expect(p.settlementStatus).toBe('settled');
@@ -160,8 +173,9 @@ describe('buildPnl — rate-based fallback (keine Auszahlung bekannt)', () => {
     expect(p.auszahlungSource).toBe('rates');
   });
 
-  it('Rohgewinn (accrual) = Umsatz − Retouren − Gebühren − Ware − Versand', () => {
-    expect(p.rohgewinn).toBe(401.68); // 1000 − 50 − 129.32 − 300 − 119
+  it('Rohgewinn (accrual) = Umsatz − Retouren − Gebühren − Ware − Versand, netto', () => {
+    // 840,34 − 42,02 − 108,67 − 300 − 100 (brutto gerechnet: 401,68 €)
+    expect(p.rohgewinn).toBe(289.65);
   });
 
   it('behauptet ohne Auszahlung keinen Settlement-Status', () => {
@@ -184,7 +198,8 @@ describe('buildPnl — graceful inputs', () => {
       nowMs: NOW,
     });
     expect(p.versandBrutto).toBeNull();
-    expect(p.rohgewinn).toBe(345); // 500 − 0 − 55 (11 % Satz) − 100 − 0
+    // netto: 420,17 − 0 − 46,22 (55 € brutto) − 100 − 0 (brutto: 345 €)
+    expect(p.rohgewinn).toBe(273.95);
   });
 
   it('liefert keine Marge ohne Umsatz', () => {

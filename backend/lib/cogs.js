@@ -45,6 +45,10 @@ function buildProductCostIndex(products, lotCosts) {
       // hat einen eigenen buyPrice — ohne das hier bleibt nur die Pauschale,
       // und die liegt je Los um bis zu Faktor 24 daneben.
       lotCostNetto: 0,
+      // Geht die Mengen-Bilanz des Loses auf? Nur dann darf sein Stueckpreis
+      // als "exakt" gelten. Default true = Verhalten der Alt-Quelle, die keine
+      // Selbstauskunft mitliefert.
+      lotStimmig: true,
       sourceLot: String((p && p.ops && p.ops.sourceLot) || '').trim() || null,
     };
 
@@ -61,7 +65,10 @@ function buildProductCostIndex(products, lotCosts) {
 
     if (entry.sourceLot && lotCosts instanceof Map) {
       const lot = lotCosts.get(entry.sourceLot);
-      if (lot && lot.netto > 0) entry.lotCostNetto = lot.netto;
+      if (lot && lot.netto > 0) {
+        entry.lotCostNetto = lot.netto;
+        if (lot.stimmig === false) entry.lotStimmig = false;
+      }
     }
 
     for (const c of candidates) {
@@ -108,7 +115,12 @@ function computeOrderCogs(order, index, costModel) {
       // hat. Schlaegt jede Pauschale, weil er je Los gemessen ist.
       cogs += qty * entry.lotCostNetto;
       matchedRevenue += lineRevenue;
-      exactItemCount += 1;
+      // "Exakt" nur, wenn die Mengen-Bilanz des Loses aufgeht. Sonst ist die
+      // Bezugsmenge selbst unsicher und der Stueckpreis eine Schaetzung — er
+      // gehoert dann nicht in dieselbe Schublade wie ein am Produkt erfasster
+      // Einkaufspreis.
+      if (entry.lotStimmig === false) estimatedItemCount += 1;
+      else exactItemCount += 1;
     } else if (modelUsable) {
       cogs += qty * estimatedUnitCost(unitPrice, costModel);
       matchedRevenue += lineRevenue;
@@ -140,15 +152,17 @@ function computeOrderCogs(order, index, costModel) {
  * - articlesWithCost: wie viele bestandsführende Artikel überhaupt einen buyPrice haben
  *   (Abdeckung — macht sichtbar, wie aussagekräftig das gebundene Kapital ist).
  */
-function computeInventoryValue(products, costModel) {
+function computeInventoryValue(products, costModel, lotCosts) {
   let capitalAtCost = 0;
   let potentialRevenue = 0;
   let articleCount = 0;
   let articlesWithCost = 0;
   let articlesEstimated = 0;
+  let articlesFromLot = 0;
   let unitCount = 0;
 
   const modelUsable = !!(costModel && costModel.usable);
+  const hatLose = lotCosts instanceof Map && lotCosts.size > 0;
 
   for (const p of products || []) {
     const qty = Math.max(0, num(p && p.inventory && p.inventory.quantity));
@@ -159,9 +173,20 @@ function computeInventoryValue(products, costModel) {
     const buy = num(pricing.buyPrice); // real cost only — never lowest as cost
     const sell = num(pricing.sellPrice) || lowest;
 
+    // Los-Preis, falls bekannt. OHNE diesen Zweig bewertet der Bericht dieselbe
+    // Ware an zwei Stellen unterschiedlich: der Wareneinsatz mit dem Los-Preis,
+    // das gebundene Kapital mit der Paletten-Pauschale. Gemessen 30.08.2026 war
+    // das gebundene Kapital dadurch 23.394,80 € statt rund 14.000 € — die
+    // Pauschale (7,15 €/Einheit netto) liegt weit ueber dem echten Los-Preis.
+    const losCode = hatLose ? String((p && p.ops && p.ops.sourceLot) || '').trim() : '';
+    const los = losCode ? lotCosts.get(losCode) : null;
+
     if (buy > 0) {
       capitalAtCost += qty * buy;
       articlesWithCost += 1;
+    } else if (los && los.netto > 0) {
+      capitalAtCost += qty * los.netto;
+      articlesFromLot += 1;
     } else if (costModel && costModel.avgUnitCostNetto > 0) {
       // Capital = stock units × flat avg cost/unit (what was actually paid), not sell × ratio.
       capitalAtCost += qty * costModel.avgUnitCostNetto;
@@ -177,6 +202,7 @@ function computeInventoryValue(products, costModel) {
     potentialRevenue: round2(potentialRevenue),
     articleCount,
     articlesWithCost,
+    articlesFromLot,
     articlesEstimated,
     unitCount,
   };
