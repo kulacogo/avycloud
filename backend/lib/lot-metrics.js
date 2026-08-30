@@ -245,10 +245,62 @@ function berechneLosKennzahlen(los, bewegung, bestandsdaten = {}) {
   };
 }
 
+/**
+ * Bruecke Los-Kennzahlen -> Wareneinsatz des Finanzberichts.
+ *
+ * ERZEUGT ZWINGEND EIN `netto`-FELD. `lib/cogs.js` liest AUSSCHLIESSLICH
+ * `lot.netto`; faehlt es, bleibt `lotCostNetto` auf 0 und der Wareneinsatz
+ * faellt OHNE FEHLERMELDUNG auf die alte Paletten-Pauschale zurueck. Das saehe
+ * nur nach einem stark veraenderten Gewinn aus — genau die Sorte stiller
+ * Fehler, die hier nichts zu suchen hat.
+ *
+ * WARUM NETTO RICHTIG IST (belegt, nicht angenommen): die Einkaufsbelege
+ * weisen Vorsteuer aus — Auktionshaus Weidler KG, 10.811,15 € brutto mit
+ * 1.726,15 € MwSt (19 %), gemessen am 30.08.2026 ueber 149 SevDesk-Belege
+ * (72 mit ausgewiesener Vorsteuer). Die Vorsteuer holt der Betrieb zurueck,
+ * die Ware kostet ihn also den Nettobetrag.
+ *
+ * `stimmig` wandert mit, damit der Wareneinsatz ein Los, dessen Mengen-Bilanz
+ * nicht aufgeht, als GESCHAETZT statt als EXAKT ausweisen kann.
+ *
+ * @param {Array<{code: string, ekBrutto: number}>} lose
+ * @param {Map<string, object>} proLos  Ergebnis aus berechneLosKennzahlen je Los
+ * @returns {Map<string, {brutto:number, netto:number, basis:number, bestand:number, verkauft:number, stimmig:boolean}>}
+ */
+function losKostenFuerBericht(lose, proLos, { vatRate = 0.19 } = {}) {
+  const out = new Map();
+  if (!Array.isArray(lose) || !(proLos instanceof Map)) return out;
+
+  for (const los of lose) {
+    const code = String(los?.code || '').trim();
+    if (!code) continue;
+    const ek = zahl(los.ekBrutto);
+    if (ek <= 0) continue;
+
+    const k = proLos.get(code);
+    const basis = zahl(k && k.einheitenErfasst);
+    if (basis <= 0) continue;
+
+    // netto aus dem UNGERUNDETEN Bruttowert ableiten (wie lib/lot-cost.js),
+    // sonst summiert sich der Rundungsfehler ueber alle Positionen auf.
+    const brutto = ek / basis;
+    out.set(code, {
+      brutto: runde2(brutto),
+      netto: runde2(brutto / (1 + zahl(vatRate))),
+      basis,
+      bestand: zahl(k.einheitenBestand),
+      verkauft: zahl(k.einheitenVerkauft),
+      stimmig: k.stimmig === true,
+    });
+  }
+  return out;
+}
+
 module.exports = {
   AUSREISSER_GRENZE,
   KORREKTUR_AKTIONEN,
   klassifiziereEreignis,
   aggregiereLosBewegungen,
   berechneLosKennzahlen,
+  losKostenFuerBericht,
 };

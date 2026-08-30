@@ -434,45 +434,35 @@ async function getFinancialReport({ preset = null, fromDate = null, toDate = nul
   // 5,39 € bei NL-0626 gegen 129,65 € bei L-072643).
   let lotCosts = new Map();
   try {
-    const { buildLotUnitCosts } = require('../lib/lot-cost');
+    const { losKostenFuerBericht } = require('../lib/lot-metrics');
+    const { getLotMetricsStore } = require('../lib/lot-metrics-store');
     const loseSnap = await firestore.collection('warehouse_lots').get();
     const lose = loseSnap.docs.map((d) => ({ code: d.id, ekBrutto: num(d.data().ekBrutto) }));
 
-    // Bezugsmenge = heutiger Bestand + bereits verkaufte Einheiten aus dem Los.
-    // Ohne die verkauften stiege der Stueckpreis mit jedem Verkauf.
-    const mengen = new Map();
-    for (const prod of products || []) {
-      const code = String((prod && prod.ops && prod.ops.sourceLot) || '').trim();
-      if (!code) continue;
-      const eintrag = mengen.get(code) || { bestand: 0, verkauft: 0 };
-      eintrag.bestand += num(prod?.inventory?.quantity);
-      mengen.set(code, eintrag);
-    }
-    // ACHTUNG Gross-/Kleinschreibung: lib/cogs.js normalisiert Schluessel NUR mit
-    // trim(), nicht mit toLowerCase(). Wer hier kleinschreibt, findet keine
-    // einzige verkaufte Einheit — die Bezugsmenge waere dann nur der Restbestand
-    // und der Einkaufspreis je Einheit entsprechend zu hoch.
-    const lotBySku = new Map();
-    for (const prod of products || []) {
-      const code = String((prod && prod.ops && prod.ops.sourceLot) || '').trim();
-      const sku = String(prod?.identification?.sku || prod?.details?.identifiers?.sku || '').trim();
-      if (code && sku) lotBySku.set(sku, code);
-    }
-    for (const o of orderDocs || []) {
-      for (const it of (Array.isArray(o.items) ? o.items : [])) {
-        const code = lotBySku.get(String(it?.sku || '').trim());
-        if (!code) continue;
-        const eintrag = mengen.get(code) || { bestand: 0, verkauft: 0 };
-        eintrag.verkauft += Math.max(0, num(it?.quantity));
-        mengen.set(code, eintrag);
-      }
-    }
-    lotCosts = buildLotUnitCosts(lose, mengen);
+    // Bezugsmenge kommt aus dem LAGER-JOURNAL, nicht aus den Auftraegen.
+    //
+    // Der alte Weg (heutiger Bestand + verkauft laut 'orders') sieht die
+    // Verkaufshistorie nur unvollstaendig: 'orders' beginnt erst am
+    // Kontowechsel 09.07.2026, und von 1.668 Auftraegen mit gebuchtem Pick
+    // existieren nur noch 705 — 963 (58 %) wurden geloescht (gemessen
+    // 30.08.2026). Die Bezugsmenge wurde dadurch zu klein und der
+    // Einkaufspreis je Einheit zu hoch, am staerksten beim Sammel-Los
+    // NL-0626 (3,78 € statt 2,51 € netto, +51 %).
+    const kennzahlen = await getLotMetricsStore().kennzahlen(lose);
+    lotCosts = losKostenFuerBericht(lose, kennzahlen.proLos);
     if (lotCosts.size > 0) {
-      console.log(`[finanzbericht] Einkaufspreise aus ${lotCosts.size} Losen ermittelt`);
+      const unstimmig = [...lotCosts.values()].filter((l) => l.stimmig === false).length;
+      console.log(
+        `[finanzbericht] Einkaufspreise aus ${lotCosts.size} Losen ermittelt (Lager-Journal)` +
+        (unstimmig ? ` — ${unstimmig} Los(e) mit offener Mengen-Bilanz, als geschaetzt gefuehrt` : '')
+      );
     }
   } catch (err) {
+    // Fail-open wie bisher: der Bericht faellt still auf die Paletten-Pauschale
+    // zurueck. Der Fehler wird zusaetzlich in errors gemeldet, damit dieser
+    // Rueckfall nicht unsichtbar bleibt — die Pauschale liegt deutlich daneben.
     console.warn(`[finanzbericht] Los-Einkaufspreise nicht verfuegbar: ${err.message}`);
+    errors.push(`Los-Einkaufspreise nicht verfuegbar (Wareneinsatz faellt auf die Pauschale zurueck): ${err.message}`);
   }
 
   const costIndex = buildProductCostIndex(products, lotCosts);
@@ -483,7 +473,12 @@ async function getFinancialReport({ preset = null, fromDate = null, toDate = nul
   const costModel = deriveCostModel(costConfig || {}, avgSoldPrice);
 
   const agg = aggregateOrders(orderDocs, costIndex, { fromIso, toIso, bucket, costModel }); // pass 2: COGS
-  const inventory = computeInventoryValue(products, costModel);
+  // lotCosts MUSS mit: sonst bewertet der Bericht dieselbe Ware zweimal
+  // unterschiedlich — der Wareneinsatz mit dem Los-Preis, das gebundene
+  // Kapital mit der Paletten-Pauschale (gemessen 30.08.2026: 23.394,80 €
+  // statt rund 14.000 €, weil die Pauschale mit 7,15 €/Einheit netto weit
+  // ueber dem echten Los-Preis liegt).
+  const inventory = computeInventoryValue(products, costModel, lotCosts);
 
   // ── Ø Artikel online ──
   // Exact source = daily snapshots (marketplace_daily_snapshots) when they cover the
