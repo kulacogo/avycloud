@@ -247,6 +247,31 @@ router.get('/lots', requirePermission('warehouse', 'read'), async (req, res) => 
     // Counts sind teuer (eine Aggregation je Los) — nur auf Anfrage (Los-Struktur-Tab).
     const withCounts = parseTruthy(req.query?.withCounts);
     const lots = await listLots({ tenantId, withCounts });
+
+    // Kennzahlen (Einheiten erfasst/Bestand/verkauft, Los-Wert) sind zwei
+    // Voll-Scans — deshalb ebenfalls opt-in und hinter einem 5-Minuten-Cache.
+    // Scheitern sie, wird die Los-Liste TROTZDEM ausgeliefert: die Lose selbst
+    // sind die Stammdaten, die Kennzahlen nur eine Auswertung darueber. Der
+    // Fehler wandert sichtbar als `metricsError` mit, statt still 0 Einheiten
+    // und 0 € zu behaupten.
+    if (parseTruthy(req.query?.withMetrics)) {
+      try {
+        const { getLotMetricsStore } = require('../lib/lot-metrics-store');
+        const ergebnis = await getLotMetricsStore().kennzahlen(lots);
+        return res.json({
+          ok: true,
+          data: lots.map((lot) => ({ ...lot, metrics: ergebnis.proLos.get(lot.code) || null })),
+          meta: {
+            ereignisseOhneLos: ergebnis.ereignisseOhneLos,
+            ausreisser: ergebnis.ausreisser,
+          },
+        });
+      } catch (err) {
+        console.error(`[GET /api/warehouse/lots] Kennzahlen fehlgeschlagen: ${err.message}`, err);
+        return res.json({ ok: true, data: lots, meta: { metricsError: err.message } });
+      }
+    }
+
     res.json({ ok: true, data: lots });
   } catch (err) {
     console.error(`[GET /api/warehouse/lots] ${err.message}`, err);

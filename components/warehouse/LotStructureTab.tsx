@@ -1,15 +1,22 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  fetchWarehouseLots,
+  fetchWarehouseLotsWithMetrics,
   createWarehouseLotsApi,
   updateWarehouseLotApi,
   deleteWarehouseLotApi,
   openLotLabelsBatchWindow,
 } from "../../api/client";
-import type { WarehouseLot } from "../../types";
+import type { WarehouseLot, WarehouseLotsMeta } from "../../types";
 import { PrintIcon } from "../icons/Icons";
 import { Notice } from "../ui/Notice";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
+import {
+  formatEinheiten,
+  formatEuro,
+  losBilanzHinweis,
+  losWertGrund,
+  mitNeuemEinkaufsbetrag,
+} from "../../utils/lotMetrics";
 
 /**
  * Los-Struktur: L-/NL-Lose anlegen, drucken (QR-Labels wie BIN-Labels) und pflegen.
@@ -45,6 +52,7 @@ const parseEkInput = (raw: string): number | null | undefined => {
 const LotStructureTab: React.FC = () => {
   const now = new Date();
   const [lots, setLots] = useState<WarehouseLot[]>([]);
+  const [lotsMeta, setLotsMeta] = useState<WarehouseLotsMeta>({});
   const [loading, setLoading] = useState(true);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [selectedCodes, setSelectedCodes] = useState<Set<string>>(new Set());
@@ -69,11 +77,31 @@ const LotStructureTab: React.FC = () => {
     return [current - 1, current, current + 1];
   }, [now]);
 
+  // Summenzeile. Lose ohne gepflegten Einkaufsbetrag steuern Mengen bei, aber
+  // keinen Wert — deshalb wird mitgezählt, wie viele das sind, statt ihren
+  // fehlenden Wert stillschweigend als 0 in die Summe zu ziehen.
+  const summe = useMemo(() => {
+    return lots.reduce(
+      (acc, lot) => {
+        const k = lot.metrics;
+        if (!k) return acc;
+        acc.erfasst += k.einheitenErfasst;
+        acc.bestand += k.einheitenBestand;
+        acc.verkauft += k.einheitenVerkauft;
+        if (k.restwertBrutto === null) acc.ohneWert += 1;
+        else acc.restwert += k.restwertBrutto;
+        return acc;
+      },
+      { erfasst: 0, bestand: 0, verkauft: 0, restwert: 0, ohneWert: 0 }
+    );
+  }, [lots]);
+
   const loadLots = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await fetchWarehouseLots(true);
+      const { lots: data, meta } = await fetchWarehouseLotsWithMetrics();
       setLots(data);
+      setLotsMeta(meta);
       setSelectedCodes((prev) => {
         if (!prev.size) return prev;
         const allowed = new Set(data.map((lot) => lot.code));
@@ -168,7 +196,17 @@ const LotStructureTab: React.FC = () => {
           setStatusMessage(result.error?.message || "EK konnte nicht gespeichert werden.");
           return;
         }
-        setLots((prev) => prev.map((l) => (l.code === lot.code ? { ...l, ekBrutto: value } : l)));
+        // Feldweise mergen (nie durch die Server-Antwort ersetzen — die traegt
+        // kein productCount, und daran haengt der Löschen-Knopf). Die
+        // geldwerten Kennzahlen ziehen mit, sonst stünde neben dem neuen EK
+        // weiter der alte Los-Wert.
+        setLots((prev) =>
+          prev.map((l) =>
+            l.code === lot.code
+              ? { ...l, ekBrutto: value, metrics: mitNeuemEinkaufsbetrag(l.metrics, value) }
+              : l
+          )
+        );
         setEkDrafts((prev) => {
           const next = { ...prev };
           delete next[lot.code];
@@ -328,7 +366,21 @@ const LotStructureTab: React.FC = () => {
 
       {/* Los-Liste */}
       <div className="bg-app-surface rounded-2xl p-5 border border-app-border">
-        <h3 className="text-xl font-semibold text-txt-primary mb-3">Lose</h3>
+        <h3 className="text-xl font-semibold text-txt-primary mb-1">Lose</h3>
+        <p className="text-sm text-txt-muted mb-3">
+          Rechengrundlage jedes Loses sind die <b>ursprünglich eingelagerten</b> Einheiten aus dem
+          Lager-Journal — nicht der heutige Bestand. Sonst stiege der Einkaufspreis je Einheit mit
+          jedem Verkauf, obwohl sich am Einkauf nichts geändert hat.
+        </p>
+
+        {lotsMeta.metricsError && (
+          // Ohne diesen Hinweis stünden nur Striche in den Spalten und sähen aus
+          // wie „dieses Los hat keine Einheiten“ statt wie eine Störung.
+          <Notice tone="warning" title="Kennzahlen nicht verfügbar">
+            Die Lose sind geladen, die Mengen- und Wertspalten konnten aber nicht berechnet werden:{" "}
+            {lotsMeta.metricsError}
+          </Notice>
+        )}
         {loading ? (
           <p className="text-sm text-txt-muted">Lose werden geladen…</p>
         ) : lots.length === 0 ? (
@@ -346,6 +398,21 @@ const LotStructureTab: React.FC = () => {
                   <th className="py-2 pr-4">Zeitraum</th>
                   <th className="py-2 pr-4">Produkte</th>
                   <th className="py-2 pr-4">EK brutto</th>
+                  <th className="py-2 pr-4 text-right" title="Ursprünglich eingelagerte Einheiten laut Lager-Journal. Diese Menge ist die Rechengrundlage — nicht der heutige Bestand.">
+                    Einheiten erfasst
+                  </th>
+                  <th className="py-2 pr-4 text-right" title="Einheiten dieses Loses, die heute im Lager liegen.">
+                    auf Bestand
+                  </th>
+                  <th className="py-2 pr-4 text-right" title="Gepickte bzw. versandte Einheiten, abzüglich zurückgenommener.">
+                    verkauft
+                  </th>
+                  <th className="py-2 pr-4 text-right" title="EK brutto ÷ Einheiten erfasst.">
+                    EK/Einheit
+                  </th>
+                  <th className="py-2 pr-4 text-right" title="Anteil des Einkaufsbetrags, der noch als Ware im Lager liegt.">
+                    Los-Wert
+                  </th>
                   <th className="py-2 pr-4">Angelegt</th>
                   <th className="py-2"></th>
                 </tr>
@@ -353,6 +420,9 @@ const LotStructureTab: React.FC = () => {
               <tbody>
                 {lots.map((lot) => {
                   const draft = ekDrafts[lot.code];
+                  const kennzahlen = lot.metrics ?? null;
+                  const bilanzHinweis = losBilanzHinweis(kennzahlen);
+                  const wertGrund = losWertGrund(kennzahlen);
                   return (
                     <tr key={lot.code} className="border-b border-app-border/50 hover:bg-app-elevated/30">
                       <td className="py-2 pr-2">
@@ -363,7 +433,16 @@ const LotStructureTab: React.FC = () => {
                           className="accent-current"
                         />
                       </td>
-                      <td className="py-2 pr-4 font-mono font-semibold text-txt-primary">{lot.code}</td>
+                      <td className="py-2 pr-4 font-mono font-semibold text-txt-primary whitespace-nowrap">
+                        {lot.code}
+                        {bilanzHinweis && (
+                          // Eine Bilanz, die nicht aufgeht, macht jeden abgeleiteten
+                          // Wert unsicher. Das gehoert an die Zeile, nicht in ein Log.
+                          <span className="ml-1.5 text-warning cursor-help" title={bilanzHinweis} aria-label={bilanzHinweis}>
+                            ⚠
+                          </span>
+                        )}
+                      </td>
                       <td className="py-2 pr-4">
                         <span
                           className={`px-2 py-0.5 rounded-md text-xs font-medium ${
@@ -403,6 +482,24 @@ const LotStructureTab: React.FC = () => {
                           )}
                         </div>
                       </td>
+                      <td className="py-2 pr-4 text-right tabular-nums text-txt-primary font-medium">
+                        {formatEinheiten(kennzahlen?.einheitenErfasst)}
+                      </td>
+                      <td className="py-2 pr-4 text-right tabular-nums text-txt-secondary">
+                        {formatEinheiten(kennzahlen?.einheitenBestand)}
+                      </td>
+                      <td className="py-2 pr-4 text-right tabular-nums text-txt-secondary">
+                        {formatEinheiten(kennzahlen?.einheitenVerkauft)}
+                      </td>
+                      <td className="py-2 pr-4 text-right tabular-nums text-txt-secondary">
+                        {formatEuro(kennzahlen?.ekJeEinheitBrutto)}
+                      </td>
+                      <td
+                        className="py-2 pr-4 text-right tabular-nums text-txt-primary font-medium"
+                        title={wertGrund || undefined}
+                      >
+                        {formatEuro(kennzahlen?.restwertBrutto)}
+                      </td>
                       <td className="py-2 pr-4 text-xs text-txt-muted">
                         {lot.createdAt ? new Date(lot.createdAt).toLocaleDateString("de-DE") : "—"}
                       </td>
@@ -435,7 +532,41 @@ const LotStructureTab: React.FC = () => {
                   );
                 })}
               </tbody>
+              <tfoot>
+                <tr className="border-t border-app-border text-txt-primary font-semibold">
+                  <td className="py-2 pr-2"></td>
+                  <td className="py-2 pr-4">Summe</td>
+                  <td className="py-2 pr-4"></td>
+                  <td className="py-2 pr-4"></td>
+                  <td className="py-2 pr-4"></td>
+                  <td className="py-2 pr-4"></td>
+                  <td className="py-2 pr-4 text-right tabular-nums">{formatEinheiten(summe.erfasst)}</td>
+                  <td className="py-2 pr-4 text-right tabular-nums">{formatEinheiten(summe.bestand)}</td>
+                  <td className="py-2 pr-4 text-right tabular-nums">{formatEinheiten(summe.verkauft)}</td>
+                  <td className="py-2 pr-4"></td>
+                  <td className="py-2 pr-4 text-right tabular-nums">{formatEuro(summe.restwert)}</td>
+                  <td className="py-2 pr-4"></td>
+                  <td className="py-2"></td>
+                </tr>
+              </tfoot>
             </table>
+          </div>
+        )}
+
+        {(summe.ohneWert > 0 || (lotsMeta.ereignisseOhneLos ?? 0) > 0) && (
+          <div className="mt-3 space-y-1 text-xs text-txt-muted">
+            {summe.ohneWert > 0 && (
+              <p>
+                {summe.ohneWert} Los(e) ohne gepflegten Einkaufsbetrag — sie zählen Einheiten mit,
+                aber keinen Wert. Der Summenwert ist deshalb unvollständig.
+              </p>
+            )}
+            {(lotsMeta.ereignisseOhneLos ?? 0) > 0 && (
+              <p>
+                {lotsMeta.ereignisseOhneLos} Lagerbuchung(en) ließen sich keinem Los zuordnen
+                (Produkt gelöscht oder ohne Los-Zuweisung) und fehlen in den Mengen.
+              </p>
+            )}
           </div>
         )}
       </div>

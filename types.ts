@@ -473,6 +473,35 @@ export interface WarehouseBin {
 
 // Los = Einkaufs-Zugehörigkeit einer Ware (ersetzt Paletten seit 2026-07-31).
 // L-MMYYNN = Auktions-Los (Nummer 01-200), NL-MMYY = Non-Los (eins pro Monat).
+/**
+ * Kennzahlen eines Loses, gerechnet aus dem Lager-Journal.
+ *
+ * Bezugsmenge ist `einheitenErfasst` — die urspruenglich eingelagerte Menge,
+ * NICHT der heutige Bestand. Durch den Restbestand geteilt stiege der
+ * Stueckpreis mit jedem Verkauf.
+ *
+ * `stimmig` ist die Selbstauskunft der Zeile: nur wenn
+ * `erfasst - verkauft - sonstige Abgaenge` genau dem Bestand entspricht und
+ * kein Ausreisser verworfen wurde, sind die Werte belastbar.
+ */
+export interface WarehouseLotMetrics {
+  einheitenErfasst: number;
+  einheitenBestand: number;
+  einheitenVerkauft: number;
+  einheitenEingelagert: number;
+  rueckfuehrungen: number;
+  korrekturen: number;
+  sonstigeAbgaenge: number;
+  produkte: number | null;
+  /** null, solange kein Einkaufsbetrag am Los gepflegt ist. */
+  ekJeEinheitBrutto: number | null;
+  restwertBrutto: number | null;
+  abgangswertBrutto: number | null;
+  differenz: number;
+  stimmig: boolean;
+  ausreisser: number;
+}
+
 export interface WarehouseLot {
   code: string;
   tenantId: string;
@@ -484,7 +513,19 @@ export interface WarehouseLot {
   note: string | null;
   createdAt: string | null;
   createdBy?: { uid: string; email?: string | null } | null;
+  /** Laufzeit auch `null` = unbekannt (Zaehlung fehlgeschlagen), nie als 0 lesen. */
   productCount?: number;
+  /** Nur gesetzt, wenn die Liste mit `withMetrics` geladen wurde. */
+  metrics?: WarehouseLotMetrics | null;
+}
+
+export interface WarehouseLotsMeta {
+  /** Lager-Ereignisse, die keinem Los zugeordnet werden konnten (geloeschte Produkte). */
+  ereignisseOhneLos?: number;
+  /** Verworfene Ausreisser-Buchungen (Artikelnummer ins Mengenfeld gescannt). */
+  ausreisser?: number;
+  /** Gesetzt, wenn die Kennzahlen nicht gerechnet werden konnten. */
+  metricsError?: string;
 }
 
 export type OrderStatus = 'new' | 'picking' | 'picked' | 'packed' | 'shipped' | 'other';
