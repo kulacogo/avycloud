@@ -802,6 +802,25 @@ export interface FinancialReportRange {
 export interface FinancialReportPnl {
   umsatzBrutto: number;
   /**
+   * Netto-Sicht (ohne Umsatzsteuer), seit 30.08.2026.
+   *
+   * Der Gewinn rechnet durchgaengig netto — vorher war er gemischt (Umsatz,
+   * Retouren, Gebuehren und Versand brutto, nur die Ware netto) und enthielt
+   * damit die Umsatzsteuer, die dem Finanzamt gehoert.
+   *
+   * Alle optional: das Frontend kann im Deploy-Fenster vor dem Backend live
+   * sein, und die Notbremse `FINANCE_PNL_BASIS='brutto'` liefert sie ebenfalls
+   * mit `pnlBasis: 'brutto'`. Fehlen sie, gelten die Brutto-Felder.
+   */
+  umsatzNetto?: number;
+  retourenNetto?: number;
+  gebuehrenNetto?: number;
+  versandNetto?: number | null;
+  /** Umsatzsteuer-Anteil am Bruttoumsatz — gehoert dem Finanzamt, nie dem Gewinn. */
+  umsatzsteuerAnteil?: number;
+  /** Auf welcher Basis `rohgewinn` und `margePct` gerechnet sind. */
+  pnlBasis?: 'netto' | 'brutto';
+  /**
    * Retouren an STORNIERTEN Auftraegen. Sie werden vom Umsatz nicht abgezogen
    * (ihr Umsatz war nie gebucht), muessen aber sichtbar bleiben: auf der
    * Retouren-Seite sieht der Bediener ALLE Vorgaenge, im Finanzbericht stand

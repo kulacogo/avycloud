@@ -32,6 +32,20 @@ const {
 
 const EBAY_FALLBACK_FEE_PCT = 0.25; // ~14% Transaktion + ~11% Anzeigen (siehe orders.js)
 
+/** Regelsteuersatz. Der Betrieb verkauft ausnahmslos mit 19 % (Owner-Aussage). */
+const VAT_RATE = 0.19;
+
+/**
+ * Notbremse fuer die Netto-Gewinnrechnung.
+ *
+ * Nur der exakte Wert 'brutto' schaltet auf die alte, gemischte Rechnung
+ * zurueck — bewusst streng (gleiche Haerte wie AUTO_INVOICE): ein Tippfehler in
+ * der Konfiguration darf eine ausgewiesene Finanzzahl nicht still umstellen.
+ */
+function nettoPnlAktiv() {
+  return String(process.env.FINANCE_PNL_BASIS || '').trim().toLowerCase() !== 'brutto';
+}
+
 function num(x) {
   const n = Number(x);
   return Number.isFinite(n) ? n : 0;
@@ -176,12 +190,52 @@ function buildPnl({
   const auszahlungErwartet = round2(umsatzBrutto - retouren - marketplaceFees);
   const st = assessSettlement({ auszahlungErwartet, realPayout });
 
-  // Gewinn IMMER accrual — unabhängig davon, wann das Geld auf dem Konto ankommt.
-  const rohgewinn = round2(umsatzBrutto - retouren - marketplaceFees - cogsValue - num(versandBrutto));
-  const margePct = umsatzBrutto > 0 ? round1((rohgewinn / umsatzBrutto) * 100) : null;
+  // ── Gewinn: durchgaengig NETTO ────────────────────────────────────────────
+  //
+  // Bis 30.08.2026 wurde hier gemischt: Umsatz, Retouren, Gebuehren und Versand
+  // BRUTTO, die Ware dagegen NETTO (lot-cost/lot-metrics teilen durch 1,19).
+  // Der Gewinn enthielt damit die Umsatzsteuer, die dem Finanzamt gehoert —
+  // gemessen ueber das laufende Jahr 2026: 23.779,10 € statt 19.302,33 €,
+  // also 4.476,77 € zu hoch.
+  //
+  // Warum netto und nicht brutto die richtige Richtung ist, ist BELEGT, nicht
+  // angenommen: der Betrieb verkauft mit 19 % (Owner-Aussage, bestaetigt durch
+  // die eigenen Erloes-Belege — eBay 8.755,85 € mit 1.397,99 € MwSt) und zieht
+  // auf der Einkaufsseite Vorsteuer (Auktionshaus Weidler KG 10.811,15 € mit
+  // 1.726,15 € MwSt). Beide Seiten sind also steuerbehaftet; die einzige
+  // konsistente Betrachtung ist ohne Steuer.
+  //
+  // Versand: `shippingNetto` wird BEVORZUGT statt brutto/1,19 — Briefporto der
+  // Deutschen Post ist umsatzsteuerfrei, ein pauschaler Abschlag waere dort
+  // schlicht falsch (gleiche Begruendung wie oben bei versandBrutto).
+  const nettoPnl = nettoPnlAktiv();
+  const entsteuern = (wert) => round2(num(wert) / (1 + VAT_RATE));
+
+  const umsatzNetto = entsteuern(umsatzBrutto);
+  const retourenNetto = entsteuern(retouren);
+  const gebuehrenNetto = entsteuern(marketplaceFees);
+  const versandNettoWert = shippingNetto != null
+    ? round2(num(shippingNetto))
+    : (versandBrutto != null ? entsteuern(versandBrutto) : null);
+
+  const rohgewinn = nettoPnl
+    ? round2(umsatzNetto - retourenNetto - gebuehrenNetto - cogsValue - num(versandNettoWert))
+    : round2(umsatzBrutto - retouren - marketplaceFees - cogsValue - num(versandBrutto));
+  const margenBasis = nettoPnl ? umsatzNetto : umsatzBrutto;
+  const margePct = margenBasis > 0 ? round1((rohgewinn / margenBasis) * 100) : null;
 
   return {
     umsatzBrutto,
+
+    // ── Netto-Sicht (ohne Umsatzsteuer) ──
+    // Immer mitgeliefert, damit die Oberflaeche den Unterschied erklaeren kann,
+    // statt dass eine Zahl unerklaert springt.
+    umsatzNetto,
+    retourenNetto,
+    gebuehrenNetto,
+    versandNetto: versandNettoWert,
+    umsatzsteuerAnteil: round2(umsatzBrutto - umsatzNetto),
+    pnlBasis: nettoPnl ? 'netto' : 'brutto',
 
     // ── Gebühren (neue Semantik: gemessen/modelliert, nie Residuum) ──
     marketplaceFees,
