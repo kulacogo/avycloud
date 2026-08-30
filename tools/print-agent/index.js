@@ -18,7 +18,10 @@
  */
 
 const { erstelleApi } = require('./lib/api');
-const { waehleDrucker, druckeBuffer, listeDrucker, listeMedien, waehleMedium } = require('./lib/drucker');
+const {
+  waehleDrucker, druckeBuffer, listeDrucker, listeMedien, waehleMedium,
+  sammleDrucker, ermittleDrucker,
+} = require('./lib/drucker');
 
 const argumente = process.argv.slice(2);
 const istProbelauf = argumente.includes('--dry-run');
@@ -47,6 +50,30 @@ const log = (...teile) => console.log(`[${jetzt()}]`, ...teile);
  * Rollenformate aendern sich nicht im Betrieb.
  */
 const medienJeDrucker = new Map();
+
+/**
+ * Fehlende Druckernamen selbst bestimmen — ueber das eingelegte ROLLENFORMAT,
+ * nicht ueber den Namen. Namen aendern sich (aus "Versandlabel" wurde am
+ * 2026-08-24 "DHL_DPD_Label"); das Format ist die stabile Eigenschaft. Gesetzte
+ * ENV-Namen gewinnen immer.
+ */
+async function ergaenzeDrucker() {
+  if (konfig.drucker.parcel && konfig.drucker.letter) return;
+  const alle = await sammleDrucker();
+  for (const rolle of ['parcel', 'letter']) {
+    if (konfig.drucker[rolle]) continue;
+    const treffer = ermittleDrucker(rolle, alle);
+    if (treffer.name) {
+      konfig.drucker[rolle] = treffer.name;
+      log(`  ${rolle}: "${treffer.name}" automatisch erkannt.`);
+    } else if (treffer.kandidaten.length > 1) {
+      // Nicht raten: ein 103-mm-Etikett auf der Briefrolle hat einen
+      // abgeschnittenen Barcode.
+      log(`  ${rolle}: nicht eindeutig (${treffer.kandidaten.join(', ')}) — bitte `
+        + `PRINTER_${rolle.toUpperCase()} setzen.`);
+    }
+  }
+}
 
 async function ladeMedien() {
   for (const name of Object.values(konfig.drucker)) {
@@ -106,6 +133,7 @@ async function hauptschleife() {
   }
 
   const api = erstelleApi(konfig);
+  await ergaenzeDrucker();
   await ladeMedien();
   log(`Druck-Agent "${konfig.agentId}" startet${istProbelauf ? ' (Probelauf)' : ''}.`);
   for (const [rolle, mass] of [['parcel', [103, 164]], ['letter', [62, 100]]]) {
