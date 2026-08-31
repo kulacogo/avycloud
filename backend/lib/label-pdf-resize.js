@@ -11,12 +11,30 @@
  * umgesetzt: neue Seite in exakt der Rollengroesse, das Original
  * PROPORTIONAL hineingelegt und zentriert.
  *
- * ES WIRD NIE BESCHNITTEN. Ein Etikett randlos zu fuellen wuerde bedeuten,
- * ueberstehende Teile abzuschneiden — und das kann der Barcode sein. Lieber
- * zwei weisse Streifen als eine unscannbare Sendung.
+ * INHALT WIRD NIE BESCHNITTEN. Weggeschnitten wird nur WEISSRAUM: der
+ * bedruckte Bereich wird bestimmt (`lib/label-ink-box.js`) und mit
+ * Sicherheitsrand freigestellt, damit nicht der leere Teil der Seite die
+ * Groesse diktiert. Beim Deutsche-Post-Etikett sind 84 % der A6-Seite leer —
+ * ohne Freistellen landet der Inhalt bei 59 %, mit Freistellen bei 143 %.
+ * Laesst sich der Bereich nicht sicher bestimmen, wird die GANZE Seite
+ * eingepasst (Fail-open).
  */
 
 const { PDFDocument, degrees } = require('pdf-lib');
+const { findInkBoxSafe } = require('./label-ink-box');
+
+/**
+ * Zuschnitt auf den bedruckten Bereich. Nur der exakte Wert `'off'` schaltet ab —
+ * gleiche Strenge wie bei den uebrigen Schaltern.
+ *
+ * OHNE Zuschnitt wird die ganze SendCloud-Seite eingepasst. Beim
+ * Deutsche-Post-Etikett sind davon 84 % leer: der Inhalt landet bei 59 % und der
+ * Frankier-Code bei ~7 mm. MIT Zuschnitt passt derselbe Inhalt mit Faktor 1,43
+ * auf dieselbe Rolle.
+ */
+function labelCropEnabled() {
+  return String(process.env.LABEL_CROP_WHITESPACE || '').trim().toLowerCase() !== 'off';
+}
 
 const MM_PER_INCH = 25.4;
 const POINTS_PER_INCH = 72;
@@ -110,8 +128,13 @@ async function resizeLabelPdf(buffer, format) {
  *
  * @returns {Promise<{pdf: Buffer, scale: number|null}>}
  */
-async function resizeLabelPdfWithScale(buffer, format) {
+async function resizeLabelPdfWithScale(buffer, format, opts = {}) {
   if (!buffer || !buffer.length) throw new Error('resizeLabelPdf: leeres PDF');
+  // Bedruckten Bereich suchen, damit nicht der leere Teil der Seite die
+  // Groesse bestimmt. Schlaegt das fehl, wird die ganze Seite genommen.
+  const zuschnitt = (opts.crop !== false && labelCropEnabled())
+    ? await findInkBoxSafe(buffer)
+    : null;
   const targetWidth = mmToPoints(format.widthMm);
   const targetHeight = mmToPoints(format.heightMm);
 
@@ -130,10 +153,20 @@ async function resizeLabelPdfWithScale(buffer, format) {
     const { width: srcWidth, height: srcHeight } = srcPage.getSize();
     const rotation = srcPage.getRotation()?.angle || 0;
 
-    const embedded = await out.embedPage(srcPage);
+    // Nur die ERSTE Seite tragt das Etikett; Folgeseiten (Zolldokumente)
+    // bleiben unbeschnitten.
+    // Bei gedrehter Quellseite laufen der Sichtraum von pdf.js (der die
+    // Drehung anwendet) und der Seitenraum von pdf-lib (der sie nicht anwendet)
+    // auseinander — der Kasten laege dann falsch. Lieber nicht freistellen.
+    const kasten = (index === 0 && zuschnitt && rotation === 0) ? zuschnitt : null;
+    const embedded = kasten
+      ? await out.embedPage(srcPage, {
+        left: kasten.left, bottom: kasten.bottom, right: kasten.right, top: kasten.top,
+      })
+      : await out.embedPage(srcPage);
     const placement = computePlacement({
-      srcWidth,
-      srcHeight,
+      srcWidth: kasten ? (kasten.right - kasten.left) : srcWidth,
+      srcHeight: kasten ? (kasten.top - kasten.bottom) : srcHeight,
       targetWidth,
       targetHeight,
       rotation,
@@ -151,7 +184,7 @@ async function resizeLabelPdfWithScale(buffer, format) {
   }
 
   const bytes = await out.save();
-  return { pdf: Buffer.from(bytes), scale: ersteSkalierung };
+  return { pdf: Buffer.from(bytes), scale: ersteSkalierung, cropped: Boolean(zuschnitt), inkBox: zuschnitt };
 }
 
 /**
@@ -166,7 +199,7 @@ async function resizeLabelPdfWithScale(buffer, format) {
 async function resizeLabelPdfSafe(buffer, format) {
   if (!format) return { buffer, resized: false, reason: 'kein Zielformat' };
   try {
-    const { pdf, scale } = await resizeLabelPdfWithScale(buffer, format);
+    const { pdf, scale, cropped, inkBox } = await resizeLabelPdfWithScale(buffer, format);
     // Sichtbar machen, WIE stark verkleinert wurde. Ein Barcode hat eine
     // Mindest-Modulbreite; faellt er darunter, liest ihn der Handscanner im
     // Verteilzentrum nicht mehr zuverlaessig und die Sendung bleibt liegen.
@@ -178,7 +211,7 @@ async function resizeLabelPdfSafe(buffer, format) {
         + `(${format.key}, Ziel ${format.widthMm}x${format.heightMm} mm) — Barcode-Lesbarkeit pruefen.`
       );
     }
-    return { buffer: pdf, resized: true, scale };
+    return { buffer: pdf, resized: true, scale, cropped, inkBox };
   } catch (err) {
     console.warn(`[label-resize] Original durchgereicht (${format.key}): ${err.message}`);
     return { buffer, resized: false, reason: err.message };
@@ -187,6 +220,7 @@ async function resizeLabelPdfSafe(buffer, format) {
 
 module.exports = {
   SCALE_WARN_BELOW,
+  labelCropEnabled,
   mmToPoints,
   computePlacement,
   resizeLabelPdf,

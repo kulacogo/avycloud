@@ -2328,7 +2328,7 @@ router.get('/orders/:orderId/label', requirePermission('orders', 'read'), async 
       })
       : null;
 
-    const { buffer: outBuffer, resized, scale } = await resizeLabelPdfSafe(buffer, labelFormatTarget);
+    const { buffer: outBuffer, resized, scale, cropped, inkBox } = await resizeLabelPdfSafe(buffer, labelFormatTarget);
 
     // Der Druck-Agent liest daran, welche Rolle/welcher Drucker gemeint ist.
     // Der Browser ignoriert unbekannte Kopfzeilen, das ist rueckwaertskompatibel.
@@ -2343,8 +2343,13 @@ router.get('/orders/:orderId/label', requirePermission('orders', 'read'), async 
     // `label_printer` A6 (105x148). Auf die 62x100er Briefrolle sind das rund
     // 59 % — ein Barcode kann dabei unter seine Mindest-Modulbreite fallen.
     if (typeof scale === 'number') res.set('X-Label-Scale', scale.toFixed(3));
+    // Wurde der Weissraum weggeschnitten? Beim Deutsche-Post-Etikett sind 84 %
+    // der A6-Seite leer — ohne Freistellen landet der Inhalt bei 59 %.
+    res.set('X-Label-Cropped', cropped ? '1' : '0');
+    if (inkBox) res.set('X-Label-Ink-Mm', `${inkBox.widthMm.toFixed(1)}x${inkBox.heightMm.toFixed(1)}`);
     res.set('Access-Control-Expose-Headers',
-      'X-Label-Format, X-Label-Printer-Role, X-Label-Width-Mm, X-Label-Height-Mm, X-Label-Resized, X-Label-Scale');
+      'X-Label-Format, X-Label-Printer-Role, X-Label-Width-Mm, X-Label-Height-Mm, '
+      + 'X-Label-Resized, X-Label-Scale, X-Label-Cropped, X-Label-Ink-Mm');
 
     res.set('Content-Type', contentType);
     res.set('Content-Disposition', `inline; filename="label-${orderId}.pdf"`);

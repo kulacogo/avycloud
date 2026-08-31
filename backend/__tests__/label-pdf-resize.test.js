@@ -209,3 +209,73 @@ describe('Verkleinerungsfaktor sichtbar machen', () => {
     expect(res.scale).toBeUndefined();
   });
 });
+
+describe('Freistellen: der Weissraum bestimmt nicht mehr die Groesse', () => {
+  // Am echten Deutsche-Post-Etikett gemessen (2026-08-31): Inhalt 34,5 x 70,1 mm
+  // auf einer A6-Seite = 15,5 %. Ohne Freistellen landet er bei 59 % auf der
+  // 62x100er Rolle und der Frankier-Code bei ~7 mm — zu klein zum Lesen.
+  // Mit Freistellen: 133 %.
+  const { StandardFonts, rgb } = require('pdf-lib');
+
+  /** A6-Seite, Inhalt nur in einem schmalen Streifen — wie das DP-Etikett. */
+  async function a6MitStreifen() {
+    const doc = await PDFDocument.create();
+    const page = doc.addPage([mmToPoints(105), mmToPoints(148)]);
+    const font = await doc.embedFont(StandardFonts.Helvetica);
+    page.drawRectangle({
+      x: mmToPoints(35), y: mmToPoints(45), width: mmToPoints(35), height: mmToPoints(70),
+      borderWidth: 1, borderColor: rgb(0, 0, 0),
+    });
+    page.drawText('Empfaenger', { x: mmToPoints(37), y: mmToPoints(80), size: 8, font });
+    return Buffer.from(await doc.save());
+  }
+
+  it('macht den Inhalt auf der Briefrolle deutlich groesser', async () => {
+    const src = await a6MitStreifen();
+    const ohne = await resizeLabelPdfWithScale(src, LETTER_FORMAT, { crop: false });
+    const mit = await resizeLabelPdfWithScale(src, LETTER_FORMAT);
+    expect(mit.cropped).toBe(true);
+    expect(mit.scale).toBeGreaterThan(ohne.scale * 1.8);
+  });
+
+  it('das Seitenmass bleibt exakt die Rollengroesse', async () => {
+    const out = await resizeLabelPdfWithScale(await a6MitStreifen(), LETTER_FORMAT);
+    const doc = await PDFDocument.load(out.pdf);
+    const { width, height } = doc.getPage(0).getSize();
+    expect(round(width)).toBe(round(mmToPoints(62)));
+    expect(round(height)).toBe(round(mmToPoints(100)));
+  });
+
+  it('ein Etikett, das die Seite schon fuellt, wird NICHT angefasst', async () => {
+    // Der DHL/DPD-Fall — dort gibt es nichts zu gewinnen.
+    const src = await makePdf({ widthMm: 105, heightMm: 148 });
+    const mit = await resizeLabelPdfWithScale(src, PARCEL_FORMAT);
+    expect(mit.cropped).toBe(false);
+  });
+
+  it('LABEL_CROP_WHITESPACE=off stellt das alte Verhalten her', async () => {
+    const alt = process.env.LABEL_CROP_WHITESPACE;
+    process.env.LABEL_CROP_WHITESPACE = 'off';
+    try {
+      const mit = await resizeLabelPdfWithScale(await a6MitStreifen(), LETTER_FORMAT);
+      expect(mit.cropped).toBe(false);
+      expect(Math.round(mit.scale * 100)).toBe(59);
+    } finally {
+      if (alt === undefined) delete process.env.LABEL_CROP_WHITESPACE;
+      else process.env.LABEL_CROP_WHITESPACE = alt;
+    }
+  });
+
+  it('gedrehte Quellseite wird NICHT freigestellt', async () => {
+    // Sichtraum von pdf.js und Seitenraum von pdf-lib laufen bei /Rotate
+    // auseinander — der Kasten laege falsch. Lieber die ganze Seite nehmen.
+    const src = await makePdf({ widthMm: 105, heightMm: 148, rotation: 90 });
+    const mit = await resizeLabelPdfWithScale(src, LETTER_FORMAT);
+    expect(mit.cropped).toBe(false);
+  });
+
+  it('kaputtes PDF: Fail-open, kein Absturz', async () => {
+    const res = await resizeLabelPdfSafe(Buffer.from('kein pdf'), LETTER_FORMAT);
+    expect(res.resized).toBe(false);
+  });
+});
