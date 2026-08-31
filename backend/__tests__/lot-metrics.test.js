@@ -436,3 +436,64 @@ describe('createLotMetricsStore', () => {
     expect(aufrufe).toBe(2);
   });
 });
+
+describe('berechneVerkaufswerte', () => {
+  const { berechneVerkaufswerte } = require('../lib/lot-metrics');
+
+  it('bewertet Bestand UND verkaufte Einheiten je Produkt', () => {
+    // Bewusst je Produkt, nicht je Los: die Preise streuen innerhalb eines
+    // Loses stark — ein Los-Durchschnitt waere eine Zahl ohne Aussage.
+    const produkte = new Map([
+      ['p1', { los: 'L-1', bestand: 10, preis: 20 }],
+      ['p2', { los: 'L-1', bestand: 2, preis: 100 }],
+    ]);
+    const bewegungen = new Map([
+      ['p1', { eingelagert: 15, rueckfuehrungen: 0, korrekturen: 0, verkauft: 5, sonstigeAbgaenge: 0, ereignisse: 2, ausreisser: 0 }],
+      ['p2', { eingelagert: 3, rueckfuehrungen: 0, korrekturen: 0, verkauft: 1, sonstigeAbgaenge: 0, ereignisse: 2, ausreisser: 0 }],
+    ]);
+
+    const v = berechneVerkaufswerte(produkte, bewegungen).get('L-1');
+    expect(v.vkBestand).toBe(400); // 10x20 + 2x100
+    expect(v.vkVerkauft).toBe(200); // 5x20 + 1x100
+    expect(v.vkGesamt).toBe(600);
+    expect(v.einheitenOhnePreis).toBe(0);
+  });
+
+  it('verrechnet Rueckfuehrungen — eine zurueckgenommene Einheit gilt nicht als verkauft', () => {
+    const produkte = new Map([['p1', { los: 'L-1', bestand: 4, preis: 10 }]]);
+    const bewegungen = new Map([
+      ['p1', { eingelagert: 5, rueckfuehrungen: 1, korrekturen: 0, verkauft: 2, sonstigeAbgaenge: 0, ereignisse: 3, ausreisser: 0 }],
+    ]);
+    const v = berechneVerkaufswerte(produkte, bewegungen).get('L-1');
+    expect(v.vkVerkauft).toBe(10); // (2 - 1) x 10
+    expect(v.vkBestand).toBe(40);
+  });
+
+  it('zaehlt Einheiten ohne Preis, statt sie unsichtbar mit 0 zu bewerten', () => {
+    // Sonst saehe ein unvollstaendiger Wert aus wie ein vollstaendiger.
+    const produkte = new Map([
+      ['p1', { los: 'L-1', bestand: 3, preis: null },],
+      ['p2', { los: 'L-1', bestand: 1, preis: 50 }],
+    ]);
+    const bewegungen = new Map([
+      ['p1', { eingelagert: 5, rueckfuehrungen: 0, korrekturen: 0, verkauft: 2, sonstigeAbgaenge: 0, ereignisse: 2, ausreisser: 0 }],
+    ]);
+    const v = berechneVerkaufswerte(produkte, bewegungen).get('L-1');
+    expect(v.vkGesamt).toBe(50);
+    expect(v.einheitenOhnePreis).toBe(5); // 3 auf Bestand + 2 verkauft
+    expect(v.einheitenMitPreis).toBe(1);
+  });
+
+  it('kommt ohne Bewegungen aus — dann zaehlt nur der Bestand', () => {
+    const produkte = new Map([['p1', { los: 'NL-1', bestand: 7, preis: 3 }]]);
+    const v = berechneVerkaufswerte(produkte, new Map()).get('NL-1');
+    expect(v.vkBestand).toBe(21);
+    expect(v.vkVerkauft).toBe(0);
+    expect(v.vkGesamt).toBe(21);
+  });
+
+  it('ignoriert Produkte ohne Los', () => {
+    const produkte = new Map([['p1', { los: '', bestand: 5, preis: 10 }]]);
+    expect(berechneVerkaufswerte(produkte, new Map()).size).toBe(0);
+  });
+});

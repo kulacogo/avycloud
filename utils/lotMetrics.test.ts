@@ -8,6 +8,7 @@ import {
   losBilanzHinweis,
   losAbverkaufsquote,
   mitNeuemEinkaufsbetrag,
+  vkWertHinweis,
 } from "./lotMetrics.ts";
 
 const kennzahlen = (teil: Partial<WarehouseLotMetrics> = {}): WarehouseLotMetrics => ({
@@ -25,6 +26,11 @@ const kennzahlen = (teil: Partial<WarehouseLotMetrics> = {}): WarehouseLotMetric
   differenz: 0,
   stimmig: true,
   ausreisser: 0,
+  vkVerkauft: 349.4,
+  vkBestand: 2078.96,
+  vkGesamt: 2428.36,
+  einheitenOhnePreis: 0,
+  einheitenMitPreis: 139,
   ...teil,
 });
 
@@ -161,5 +167,24 @@ describe("losAbverkaufsquote", () => {
   test("bleibt zwischen 0 und 1", () => {
     assert.equal(losAbverkaufsquote(kennzahlen({ einheitenErfasst: 10, einheitenVerkauft: 12 })), 1);
     assert.equal(losAbverkaufsquote(kennzahlen({ einheitenErfasst: 10, einheitenVerkauft: -3 })), 0);
+  });
+});
+
+describe("vkWertHinweis", () => {
+  test("nennt immer, dass zu heutigen Preisen bewertet wird", () => {
+    // Sonst wird die Zahl fuer erzielten Umsatz gehalten — sie ist es nicht.
+    const hinweis = String(vkWertHinweis(kennzahlen({ einheitenOhnePreis: 0 })));
+    assert.match(hinweis, /heutigen Verkaufspreisen/);
+    assert.match(hinweis, /kein erzielter Erlös/);
+  });
+
+  test("warnt, wenn Einheiten ohne Preis mitzaehlen", () => {
+    const hinweis = String(vkWertHinweis(kennzahlen({ einheitenOhnePreis: 4 })));
+    assert.match(hinweis, /4 Einheit/);
+    assert.match(hinweis, /zu niedrig/);
+  });
+
+  test("schweigt ohne Kennzahlen", () => {
+    assert.equal(vkWertHinweis(null), null);
   });
 });

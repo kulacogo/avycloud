@@ -246,6 +246,73 @@ function berechneLosKennzahlen(los, bewegung, bestandsdaten = {}) {
 }
 
 /**
+ * Verkaufswert je Los — was die Ware am Markt wert ist bzw. war.
+ *
+ * Gegenstueck zum EINKAUFS-Blick (ekJeEinheitBrutto): hier zaehlt der
+ * Verkaufspreis je Einheit, einmal fuer den Bestand und einmal fuer die bereits
+ * verkauften Einheiten. Beides zusammen ist der Los-Wert.
+ *
+ * BEWERTET WIRD JE PRODUKT, nicht je Los: die Preise streuen innerhalb eines
+ * Loses stark (das Sammel-Los NL-0626 haelt 1.678 verschiedene Artikel). Ein
+ * Los-Durchschnittspreis waere eine Zahl ohne Aussage.
+ *
+ * Preise sind BRUTTO — das ist der Preis, der am Marktplatz steht.
+ *
+ * KEINE Bewertung der verkauften Einheiten aus den Auftraegen: 'orders' deckt
+ * nur die Zeit ab dem Kontowechsel ab (58 % der gepickten Auftraege fehlen).
+ * Bewertet wird deshalb durchgaengig mit dem HEUTIGEN Preis des Produkts — das
+ * ist eine Bewertung zu aktuellen Preisen, kein erzielter Erloes. Wer das
+ * verwechselt, haelt die Zahl faelschlich fuer Umsatz.
+ *
+ * Einheiten ohne jeden Preis steuern 0 bei und werden GEZAEHLT
+ * (`einheitenOhnePreis`) — sonst sieht ein unvollstaendiger Wert aus wie ein
+ * vollstaendiger.
+ *
+ * @param {Map<string, {los: string, bestand: number, preis: number|null}>} produkte
+ * @param {Map<string, object>} proProdukt  Bewegungen je Produkt (gleicher Schluessel)
+ * @returns {Map<string, {vkBestand, vkVerkauft, vkGesamt, einheitenOhnePreis, einheitenMitPreis}>}
+ */
+function berechneVerkaufswerte(produkte, proProdukt) {
+  const out = new Map();
+  if (!(produkte instanceof Map)) return out;
+  const bewegungen = proProdukt instanceof Map ? proProdukt : new Map();
+
+  for (const [schluessel, info] of produkte) {
+    const code = String(info?.los || '').trim();
+    if (!code) continue;
+
+    const b = bewegungen.get(schluessel) || leereBewegung();
+    const bestand = Math.max(0, zahl(info.bestand));
+    const verkauft = Math.max(0, b.verkauft - b.rueckfuehrungen);
+
+    const eintrag = out.get(code) || {
+      vkBestand: 0,
+      vkVerkauft: 0,
+      vkGesamt: 0,
+      einheitenOhnePreis: 0,
+      einheitenMitPreis: 0,
+    };
+
+    const preis = zahl(info.preis);
+    if (preis > 0) {
+      eintrag.vkBestand += bestand * preis;
+      eintrag.vkVerkauft += verkauft * preis;
+      eintrag.einheitenMitPreis += bestand + verkauft;
+    } else {
+      eintrag.einheitenOhnePreis += bestand + verkauft;
+    }
+    out.set(code, eintrag);
+  }
+
+  for (const eintrag of out.values()) {
+    eintrag.vkBestand = runde2(eintrag.vkBestand);
+    eintrag.vkVerkauft = runde2(eintrag.vkVerkauft);
+    eintrag.vkGesamt = runde2(eintrag.vkBestand + eintrag.vkVerkauft);
+  }
+  return out;
+}
+
+/**
  * Bruecke Los-Kennzahlen -> Wareneinsatz des Finanzberichts.
  *
  * ERZEUGT ZWINGEND EIN `netto`-FELD. `lib/cogs.js` liest AUSSCHLIESSLICH
@@ -301,6 +368,11 @@ module.exports = {
   KORREKTUR_AKTIONEN,
   klassifiziereEreignis,
   aggregiereLosBewegungen,
+  // Gleiche Funktion, ehrlicherer Name: der Schluessel wird vom Aufrufer
+  // bestimmt (Los ODER Produkt). Fuer die Verkaufswerte wird je PRODUKT
+  // aggregiert, weil die Preise innerhalb eines Loses stark streuen.
+  aggregiereBewegungen: aggregiereLosBewegungen,
   berechneLosKennzahlen,
+  berechneVerkaufswerte,
   losKostenFuerBericht,
 };

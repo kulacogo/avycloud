@@ -497,6 +497,22 @@ export interface WarehouseLotMetrics {
   ekJeEinheitBrutto: number | null;
   restwertBrutto: number | null;
   abgangswertBrutto: number | null;
+
+  /**
+   * Verkaufswerte (brutto, zu den HEUTIGEN Preisen der Produkte).
+   *
+   * Bewertet wird je Produkt, nicht je Los — die Preise streuen innerhalb eines
+   * Loses stark. `vkVerkauft` ist eine Bewertung der abgegangenen Einheiten zu
+   * aktuellen Preisen, KEIN erzielter Erlös: die Auftragshistorie beginnt erst
+   * am Kontowechsel und deckt nur 42 % der Abgänge ab.
+   */
+  vkVerkauft: number;
+  vkBestand: number;
+  /** vkVerkauft + vkBestand — der Los-Wert. */
+  vkGesamt: number;
+  /** Einheiten ohne hinterlegten Preis — sie steuern 0 € bei. */
+  einheitenOhnePreis: number;
+  einheitenMitPreis: number;
   differenz: number;
   stimmig: boolean;
   ausreisser: number;
