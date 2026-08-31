@@ -15,6 +15,7 @@ import {
   formatEuro,
   losBilanzHinweis,
   losWertGrund,
+  vkWertHinweis,
   mitNeuemEinkaufsbetrag,
 } from "../../utils/lotMetrics";
 
@@ -88,11 +89,14 @@ const LotStructureTab: React.FC = () => {
         acc.erfasst += k.einheitenErfasst;
         acc.bestand += k.einheitenBestand;
         acc.verkauft += k.einheitenVerkauft;
-        if (k.restwertBrutto === null) acc.ohneWert += 1;
-        else acc.restwert += k.restwertBrutto;
+        acc.vkGesamt += k.vkGesamt ?? 0;
+        acc.vkVerkauft += k.vkVerkauft ?? 0;
+        acc.vkBestand += k.vkBestand ?? 0;
+        acc.einheitenOhnePreis += k.einheitenOhnePreis ?? 0;
+        if (k.ekJeEinheitBrutto === null) acc.ohneWert += 1;
         return acc;
       },
-      { erfasst: 0, bestand: 0, verkauft: 0, restwert: 0, ohneWert: 0 }
+      { erfasst: 0, bestand: 0, verkauft: 0, vkGesamt: 0, vkVerkauft: 0, vkBestand: 0, einheitenOhnePreis: 0, ohneWert: 0 }
     );
   }, [lots]);
 
@@ -410,8 +414,14 @@ const LotStructureTab: React.FC = () => {
                   <th className="py-2 pr-4 text-right" title="EK brutto ÷ Einheiten erfasst.">
                     EK/Einheit
                   </th>
-                  <th className="py-2 pr-4 text-right" title="Anteil des Einkaufsbetrags, der noch als Ware im Lager liegt.">
-                    Los-Wert
+                  <th className="py-2 pr-4 text-right" title="Verkaufswert des gesamten Loses: Bestand + bereits verkaufte Einheiten, zu den heutigen Preisen der Artikel.">
+                    Los-Wert (VK)
+                  </th>
+                  <th className="py-2 pr-4 text-right" title="Verkaufswert der bereits verkauften Einheiten.">
+                    VK verkauft
+                  </th>
+                  <th className="py-2 pr-4 text-right" title="Verkaufswert der Einheiten, die noch im Lager liegen.">
+                    VK Bestand
                   </th>
                   <th className="py-2 pr-4">Angelegt</th>
                   <th className="py-2"></th>
@@ -423,6 +433,7 @@ const LotStructureTab: React.FC = () => {
                   const kennzahlen = lot.metrics ?? null;
                   const bilanzHinweis = losBilanzHinweis(kennzahlen);
                   const wertGrund = losWertGrund(kennzahlen);
+                  const vkHinweis = vkWertHinweis(kennzahlen);
                   return (
                     <tr key={lot.code} className="border-b border-app-border/50 hover:bg-app-elevated/30">
                       <td className="py-2 pr-2">
@@ -491,14 +502,23 @@ const LotStructureTab: React.FC = () => {
                       <td className="py-2 pr-4 text-right tabular-nums text-txt-secondary">
                         {formatEinheiten(kennzahlen?.einheitenVerkauft)}
                       </td>
-                      <td className="py-2 pr-4 text-right tabular-nums text-txt-secondary">
+                      <td
+                        className="py-2 pr-4 text-right tabular-nums text-txt-secondary"
+                        title={wertGrund || undefined}
+                      >
                         {formatEuro(kennzahlen?.ekJeEinheitBrutto)}
                       </td>
                       <td
                         className="py-2 pr-4 text-right tabular-nums text-txt-primary font-medium"
-                        title={wertGrund || undefined}
+                        title={vkHinweis || undefined}
                       >
-                        {formatEuro(kennzahlen?.restwertBrutto)}
+                        {formatEuro(kennzahlen?.vkGesamt)}
+                      </td>
+                      <td className="py-2 pr-4 text-right tabular-nums text-txt-secondary">
+                        {formatEuro(kennzahlen?.vkVerkauft)}
+                      </td>
+                      <td className="py-2 pr-4 text-right tabular-nums text-txt-secondary">
+                        {formatEuro(kennzahlen?.vkBestand)}
                       </td>
                       <td className="py-2 pr-4 text-xs text-txt-muted">
                         {lot.createdAt ? new Date(lot.createdAt).toLocaleDateString("de-DE") : "—"}
@@ -544,7 +564,9 @@ const LotStructureTab: React.FC = () => {
                   <td className="py-2 pr-4 text-right tabular-nums">{formatEinheiten(summe.bestand)}</td>
                   <td className="py-2 pr-4 text-right tabular-nums">{formatEinheiten(summe.verkauft)}</td>
                   <td className="py-2 pr-4"></td>
-                  <td className="py-2 pr-4 text-right tabular-nums">{formatEuro(summe.restwert)}</td>
+                  <td className="py-2 pr-4 text-right tabular-nums">{formatEuro(summe.vkGesamt)}</td>
+                  <td className="py-2 pr-4 text-right tabular-nums">{formatEuro(summe.vkVerkauft)}</td>
+                  <td className="py-2 pr-4 text-right tabular-nums">{formatEuro(summe.vkBestand)}</td>
                   <td className="py-2 pr-4"></td>
                   <td className="py-2"></td>
                 </tr>
@@ -553,12 +575,18 @@ const LotStructureTab: React.FC = () => {
           </div>
         )}
 
-        {(summe.ohneWert > 0 || (lotsMeta.ereignisseOhneLos ?? 0) > 0) && (
+        {(summe.ohneWert > 0 || summe.einheitenOhnePreis > 0 || (lotsMeta.ereignisseOhneLos ?? 0) > 0) && (
           <div className="mt-3 space-y-1 text-xs text-txt-muted">
             {summe.ohneWert > 0 && (
               <p>
-                {summe.ohneWert} Los(e) ohne gepflegten Einkaufsbetrag — sie zählen Einheiten mit,
-                aber keinen Wert. Der Summenwert ist deshalb unvollständig.
+                {summe.ohneWert} Los(e) ohne gepflegten Einkaufsbetrag — dort lässt sich kein EK je
+                Einheit ausweisen.
+              </p>
+            )}
+            {summe.einheitenOhnePreis > 0 && (
+              <p>
+                {summe.einheitenOhnePreis} Einheit(en) ohne hinterlegten Verkaufspreis zählen mit
+                0 € — die VK-Werte sind deshalb eher zu niedrig.
               </p>
             )}
             {(lotsMeta.ereignisseOhneLos ?? 0) > 0 && (

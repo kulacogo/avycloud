@@ -25,7 +25,12 @@
  */
 
 const { FieldPath } = require('@google-cloud/firestore');
-const { aggregiereLosBewegungen, berechneLosKennzahlen } = require('./lot-metrics');
+const {
+  aggregiereBewegungen,
+  berechneLosKennzahlen,
+  berechneVerkaufswerte,
+} = require('./lot-metrics');
+const { resolveListingPrice } = require('./listing-price-source');
 
 const DEFAULT_TTL_MS = Number(process.env.LOT_METRICS_TTL_MS || 5 * 60 * 1000);
 const SEITEN_GROESSE = 1000;
@@ -82,6 +87,12 @@ function baueProduktIndex(produkte) {
   const losVonSku = new Map();
   const bestand = new Map();
   const anzahl = new Map();
+  // Bewertungsgrundlage je PRODUKT (Doc-ID als Schluessel): Los, Bestand und
+  // Verkaufspreis. Die Preise streuen innerhalb eines Loses stark — ein
+  // Los-Durchschnitt waere eine Zahl ohne Aussage.
+  const produktInfo = new Map();
+  const docIdVonIdFeld = new Map();
+  const docIdVonSku = new Map();
 
   for (const { id, daten } of produkte) {
     const code = text(daten?.ops?.sourceLot);
@@ -92,14 +103,21 @@ function baueProduktIndex(produkte) {
     // GESPEICHERTE id-Feld gewinnt gegen die Dokument-ID. Beide Wege muessen
     // deshalb im Index stehen, sonst laeuft der Join ins Leere.
     const idFeld = text(daten?.id);
-    if (idFeld) losVonIdFeld.set(idFeld, code);
+    if (idFeld) { losVonIdFeld.set(idFeld, code); docIdVonIdFeld.set(idFeld, id); }
 
     const sku = text(daten?.identification?.sku) || text(daten?.details?.identifiers?.sku);
-    if (sku) losVonSku.set(sku, code);
+    if (sku) { losVonSku.set(sku, code); docIdVonSku.set(sku, id); }
 
     const menge = Number(daten?.inventory?.quantity);
-    bestand.set(code, (bestand.get(code) || 0) + (Number.isFinite(menge) ? menge : 0));
+    const eigeneMenge = Number.isFinite(menge) ? menge : 0;
+    bestand.set(code, (bestand.get(code) || 0) + eigeneMenge);
     anzahl.set(code, (anzahl.get(code) || 0) + 1);
+
+    // Preis ueber die BESTEHENDE Kette (sellPrice -> recherchierter Marktpreis
+    // -> Marktplatz-Spiegel). Keine zweite Preislogik: eine abweichende Kette
+    // waere eine Quelle fuer Zahlen, die sich widersprechen.
+    const { price } = resolveListingPrice({ details: daten?.details, marketplace: daten?.marketplace });
+    produktInfo.set(id, { los: code, bestand: eigeneMenge, preis: price });
   }
 
   const losFuerEreignis = (ereignis) => {
@@ -112,7 +130,13 @@ function baueProduktIndex(produkte) {
     );
   };
 
-  return { losFuerEreignis, bestand, anzahl };
+  const produktFuerEreignis = (ereignis) => {
+    const pid = text(ereignis?.productId);
+    if (produktInfo.has(pid)) return pid;
+    return docIdVonIdFeld.get(pid) || docIdVonSku.get(text(ereignis?.sku)) || null;
+  };
+
+  return { losFuerEreignis, produktFuerEreignis, produktInfo, bestand, anzahl };
 }
 
 /**
@@ -120,20 +144,27 @@ function baueProduktIndex(produkte) {
  * Rein und ohne Firestore — der testbare Kern des Ladepfads.
  */
 function baueKennzahlen({ lose = [], produkte = [], ereignisse = [] } = {}) {
-  const { losFuerEreignis, bestand, anzahl } = baueProduktIndex(produkte);
-  const { proLos, ohneLos, ausreisser } = aggregiereLosBewegungen(ereignisse, losFuerEreignis);
+  const { losFuerEreignis, produktFuerEreignis, produktInfo, bestand, anzahl } = baueProduktIndex(produkte);
+  const { proLos, ohneLos, ausreisser } = aggregiereBewegungen(ereignisse, losFuerEreignis);
+  // Zweiter Durchlauf mit demselben Rechenwerk, nur je Produkt statt je Los —
+  // Grundlage der Verkaufswerte.
+  const { proLos: proProdukt } = aggregiereBewegungen(ereignisse, produktFuerEreignis);
+  const verkaufswerte = berechneVerkaufswerte(produktInfo, proProdukt);
 
   const proCode = new Map();
   for (const los of lose) {
     const code = text(los?.code);
     if (!code) continue;
-    proCode.set(
-      code,
-      berechneLosKennzahlen(los, proLos.get(code), {
+    const vk = verkaufswerte.get(code) || {
+      vkBestand: 0, vkVerkauft: 0, vkGesamt: 0, einheitenOhnePreis: 0, einheitenMitPreis: 0,
+    };
+    proCode.set(code, {
+      ...berechneLosKennzahlen(los, proLos.get(code), {
         bestand: bestand.get(code) || 0,
         produkte: anzahl.get(code) || 0,
-      })
-    );
+      }),
+      ...vk,
+    });
   }
 
   return {
@@ -153,7 +184,17 @@ async function ladeRohdaten(firestore, produktCollection) {
     leseAlles(
       firestore
         .collection(produktCollection)
-        .select('id', 'ops.sourceLot', 'inventory.quantity', 'identification.sku', 'details.identifiers.sku')
+        .select(
+          'id',
+          'ops.sourceLot',
+          'inventory.quantity',
+          'identification.sku',
+          'details.identifiers.sku',
+          // Preis-Kette fuer die Verkaufswerte (resolveListingPrice)
+          'details.pricing.sellPrice',
+          'details.pricing.lowest_price.amount',
+          'marketplace.ebay.price'
+        )
     ),
     leseAlles(firestore.collection('warehouseEvents').select('type', 'delta', 'productId', 'sku', 'meta')),
   ]);

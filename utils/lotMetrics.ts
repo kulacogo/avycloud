@@ -22,7 +22,7 @@ export const formatEuro = (wert: number | null | undefined): string => {
 };
 
 /**
- * Warum ein Los keinen Wert zeigen kann — als Klartext fuer den Bediener.
+ * Warum ein Los keinen EK je Einheit zeigen kann — Klartext fuer den Bediener.
  * `null`, wenn ein Wert ausgewiesen wird.
  */
 export const losWertGrund = (metrics: WarehouseLotMetrics | null | undefined): string | null => {
@@ -30,6 +30,25 @@ export const losWertGrund = (metrics: WarehouseLotMetrics | null | undefined): s
   if (metrics.einheitenErfasst <= 0) return "Keine Einlagerung im Lager-Journal";
   if (metrics.ekJeEinheitBrutto === null) return "Kein Einkaufsbetrag am Los gepflegt";
   return null;
+};
+
+/**
+ * Hinweis zum Verkaufswert.
+ *
+ * Zwei Dinge muessen dabei stehen, sonst wird die Zahl missverstanden:
+ * sie ist zu HEUTIGEN Preisen gerechnet (kein erzielter Erloes), und Einheiten
+ * ohne hinterlegten Preis steuern 0 € bei — ein unvollstaendiger Wert saehe
+ * sonst aus wie ein vollstaendiger.
+ */
+export const vkWertHinweis = (metrics: WarehouseLotMetrics | null | undefined): string | null => {
+  if (!metrics) return null;
+  const teile = ["Bewertet zu den heutigen Verkaufspreisen der Artikel — kein erzielter Erlös."];
+  if (metrics.einheitenOhnePreis > 0) {
+    teile.push(
+      `${formatEinheiten(metrics.einheitenOhnePreis)} Einheit(en) ohne hinterlegten Preis zählen mit 0 € — der Wert ist deshalb zu niedrig.`
+    );
+  }
+  return teile.join(" ");
 };
 
 /**
