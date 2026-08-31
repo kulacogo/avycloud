@@ -171,6 +171,8 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
    */
   const [printAgentOnline, setPrintAgentOnline] = useState<boolean | null>(null);
   const [labelPrinting, setLabelPrinting] = useState(false);
+  /** Bleibender Druckfehler. Nur so erfaehrt der Bediener, dass nichts kam. */
+  const [druckFehler, setDruckFehler] = useState<string | null>(null);
   const [packScopedOrderKey, setPackScopedOrderKey] = useState<string | null>(null);
   const [packSelectedKey, setPackSelectedKey] = useState<string | null>(null);
   const [printingPrefs, setPrintingPrefs] = useState<{ labelFormat?: string; autoPrint?: boolean; networkPrinterUrl?: string }>({});
@@ -1506,10 +1508,17 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
   useEffect(() => {
     if (mode !== 'operations-pack') return;
     let abgebrochen = false;
-    void fetchPrintStatus().then((s) => {
-      if (!abgebrochen) setPrintAgentOnline(Boolean(s.enabled && s.online));
-    });
-    return () => { abgebrochen = true; };
+    const pruefen = () => {
+      void fetchPrintStatus().then((s) => {
+        if (!abgebrochen) setPrintAgentOnline(Boolean(s.enabled && s.online));
+      });
+    };
+    pruefen();
+    // Nachfassen, damit ein spaeter gestarteter Agent auch bemerkt wird —
+    // sonst bliebe die Offline-Warnung stehen, bis jemand den Bildschirm
+    // verlaesst und neu betritt. Der Agent meldet sich alle 30 s.
+    const takt = window.setInterval(pruefen, 30000);
+    return () => { abgebrochen = true; window.clearInterval(takt); };
   }, [mode]);
 
   const submitScanCapture = useCallback(
@@ -2545,6 +2554,14 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
           </div>
         </div>
 
+        {/* Zustand des Druckwegs — sichtbar BEVOR jemand packt. Ein toter
+            Agent faellt sonst erst auf, wenn das Paket fertig verpackt ist. */}
+        {printAgentOnline === false ? (
+          <div role="status" className="rounded-2xl border border-warning/40 bg-warning-dim p-2.5 text-xs text-warning">
+            Druck-Agent offline — Etiketten koennen gerade nicht aus AvyCloud gedruckt werden.
+          </div>
+        ) : null}
+
         {pendingLabel ? (
           <div className="rounded-2xl border-2 border-success bg-success-dim p-3 space-y-2">
             <p className="text-sm font-semibold text-success">
@@ -2555,53 +2572,76 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
               disabled={labelPrinting}
               onClick={async () => {
                 setLabelPrinting(true);
+                setDruckFehler(null);
                 try {
-                  // WEG 1 — über AvyCloud: der Druck-Agent im Büro-Netz schickt
-                  // das Etikett an den Drucker, der zum Transporteur passt
-                  // (DHL/DPD 103x164 mm, Deutsche Post 62x100 mm). Keine
-                  // Android-Druckauswahl, keine Druckerwahl von Hand.
-                  if (printAgentOnline) {
-                    try {
-                      const job = await enqueueLabelPrint(pendingLabel.orderId);
-                      const fertig = await waitForPrintJob(job.jobId);
-                      if (fertig.status === 'done') {
-                        setPackMessage(`${pendingLabel.orderLabel} — Etikett gedruckt.`);
-                        setPendingLabel(null);
-                        return;
-                      }
-                      // Erst melden, dann den Rückfallweg anbieten. Stumm
-                      // umschalten würde verbergen, dass der Drucker klemmt.
-                      setPackMessage(
-                        `Drucker meldet einen Fehler: ${fertig.error || 'unbekannt'} — bitte über Teilen drucken.`
-                      );
-                      setPrintAgentOnline(false);
-                    } catch (err: any) {
-                      setPackMessage(`Druck über AvyCloud fehlgeschlagen: ${err?.message || 'unbekannt'}`);
-                      setPrintAgentOnline(false);
-                    }
+                  // IMMER über AvyCloud drucken — der Agent im Büro-Netz gibt
+                  // das Etikett an das Gerät, das zum Transporteur passt
+                  // (DHL/DPD 103x164 mm, Deutsche Post 62x100 mm).
+                  //
+                  // BEWUSST KEIN automatisches Ausweichen auf Androids
+                  // Teilen-/Druckauswahl (Betreiber-Anweisung 2026-08-31): die
+                  // AvyCloud-Oberfläche darf für einen Druckauftrag nicht
+                  // verlassen werden. Klemmt etwas, wird das HIER gemeldet —
+                  // der Ausweichweg ist ein eigener, ausdrücklich beschrifteter
+                  // Knopf, den nur ein Mensch antippt.
+                  // Erst nachsehen, ob der Agent lebt. Ohne diese Pruefung
+                  // wird der Auftrag eingereiht und der Bediener wartet 30 s
+                  // auf eine Rueckmeldung, die nie kommt.
+                  const stand = await fetchPrintStatus();
+                  setPrintAgentOnline(Boolean(stand.enabled && stand.online));
+                  if (!stand.enabled || !stand.online) {
+                    setDruckFehler('Druck-Agent nicht erreichbar — es wurde NICHTS gedruckt.');
                     return;
                   }
 
-                  // WEG 2 — Rückfall: Androids Teilen-/Druckauswahl. Nicht
-                  // schön, aber es bleibt nichts liegen.
-                  const res = await printLabelBlob(pendingLabel.blob, `label-${pendingLabel.orderLabel}.pdf`);
-                  // Abbruch durch den Menschen: Knopf stehen lassen, damit ein
-                  // zweiter Versuch moeglich ist.
-                  if (res.ok) setPendingLabel(null);
-                  else if (!res.cancelled && res.error) setPackMessage(res.error);
+                  const job = await enqueueLabelPrint(pendingLabel.orderId);
+                  const fertig = await waitForPrintJob(job.jobId);
+                  if (fertig.status === 'done') {
+                    setPackMessage(`${pendingLabel.orderLabel} — Etikett gedruckt.`);
+                    setPendingLabel(null);
+                    return;
+                  }
+                  setDruckFehler(`Drucker meldet einen Fehler: ${fertig.error || 'unbekannt'}`);
+                } catch (err: any) {
+                  setDruckFehler(err?.message || 'Druck über AvyCloud fehlgeschlagen');
                 } finally {
                   setLabelPrinting(false);
                 }
               }}
               className="w-full rounded-xl bg-success text-white font-bold h-14 text-base disabled:opacity-50"
             >
-              {labelPrinting
-                ? (printAgentOnline ? 'Drucke…' : 'Öffne Druck…')
-                : (printAgentOnline ? 'Etikett drucken' : 'Etikett drucken (Teilen)')}
+              {labelPrinting ? 'Drucke…' : 'Etikett drucken'}
             </button>
+
+            {/* Fehler bleibt stehen, bis er behoben oder weggetippt wird. Ein
+                Etikett, das nicht kam, darf nicht stillschweigend verschwinden. */}
+            {druckFehler ? (
+              <div role="alert" className="rounded-xl border border-danger/40 bg-danger-dim p-2.5 space-y-2">
+                <p className="text-xs text-danger">{druckFehler}</p>
+                <p className="text-[11px] text-txt-muted">
+                  {printAgentOnline === false
+                    ? 'Der Druck-Agent im Büro meldet sich nicht. Läuft er auf dem Büro-Rechner?'
+                    : 'Drucker prüfen (Papier, Deckel, Netzwerk) und erneut versuchen.'}
+                </p>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    // Notausgang, NUR auf ausdrückliches Antippen. Öffnet
+                    // Androids Auswahl — deshalb klar benannt.
+                    const res = await printLabelBlob(pendingLabel.blob, `label-${pendingLabel.orderLabel}.pdf`);
+                    if (res.ok) { setPendingLabel(null); setDruckFehler(null); }
+                    else if (!res.cancelled && res.error) setDruckFehler(res.error);
+                  }}
+                  className="w-full rounded-lg bg-app-surface border border-app-border text-txt-primary text-xs font-semibold py-2"
+                >
+                  Notweg: über Android teilen
+                </button>
+              </div>
+            ) : null}
+
             <button
               type="button"
-              onClick={() => setPendingLabel(null)}
+              onClick={() => { setPendingLabel(null); setDruckFehler(null); }}
               className="w-full text-xs text-txt-muted underline"
             >
               Ohne Druck weiter
