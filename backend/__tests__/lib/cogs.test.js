@@ -98,7 +98,12 @@ describe('computeOrderCogs', () => {
   });
 });
 
-describe('computeOrderCogs — with cost model (pallet estimate)', () => {
+// Die Paletten-Pauschale ist als Kostenquelle ABGESCHAFFT (Betreiber-Anweisung
+// 31.08.2026): "wir koennen nur auf Grundlage der erfassten Einheiten je Los
+// rechnen". Palettenpreis und Einheiten je Palette sind dem Betrieb unbekannt —
+// der daraus abgeleitete Stueckpreis war erfunden. Ein Posten ohne Los-Preis
+// zaehlt jetzt sichtbar als NICHT bepreist.
+describe('computeOrderCogs — Kostenmodell ist KEINE Kostenquelle mehr', () => {
   const idx = buildProductCostIndex([
     { identification: { sku: 'REAL' }, details: { pricing: { buyPrice: 5 } } }, // has real EK
     { identification: { sku: 'NOCOST' }, details: { pricing: { lowest_price: { amount: 40 } } } }, // no EK
@@ -106,16 +111,19 @@ describe('computeOrderCogs — with cost model (pallet estimate)', () => {
   // ratio = 18.67 / 30 ≈ 0.622
   const model = deriveCostModel({ mode: 'proportional', vatMode: 'netto', palletCostBrutto: 400, unitsPerPallet: 18 }, 30);
 
-  it('estimates COGS for items without a real buyPrice using sale price × ratio', () => {
+  it('schaetzt NICHTS mehr — ein Posten ohne Kostenbasis bleibt unbepreist', () => {
     const order = { items: [{ sku: 'NOCOST', quantity: 2, priceBrutto: 40 }] };
     const r = computeOrderCogs(order, idx, model);
-    expect(r.cogs).toBeCloseTo(2 * 40 * model.ratio, 1); // 2 * (40 * 0.622) ≈ 49.8
-    expect(r.estimatedItemCount).toBe(1);
+    // Frueher: 2 x (40 x 0,622) ~ 49,80 EUR erfundener Wareneinsatz.
+    expect(r.cogs).toBe(0);
+    expect(r.estimatedItemCount).toBe(0);
     expect(r.exactItemCount).toBe(0);
-    expect(r.unmatchedItemCount).toBe(0); // now covered by the estimate
+    // Sichtbar in der Abdeckungsquote statt still im Wareneinsatz.
+    expect(r.unmatchedItemCount).toBe(1);
+    expect(r.matchedRevenue).toBe(0);
   });
 
-  it('still prefers a real buyPrice over the pallet estimate', () => {
+  it('nutzt weiterhin einen echten Einkaufspreis am Produkt', () => {
     const order = { items: [{ sku: 'REAL', quantity: 3, priceBrutto: 50 }] };
     const r = computeOrderCogs(order, idx, model);
     expect(r.cogs).toBe(15); // 3 * 5 real EK, NOT the estimate
@@ -123,7 +131,7 @@ describe('computeOrderCogs — with cost model (pallet estimate)', () => {
     expect(r.estimatedItemCount).toBe(0);
   });
 
-  it('without a model, a no-buyPrice item stays unmatched (honest 0% coverage)', () => {
+  it('bleibt auch ohne Kostenmodell unbepreist (ehrliche 0 % Abdeckung)', () => {
     const order = { items: [{ sku: 'NOCOST', quantity: 2, priceBrutto: 40 }] };
     const r = computeOrderCogs(order, idx); // no model
     expect(r.cogs).toBe(0);
@@ -181,15 +189,27 @@ describe('computeInventoryValue', () => {
     expect(r.unitCount).toBe(0);
   });
 
-  it('estimates capital at the flat avg unit cost (what was paid per unit), not sell-proportional', () => {
-    // Capital = "what you paid for the stock on hand" → flat avg cost/unit, NOT sell × ratio.
+  it('bewertet Bestand OHNE Kostenbasis mit 0 statt mit der Paletten-Pauschale', () => {
+    // Frueher steuerte B ueber die Pauschale ~56 EUR bei — aus Zahlen, die der
+    // Betrieb gar nicht kennt. Gebundenes Kapital ist "was du bezahlt hast";
+    // ohne Beleg dafuer gibt es keinen Wert, nur eine sichtbare Luecke.
     const model = deriveCostModel({ mode: 'proportional', vatMode: 'netto', palletCostBrutto: 400, unitsPerPallet: 18 }, 30);
     const r = computeInventoryValue([
-      product({ sku: 'A', buyPrice: 5, sellPrice: 12, qty: 2 }), // real EK → 10
-      product({ sku: 'B', lowest: 40, qty: 3 }), // no EK → 3 × avgUnitCostNetto
+      product({ sku: 'A', buyPrice: 5, sellPrice: 12, qty: 2 }), // echter EK -> 10
+      product({ sku: 'B', lowest: 40, qty: 3 }), // kein EK, kein Los -> 0
     ], model);
-    expect(r.capitalAtCost).toBeCloseTo(2 * 5 + 3 * model.avgUnitCostNetto, 0); // 10 + ~56
-    expect(r.articlesWithCost).toBe(1); // only A has a real buyPrice
-    expect(r.articlesEstimated).toBe(1); // B costed via model
+    expect(r.capitalAtCost).toBe(10);
+    expect(r.articlesWithCost).toBe(1);
+    expect(r.articlesEstimated).toBe(1); // B: gezaehlt als OHNE Kostenbasis
+    expect(r.articlesFromLot).toBe(0);
+  });
+
+  it('bewertet Bestand ueber den Los-Preis, wenn einer vorliegt', () => {
+    const p = product({ sku: 'C', lowest: 40, qty: 4 });
+    p.ops = { sourceLot: 'L-1' };
+    const r = computeInventoryValue([p], null, new Map([['L-1', { netto: 2.5 }]]));
+    expect(r.capitalAtCost).toBe(10);
+    expect(r.articlesFromLot).toBe(1);
+    expect(r.articlesEstimated).toBe(0);
   });
 });
