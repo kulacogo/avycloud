@@ -896,6 +896,16 @@ export interface FinancialReportInventory {
   potentialRevenue: number;
   articleCount: number;
   articlesWithCost: number;
+  /**
+   * Über den Los-Preis bewertet — seit 31.08.2026 der Regelfall. Optional,
+   * damit das Frontend im Deploy-Fenster vor dem Backend live sein kann.
+   */
+  articlesFromLot?: number;
+  /**
+   * Artikel OHNE jede Kostenbasis (weder Einkaufspreis am Produkt noch
+   * Los-Preis). Der Name ist historisch: eine Schätzung über die
+   * Paletten-Pauschale findet seit 31.08.2026 nicht mehr statt.
+   */
   articlesEstimated: number;
   unitCount: number;
 }

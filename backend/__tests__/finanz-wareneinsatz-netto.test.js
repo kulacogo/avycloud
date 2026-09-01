@@ -126,16 +126,31 @@ describe('Lagerwert — dieselbe Quelle wie der Wareneinsatz', () => {
     expect(v.articlesEstimated).toBe(0);
   });
 
-  it('faellt ohne Los-Preis auf die Pauschale zurueck', () => {
+  it('erfindet ohne Los-Preis KEINEN Wert mehr', () => {
+    // Betreiber-Anweisung 31.08.2026: nur die erfassten Einheiten je Los sind
+    // Rechengrundlage. Palettenpreis und Einheiten je Palette sind dem Betrieb
+    // unbekannt — die daraus abgeleiteten 7,15 €/Einheit waren erfunden.
     const v = computeInventoryValue([bestandsProdukt('UNBEKANNT', 10)], { avgUnitCostNetto: 7.15, usable: true }, new Map());
-    expect(v.capitalAtCost).toBe(71.5);
-    expect(v.articlesEstimated).toBe(1);
+    expect(v.capitalAtCost).toBe(0);
     expect(v.articlesFromLot).toBe(0);
+    // Sichtbar als Artikel OHNE Kostenbasis, nicht stillschweigend bewertet.
+    expect(v.articlesEstimated).toBe(1);
   });
 
-  it('bleibt ohne Los-Argument unveraendert (Alt-Aufrufe)', () => {
+  it('nutzt auch ohne Los-Argument keine Pauschale', () => {
     const v = computeInventoryValue([bestandsProdukt('NL-0626', 10)], { avgUnitCostNetto: 7.15, usable: true });
-    expect(v.capitalAtCost).toBe(71.5);
+    expect(v.capitalAtCost).toBe(0);
+    expect(v.articlesEstimated).toBe(1);
+  });
+
+  it('zaehlt einen Posten ohne jede Kostenbasis als NICHT bepreist', () => {
+    const index = buildProductCostIndex([{ identification: { sku: 'S9' }, ops: { sourceLot: 'OHNE-EK' } }], new Map());
+    const r = computeOrderCogs({ items: [{ sku: 'S9', quantity: 3, priceBrutto: 40 }] }, index, { avgUnitCostNetto: 7.15, usable: true });
+    expect(r.cogs).toBe(0);
+    expect(r.unmatchedItemCount).toBe(1);
+    expect(r.estimatedItemCount).toBe(0);
+    // matchedRevenue bleibt 0 -> die Abdeckungsquote faellt sichtbar.
+    expect(r.matchedRevenue).toBe(0);
   });
 
   it('laesst einen echten Einkaufspreis am Produkt gewinnen', () => {

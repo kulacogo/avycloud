@@ -162,10 +162,6 @@ const Kpi: React.FC<{
 // ─── Cost model editor (behind the footer link) ──────────────────────────────
 const CostModelEditor: React.FC<{ report: FinancialReport; open: boolean; onToggle: () => void; onSaved: () => void }> = ({ report, open, onToggle, onSaved }) => {
   const cm = report.costModel;
-  const [palletCostBrutto, setPalletCostBrutto] = useState(String(cm.palletCostBrutto || ""));
-  const [unitsPerPallet, setUnitsPerPallet] = useState(String(cm.unitsPerPallet || ""));
-  const [vatMode, setVatMode] = useState<"netto" | "brutto">(cm.vatMode);
-  const [mode, setMode] = useState<"proportional" | "flat">(cm.mode);
   const [feeEbay, setFeeEbay] = useState(String(Math.round((cm.feeRateEbay || 0) * 10000) / 100));
   const [feeKaufland, setFeeKaufland] = useState(String(Math.round((cm.feeRateKaufland || 0) * 10000) / 100));
   const [saving, setSaving] = useState(false);
@@ -175,11 +171,15 @@ const CostModelEditor: React.FC<{ report: FinancialReport; open: boolean; onTogg
     setSaving(true);
     setErr(null);
     try {
+      // Paletten-Felder werden bewusst UNVERAENDERT durchgereicht: der
+      // Einkaufspreis kommt ausschliesslich aus den Losen, die Palette ist
+      // keine Kostenquelle mehr. Sie hier auf 0 zu setzen waere ein stiller
+      // Datenverlust an einem Feld, das die Oberflaeche nicht mehr zeigt.
       const input: FinancialCostModelInput = {
-        mode,
-        vatMode,
-        palletCostBrutto: parseFloat(palletCostBrutto.replace(",", ".")) || 0,
-        unitsPerPallet: parseFloat(unitsPerPallet.replace(",", ".")) || 0,
+        mode: cm.mode,
+        vatMode: cm.vatMode,
+        palletCostBrutto: cm.palletCostBrutto || 0,
+        unitsPerPallet: cm.unitsPerPallet || 0,
         feeRateEbay: (parseFloat(feeEbay.replace(",", ".")) || 0) / 100,
         feeRateKaufland: (parseFloat(feeKaufland.replace(",", ".")) || 0) / 100,
       };
@@ -199,32 +199,16 @@ const CostModelEditor: React.FC<{ report: FinancialReport; open: boolean; onTogg
   return (
     <div className="rounded-xl border border-app-border bg-app-bg/40 p-4">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold text-txt-primary">Kostenmodell</h3>
+        <h3 className="text-sm font-semibold text-txt-primary">Marktplatz-Gebühren</h3>
         <button type="button" onClick={onToggle} className="text-xs text-txt-muted hover:text-txt-primary">schließen</button>
       </div>
+      <p className="text-xs text-txt-muted mb-3">
+        Der Einkaufspreis kommt ausschließlich aus den <b>Losen</b>: Einkaufsbetrag des Loses geteilt
+        durch die dort erfassten Einheiten. Gepflegt wird er unter Lager → Verwaltung → Los-Struktur.
+        Hier stehen nur noch die Marktplatz-Gebührensätze — sie werden genutzt, solange für den
+        Zeitraum keine echten Gebühren aus der Abrechnung vorliegen.
+      </p>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div>
-          <label className={lbl}>Palettenpreis (brutto €)</label>
-          <input className={field} value={palletCostBrutto} onChange={(e) => setPalletCostBrutto(e.target.value)} inputMode="decimal" placeholder="400" />
-        </div>
-        <div>
-          <label className={lbl}>Einheiten je Palette</label>
-          <input className={field} value={unitsPerPallet} onChange={(e) => setUnitsPerPallet(e.target.value)} inputMode="decimal" placeholder="18" />
-        </div>
-        <div>
-          <label className={lbl}>Kostenbasis</label>
-          <select className={field} value={vatMode} onChange={(e) => setVatMode(e.target.value as "netto" | "brutto")}>
-            <option value="netto">Netto (Vorsteuer abziehbar)</option>
-            <option value="brutto">Brutto (wie bezahlt)</option>
-          </select>
-        </div>
-        <div>
-          <label className={lbl}>Verteilung</label>
-          <select className={field} value={mode} onChange={(e) => setMode(e.target.value as "proportional" | "flat")}>
-            <option value="proportional">Proportional z. Verkaufspreis</option>
-            <option value="flat">Pauschal gleich je Stück</option>
-          </select>
-        </div>
         <div>
           <label className={lbl}>eBay-Gebühr (%)</label>
           <input className={field} value={feeEbay} onChange={(e) => setFeeEbay(e.target.value)} inputMode="decimal" placeholder="11" />
@@ -435,7 +419,10 @@ export const AdminFinancials: React.FC = () => {
             />
             <Kpi
               label="Lagerwert"
-              value={(report.inventory.articlesWithCost + report.inventory.articlesEstimated) > 0 ? fmtCur(report.inventory.capitalAtCost, cur, true) : "—"}
+              // articlesFromLot MUSS mit: seit der Umstellung auf die Los-Preise landen
+              // fast alle Artikel dort, nicht mehr in withCost/estimated. Ohne diesen
+              // Summanden stand hier "—", obwohl der Wert berechnet war.
+              value={(report.inventory.articlesWithCost + (report.inventory.articlesFromLot ?? 0) + report.inventory.articlesEstimated) > 0 ? fmtCur(report.inventory.capitalAtCost, cur, true) : "—"}
               approx={report.inventory.articlesEstimated > 0}
               approxHint={approxHint}
               sub={`Verkaufswert ${fmtCur(report.inventory.potentialRevenue, cur, true)} · ${fmtNum(report.inventory.unitCount)} Einheiten`}

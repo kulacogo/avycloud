@@ -27,8 +27,6 @@ function key(x) {
   return String(x).trim();
 }
 
-const { estimatedUnitCost } = require('./cost-model');
-
 /**
  * Baut einen In-Memory-Index sku/ean/barcode → { buyPrice, sellPrice, lowestPrice }.
  * Einmal pro Report-Request über den gesamten Produktkatalog — vermeidet N+1-Reads.
@@ -82,10 +80,17 @@ function buildProductCostIndex(products, lotCosts) {
 /**
  * COGS eines Auftrags. `item.priceBrutto` ist der Stückpreis; Zeilenumsatz = qty × priceBrutto.
  * Kostenquelle je Posten, in Priorität:
- *   1. echter `buyPrice` am Produkt (> 0)            → exakt
- *   2. Kostenmodell (Paletten-Pauschale), falls usable → kalkulatorisch (Stückkosten aus
- *      Verkaufspreis × Kostenquote bzw. flat Ø-EK)
- *   3. sonst                                          → unmatched (keine Kostendaten)
+ *   1. echter `buyPrice` am Produkt (> 0)   → exakt
+ *   2. Los-Preis (Einkaufsbetrag des Loses ÷ dort erfasste Einheiten)
+ *      → exakt, wenn die Mengen-Bilanz des Loses aufgeht, sonst geschätzt
+ *   3. sonst                                → unmatched (keine Kostendaten)
+ *
+ * Es gibt KEINE dritte, geschätzte Quelle mehr. Die frühere Paletten-Pauschale
+ * (Palettenpreis ÷ Einheiten je Palette) ist als Kostenquelle abgeschafft —
+ * Betreiber-Anweisung 31.08.2026: beide Zahlen sind dem Betrieb unbekannt, der
+ * daraus abgeleitete Stückpreis war erfunden. `costModel` wird nur noch für die
+ * Gebührensätze durchgereicht und fließt in keine Kostenrechnung mehr ein.
+ *
  * `matchedRevenue` = Umsatz der Posten mit irgendeiner Kostenbasis (für die Abdeckung).
  */
 function computeOrderCogs(order, index, costModel) {
@@ -96,8 +101,6 @@ function computeOrderCogs(order, index, costModel) {
   let exactItemCount = 0;
   let estimatedItemCount = 0;
   let unmatchedItemCount = 0;
-
-  const modelUsable = !!(costModel && costModel.usable);
 
   for (const item of items) {
     const qty = Math.max(0, num(item && item.quantity));
@@ -121,11 +124,14 @@ function computeOrderCogs(order, index, costModel) {
       // Einkaufspreis.
       if (entry.lotStimmig === false) estimatedItemCount += 1;
       else exactItemCount += 1;
-    } else if (modelUsable) {
-      cogs += qty * estimatedUnitCost(unitPrice, costModel);
-      matchedRevenue += lineRevenue;
-      estimatedItemCount += 1;
     } else {
+      // KEINE Paletten-Pauschale mehr (Betreiber-Anweisung 31.08.2026): "wir
+      // koennen nur auf Grundlage der erfassten Einheiten je Los rechnen".
+      // Der Palettenpreis und die Einheiten je Palette sind Zahlen, die der
+      // Betrieb gar nicht kennt — eine daraus geschaetzte Kostenbasis war
+      // erfunden. Ein Posten ohne Los-Preis zaehlt jetzt als NICHT bepreist
+      // und faellt sichtbar in die Abdeckungsquote, statt still einen
+      // Fantasiewert in den Wareneinsatz zu tragen.
       unmatchedItemCount += 1;
     }
   }
@@ -151,6 +157,9 @@ function computeOrderCogs(order, index, costModel) {
  *   hier ist der lowest_price-Fallback legitim (effektiver Listenpreis).
  * - articlesWithCost: wie viele bestandsführende Artikel überhaupt einen buyPrice haben
  *   (Abdeckung — macht sichtbar, wie aussagekräftig das gebundene Kapital ist).
+ * - articlesFromLot: über den Los-Preis bewertet — heute der Regelfall.
+ * - articlesEstimated: OHNE jede Kostenbasis (weder buyPrice noch Los-Preis).
+ *   Der Name ist historisch; eine Schätzung findet nicht mehr statt.
  */
 function computeInventoryValue(products, costModel, lotCosts) {
   let capitalAtCost = 0;
@@ -161,7 +170,6 @@ function computeInventoryValue(products, costModel, lotCosts) {
   let articlesFromLot = 0;
   let unitCount = 0;
 
-  const modelUsable = !!(costModel && costModel.usable);
   const hatLose = lotCosts instanceof Map && lotCosts.size > 0;
 
   for (const p of products || []) {
@@ -187,10 +195,13 @@ function computeInventoryValue(products, costModel, lotCosts) {
     } else if (los && los.netto > 0) {
       capitalAtCost += qty * los.netto;
       articlesFromLot += 1;
-    } else if (costModel && costModel.avgUnitCostNetto > 0) {
-      // Capital = stock units × flat avg cost/unit (what was actually paid), not sell × ratio.
-      capitalAtCost += qty * costModel.avgUnitCostNetto;
-      articlesEstimated += 1;
+    } else {
+      // Kein Los-Preis, kein Einkaufspreis am Produkt -> KEIN Wert. Die
+      // Paletten-Pauschale ist als Kostenquelle abgeschafft (siehe
+      // computeOrderCogs). `articlesEstimated` bleibt als Feld erhalten, damit
+      // Alt-Aufrufer und die Oberflaeche nicht brechen — es zaehlt jetzt die
+      // Artikel OHNE Kostenbasis.
+      if (qty > 0) articlesEstimated += 1;
     }
     potentialRevenue += qty * sell;
     unitCount += qty;
