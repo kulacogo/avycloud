@@ -247,13 +247,22 @@ function summarizeEvidence(classification) {
 }
 
 /**
- * Der Plan: je BELEGTER Ansicht genau EIN aufbereitetes Studio-Bild.
+ * Der Plan: EIN aufbereitetes Studio-Bild je BRAUCHBAREM ECHTEN FOTO,
+ * bis zum Kontingent (Voreinstellung 4).
  *
  * Das ist die inhaltliche Kehrtwende gegenüber dem alten Verhalten. Vorher wurden
- * vier feste Perspektiven verlangt, egal was fotografiert war. Jetzt kommen die
- * Perspektiven aus den echten Fotos — der Bediener bekommt genau die Ansichten
- * sauber aufbereitet, die er auch wirklich abgelichtet hat. Es entsteht keine
- * einzige erfundene Ansicht mehr.
+ * vier feste Perspektiven verlangt, egal was fotografiert war — drei davon musste
+ * das Modell erfinden. Jetzt sitzt JEDE Ausgabe auf einer echten Aufnahme.
+ *
+ * VERGABE IN RUNDEN, nicht eine Ausgabe je Ansichts-Kategorie (Korrektur
+ * 2026-09-03): Runde 1 nimmt das beste Foto JEDER Ansicht — so gewinnt die
+ * Vielfalt, und Vorder-, Seiten- und Rückansicht stehen vorn. Sind danach noch
+ * Plätze frei, füllen weitere Runden sie mit den nächstbesten Fotos derselben
+ * Ansichten. Vorher blieben bei fünf Fotos derselben Seite vier davon ungenutzt
+ * und der Bediener bekam ein einziges Bild, obwohl reichlich Material dalag.
+ *
+ * Weniger echte Fotos heissen weiterhin weniger Bilder — die Zahl 4 wird NICHT
+ * mit erfundenen Ansichten aufgefüllt.
  *
  * @param {Object} evidence Ergebnis von summarizeEvidence
  * @param {Object} opts { maxVariants }
@@ -275,48 +284,71 @@ function planFaithfulVariants(evidence, opts = {}) {
 
   const plan = [];
   const skipped = [];
-  // Dieselbe Vorlage darf NIE zwei Ansichten speisen. Die Entdopplung sitzt schon
-  // beim Einlesen der Modellantwort; hier steht sie ein zweites Mal, weil die
-  // Folge sonst zwei identische Bilder mit VERSCHIEDENEN Etiketten waeren —
-  // ein Foto zugleich als Vorder- und als Rueckansicht.
+  // Dieselbe Vorlage darf NIE zwei Ausgaben speisen — sonst entstuenden zwei
+  // identische Bilder, womoeglich mit verschiedenen Etiketten.
   const belegteQuellen = new Set();
+  // Wie oft eine Ansicht schon vergeben wurde: das zweite Frontfoto heisst
+  // "Vorderansicht (2)" und bekommt einen eigenen Variantennamen, damit die
+  // GCS-Adressen nicht kollidieren.
+  const zaehler = {};
 
+  // Vorhandene Ansichten in Nutzen-Reihenfolge, danach alles Unbekannte.
+  const vorhanden = ORDER.filter((v) => evidence?.byViewpoint?.[v]?.length);
+  for (const key of Object.keys(evidence?.byViewpoint || {})) {
+    if (!vorhanden.includes(key)) vorhanden.push(key);
+  }
+
+  // Fehlende Pflicht-Ansichten einmalig melden.
   for (const viewpoint of ORDER) {
-    const candidates = evidence?.byViewpoint?.[viewpoint];
-    if (!candidates?.length) {
-      if (GEMELDET_WENN_FEHLEND.has(viewpoint)) {
-        skipped.push({
-          viewpoint,
-          label: VIEWPOINT_LABELS_DE[viewpoint] || viewpoint,
-          reason: 'kein_foto',
-        });
+    if (GEMELDET_WENN_FEHLEND.has(viewpoint) && !evidence?.byViewpoint?.[viewpoint]?.length) {
+      skipped.push({
+        viewpoint,
+        label: VIEWPOINT_LABELS_DE[viewpoint] || viewpoint,
+        reason: 'kein_foto',
+      });
+    }
+  }
+
+  // RUNDEN: erst je Ansicht das beste Foto, dann die naechstbesten.
+  let ungenutzt = 0;
+  let runde = 0;
+  let nachschub = true;
+  while (nachschub) {
+    nachschub = false;
+    for (const viewpoint of vorhanden) {
+      const kandidaten = evidence.byViewpoint[viewpoint];
+      const quelle = kandidaten.find((c) => !belegteQuellen.has(c.index));
+      if (!quelle) continue;
+      nachschub = true;
+
+      if (plan.length >= maxVariants) {
+        ungenutzt += 1;
+        belegteQuellen.add(quelle.index);
+        continue;
       }
-      continue;
-    }
-    if (plan.length >= maxVariants) {
-      skipped.push({
+
+      belegteQuellen.add(quelle.index);
+      zaehler[viewpoint] = (zaehler[viewpoint] || 0) + 1;
+      const n = zaehler[viewpoint];
+      const basis = VIEWPOINT_LABELS_DE[viewpoint] || viewpoint;
+      plan.push({
         viewpoint,
-        label: VIEWPOINT_LABELS_DE[viewpoint] || viewpoint,
-        reason: 'kontingent_erschoepft',
+        label: n === 1 ? basis : `${basis} (${n})`,
+        sourceIndex: quelle.index,
+        confidence: quelle.confidence,
+        variant: n === 1 ? `studio_${viewpoint}` : `studio_${viewpoint}_${n}`,
       });
-      continue;
     }
-    const quelle = candidates.find((c) => !belegteQuellen.has(c.index));
-    if (!quelle) {
-      skipped.push({
-        viewpoint,
-        label: VIEWPOINT_LABELS_DE[viewpoint] || viewpoint,
-        reason: 'quelle_bereits_vergeben',
-      });
-      continue;
-    }
-    belegteQuellen.add(quelle.index);
-    plan.push({
-      viewpoint,
-      label: VIEWPOINT_LABELS_DE[viewpoint] || viewpoint,
-      sourceIndex: quelle.index,
-      confidence: quelle.confidence,
-      variant: `studio_${viewpoint}`,
+    runde += 1;
+    // Schutz gegen eine Endlosschleife, falls Kandidatenlisten unerwartet wachsen.
+    if (runde > 50) break;
+  }
+
+  if (ungenutzt > 0) {
+    skipped.push({
+      viewpoint: 'weitere_fotos',
+      label: `${ungenutzt} weitere${ungenutzt === 1 ? 's' : ''} Foto${ungenutzt === 1 ? '' : 's'}`,
+      reason: 'kontingent_erschoepft',
     });
   }
 

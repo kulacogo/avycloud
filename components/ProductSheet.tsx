@@ -2368,9 +2368,10 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   {isGeneratingImages ? t('sheet.ai.running') : t('sheet.ai.cta')}
                 </button>
                 <p className="mt-2 text-[11px] leading-snug text-txt-muted">
-                  Bereitet die <strong>vorhandenen</strong> Ansichten als saubere Packshots auf
-                  (Produkt unveraendert, nur Hintergrund und Licht). Ansichten ohne echtes Foto
-                  werden <strong>nicht erfunden</strong> — sie erscheinen unten als Hinweis.
+                  Wertet <strong>alle vorhandenen Fotos</strong> aus und macht daraus bis zu
+                  <strong> 4 saubere Packshots</strong> — je Foto einen (Produkt unverändert, nur
+                  Hintergrund und Licht). Perspektiven ohne echtes Foto werden{' '}
+                  <strong>nicht erfunden</strong>: mit weniger Fotos gibt es weniger Bilder.
                 </p>
 
                 {generationReport && (

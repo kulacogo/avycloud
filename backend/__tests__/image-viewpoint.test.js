@@ -134,10 +134,10 @@ describe('eine Vorlage speist nur EINE Ansicht', () => {
     // Sonst entstuenden zwei identische Bilder mit VERSCHIEDENEN Etiketten —
     // dasselbe Foto zugleich als Vorder- und als Rueckansicht.
     const e = summarizeEvidence({ views: [view(0, 'front'), view(0, 'back')] });
-    const { plan, skipped } = planFaithfulVariants(e);
+    const { plan } = planFaithfulVariants(e);
     const quellen = plan.map((p) => p.sourceIndex);
     expect(new Set(quellen).size).toBe(quellen.length);
-    expect(skipped.some((s) => s.reason === 'quelle_bereits_vergeben')).toBe(true);
+    expect(plan).toHaveLength(1);
   });
 
   it('weicht auf das naechstbeste Foto derselben Ansicht aus', () => {
@@ -161,6 +161,55 @@ describe('eine Vorlage speist nur EINE Ansicht', () => {
   it('maxVariants 0 liefert wirklich nichts', () => {
     const e = summarizeEvidence({ views: [view(0, 'front')] });
     expect(planFaithfulVariants(e, { maxVariants: 0 }).plan).toHaveLength(0);
+  });
+});
+
+describe('ein Bild je echtem Foto, bis zum Kontingent', () => {
+  it('nutzt ALLE brauchbaren Fotos, auch wenn sie dieselbe Seite zeigen', () => {
+    // Der gemeldete Fall: fuenf echte Fotos, alle als Vorderansicht erkannt.
+    // Vorher gab es dafuer EIN Bild, vier Fotos blieben ungenutzt.
+    const views = [0, 1, 2, 3, 4].map((i) => view(i, 'front', { confidence: 0.95 - i * 0.05 }));
+    const { plan } = planFaithfulVariants(summarizeEvidence({ views }));
+    expect(plan).toHaveLength(4);
+    expect(new Set(plan.map((p) => p.sourceIndex)).size).toBe(4);
+  });
+
+  it('vergibt fuer Mehrfach-Ansichten eindeutige Variantennamen und lesbare Etiketten', () => {
+    const views = [view(0, 'front'), view(1, 'front'), view(2, 'front')];
+    const { plan } = planFaithfulVariants(summarizeEvidence({ views }));
+    expect(plan.map((p) => p.variant)).toEqual(['studio_front', 'studio_front_2', 'studio_front_3']);
+    expect(plan.map((p) => p.label)).toEqual(['Vorderansicht', 'Vorderansicht (2)', 'Vorderansicht (3)']);
+  });
+
+  it('nimmt VIELFALT zuerst — erst je Ansicht eine, dann auffuellen', () => {
+    const views = [
+      view(0, 'front', { confidence: 0.95 }),
+      view(1, 'front', { confidence: 0.9 }),
+      view(2, 'front', { confidence: 0.85 }),
+      view(3, 'side'),
+      view(4, 'back'),
+    ];
+    const { plan } = planFaithfulVariants(summarizeEvidence({ views }));
+    // Seite und Rueckseite duerfen NICHT von einem dritten Frontfoto verdraengt werden.
+    expect(plan.map((p) => p.viewpoint)).toEqual(['front', 'side', 'back', 'front']);
+  });
+
+  it('fuellt die Vier NICHT mit erfundenen Ansichten auf', () => {
+    const { plan } = planFaithfulVariants(summarizeEvidence({ views: [view(0, 'front'), view(1, 'side')] }));
+    expect(plan).toHaveLength(2);
+  });
+
+  it('meldet ungenutzte Fotos gebuendelt statt sie zu verschweigen', () => {
+    const views = [0, 1, 2, 3, 4, 5].map((i) => view(i, 'front'));
+    const { skipped } = planFaithfulVariants(summarizeEvidence({ views }));
+    const rest = skipped.find((s) => s.reason === 'kontingent_erschoepft');
+    expect(rest).toBeTruthy();
+    expect(rest.label).toContain('2');
+  });
+
+  it('respektiert ein groesseres Kontingent', () => {
+    const views = [0, 1, 2, 3, 4, 5].map((i) => view(i, 'front'));
+    expect(planFaithfulVariants(summarizeEvidence({ views }), { maxVariants: 6 }).plan).toHaveLength(6);
   });
 });
 
