@@ -20,6 +20,7 @@ import {
   fetchEbayCategories,
   fetchEbayConditions,
 } from '../api/client';
+import type { ImageViewSkipEntry, ImageGenerationEvidence } from '../api/client';
 import { EditIcon, SaveIcon, PrintIcon, MagicIcon, RefreshIcon, BarcodeIcon } from './icons/Icons';
 import { Spinner } from './Spinner';
 import ImageGallery from './ImageGallery';
@@ -196,6 +197,14 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   const [qualityBusy, setQualityBusy] = useState(false);
   const [qualityMessage, setQualityMessage] = useState<string | null>(null);
   const [isGeneratingImages, setIsGeneratingImages] = useState(false);
+  // BLEIBENDER Bericht der Bildaufbereitung. Bewusst kein Toast: eine Meldung mit
+  // Auto-Ausblenden ist genau der Fehler aus CLAUDE.md Punkt 16b — der Bediener
+  // haelt ein unvollstaendiges Ergebnis sonst fuer vollstaendig.
+  const [generationReport, setGenerationReport] = useState<{
+    produced: number;
+    skipped: ImageViewSkipEntry[];
+    evidence?: ImageGenerationEvidence;
+  } | null>(null);
   const [selectedReferenceIndex, setSelectedReferenceIndex] = useState<number>(-1);
   const [isUploadDragActive, setIsUploadDragActive] = useState(false);
   const [barcodeInput, setBarcodeInput] = useState<string>(() => (product.identification?.barcodes || []).join('\n'));
@@ -437,13 +446,26 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     [localProduct.details?.images]
   );
 
+  // Auswahl NUR beim Produktwechsel zuruecksetzen. Vorher hing der Effekt an
+  // referenceImages.length und sprang deshalb nach jedem Upload UND nach jedem
+  // Erzeugungslauf still auf "Bild 1" zurueck — der Bediener waehlte ein Foto,
+  // liess erzeugen und arbeitete danach unbemerkt wieder mit dem ersten.
   useEffect(() => {
-    if (referenceImages.length) {
-      setSelectedReferenceIndex(0);
-    } else {
+    setSelectedReferenceIndex(referenceImages.length ? 0 : -1);
+    setGenerationReport(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product.id]);
+
+  // Schrumpft die Liste (Bild geloescht), muss der Index gueltig bleiben.
+  useEffect(() => {
+    if (!referenceImages.length) {
       setSelectedReferenceIndex(-1);
+    } else if (selectedReferenceIndex >= referenceImages.length) {
+      setSelectedReferenceIndex(0);
+    } else if (selectedReferenceIndex < 0) {
+      setSelectedReferenceIndex(0);
     }
-  }, [product.id, referenceImages.length]);
+  }, [referenceImages.length, selectedReferenceIndex]);
 
   const selectedReferenceImage =
     selectedReferenceIndex >= 0 ? referenceImages[selectedReferenceIndex] : null;
@@ -591,20 +613,76 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
       return;
     }
     setIsGeneratingImages(true);
+    setGenerationReport(null);
     showNotification('success', t('sheet.msg.vertexStart'));
 
-    const result = await generateProductImages(localProduct.id, selectedReferenceImage, {
-      sampleCount: 1,
-      product: localProduct,
-    });
+    // Das Produkt, fuer das der Lauf gestartet wurde. Der Lauf dauert Minuten;
+    // wechselt der Bediener zwischendurch das Datenblatt, duerfen die Bilder
+    // NICHT am neuen Produkt landen.
+    const laufProduktId = localProduct.id;
 
-    if (result.ok && result.data) {
-      updateImages((images) => [...images, ...(result.data || [])]);
-      showNotification('success', t('sheet.msg.vertexSuccess', { count: result.data?.length || 0 }));
-    } else {
-      showNotification('error', result.error?.message || t('sheet.msg.vertexError'));
+    try {
+      const result = await generateProductImages(laufProduktId, selectedReferenceImage, {
+        sampleCount: 1,
+        product: localProduct,
+      });
+
+      if (laufProduktId !== localProduct.id) return;
+
+      if (!result.ok) {
+        // Auch der Fehlerfall bekommt den BLEIBENDEN Bericht — sonst verschwindet
+        // genau die Meldung nach 5 Sekunden, die der Umbau sichtbar machen soll.
+        setGenerationReport({
+          produced: 0,
+          skipped: [
+            {
+              viewpoint: 'alle',
+              label: 'Aufbereitung',
+              reason: result.error?.message || 'unbekannter Fehler',
+            },
+          ],
+        });
+        showNotification('error', result.error?.message || t('sheet.msg.vertexError'));
+        return;
+      }
+
+      const produced = result.data || [];
+      const skipped = result.skipped || [];
+
+      // Der Bericht bleibt IMMER stehen — auch im Erfolgsfall. Er ist die einzige
+      // Stelle, an der der Bediener erfaehrt, welche Ansicht es nicht gibt und warum.
+      setGenerationReport({ produced: produced.length, skipped, evidence: result.evidence });
+
+      if (produced.length) {
+        updateImages((images) => [...images, ...produced]);
+        showNotification('success', t('sheet.msg.vertexSuccess', { count: produced.length }));
+      } else {
+        // Frueher meldete die Oberflaeche hier GRUEN "0 Bilder erzeugt".
+        showNotification('error', t('sheet.msg.vertexError'));
+      }
+    } catch (error: any) {
+      showNotification('error', error?.message || t('sheet.msg.vertexError'));
+    } finally {
+      setIsGeneratingImages(false);
     }
-    setIsGeneratingImages(false);
+  };
+
+  /** Grund-Codes des Backends in einen Satz uebersetzen, den ein Mensch versteht. */
+  const describeSkipReason = (entry: ImageViewSkipEntry): string => {
+    const reason = entry.reason || '';
+    if (reason === 'kein_foto') return 'kein echtes Foto dieser Seite vorhanden';
+    if (reason === 'kontingent_erschoepft') return 'Kontingent dieses Laufs erschoepft';
+    if (reason === 'keine_ansichtserkennung') return 'Ansichten liessen sich nicht bestimmen';
+    if (reason === 'zeitbudget_erschoepft') return 'Zeitbudget des Laufs erschöpft — bitte erneut starten';
+    if (reason === 'quelle_bereits_vergeben') return 'kein eigenes Foto dieser Seite (Vorlage schon für eine andere Ansicht verwendet)';
+    if (reason === 'erzeugung_fehlgeschlagen') {
+      const detail = entry.attempts?.map((a) => a.reason).filter(Boolean).join(' · ');
+      return detail ? `Aufbereitung fehlgeschlagen (${detail})` : 'Aufbereitung fehlgeschlagen';
+    }
+    if (reason.startsWith('upload_fehlgeschlagen')) return 'Bild konnte nicht gespeichert werden';
+    // Unbekannte Codes nicht roh anzeigen: Unterstriche und Entwicklerkuerzel
+    // sagen einem Lageristen nichts.
+    return reason.replace(/_/g, ' ');
   };
 
   const handleInventoryAssign = useCallback(
@@ -2289,6 +2367,63 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   {isGeneratingImages ? <Spinner className="w-4 h-4" /> : <MagicIcon className="w-4 h-4" />}
                   {isGeneratingImages ? t('sheet.ai.running') : t('sheet.ai.cta')}
                 </button>
+                <p className="mt-2 text-[11px] leading-snug text-txt-muted">
+                  Bereitet die <strong>vorhandenen</strong> Ansichten als saubere Packshots auf
+                  (Produkt unveraendert, nur Hintergrund und Licht). Ansichten ohne echtes Foto
+                  werden <strong>nicht erfunden</strong> — sie erscheinen unten als Hinweis.
+                </p>
+
+                {generationReport && (
+                  <div className="mt-3 rounded-lg border border-app-border bg-app-bg/60 p-3 text-xs">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-semibold text-txt-primary">
+                        {generationReport.produced > 0
+                          ? `${generationReport.produced} Ansicht${generationReport.produced === 1 ? '' : 'en'} aufbereitet`
+                          : 'Keine Ansicht aufbereitet'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setGenerationReport(null)}
+                        className="text-txt-muted hover:text-txt-primary"
+                        aria-label="Hinweis schliessen"
+                      >
+                        &times;
+                      </button>
+                    </div>
+
+                    {generationReport.evidence?.belegtLabels?.length ? (
+                      <p className="mt-1 text-txt-secondary">
+                        Fotografiert vorhanden: {generationReport.evidence.belegtLabels.join(', ')}
+                        {` (${generationReport.evidence.referenceCount} Referenzfotos genutzt)`}
+                      </p>
+                    ) : null}
+
+                    {generationReport.evidence && generationReport.evidence.sameProductThroughout === false && (
+                      <p className="mt-1 text-warning">
+                        Achtung: die Fotos zeigen moeglicherweise verschiedene Artikel.
+                      </p>
+                    )}
+
+                    {generationReport.skipped.length > 0 && (
+                      <>
+                        <p className="mt-2 font-semibold text-txt-secondary">Nicht erstellt:</p>
+                        <ul className="mt-1 space-y-0.5 text-txt-muted">
+                          {generationReport.skipped.map((entry, i) => (
+                            <li key={`${entry.viewpoint}-${i}`}>
+                              <span className="text-txt-secondary">{entry.label}</span>
+                              {' — '}
+                              {describeSkipReason(entry)}
+                            </li>
+                          ))}
+                        </ul>
+                        <p className="mt-2 text-txt-muted">
+                          Fehlende Ansichten bitte <strong>abfotografieren</strong> und hochladen —
+                          danach koennen sie aufbereitet werden.
+                        </p>
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           )}

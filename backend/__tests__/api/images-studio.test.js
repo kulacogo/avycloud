@@ -65,10 +65,16 @@ describe('POST /api/images/studio', () => {
     expect(res.status).toBe(200);
     expect(res.body.ok).toBe(true);
     expect(res.body.data.image.url_or_base64).toBe('https://storage.googleapis.com/test/studio.png');
-    expect(makeStudioPhotoSpy).toHaveBeenCalledWith({
-      productId: 'SKU-123',
-      image: { url_or_base64: 'https://x/img.jpg' },
-    });
+    // objectContaining statt exakter Gleichheit: die Route reicht seit 2026-09-02
+    // zusaetzlich `siblingImages` durch (weitere ECHTE Fotos desselben Artikels als
+    // Identitaetsanker). Das ist additiv — der Test soll den Durchreich-Vertrag
+    // pruefen, nicht die Parameterliste einfrieren.
+    expect(makeStudioPhotoSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        productId: 'SKU-123',
+        image: { url_or_base64: 'https://x/img.jpg' },
+      })
+    );
   });
 
   it('liefert 400 ohne productId', async () => {

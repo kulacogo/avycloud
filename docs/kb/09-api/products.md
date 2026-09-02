@@ -278,15 +278,44 @@ Stock-Protection-Resolver. Wird vom Identify-Pfad aufgerufen (nicht direkt von U
 
 ### `POST /api/generate-images`
 
-AI-Image-Generation (Vertex AI). 
+Studio-Aufbereitung der **vorhandenen** Produktansichten (Gemini-Bildmodell). Erzeugt seit dem Umbau
+2026-09-02 **keine Perspektiven mehr, die nicht fotografiert wurden** — siehe CLAUDE.md,
+Abschnitt „Bildvarianten: aufbereiten statt erfinden".
 
-- **Auth**: requireAuth (kein `requirePermission`)
+- **Auth**: `requirePermission('products', 'write')`
 - **Tenant Source**: none
-- **Request**: `{ "productId": "...", "product": {...}, "referenceImage": { "url_or_base64": "..." } }` (productId ODER product muss da sein)
-- **Response**: `{ "ok": true, "data": { "images": [...], "prompts": [...] } }`
-- **Side-Effects**: `generateImagesForProduct()` ruft Vertex AI Imagen.
-- **Failure Modes**: `400` ohne Produkt/Referenz oder wenn Referenzbild nicht zum Produkt gehört.
-- **Source**: [backend/routes/products.js#L1082-L1139](../../../backend/routes/products.js#L1082-L1139)
+- **Request**: `{ "productId": "...", "product": {...}, "referenceImage": { "url_or_base64": "..." }, "maxVariants": 4 }`
+  (productId ODER product muss da sein; `maxVariants` optional, Default 4)
+- **Response**:
+  ```json
+  {
+    "ok": true,
+    "data": {
+      "images": [{
+        "url_or_base64": "https://…", "variant": "studio_front", "viewpoint": "front",
+        "source": "generated", "generatedByAi": true, "derivedFrom": "https://… (Quellfoto)",
+        "identityChecked": true, "warnings": ["…"], "width": 1200, "height": 1200
+      }],
+      "prompts": { "studio": { "front": "…" } },
+      "plan":     [{ "viewpoint": "front", "label": "Vorderansicht", "sourceIndex": 0, "variant": "studio_front" }],
+      "skipped":  [{ "viewpoint": "back", "label": "Rückansicht", "reason": "kein_foto" }],
+      "evidence": { "belegt": ["front"], "belegtLabels": ["Vorderansicht"], "referenceCount": 3,
+                    "classified": true, "sameProductThroughout": true },
+      "report":   { "mode": "faithful", "requestedVariants": 1, "producedVariants": 1, "durationMs": 41230 }
+    }
+  }
+  ```
+- **`skipped[].reason`**: `kein_foto` · `kontingent_erschoepft` · `keine_ansichtserkennung` ·
+  `zeitbudget_erschoepft` · `erzeugung_fehlgeschlagen` (mit `attempts[]`) · `upload_fehlgeschlagen: …`
+- **WICHTIG für Aufrufer**: `ok:true` mit **leerem** `images` ist möglich und normal. `skipped`
+  MUSS dem Bediener gezeigt werden — sonst hält er ein unvollständiges Ergebnis für vollständig.
+- **Side-Effects**: 1 Vision-Call zur Ansichtsbestimmung, je geplanter Ansicht 1–2 Bildmodell-Calls
+  plus 1 Identitäts-Urteil; Upload nach GCS. Nebenläufig (`IMAGE_VARIANTS_CONCURRENCY`), Gesamtbudget
+  `IMAGE_VARIANTS_TOTAL_TIMEOUT_MS` (300 s).
+- **Failure Modes**: `400` ohne Produkt/Referenz oder wenn das Referenzbild nicht zum **gespeicherten**
+  Produkt gehört; `500` wenn kein echtes Referenzbild vorhanden ist oder kein Referenzbild geladen
+  werden konnte.
+- **Source**: [backend/routes/products.js](../../../backend/routes/products.js) (Suche nach `'/generate-images'`)
 
 ### `POST /api/listing-pipeline`
 

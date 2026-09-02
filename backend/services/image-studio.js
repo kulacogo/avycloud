@@ -21,12 +21,22 @@
 
 const sharp = require('sharp');
 const { generateProductImages } = require('../lib/vertex-ai');
+const { studioImageModelChain, maxObjectReferences } = require('../lib/gemini-image-models');
 const { fetchImageAsDataUrl } = require('./image-generation');
 const { uploadBase64Image } = require('../lib/storage');
 
 const MIN_EDGE_PX = 512;
 const PRE_MAX_EDGE_PX = 1600;
 const FALLBACK_CANVAS_PX = 1200;
+// eBay schaltet die Zoomlupe erst ab 1.600 px frei; '2K' liegt darueber. Fuehrt
+// ein Modell die Groessensteuerung nicht, wird das Feld gar nicht erst gesendet.
+const STUDIO_IMAGE_SIZE = process.env.STUDIO_IMAGE_SIZE || '2K';
+
+const SIBLING_HINT = (total) =>
+  `Image 1 is the photo you must edit. Images 2 to ${total} show the SAME physical item from ` +
+  'other angles — use them ONLY to confirm its true shape, colors, materials and markings. ' +
+  'Do NOT copy their camera angle and do NOT merge them into the result. ' +
+  "The output must keep image 1's perspective and framing.";
 
 const STUDIO_PROMPT =
   'Edit ONLY the background and overall lighting of this product photo. ' +
@@ -46,11 +56,13 @@ const STUDIO_PROMPT =
   'No props, no added text, no watermark, no people, no reflections of other objects, no added items. ' +
   'Keep the original camera perspective and framing; show the product fully in frame.';
 
+// Modellkette kommt seit 2026-09-02 aus lib/gemini-image-models.js. Vorher stand
+// hier ein eigener Default-String, und der in CLAUDE.md dokumentierte
+// STUDIO_IMAGE_MODEL='gemini-3-pro-image-preview' zeigte seit dem 25.06.2026 auf
+// ein ABGESCHALTETES Modell — jeder Studio-Aufruf verbrannte den Primaerversuch
+// in einen Fehler und lief unbemerkt in die Fallback-Kette.
 function studioModelChain() {
-  const primary = process.env.STUDIO_IMAGE_MODEL || 'gemini-2.5-flash-image';
-  const fallback =
-    process.env.STUDIO_IMAGE_FALLBACK_MODEL || process.env.GEMINI_IMAGE_MODEL || 'gemini-2.5-flash-image';
-  return [...new Set([primary, fallback])];
+  return studioImageModelChain();
 }
 
 function studioTimeoutMs() {
@@ -114,17 +126,32 @@ async function validateStudioResult(buffer) {
   }
 }
 
-async function tryGeminiStudio(preBuffer, attempts) {
+async function tryGeminiStudio(preBuffer, attempts, siblingDataUrls = []) {
   const referenceImageBase64 = `data:image/jpeg;base64,${preBuffer.toString('base64')}`;
+  // Weitere echte Fotos DESSELBEN Artikels als Identitaetsanker. Sie aendern die
+  // Perspektive nicht (das verbietet der Prompt ausdruecklich), geben dem Modell
+  // aber Form, Farbe und Beschriftung aus mehreren Blickwinkeln vor — der
+  // dokumentierte Hebel gegen Identitaetsdrift.
   for (const model of studioModelChain()) {
+    // Die Obergrenze fuer Objekt-Referenzen ist MODELLABHAENGIG. Ohne diese
+    // Kappung gingen vier Bilder an ein Modell mit dokumentiertem Limit drei.
+    const limit = Math.max(1, maxObjectReferences(model));
+    const referenceImages = [referenceImageBase64, ...siblingDataUrls].slice(0, limit);
     try {
       const images = await generateProductImages({
-        prompt: STUDIO_PROMPT,
+        prompt:
+          referenceImages.length > 1
+            ? `${STUDIO_PROMPT} ${SIBLING_HINT(referenceImages.length)}`
+            : STUDIO_PROMPT,
         count: 1,
         aspectRatio: '1:1',
-        referenceImageBase64,
+        referenceImages,
         model,
         timeoutMs: studioTimeoutMs(),
+        imageSize: STUDIO_IMAGE_SIZE,
+        // Die Modellkette IST die Wiederholung — sonst bis zu sechs bezahlte
+        // Bildaufrufe und ~360 s Laufzeit je Studio-Foto.
+        maxAttempts: 1,
       });
       const candidate = images?.[0];
       if (!candidate?.base64) {
@@ -201,7 +228,7 @@ async function fallbackComposite(preBuffer) {
  *
  * `image` is a product image ref ({ url_or_base64 }) — URL or data URL.
  */
-async function makeStudioPhoto({ productId, image }) {
+async function makeStudioPhoto({ productId, image, siblingImages = [] }) {
   if (!productId) throw new Error('productId is required');
   if (!image?.url_or_base64) throw new Error('image with url_or_base64 is required');
 
@@ -209,8 +236,31 @@ async function makeStudioPhoto({ productId, image }) {
   const { buffer: sourceBuffer } = dataUrlToBuffer(sourceDataUrl);
   const preBuffer = await preprocessInput(sourceBuffer);
 
+  // Geschwisterbilder sind rein additiv: schlaegt ein Download fehl, laeuft der
+  // Studio-Weg genau wie bisher mit einem einzigen Bild weiter.
+  const siblingKandidaten = (Array.isArray(siblingImages) ? siblingImages : [])
+    .filter((sib) => sib?.url_or_base64 && sib.url_or_base64 !== image.url_or_base64)
+    .slice(0, 3);
+  // PARALLEL: nacheinander konnten drei Downloads mit je 20 s Timeout und
+  // Web-Unlocker-Rueckfall das Studio-Foto um bis zu zwei Minuten verzoegern.
+  const siblingDataUrls = (
+    await Promise.all(
+      siblingKandidaten.map(async (sibling) => {
+        try {
+          const raw = await fetchImageAsDataUrl(sibling);
+          const { buffer } = dataUrlToBuffer(raw);
+          const pre = await preprocessInput(buffer);
+          return `data:image/jpeg;base64,${pre.toString('base64')}`;
+        } catch (err) {
+          console.warn(`[image-studio] Geschwisterbild uebersprungen: ${err.message}`);
+          return null;
+        }
+      })
+    )
+  ).filter(Boolean);
+
   const attempts = [];
-  let result = await tryGeminiStudio(preBuffer, attempts);
+  let result = await tryGeminiStudio(preBuffer, attempts, siblingDataUrls);
   let method = 'gemini';
   let model = result?.model || null;
 

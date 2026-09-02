@@ -45,6 +45,7 @@ patchLocalModule(path.resolve(__dirname, '../lib/background-removal.js'), {
 });
 
 const { makeStudioPhoto, _internal } = require('../services/image-studio');
+const { studioImageModelChain } = require('../lib/gemini-image-models');
 
 async function makePng({ size = 800, r = 250, g = 250, b = 250 }) {
   return sharp({ create: { width: size, height: size, channels: 3, background: { r, g, b } } })
@@ -86,12 +87,17 @@ describe('makeStudioPhoto — Modell-Kette', () => {
 
     const result = await makeStudioPhoto({ productId: 'p1', image: { url_or_base64: 'https://x/img.jpg' } });
 
+    // Der Modellname wird NICHT hart erwartet: die Kette kommt seit 2026-09-02 aus
+    // lib/gemini-image-models.js. Ein fest verdrahteter Name hier hatte den toten
+    // Modellzeiger mit abgesegnet (STUDIO_IMAGE_MODEL zeigte über zwei Monate auf
+    // ein abgeschaltetes Modell, ohne dass ein Test anschlug).
+    const [erwartetesPrimaermodell] = studioImageModelChain();
     expect(result.method).toBe('gemini');
-    expect(result.model).toBe('gemini-2.5-flash-image');
+    expect(result.model).toBe(erwartetesPrimaermodell);
     expect(result.image.url_or_base64).toBe('https://storage.googleapis.com/test/studio.png');
     expect(result.image.source).toBe('studio_gemini');
     expect(generateProductImagesSpy).toHaveBeenCalledTimes(1);
-    expect(generateProductImagesSpy.mock.calls[0][0].model).toBe('gemini-2.5-flash-image');
+    expect(generateProductImagesSpy.mock.calls[0][0].model).toBe(erwartetesPrimaermodell);
     expect(compositeOnGradientSpy).not.toHaveBeenCalled();
   });
 

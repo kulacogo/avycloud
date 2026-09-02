@@ -1201,9 +1201,16 @@ router.post('/intake/resolve', requirePermission('identify', 'run'), async (req,
 });
 
 // --- Image Generation Endpoint ---
+//
+// Liefert Studio-Aufbereitungen der ECHTEN Produktansichten. Seit dem Umbau
+// 2026-09-02 erfindet der Dienst keine Perspektiven mehr, die nie fotografiert
+// wurden (siehe Kopfkommentar in services/image-generation.js). Die Antwort
+// trägt deshalb zusätzlich `plan`, `skipped` und `evidence` — der Bediener MUSS
+// erfahren, welche Ansicht warum fehlt, sonst hält er das Ergebnis für
+// vollständig (Datenverlust-Klasse aus CLAUDE.md Punkt 16).
 router.post('/generate-images', requirePermission('products', 'write'), async (req, res) => {
   try {
-    const { productId, product, referenceImage } = req.body || {};
+    const { productId, product, referenceImage, maxVariants } = req.body || {};
 
     let targetProduct = product;
     if (!targetProduct && productId) {
@@ -1224,9 +1231,31 @@ router.post('/generate-images', requirePermission('products', 'write'), async (r
       });
     }
 
-    const matchExists = Array.isArray(targetProduct.details?.images)
-      ? targetProduct.details.images.some((img) => img.url_or_base64 === referenceImage.url_or_base64)
-      : false;
+    // Herkunfts-Prüfung des Referenzbildes: der GESPEICHERTE Stand ODER das vom
+    // Browser mitgeschickte Produkt.
+    //
+    // Der gespeicherte Stand allein reicht NICHT: der übliche Ablauf ist "Foto
+    // hochladen → sofort aufbereiten lassen", und das frische Foto steht noch in
+    // keinem Serverdokument. Eine Prüfung nur gegen Firestore sperrt genau diesen
+    // Weg aus (HTTP 400) — geprüft und verworfen am 2026-09-02.
+    // Der Serverstand wird trotzdem mit herangezogen, damit ein Bild, das der
+    // Client aus seiner lokalen Kopie entfernt hat, weiterhin zulässig bleibt.
+    const erlaubteBilder = new Set();
+    for (const img of Array.isArray(targetProduct.details?.images) ? targetProduct.details.images : []) {
+      if (img?.url_or_base64) erlaubteBilder.add(img.url_or_base64);
+    }
+    if (productId) {
+      try {
+        const canonical = await getProduct(productId);
+        for (const img of Array.isArray(canonical?.details?.images) ? canonical.details.images : []) {
+          if (img?.url_or_base64) erlaubteBilder.add(img.url_or_base64);
+        }
+      } catch (lookupErr) {
+        console.warn(`[POST /api/generate-images] Kanonisches Produkt nicht ladbar: ${lookupErr.message}`);
+      }
+    }
+
+    const matchExists = erlaubteBilder.has(referenceImage.url_or_base64);
 
     if (!matchExists) {
       return res.status(400).json({
@@ -1235,20 +1264,26 @@ router.post('/generate-images', requirePermission('products', 'write'), async (r
       });
     }
 
-    const { images, prompts } = await generateImagesForProduct(targetProduct, {
+    const result = await generateImagesForProduct(targetProduct, {
       referenceImage,
+      maxVariants: Number.isInteger(maxVariants) ? maxVariants : undefined,
     });
 
     res.json({
       ok: true,
       data: {
-        images,
-        prompts,
+        images: result.images,
+        prompts: result.prompts,
+        // Ehrlichkeits-Anteil der Antwort: was wurde geplant, was fiel weg, warum.
+        plan: result.plan,
+        skipped: result.skipped,
+        evidence: result.evidence,
+        report: result.report,
       }
     });
 
   } catch (error) {
-    console.error('Image generation failed:', error);
+    console.error(`[POST /api/generate-images] ${error.message}`, error);
     res.status(500).json({
       ok: false,
       error: {
@@ -1271,8 +1306,23 @@ router.post('/images/studio', requirePermission('products', 'write'), async (req
       });
     }
 
+    // Weitere ECHTE Fotos desselben Artikels als Identitaetsanker mitgeben.
+    // Rein additiv: laesst sich das Produkt nicht laden, laeuft der Studio-Weg
+    // exakt wie bisher mit einem einzigen Bild.
+    let siblingImages = [];
+    try {
+      const canonical = await getProduct(productId);
+      const { isLikelyAiImage } = require('../services/image-generation');
+      siblingImages = (canonical?.details?.images || [])
+        .filter((img) => img?.url_or_base64 && img.url_or_base64 !== image.url_or_base64)
+        .filter((img) => !isLikelyAiImage(img))
+        .slice(0, 3);
+    } catch (siblingErr) {
+      console.warn(`[POST /api/images/studio] Geschwisterbilder nicht ermittelbar: ${siblingErr.message}`);
+    }
+
     const { makeStudioPhoto } = require('../services/image-studio');
-    const result = await makeStudioPhoto({ productId, image });
+    const result = await makeStudioPhoto({ productId, image, siblingImages });
 
     res.json({ ok: true, data: result });
   } catch (err) {

@@ -3753,10 +3753,35 @@ export const startBulkImprovement = async (): Promise<{ ok: boolean; data?: { en
   }
 };
 
+/** Eine geplante bzw. ausgelassene Ansicht aus der Bildaufbereitung. */
+export interface ImageViewPlanEntry {
+  viewpoint: string;
+  label: string;
+  variant?: string;
+  confidence?: number;
+}
+
+export interface ImageViewSkipEntry {
+  viewpoint: string;
+  label: string;
+  /** kein_foto | kontingent_erschoepft | keine_ansichtserkennung | erzeugung_fehlgeschlagen | upload_fehlgeschlagen: … */
+  reason: string;
+  attempts?: Array<{ model?: string; reason?: string }>;
+}
+
+export interface ImageGenerationEvidence {
+  /** Ansichten, für die ein echtes Foto vorliegt. */
+  belegt: string[];
+  belegtLabels: string[];
+  referenceCount: number;
+  classified: boolean;
+  sameProductThroughout: boolean;
+}
+
 export const generateProductImages = async (
   productId: string,
   referenceImage: ProductImage,
-  options?: { sampleCount?: number; product?: Product; mode?: string }
+  options?: { sampleCount?: number; product?: Product; mode?: string; maxVariants?: number }
 ): Promise<{
   ok: boolean;
   data?: ProductImage[];
@@ -3764,19 +3789,33 @@ export const generateProductImages = async (
     studio?: { front?: string; angle?: string; detail?: string; back?: string };
     lifestyle?: { front?: string; closeup?: string; inuse?: string };
   };
+  /** Welche Ansichten aufbereitet werden sollten. */
+  plan?: ImageViewPlanEntry[];
+  /** Welche Ansichten NICHT entstanden sind — mit Grund. Muss dem Bediener gezeigt werden. */
+  skipped?: ImageViewSkipEntry[];
+  evidence?: ImageGenerationEvidence;
+  report?: { mode?: string; requestedVariants?: number; producedVariants?: number };
   error?: { code: number; message: string };
 }> => {
   let response: Response | undefined;
+  // Der Lauf dauert Minuten (Ansichtserkennung + je Ansicht ein Bildmodell-Aufruf).
+  // Ohne eigenes Zeitlimit wartet der Browser bis zum Netz-Default in eine
+  // moeglicherweise tote Verbindung. Das Backend beendet sich selbst nach
+  // IMAGE_VARIANTS_TOTAL_TIMEOUT_MS (300 s) — hier eine Minute Luft darueber.
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 360000);
   try {
     response = await fetchApi(`${BACKEND_URL}/api/generate-images`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
       body: JSON.stringify({
         productId,
         product: options?.product,
         referenceImage,
         sampleCount: options?.sampleCount ?? 1,
         mode: options?.mode,
+        maxVariants: options?.maxVariants,
       }),
     });
     const result = await parseResponse(response);
@@ -3793,10 +3832,16 @@ export const generateProductImages = async (
       ok: true,
       data: result?.data?.images ?? result?.data,
       prompts: result?.data?.prompts,
+      plan: result?.data?.plan,
+      skipped: result?.data?.skipped,
+      evidence: result?.data?.evidence,
+      report: result?.data?.report,
     };
   } catch (error) {
     const errorInfo = extractErrorInfo(error, response);
     return { ok: false, error: errorInfo };
+  } finally {
+    clearTimeout(timeout);
   }
 };
 
