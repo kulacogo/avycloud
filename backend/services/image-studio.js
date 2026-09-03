@@ -22,6 +22,7 @@
 const sharp = require('sharp');
 const { generateProductImages } = require('../lib/vertex-ai');
 const { studioImageModelChain, maxObjectReferences } = require('../lib/gemini-image-models');
+const { assessBackgroundBrightness } = require('../lib/image-result-check');
 const { fetchImageAsDataUrl } = require('./image-generation');
 const { uploadBase64Image } = require('../lib/storage');
 
@@ -99,9 +100,18 @@ async function preprocessInput(buffer) {
 }
 
 /**
- * A valid studio result must decode, be reasonably large and have a bright top
- * border (the studio backdrop). Rejects dark/garbage generations so the chain
- * can move on to the next model or the deterministic fallback.
+ * Ein gültiges Studio-Ergebnis muss dekodieren, ausreichend gross sein und einen
+ * hellen HINTERGRUND haben.
+ *
+ * KORREKTUR 2026-09-03: die Helligkeit wird über die vier ECKEN gemessen, nicht
+ * mehr über den oberen Randstreifen. Der Streifen lief über die volle Breite —
+ * reicht das Produkt in den oberen Bildrand (bei einem formatfüllenden Packshot
+ * der Normalfall), sank der Mittelwert unter die Schwelle und ein korrektes
+ * Studio-Foto wurde verworfen. Gemessen in Produktion: 5 von 5 Läufen
+ * scheiterten so, über drei Modelle hinweg — jedes Mal landete der
+ * deterministische Rückfall in der Galerie statt des fertigen Studio-Fotos.
+ * Die Prüfung liegt jetzt in `lib/image-result-check.js`, gemeinsam mit dem
+ * Varianten-Pfad (der denselben Fehler geerbt hatte).
  */
 async function validateStudioResult(buffer) {
   try {
@@ -111,14 +121,9 @@ async function validateStudioResult(buffer) {
     if (Math.min(width, height) < MIN_EDGE_PX) {
       return { ok: false, reason: `too_small(${width}x${height})` };
     }
-    const stripH = Math.max(1, Math.round(height * 0.06));
-    const stats = await sharp(buffer)
-      .extract({ left: 0, top: 0, width, height: stripH })
-      .stats();
-    const rgb = stats.channels.slice(0, 3);
-    const mean = rgb.reduce((sum, c) => sum + c.mean, 0) / rgb.length;
-    if (mean < minBackgroundBrightness()) {
-      return { ok: false, reason: `background_too_dark(${Math.round(mean)})` };
+    const hg = await assessBackgroundBrightness(buffer, minBackgroundBrightness());
+    if (!hg.ok) {
+      return { ok: false, reason: `background_too_dark(Ecken ${hg.corners.join('/')})` };
     }
     return { ok: true, width, height };
   } catch (err) {
@@ -199,19 +204,41 @@ async function padOnWhiteSquare(buffer, size = FALLBACK_CANVAS_PX) {
   } catch {
     trimmed = buffer;
   }
-  const pad = Math.round(size * 0.08);
-  const inner = size - pad * 2;
+
+  // SEITENVERHAELTNIS BEHALTEN (Korrektur 2026-09-03). Vorher wurde IMMER auf ein
+  // Quadrat gelegt: ein Querformat-Foto bekam dadurch breite weisse Balken oben
+  // und unten und das Produkt schrumpfte auf rund die Haelfte der Bildhoehe. Das
+  // Ergebnis war sichtbar SCHLECHTER als die Vorlage — der Rueckfall soll ein
+  // Foto retten, nicht verschlimmern.
+  const tm = await sharp(trimmed).metadata();
+  const srcW = tm.width || size;
+  const srcH = tm.height || size;
+  const seite = srcW / srcH;
+
+  // Laengere Kante auf `size`, kuerzere proportional — mit schmalem weissen Rand.
+  const zielW = seite >= 1 ? size : Math.round(size * seite);
+  const zielH = seite >= 1 ? Math.round(size / seite) : size;
+  const pad = Math.round(Math.min(zielW, zielH) * 0.04);
+  const innerW = Math.max(1, zielW - pad * 2);
+  const innerH = Math.max(1, zielH - pad * 2);
+
   const resized = await sharp(trimmed)
-    .resize(inner, inner, { fit: 'inside', withoutEnlargement: false })
+    .resize(innerW, innerH, { fit: 'inside', withoutEnlargement: false })
     .toBuffer();
   const rm = await sharp(resized).metadata();
   const out = await sharp({
-    create: { width: size, height: size, channels: 3, background: { r: 255, g: 255, b: 255 } },
+    create: { width: zielW, height: zielH, channels: 3, background: { r: 255, g: 255, b: 255 } },
   })
-    .composite([{ input: resized, left: Math.round((size - (rm.width || inner)) / 2), top: Math.round((size - (rm.height || inner)) / 2) }])
+    .composite([
+      {
+        input: resized,
+        left: Math.round((zielW - (rm.width || innerW)) / 2),
+        top: Math.round((zielH - (rm.height || innerH)) / 2),
+      },
+    ])
     .png()
     .toBuffer();
-  return { buffer: out, mimeType: 'image/png', width: size, height: size };
+  return { buffer: out, mimeType: 'image/png', width: zielW, height: zielH };
 }
 
 async function fallbackComposite(preBuffer) {

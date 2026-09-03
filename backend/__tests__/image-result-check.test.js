@@ -8,6 +8,7 @@
 const sharp = require('sharp');
 const {
   validateGeneratedImage,
+  assessBackgroundBrightness,
   classifyIdentityVerdict,
   judgeProductIdentity,
   identityCheckEnabled,
@@ -69,6 +70,105 @@ describe('validateGeneratedImage', () => {
     expect((await validateGeneratedImage(Buffer.from('kein bild'))).ok).toBe(false);
     expect((await validateGeneratedImage(Buffer.alloc(0))).ok).toBe(false);
     expect((await validateGeneratedImage(null)).ok).toBe(false);
+  });
+});
+
+describe('Hintergrund-Helligkeit — Vorfall 2026-09-03 (Moto-Guzzi-Sitz)', () => {
+  /** Weisser Studio-Hintergrund, Produkt reicht bis an den OBEREN Bildrand. */
+  async function produktAmOberenRand() {
+    const produkt = await sharp({
+      create: { width: 900, height: 700, channels: 3, background: { r: 60, g: 55, b: 50 } },
+    })
+      .png()
+      .toBuffer();
+    return sharp({
+      create: { width: 1200, height: 1200, channels: 3, background: { r: 252, g: 252, b: 252 } },
+    })
+      .composite([{ input: produkt, left: 150, top: 0 }])
+      .png()
+      .toBuffer();
+  }
+
+  it('sharp ignoriert extract() vor stats() — der Zuschnitt MUSS materialisiert werden', async () => {
+    // Das ist die Ursache des Vorfalls, hier als Beweis festgehalten: die alte
+    // Pruefung "heller oberer Rand" mass in Wahrheit das GANZE Bild.
+    const img = await sharp({
+      create: { width: 400, height: 400, channels: 3, background: { r: 0, g: 0, b: 0 } },
+    })
+      .composite([
+        {
+          input: await sharp({
+            create: { width: 400, height: 200, channels: 3, background: { r: 255, g: 255, b: 255 } },
+          })
+            .png()
+            .toBuffer(),
+          left: 0,
+          top: 0,
+        },
+      ])
+      .png()
+      .toBuffer();
+
+    const ohnePuffer = await sharp(img).extract({ left: 0, top: 0, width: 400, height: 40 }).stats();
+    const mitPuffer = await sharp(
+      await sharp(img).extract({ left: 0, top: 0, width: 400, height: 40 }).toBuffer()
+    ).stats();
+
+    expect(Math.round(ohnePuffer.channels[0].mean)).not.toBe(255); // misst das ganze Bild
+    expect(Math.round(mitPuffer.channels[0].mean)).toBe(255); // misst wirklich den Streifen
+  });
+
+  it('nimmt ein Studio-Foto an, dessen Produkt den oberen Rand beruehrt', async () => {
+    const v = await validateGeneratedImage(await produktAmOberenRand());
+    expect(v.ok).toBe(true);
+  });
+
+  it('meldet vier helle Ecken statt eines Bildmittelwerts', async () => {
+    const hg = await assessBackgroundBrightness(await produktAmOberenRand(), 200);
+    expect(hg.bright).toBe(4);
+    expect(hg.corners.every((c) => c > 200)).toBe(true);
+  });
+
+  it('akzeptiert, wenn das Produkt zwei der vier Ecken verdeckt', async () => {
+    const bild = await sharp({
+      create: { width: 1200, height: 1200, channels: 3, background: { r: 252, g: 252, b: 252 } },
+    })
+      .composite([
+        {
+          input: await sharp({
+            create: { width: 1200, height: 600, channels: 3, background: { r: 50, g: 50, b: 50 } },
+          })
+            .png()
+            .toBuffer(),
+          left: 0,
+          top: 0,
+        },
+      ])
+      .png()
+      .toBuffer();
+    expect((await assessBackgroundBrightness(bild, 200)).ok).toBe(true);
+  });
+
+  it('verwirft weiterhin ein wirklich dunkles Bild', async () => {
+    const dunkel = await sharp({
+      create: { width: 1200, height: 1200, channels: 3, background: { r: 30, g: 30, b: 30 } },
+    })
+      .composite([
+        {
+          input: await sharp({
+            create: { width: 400, height: 400, channels: 3, background: { r: 200, g: 120, b: 60 } },
+          })
+            .png()
+            .toBuffer(),
+          left: 400,
+          top: 400,
+        },
+      ])
+      .png()
+      .toBuffer();
+    const hg = await assessBackgroundBrightness(dunkel, 200);
+    expect(hg.ok).toBe(false);
+    expect(hg.bright).toBe(0);
   });
 });
 

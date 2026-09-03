@@ -42,6 +42,64 @@ function minBackgroundBrightness() {
 const MIN_GLOBAL_STDDEV = parseFloat(process.env.GENERATED_IMAGE_MIN_STDDEV || '6');
 
 /**
+ * Beurteilt, ob der HINTERGRUND hell ist — über die vier ECKEN, nicht über einen
+ * Randstreifen.
+ *
+ * WARUM (Vorfall 2026-09-03, Studio-Foto eines Moto-Guzzi-Sitzes): die alte
+ * Prüfung mittelte den oberen Randstreifen über die VOLLE BREITE. Reicht das
+ * Produkt in den oberen Bildrand — bei einem formatfüllenden Packshot der
+ * Normalfall — sinkt der Mittelwert unter die Schwelle und ein völlig korrektes
+ * Studio-Foto wird verworfen. Gemessen in Produktion: 5 von 5 Läufen scheiterten
+ * mit `background_too_dark(149…197)` bei Schwelle 200, über DREI verschiedene
+ * Modelle hinweg. Es landete also jedes Mal der hässliche Rückfall in der
+ * Galerie, und niemand konnte sehen, dass die Modelle sauber geliefert hatten.
+ *
+ * Ecken sind in einem Packshot weit zuverlässiger Hintergrund als ein Streifen.
+ * Akzeptiert wird, wenn MINDESTENS ZWEI der vier Ecken hell sind — so darf das
+ * Produkt zwei Ecken berühren, ohne das Bild zu verlieren.
+ *
+ * @returns {Promise<{ok:boolean, corners:number[], bright:number}>}
+ */
+async function assessBackgroundBrightness(buffer, schwelle) {
+  const meta = await sharp(buffer).metadata();
+  const width = meta.width || 0;
+  const height = meta.height || 0;
+  const patch = Math.max(8, Math.round(Math.min(width, height) * 0.08));
+
+  const ecken = [
+    { left: 0, top: 0 },
+    { left: width - patch, top: 0 },
+    { left: 0, top: height - patch },
+    { left: width - patch, top: height - patch },
+  ];
+
+  const werte = [];
+  for (const ecke of ecken) {
+    try {
+      // ZWINGEND ueber toBuffer(): `sharp(x).extract(...).stats()` IGNORIERT den
+      // Zuschnitt und misst das GANZE Bild (sharp 0.33.5, an dieser Stelle
+      // nachgewiesen: obere Haelfte reinweiss, untere schwarz -> 128 statt 255).
+      // Genau daran scheiterte das Studio-Foto: die Pruefung "heller oberer Rand"
+      // hat nie den Rand gemessen, sondern die Durchschnittshelligkeit des ganzen
+      // Bildes. Ein dunkles Produkt zog sie unter die Schwelle, und JEDES fertige
+      // Studio-Foto wurde zugunsten des haesslichen Rueckfalls verworfen.
+      const zuschnitt = await sharp(buffer)
+        .extract({ left: Math.max(0, ecke.left), top: Math.max(0, ecke.top), width: patch, height: patch })
+        .toBuffer();
+      const stats = await sharp(zuschnitt).stats();
+      const rgb = stats.channels.slice(0, 3);
+      werte.push(rgb.reduce((sum, c) => sum + c.mean, 0) / (rgb.length || 1));
+    } catch {
+      // Eine nicht lesbare Ecke zaehlt nicht mit — sie darf das Bild nicht kippen.
+    }
+  }
+
+  if (!werte.length) return { ok: true, corners: [], bright: 0 };
+  const hell = werte.filter((w) => w >= schwelle).length;
+  return { ok: hell >= 2, corners: werte.map((w) => Math.round(w)), bright: hell };
+}
+
+/**
  * Deterministische Prüfung. Wirft nie.
  *
  * @param {Buffer} buffer
@@ -74,14 +132,9 @@ async function validateGeneratedImage(buffer, opts = {}) {
     }
 
     if (requireBrightBackground) {
-      const stripH = Math.max(1, Math.round(height * 0.06));
-      const stripStats = await sharp(buffer)
-        .extract({ left: 0, top: 0, width, height: stripH })
-        .stats();
-      const stripRgb = stripStats.channels.slice(0, 3);
-      const mean = stripRgb.reduce((sum, c) => sum + c.mean, 0) / (stripRgb.length || 1);
-      if (mean < minBackgroundBrightness()) {
-        return { ok: false, reason: `hintergrund_zu_dunkel(${Math.round(mean)})` };
+      const hg = await assessBackgroundBrightness(buffer, minBackgroundBrightness());
+      if (!hg.ok) {
+        return { ok: false, reason: `hintergrund_zu_dunkel(Ecken ${hg.corners.join('/')})` };
       }
     }
 
@@ -249,6 +302,7 @@ function classifyIdentityVerdict(verdict) {
 
 module.exports = {
   validateGeneratedImage,
+  assessBackgroundBrightness,
   judgeProductIdentity,
   classifyIdentityVerdict,
   identityCheckEnabled,
