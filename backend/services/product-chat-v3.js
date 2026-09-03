@@ -40,6 +40,8 @@ const { coerceTitleToPolicy } = require('../lib/title-policy');
 const { scoreField, aggregateProductConfidence } = require('../lib/confidence-scoring');
 const { crossReferenceProduct } = require('../lib/cross-reference');
 const { normalizeLiteralEscapes, hasListMarkup, sanitizeDescriptionProse } = require('../lib/listing-sanitize');
+const { selectChatImages, describeImageSelection } = require('../lib/chat-image-selection');
+const { gpsrIstThema } = require('../lib/chat-gpsr-relevance');
 const {
   resolveChatModel,
   defaultThinkingConfig,
@@ -105,7 +107,13 @@ const RETRY_DELAYS_MS = [1000, 3000, 8000];
 // Eigene Produktbilder ans Modell schicken (Incident 2026-07-17): V3 war blind
 // für die gespeicherten Fotos — Hersteller-/GPSR-/Maß-Angaben auf dem Etikett
 // wurden nie gelesen, das Modell riet. Gleiche Konstanten/ENV wie V2.
-const MAX_PRODUCT_IMAGE_PARTS = 4;
+// 4 war zu wenig: Produkte mit 26 Fotos zeigten dem Modell 4 davon (Vorfall
+// 2026-09-03). Gemini vertraegt deutlich mehr Bild-Parts; die Zahl ist
+// konfigurierbar, damit sie bei Latenzproblemen ohne Deploy senkbar bleibt.
+const MAX_PRODUCT_IMAGE_PARTS = Math.max(
+  1,
+  Math.min(16, parseInt(process.env.CHAT_MAX_IMAGE_PARTS || '8', 10) || 8)
+);
 const PRODUCT_IMAGE_TIMEOUT_MS = parseInt(process.env.CHAT_IMAGE_TIMEOUT_MS || '8000', 10);
 
 // ---------------------------------------------------------------------------
@@ -508,16 +516,21 @@ function summarizeProduct(product) {
  * product-chat-v2.js (Incident 2026-07-17: V3 war hier blind). Wirft nie —
  * jeder fehlgeschlagene Abruf wird pro Bild verworfen.
  */
-async function fetchProductImageParts(product) {
+async function fetchProductImageParts(product, { purpose = 'general', report = null } = {}) {
   const images = Array.isArray(product?.details?.images) ? product.details.images : [];
-  const candidates = images
-    .filter((img) => typeof img?.url_or_base64 === 'string' && img.url_or_base64.startsWith('http'))
-    .slice(0, MAX_PRODUCT_IMAGE_PARTS);
+  // VORFALL 2026-09-03 (SKU-1698488489): hier stand `images.slice(0, 4)`. Bei
+  // 26 Fotos sah das Modell die ersten vier der ROHEN Liste — und auf den
+  // Plaetzen 1 und 2 lagen zwei fremde Amazon-Werbebilder. Jetzt wird
+  // ausgewaehlt statt abgeschnitten: eigene Aufnahmen vor Fremdbildern,
+  // Etikett-/Typenschild-Kandidaten zuerst, KI-Bilder nie.
+  const auswahl = selectChatImages(images, { limit: MAX_PRODUCT_IMAGE_PARTS, purpose });
+  const candidates = auswahl.selected.map((s) => s.image);
+  if (report && typeof report === 'object') report.auswahl = auswahl;
   if (!candidates.length) return [];
 
   const results = await Promise.all(
     candidates.map(async (img) => {
-      const url = img.url_or_base64;
+      const url = img.url_or_base64 || img.url;
       try {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), PRODUCT_IMAGE_TIMEOUT_MS);
@@ -1290,15 +1303,36 @@ async function runProductChatV3({
   // Eigene Produktbilder laden (fehlerrobust — wirft nie). Reihenfolge in der
   // User-Message: Text → Produktbilder → Attachments.
   let productImageParts = [];
+  const bildBericht = {};
   try {
-    productImageParts = await fetchProductImageParts(product);
+    productImageParts = await fetchProductImageParts(product, {
+      // `scope` erreicht V3 erst mit dem Schnellaktions-Durchreichen vom
+      // 2026-08-28. Diese Datei muss mit UND ohne funktionieren — `typeof` auf
+      // einen nicht deklarierten Bezeichner wirft nicht, ein direkter Zugriff
+      // schon (und der Fehler landete stumm im catch: 0 Bilder statt 8).
+      purpose: gpsrIstThema({ scope: typeof scope === 'string' ? scope : null, message })
+        ? 'gpsr'
+        : 'general',
+      report: bildBericht,
+    });
   } catch (imgErr) {
     console.warn('[chat-v3] product image fetch failed: %s', imgErr?.message || imgErr);
     productImageParts = [];
   }
 
+  // Das Modell muss wissen, WIE VIELE Fotos es wirklich sieht. Der
+  // Produkt-Steckbrief nennt `imageCount` = ALLE Bilder; ohne diesen Satz
+  // haelt das Modell 8 von 26 fuer "alle" und behauptet, alles geprueft zu
+  // haben (Vorfall 2026-09-03). Die Zahl ist die der TATSAECHLICH geladenen
+  // Parts, nicht die der ausgewaehlten. Der Hinweis haengt am Text-Part, damit
+  // die Part-Reihenfolge [Text, Bilder, Anhaenge] unveraendert bleibt.
+  const bildLage = describeImageSelection({
+    gesamt: bildBericht.auswahl?.gesamt ?? (Array.isArray(product?.details?.images) ? product.details.images.length : 0),
+    gesendet: productImageParts.length,
+  });
+
   // Build the initial user message with product images + optional attachments.
-  const userParts = [{ text: message }];
+  const userParts = [{ text: `${message}\n\n${bildLage}` }];
   for (const part of productImageParts) userParts.push(part);
   if (Array.isArray(attachments)) {
     for (const att of attachments) {

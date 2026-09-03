@@ -18,7 +18,18 @@ const {
   normalizeCountryCode,
   normalizeGpsrPhone,
 } = require('./gpsr-manufacturer-registry');
+const { planRegistryEnforce } = require('./gpsr-enforce-guard');
 const { decodeHtmlEntitiesDeep } = require('./html-entities');
+
+/**
+ * Notbremse für die Registry-Enforce-Sperre (Vorfall 2026-09-03).
+ * Standard AN; NUR der exakte Wert 'off' schaltet ab — wie bei AUTO_INVOICE
+ * darf ein Tippfehler hier keine rechtlich haftenden Herstellerangaben
+ * verändern.
+ */
+function gpsrEnforceGuardEnabled() {
+  return String(process.env.GPSR_ENFORCE_GUARD ?? '').trim().toLowerCase() !== 'off';
+}
 const {
   getRequiredAspects: getEbayRequiredAspects,
   getCategoryAspectCatalog: getEbayCategoryAspectCatalog,
@@ -2703,7 +2714,22 @@ async function saveProduct(product, options = {}) {
         const reg = gpsrIsImageSourced ? null : await getManufacturerGpsrByName(manufacturerHint).catch(() => null);
         const regGpsr = reg?.gpsr && typeof reg.gpsr === 'object' ? reg.gpsr : null;
         if (regGpsr && Object.keys(regGpsr).length) {
-          const mergedGpsr = mergePreferMoreComplete(gpsrObj, regGpsr);
+          // Dieser Autofill-Block war die DRITTE, ungeschützte Kopie derselben
+          // Überlagerung: weder Platzhalter- noch Beleg-Sperre, und er füllte
+          // auch eu_responsible_* aus einem beliebigen Marken-Eintrag. Er darf
+          // weiterhin nur Lücken füllen — jetzt aber nach denselben Regeln
+          // (widersprüchliche Einträge raus, Anschrift nur als Ganzes).
+          const fillPlan = gpsrEnforceGuardEnabled()
+            ? planRegistryEnforce({
+                productGpsr: gpsrObj,
+                registry: reg,
+                brand: manufacturerHint,
+                maxLevel: 'fill',
+              })
+            : null;
+          const mergedGpsr = fillPlan
+            ? { ...(gpsrObj || {}), ...fillPlan.apply }
+            : mergePreferMoreComplete(gpsrObj, regGpsr);
           productWithEbay.details.gpsr = mergedGpsr;
           productWithEbay.ops = productWithEbay.ops || {};
           productWithEbay.ops.data_quality = productWithEbay.ops.data_quality || {};
@@ -2750,16 +2776,41 @@ async function saveProduct(product, options = {}) {
           if (regGpsr && Object.keys(regGpsr).length && isEnforceableRegistryEntry(reg)) {
             const beforeNorm = normalizeGpsrObject(productWithEbay?.details?.gpsr || {});
             const next = { ...(productWithEbay.details.gpsr || {}) };
-            for (const [k, v] of Object.entries(regGpsr)) {
-              if (v !== undefined && v !== null && String(v).trim() !== '') {
-                next[k] = v;
+            // VORFALL 2026-09-03 (SKU-1698488489, Marke "BBQ-Toro"): genau hier
+            // wurden die korrekt recherchierten Herstellerangaben (CS-Trading
+            // GmbH & Co. KG, 54472 Brauneberg) 400 ms nach dem Schreiben durch
+            // `gpsrManufacturers/bbq-toro` ersetzt — belegt durch das eigene
+            // Backup-Feld `ops.data_quality.gpsr_backup_v1` am Produkt. Die
+            // Schleife setzte JEDES gefüllte Registry-Feld einzeln; Straße,
+            // Ort, PLZ und Telefon stammten danach aus verschiedenen Quellen.
+            // `planRegistryEnforce` behandelt die Anschrift als Einheit,
+            // verwirft in sich widersprüchliche Einträge (deutsche Vorwahl +
+            // Sitzland China) und lässt besser belegte Produktdaten stehen.
+            const enforcePlan = gpsrEnforceGuardEnabled()
+              ? planRegistryEnforce({ productGpsr: productWithEbay.details.gpsr || {}, registry: reg, brand })
+              : null;
+            if (enforcePlan) {
+              Object.assign(next, enforcePlan.apply);
+              if (enforcePlan.blocked || enforcePlan.reasons.length) {
+                console.warn(
+                  `[gpsr-registry] Enforce "${brand}" (${reg.key || '?'}) eingeschränkt: ${
+                    enforcePlan.blocked ? 'blockiert' : 'teilweise'
+                  } — ${enforcePlan.reasons.join(', ') || enforcePlan.level}`
+                );
+              }
+            } else {
+              for (const [k, v] of Object.entries(regGpsr)) {
+                if (v !== undefined && v !== null && String(v).trim() !== '') {
+                  next[k] = v;
+                }
               }
             }
+            const enforceApplied = enforcePlan ? Object.keys(enforcePlan.apply).length > 0 : true;
             // Beleg-Metadaten aus dem Registry-Eintrag mitkopieren (falls
             // vorhanden) — additiv, damit Konsumenten sehen, WORAUF der
             // Enforce-Stand beruht (AUDIT 2026-07-16: 1353 Produkte mit
             // "vollen" GPSR-Daten, NULL mit Beleg-Metadaten).
-            if (!next.evidence) {
+            if (enforceApplied && !next.evidence) {
               if (reg.evidence && typeof reg.evidence === 'object') {
                 next.evidence = reg.evidence;
               } else if (Array.isArray(reg.sources) && reg.sources.length) {
@@ -2957,9 +3008,27 @@ async function getProduct(productId) {
           const enforceEnabled = await getRuntimeFlagBoolean('gpsrRegistryEnforce', true).catch(() => true);
           if (enforceEnabled) {
             const next = { ...(gpsrObj || {}) };
-            for (const [k, v] of Object.entries(regGpsr)) {
-              if (v !== undefined && v !== null && String(v).trim() !== '') {
-                next[k] = v;
+            // VORFALL 2026-09-03: der LESE-Pfad ist der gefährlichere von
+            // beiden — er legte den Registry-Eintrag bei JEDEM Laden über das
+            // Produkt und ließ damit jede Korrektur folgenlos erscheinen. Er
+            // darf deshalb höchstens LÜCKEN FÜLLEN (`maxLevel: 'fill'`), nie
+            // einen gespeicherten Wert überdecken: was im Dokument steht, ist
+            // die Antwort auf die Frage, was gespeichert wurde.
+            const readPlan = gpsrEnforceGuardEnabled()
+              ? planRegistryEnforce({
+                  productGpsr: gpsrObj || {},
+                  registry: reg,
+                  brand: manufacturerHint,
+                  maxLevel: 'fill',
+                })
+              : null;
+            if (readPlan) {
+              Object.assign(next, readPlan.apply);
+            } else {
+              for (const [k, v] of Object.entries(regGpsr)) {
+                if (v !== undefined && v !== null && String(v).trim() !== '') {
+                  next[k] = v;
+                }
               }
             }
             // Beleg-Metadaten aus dem Registry-Eintrag mitkopieren (falls

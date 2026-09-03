@@ -242,13 +242,23 @@ function demixManufacturerEuRepContacts(gpsr) {
 
   if (looksLikeEuRepContact(email, phone)) {
     const repPatch = {};
+    // VORFALL 2026-09-03 (SKU-1698488489): hier wurde die Hersteller-Telefon-
+    // nummer +4965349487986 ERSATZLOS gelöscht. Der Umhäng-Platz
+    // (eu_responsible_phone) war bereits mit der Nummer einer fremden Firma
+    // belegt, also fiel der Wert einfach weg — und der Registry-Overlay setzte
+    // beim nächsten Laden eine fremde Nummer an seine Stelle.
+    // Regel: NIE löschen, ohne den Wert vorher gesichert zu haben.
     if (email && /evatmaster|eu rep/i.test(email.toLowerCase())) {
-      if (!safeString(next.eu_responsible_email)) repPatch.eu_responsible_email = email;
-      delete next.email;
+      if (!safeString(next.eu_responsible_email)) {
+        repPatch.eu_responsible_email = email;
+        delete next.email;
+      }
     }
     if (phone && /\+49|evatmaster|eu rep/i.test(phone.toLowerCase())) {
-      if (!safeString(next.eu_responsible_phone)) repPatch.eu_responsible_phone = phone.replace(/\s*\(EU Rep\)\s*/gi, '').trim();
-      delete next.manufacturer_phone;
+      if (!safeString(next.eu_responsible_phone)) {
+        repPatch.eu_responsible_phone = phone.replace(/\s*\(EU Rep\)\s*/gi, '').trim();
+        delete next.manufacturer_phone;
+      }
     }
     Object.assign(next, repPatch);
   }

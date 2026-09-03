@@ -48,6 +48,7 @@ async function _tryResolveScopeConfigChatV2(scopeName, tenantId, callerOverrides
   }
 }
 const { sanitizeListingText, sanitizeDescriptionToHtml, sanitizeDescriptionProse, sanitizeHighlights } = require('../lib/listing-sanitize');
+const { selectChatImages, describeImageSelection } = require('../lib/chat-image-selection');
 const { normalizeHighlightsStrict } = require('../lib/highlights-policy');
 const {
   canonicalizeAttributeKey,
@@ -68,7 +69,13 @@ const { fetchCategoryTitleInsights } = require('../lib/ebay-browse-title-insight
 const { decodeHtmlEntitiesDeep } = require('../lib/html-entities');
 
 const MAX_CHAT_ITERATIONS = 12;
-const MAX_PRODUCT_IMAGE_PARTS = 4;
+// Paritaet zu V3 (Vorfall 2026-09-03): 4 Bilder aus 26 hiess, dass das Modell
+// das Etikett nie sah. Konfigurierbar, damit bei Latenzproblemen ohne Deploy
+// gesenkt werden kann.
+const MAX_PRODUCT_IMAGE_PARTS = Math.max(
+  1,
+  Math.min(16, parseInt(process.env.CHAT_MAX_IMAGE_PARTS || '8', 10) || 8)
+);
 const PRODUCT_IMAGE_TIMEOUT_MS = parseInt(process.env.CHAT_IMAGE_TIMEOUT_MS || '8000', 10);
 
 // Feature flag: CHAT_V2_ENHANCED enables Gemini 3 enhancements (urlContext tool,
@@ -572,16 +579,17 @@ function normalizeChatAttachments(attachments = []) {
 // Fetch product images as inline parts for Gemini vision
 // ---------------------------------------------------------------------------
 
-async function fetchProductImageParts(product) {
+async function fetchProductImageParts(product, { purpose = 'general' } = {}) {
   const images = Array.isArray(product?.details?.images) ? product.details.images : [];
-  const candidates = images
-    .filter((img) => typeof img?.url_or_base64 === 'string' && img.url_or_base64.startsWith('http'))
-    .slice(0, MAX_PRODUCT_IMAGE_PARTS);
+  // Paritaet zu V3: auswaehlen statt abschneiden (eigene Aufnahmen vor
+  // Fremdbildern, Etikett-Kandidaten zuerst, KI-Bilder nie).
+  const auswahl = selectChatImages(images, { limit: MAX_PRODUCT_IMAGE_PARTS, purpose });
+  const candidates = auswahl.selected.map((s) => s.image);
   if (!candidates.length) return [];
 
   const results = await Promise.all(
     candidates.map(async (img) => {
-      const url = img.url_or_base64;
+      const url = img.url_or_base64 || img.url;
       try {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), PRODUCT_IMAGE_TIMEOUT_MS);
@@ -1070,7 +1078,17 @@ async function runProductChatV2(product, userMessage, {
       role: 'user',
       parts: [
         { text: `Produktkontext:\n${JSON.stringify(productContext, null, 2)}` },
-        ...(allImageParts.length ? [{ text: `\n\nProduktbilder (${allImageParts.length} Stück) — nutze diese für Farbe, Material, Design und andere visuelle Merkmale:` }, ...allImageParts] : []),
+        ...(allImageParts.length
+          ? [
+              {
+                text: `\n\nProduktbilder (${allImageParts.length} Stück) — nutze diese für Farbe, Material, Design und andere visuelle Merkmale:\n${describeImageSelection({
+                  gesamt: Array.isArray(product?.details?.images) ? product.details.images.length : allImageParts.length,
+                  gesendet: productImageParts.length,
+                })}`,
+              },
+              ...allImageParts,
+            ]
+          : [{ text: `\n\n${describeImageSelection({ gesamt: Array.isArray(product?.details?.images) ? product.details.images.length : 0, gesendet: 0 })}` }]),
       ],
     },
     {
