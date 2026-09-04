@@ -133,15 +133,27 @@ async function validateStudioResult(buffer) {
 
 async function tryGeminiStudio(preBuffer, attempts, siblingDataUrls = []) {
   const referenceImageBase64 = `data:image/jpeg;base64,${preBuffer.toString('base64')}`;
-  // Weitere echte Fotos DESSELBEN Artikels als Identitaetsanker. Sie aendern die
-  // Perspektive nicht (das verbietet der Prompt ausdruecklich), geben dem Modell
-  // aber Form, Farbe und Beschriftung aus mehreren Blickwinkeln vor — der
-  // dokumentierte Hebel gegen Identitaetsdrift.
+
+  // NUR DAS GEWAEHLTE FOTO (Korrektur 2026-09-04, Betreiber: "Studio-Foto nimmt
+  // immer das erste Bild als Referenz").
+  //
+  // Am 02.09. wurden zusaetzliche Fotos desselben Artikels als "Identitaetsanker"
+  // mitgeschickt. Der Prompt verbot ausdruecklich, deren Perspektive zu
+  // uebernehmen — das Modell hielt sich nicht daran und mischte die Vorlagen.
+  // Fuer den Bediener sah es so aus, als wuerde immer das erste Galeriebild
+  // benutzt statt des ausgewaehlten.
+  //
+  // Der Denkfehler: Anker helfen, wenn eine Ansicht ERFUNDEN werden muss. Seit
+  // der Umstellung wird nichts mehr erfunden, sondern EIN vorhandenes Foto
+  // aufbereitet — alles Noetige steckt in genau diesem Foto. Weitere Bilder
+  // koennen nur Drift erzeugen.
+  const ankerErlaubt = String(process.env.STUDIO_SIBLING_ANCHORS || '').trim() === 'on';
+  const anker = ankerErlaubt ? siblingDataUrls : [];
+
   for (const model of studioModelChain()) {
-    // Die Obergrenze fuer Objekt-Referenzen ist MODELLABHAENGIG. Ohne diese
-    // Kappung gingen vier Bilder an ein Modell mit dokumentiertem Limit drei.
+    // Die Obergrenze fuer Objekt-Referenzen ist MODELLABHAENGIG.
     const limit = Math.max(1, maxObjectReferences(model));
-    const referenceImages = [referenceImageBase64, ...siblingDataUrls].slice(0, limit);
+    const referenceImages = [referenceImageBase64, ...anker].slice(0, limit);
     try {
       const images = await generateProductImages({
         prompt:

@@ -165,7 +165,10 @@ describe('erfindet keine Ansichten mehr', () => {
 });
 
 describe('alle echten Fotos gehen als Referenz mit', () => {
-  it('sendet MEHRERE Referenzbilder, nicht nur das erste', async () => {
+  it('sendet GENAU EIN Referenzbild je Ansicht — keine Identitaetsanker', async () => {
+    // Korrektur 2026-09-04: zusaetzliche Fotos als "Anker" liessen das Modell die
+    // Vorlagen mischen; das Ergebnis zeigte ein Produkt, das keinem Foto entsprach.
+    // Eine Ansicht wird aus GENAU EINEM echten Foto aufbereitet.
     classifySpy.mockResolvedValue(
       klassifikation([
         { index: 0, viewpoint: 'front', showsProduct: true, fullyVisible: true, usableAsReference: true, confidence: 0.95 },
@@ -181,11 +184,10 @@ describe('alle echten Fotos gehen als Referenz mit', () => {
       { referenceImage: { url_or_base64: 'https://x/1.jpg' } }
     );
 
-    const args = generateSpy.mock.calls[0][0];
-    expect(args.referenceImages.length).toBe(3);
+    expect(generateSpy.mock.calls[0][0].referenceImages).toHaveLength(1);
   });
 
-  it('stellt die Vorlage der geplanten Ansicht an die erste Stelle', async () => {
+  it('nimmt fuer jede Ansicht IHR eigenes Quellfoto', async () => {
     classifySpy.mockResolvedValue(
       klassifikation([
         { index: 0, viewpoint: 'side', showsProduct: true, fullyVisible: true, usableAsReference: true, confidence: 0.9 },
@@ -193,14 +195,19 @@ describe('alle echten Fotos gehen als Referenz mit', () => {
       ])
     );
 
-    await generateImagesForProduct(
+    const res = await generateImagesForProduct(
       produkt([{ url_or_base64: 'https://x/1.jpg' }, { url_or_base64: 'https://x/2.jpg' }]),
       { referenceImage: { url_or_base64: 'https://x/1.jpg' } }
     );
 
-    // Erster Aufruf ist die Vorderansicht (Hauptbild zuerst) — deren Quelle ist Index 1.
-    const ersterPrompt = generateSpy.mock.calls[0][0].prompt;
-    expect(ersterPrompt).toMatch(/front/i);
+    const front = res.images.find((i) => i.viewpoint === 'front');
+    const side = res.images.find((i) => i.viewpoint === 'side');
+    expect(front.derivedFrom).toBe('https://x/2.jpg');
+    expect(side.derivedFrom).toBe('https://x/1.jpg');
+    // Jeder Aufruf traegt genau eine Vorlage.
+    for (const call of generateSpy.mock.calls) {
+      expect(call[0].referenceImages).toHaveLength(1);
+    }
   });
 
   it('nimmt bereits erzeugte Bilder NIE als Referenz (keine Kopie einer Kopie)', () => {

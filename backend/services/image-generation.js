@@ -356,9 +356,19 @@ async function renderOneView({ product, planEntry, references, sourceIndex, dead
   const chain = variantImageModelChain();
   const attempts = [];
 
-  const ordered = [references[sourceIndex], ...references.filter((_, i) => i !== sourceIndex)].filter(
-    Boolean
-  );
+  // NUR DIE VORLAGE (Korrektur 2026-09-04, Betreiber: "Produkt weicht vom
+  // Original ab"). Bis dahin gingen ALLE geladenen Fotos als "Identitaetsanker"
+  // mit — bis zu sechs Bilder fuer EINE Ansicht. Das Modell mischte sie, obwohl
+  // der Prompt es verbot, und das Ergebnis zeigte ein Produkt, das keinem der
+  // Fotos entsprach.
+  //
+  // Der Denkfehler: Anker helfen, wenn eine Ansicht ERFUNDEN werden muss. Seit
+  // der Umstellung wird jede Ansicht aus GENAU EINEM echten Foto aufbereitet —
+  // alles Noetige steckt darin. Weitere Bilder koennen nur Drift erzeugen.
+  const ankerErlaubt = String(process.env.VARIANT_SIBLING_ANCHORS || '').trim() === 'on';
+  const ordered = ankerErlaubt
+    ? [references[sourceIndex], ...references.filter((_, i) => i !== sourceIndex)].filter(Boolean)
+    : [references[sourceIndex]].filter(Boolean);
 
   for (const model of chain) {
     // Der Einzel-Timeout wird aus der VERBLEIBENDEN Gesamtfrist abgeleitet. Eine
