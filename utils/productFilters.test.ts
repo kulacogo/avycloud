@@ -18,7 +18,10 @@ import {
   numberCompareChipText,
   dateRangeChipText,
   chipSegments,
+  filterDefMatchesQuery,
+  hasUnreadNotes,
   type ActiveFilter,
+  type ProductNotesInfo,
   type FilterContext,
   type NumberCompareValue,
   type DateRangeValue,
@@ -50,6 +53,7 @@ const baseCtx = (over: Partial<FilterContext> = {}): FilterContext => ({
   kauflandEanSet: new Set(),
   resolveErfasstVon: () => "",
   getDisplayCategory: () => "Unbekannt",
+  notesById: new Map(),
   ...over,
 });
 
@@ -149,6 +153,15 @@ describe("resolveDateRange / matchesDateRange", () => {
     const leer: DateRangeValue = { preset: "custom", from: null, to: null };
     assert.equal(resolveDateRange(leer, now), null);
     assert.equal(getFilterDef("erstellt")!.isActive(leer), false);
+  });
+
+  test("Diese Woche laeuft von Montag bis Sonntag (deutsche Woche)", () => {
+    // now ist Mittwoch, 26.08.2026 → Woche = Mo 24.08. bis So 30.08.
+    const v: DateRangeValue = { preset: "thisWeek", from: null, to: null };
+    assert.equal(matchesDateRange(new Date(2026, 7, 24, 0, 30).toISOString(), v, now), true);
+    assert.equal(matchesDateRange(new Date(2026, 7, 30, 23, 30).toISOString(), v, now), true);
+    assert.equal(matchesDateRange(new Date(2026, 7, 23, 23, 30).toISOString(), v, now), false);
+    assert.equal(matchesDateRange(new Date(2026, 7, 31, 0, 30).toISOString(), v, now), false);
   });
 
   test("verdrehte Custom-Grenzen werden getauscht statt still nichts zu treffen", () => {
@@ -280,6 +293,66 @@ describe("applyProductFilters — neue Dimensionen", () => {
     const gebraucht = makeProduct({ id: "b", details: { conditionId: "3000" } });
     assert.deepEqual(apply([neu, gebraucht], [{ id: "zustand", value: ["1000"] }]), ["a"]);
     assert.deepEqual(apply([neu, gebraucht], [{ id: "zustand", value: ["3000"] }]), ["b"]);
+  });
+});
+
+describe("hasUnreadNotes", () => {
+  const info = (over: Partial<ProductNotesInfo>): ProductNotesInfo => ({
+    count: 1,
+    lastNoteAt: "2026-08-26T10:00:00.000Z",
+    seenAt: null,
+    ...over,
+  });
+
+  test("nie geoeffnet = ungelesen; nach dem Oeffnen gelesen; neue Notiz macht wieder ungelesen", () => {
+    assert.equal(hasUnreadNotes(info({ seenAt: null })), true);
+    assert.equal(hasUnreadNotes(info({ seenAt: "2026-08-26T11:00:00.000Z" })), false);
+    assert.equal(hasUnreadNotes(info({ seenAt: "2026-08-25T09:00:00.000Z" })), true);
+  });
+
+  test("ohne Notizen nie ungelesen; kaputte Zeitstempel fallen auf 'ungelesen bei nie gesehen' zurueck", () => {
+    assert.equal(hasUnreadNotes(undefined), false);
+    assert.equal(hasUnreadNotes(info({ count: 0 })), false);
+    assert.equal(hasUnreadNotes(info({ lastNoteAt: null, seenAt: null })), true);
+    assert.equal(hasUnreadNotes(info({ lastNoteAt: null, seenAt: "2026-08-26T11:00:00.000Z" })), false);
+  });
+});
+
+describe("Notizen-Filter (Registry, liest aus dem FilterContext)", () => {
+  const mitUngelesen = makeProduct({ id: "a" });
+  const mitGelesen = makeProduct({ id: "b" });
+  const ohne = makeProduct({ id: "c" });
+  const notesCtx = () =>
+    baseCtx({
+      notesById: new Map<string, ProductNotesInfo>([
+        ["a", { count: 2, lastNoteAt: "2026-08-26T10:00:00.000Z", seenAt: null }],
+        ["b", { count: 1, lastNoteAt: "2026-08-20T10:00:00.000Z", seenAt: "2026-08-21T08:00:00.000Z" }],
+      ]),
+    });
+
+  test("Vorhanden / Keine / Ungelesen / Gelesen", () => {
+    assert.deepEqual(apply([mitUngelesen, mitGelesen, ohne], [{ id: "notizen", value: "withNotes" }], notesCtx()), ["a", "b"]);
+    assert.deepEqual(apply([mitUngelesen, mitGelesen, ohne], [{ id: "notizen", value: "noNotes" }], notesCtx()), ["c"]);
+    assert.deepEqual(apply([mitUngelesen, mitGelesen, ohne], [{ id: "notizen", value: "unread" }], notesCtx()), ["a"]);
+    assert.deepEqual(apply([mitUngelesen, mitGelesen, ohne], [{ id: "notizen", value: "read" }], notesCtx()), ["b"]);
+  });
+
+  test("Letzte Notiz als Zeitraum (Preset rechnet mit ctx.now)", () => {
+    // ctx.now = 26.08.2026 → "Letzte 7 Tage" trifft die Notiz vom 26.08., nicht die vom 01.06.
+    const alt = makeProduct({ id: "d" });
+    const ctx = baseCtx({
+      notesById: new Map<string, ProductNotesInfo>([
+        ["a", { count: 1, lastNoteAt: new Date(2026, 7, 26, 9, 0).toISOString(), seenAt: null }],
+        ["d", { count: 1, lastNoteAt: new Date(2026, 5, 1).toISOString(), seenAt: null }],
+      ]),
+    });
+    const active: ActiveFilter[] = [{ id: "letzteNotiz", value: { preset: "last7", from: null, to: null } }];
+    assert.deepEqual(apply([mitUngelesen, alt, ohne], active, ctx), ["a"]);
+  });
+
+  test("Produkte ohne Notizen treffen den Zeitraum nie", () => {
+    const active: ActiveFilter[] = [{ id: "letzteNotiz", value: { preset: "thisMonth", from: null, to: null } }];
+    assert.deepEqual(apply([ohne], active, notesCtx()), []);
   });
 });
 
@@ -426,15 +499,31 @@ describe("chipSegments — segmentierte Chips (Feld | Operator | Wert)", () => {
   });
 
   test("Zeitraum: Preset-Name bzw. Datumsspanne als Wert", () => {
+    // Label folgt der Spalte ("Erfasst am") — der Betreiber suchte "erfasst"
+    // und fand den Filter unter "Erstellt" nicht.
     assert.deepEqual(chipSegments(getFilterDef("erstellt")!, { preset: "last7", from: null, to: null }, baseCtx()), {
-      field: "Erstellt",
+      field: "Erfasst am",
       op: "ist",
       value: "Letzte 7 Tage",
     });
     assert.deepEqual(
       chipSegments(getFilterDef("erstellt")!, { preset: "custom", from: "2026-08-20", to: null }, baseCtx()),
-      { field: "Erstellt", op: "ist", value: "ab 20.08.2026" }
+      { field: "Erfasst am", op: "ist", value: "ab 20.08.2026" }
     );
+  });
+
+  test("Menue-Suche findet Filter auch ueber Alt-Namen und Synonyme", () => {
+    const erstellt = getFilterDef("erstellt")!;
+    assert.equal(filterDefMatchesQuery(erstellt, "erfasst"), true);
+    assert.equal(filterDefMatchesQuery(erstellt, "Erstellt"), true);
+    assert.equal(filterDefMatchesQuery(erstellt, "angelegt"), true);
+    const aktualisiert = getFilterDef("aktualisiert")!;
+    assert.equal(aktualisiert.label, "Zuletzt gespeichert");
+    assert.equal(filterDefMatchesQuery(aktualisiert, "aktualisiert"), true);
+    assert.equal(filterDefMatchesQuery(aktualisiert, "geändert"), true);
+    assert.equal(filterDefMatchesQuery(getFilterDef("marke")!, "hersteller"), true);
+    assert.equal(filterDefMatchesQuery(erstellt, "xyz"), false);
+    assert.equal(filterDefMatchesQuery(erstellt, ""), true);
   });
 
   test("Zustand: uebersetzte Options-Labels", () => {

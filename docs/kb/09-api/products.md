@@ -577,6 +577,28 @@ Diese sind eine zweite, parallele Implementierung zu `/api/settings/webhooks` (s
 
 ---
 
+## Interne Notizen (Gelesen-Stand)
+
+Bestehende Notiz-Routen (`GET /api/products/notes-counts`, `GET/POST /api/products/:id/notes`) unverändert. Neu seit 2026-08-29 für den Notizen-Filter der Produkttabelle:
+
+### `GET /api/products/notes-overview`
+
+- **Auth**: `requirePermission('products', 'read')`
+- **Tenant Source**: `req.user.tenantId`
+- **Response**: `{ "ok": true, "data": { "<productId>": { "count": <int>, "lastNoteAt": "<iso|null>", "seenAt": "<iso|null>" } } }` — `seenAt` ist der Gelesen-Stand des ANGEMELDETEN Nutzers (Doc `product_note_reads/{tenantId}__{uid}`, Map `seen`). „Ungelesen" entscheidet das Frontend: `lastNoteAt > seenAt` (`utils/productFilters.ts hasUnreadNotes` — eine Quelle).
+- **Source**: [backend/routes/products.js#L733](../../../backend/routes/products.js#L733)
+
+### `POST /api/products/:id/notes/seen`
+
+- **Auth**: `requirePermission('products', 'read')`
+- **Request**: leer.
+- **Response**: `{ "ok": true, "data": { "productId": "...", "seenAt": "<iso>" } }`
+- **Side-Effects**: merge-Write auf `product_note_reads/{tenantId}__{uid}` (`seen.<productId> = now`). Ausgelöst beim Öffnen der Notizen im Produktdatenblatt — bewusst KEIN Auto-Read beim Tabellen-Scrollen.
+- **Failure Modes**: `400 { code: 'VALIDATION' }` ohne Nutzer/Produkt.
+- **Source**: [backend/routes/products.js#L749](../../../backend/routes/products.js#L749)
+
+---
+
 ## Price-Refresh
 
 ### `POST /api/price-refresh`

@@ -1,5 +1,5 @@
 import React from "react";
-import { listProductNotes, addProductNote, type ProductNote } from "../api/client";
+import { listProductNotes, addProductNote, markProductNotesSeen, type ProductNote } from "../api/client";
 
 const fmt = (iso: string) => {
   try {
@@ -31,6 +31,15 @@ export const ProductNotes: React.FC<{ productId: string; onCountChange?: (n: num
       const loaded = await listProductNotes(productId);
       setNotes(loaded);
       onCountChange?.(loaded.length);
+      // Notizen wurden angezeigt → fuer diesen Nutzer als gesehen markieren.
+      // Die Produkttabelle hoert auf das Event und stellt "Ungelesen" sofort um.
+      markProductNotesSeen(productId)
+        .then((seenAt) => {
+          window.dispatchEvent(
+            new CustomEvent("avy:notes-seen", { detail: { productId, seenAt: seenAt || new Date().toISOString() } })
+          );
+        })
+        .catch(() => {});
     } catch (e: any) {
       setError(e?.message || "Notizen konnten nicht geladen werden");
     } finally {

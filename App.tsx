@@ -1143,13 +1143,12 @@ const AppInner: React.FC = () => {
                 window.location.hash = '#/input';
                 setView('input');
               }}
-              onExport={async () => {
-                try {
-                  const { exportProductsCsv } = await import('./api/client');
-                  await exportProductsCsv();
-                } catch (err: any) {
-                  console.error('Export failed:', err);
-                }
+              onExport={() => {
+                // Der Export gehoert der Tabelle: sie kennt Filter, Suche und
+                // Sortierung. Der alte Weg (Backend-CSV) exportierte IMMER
+                // alle Produkte mit fester Spaltenliste — Betreiber 2026-08-30:
+                // "es nimmt jedes mal alle daten statt der gefilterten".
+                window.dispatchEvent(new CustomEvent('avy:produktdaten-export'));
               }}
               onImport={() => startTransition(() => setShowImportModal(true))}
             />

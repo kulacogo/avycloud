@@ -77,6 +77,8 @@ export interface InventoryExportMarketplaceFlags {
 
 export interface InventoryExportContext {
   marketplace: (product: Product) => InventoryExportMarketplaceFlags;
+  /** Aufloesung "Erfasst von" (Feld am Produkt ODER Protokoll-Map, admin-only). */
+  identifiedBy?: (product: Product) => string;
 }
 
 export interface InventoryExportField {
@@ -269,6 +271,17 @@ export const INVENTORY_EXPORT_FIELDS: InventoryExportField[] = [
   { key: "readiness", label: "Bereitschaft", group: "origin", type: "text", value: (p) => readinessLabel(p.ops?.readiness) },
   { key: "lastSaved", label: "Zuletzt gespeichert", group: "origin", type: "date", value: (p) => p.ops?.last_saved_iso || "" },
   { key: "manufacturer", label: "Hersteller", group: "origin", type: "text", value: (p) => p.details?.gpsr?.manufacturer_name || "" },
+  // Erfassungs-Herkunft (Produktdaten-Export, 2026-08-30): created_at_iso ist
+  // serverseitig immer befuellt (Firestore-createTime-Fallback); identified_by
+  // existiert erst seit ~08/2026 — leere Zelle heisst "vor der Einfuehrung".
+  { key: "createdAt", label: "Erfasst am", group: "origin", type: "date", value: (p) => p.ops?.created_at_iso || "" },
+  {
+    key: "identifiedBy",
+    label: "Erfasst von",
+    group: "origin",
+    type: "text",
+    value: (p, ctx) => ctx.identifiedBy?.(p) || p.ops?.identified_by?.name || p.ops?.identified_by?.email || "",
+  },
 ];
 
 const FIELD_BY_KEY = new Map(INVENTORY_EXPORT_FIELDS.map((f) => [f.key, f]));
@@ -295,6 +308,32 @@ export const INVENTORY_EXPORT_DEFAULT_FIELDS: string[] = [
   "sellPriceSource",
   "ebayStatus",
   "kauflandStatus",
+];
+
+/**
+ * Vorauswahl des PRODUKTDATEN-Exports (Tools der Produkttabelle + Kopf-Knopf
+ * "Export"). Breiter als die Bestandsliste: diese Tabelle IST die Datenansicht.
+ */
+export const PRODUCT_EXPORT_DEFAULT_FIELDS: string[] = [
+  "name",
+  "brand",
+  "sku",
+  "ean",
+  "mpn",
+  "category",
+  "quantity",
+  "available",
+  "sold",
+  "sellPrice",
+  "sellPriceSource",
+  "marketPrice",
+  "binCode",
+  "sourceLot",
+  "ebayStatus",
+  "kauflandStatus",
+  "readiness",
+  "createdAt",
+  "lastSaved",
 ];
 
 // ---------------------------------------------------------------------------
@@ -385,6 +424,11 @@ export function buildInventoryExportFilename(scope: "filtered" | "all", now: Dat
   return `warenbestand-${scope === "all" ? "gesamt" : "auswahl"}-${day}.csv`;
 }
 
+export function buildProductExportFilename(scope: "filtered" | "all", now: Date = new Date()): string {
+  const day = now.toISOString().slice(0, 10);
+  return `produktdaten-${scope === "all" ? "gesamt" : "auswahl"}-${day}.csv`;
+}
+
 // ---------------------------------------------------------------------------
 // Gespeicherte Auswahl
 // ---------------------------------------------------------------------------
@@ -433,36 +477,67 @@ function migrateFields(fields: string[], storedVersion: unknown): string[] {
  * Spalte. Unbekannte Schluessel fallen weg, damit ein umbenanntes Feld keine
  * leere Spalte hinterlaesst.
  */
-export function loadInventoryExportPreferences(
-  storage?: Pick<Storage, "getItem"> | null
+export const PRODUCT_EXPORT_STORAGE_KEY = "avystock:admin-table:export-preferences";
+
+function loadExportPreferences(
+  storage: Pick<Storage, "getItem"> | null | undefined,
+  key: string,
+  defaults: string[]
 ): InventoryExportPreferences {
   const store = storage ?? (typeof window !== "undefined" ? window.localStorage : null);
-  if (!store) return { ...INVENTORY_EXPORT_DEFAULT_PREFERENCES };
+  if (!store) return { fields: defaults, numberFormat: "de" };
   try {
-    const raw = store.getItem(INVENTORY_EXPORT_STORAGE_KEY);
-    if (!raw) return { ...INVENTORY_EXPORT_DEFAULT_PREFERENCES };
+    const raw = store.getItem(key);
+    if (!raw) return { fields: defaults, numberFormat: "de" };
     const parsed = JSON.parse(raw);
     const fields = Array.isArray(parsed?.fields)
       ? parsed.fields.filter((k: unknown) => typeof k === "string" && FIELD_BY_KEY.has(k))
       : [];
     return {
-      fields: fields.length ? migrateFields(fields, parsed?.v) : INVENTORY_EXPORT_DEFAULT_FIELDS,
+      fields: fields.length ? migrateFields(fields, parsed?.v) : defaults,
       numberFormat: parsed?.numberFormat === "intl" ? "intl" : "de",
     };
   } catch {
-    return { ...INVENTORY_EXPORT_DEFAULT_PREFERENCES };
+    return { fields: defaults, numberFormat: "de" };
   }
+}
+
+function saveExportPreferences(
+  prefs: InventoryExportPreferences,
+  storage: Pick<Storage, "setItem"> | null | undefined,
+  key: string
+): void {
+  const store = storage ?? (typeof window !== "undefined" ? window.localStorage : null);
+  if (!store) return;
+  try {
+    store.setItem(key, JSON.stringify({ ...prefs, v: INVENTORY_EXPORT_PREFS_VERSION }));
+  } catch {
+    // Privater Modus / volles Kontingent — kein Grund, den Export zu verweigern.
+  }
+}
+
+export function loadInventoryExportPreferences(
+  storage?: Pick<Storage, "getItem"> | null
+): InventoryExportPreferences {
+  return loadExportPreferences(storage, INVENTORY_EXPORT_STORAGE_KEY, INVENTORY_EXPORT_DEFAULT_FIELDS);
 }
 
 export function saveInventoryExportPreferences(
   prefs: InventoryExportPreferences,
   storage?: Pick<Storage, "setItem"> | null
 ): void {
-  const store = storage ?? (typeof window !== "undefined" ? window.localStorage : null);
-  if (!store) return;
-  try {
-    store.setItem(INVENTORY_EXPORT_STORAGE_KEY, JSON.stringify({ ...prefs, v: INVENTORY_EXPORT_PREFS_VERSION }));
-  } catch {
-    // Privater Modus / volles Kontingent — kein Grund, den Export zu verweigern.
-  }
+  saveExportPreferences(prefs, storage, INVENTORY_EXPORT_STORAGE_KEY);
+}
+
+export function loadProductExportPreferences(
+  storage?: Pick<Storage, "getItem"> | null
+): InventoryExportPreferences {
+  return loadExportPreferences(storage, PRODUCT_EXPORT_STORAGE_KEY, PRODUCT_EXPORT_DEFAULT_FIELDS);
+}
+
+export function saveProductExportPreferences(
+  prefs: InventoryExportPreferences,
+  storage?: Pick<Storage, "setItem"> | null
+): void {
+  saveExportPreferences(prefs, storage, PRODUCT_EXPORT_STORAGE_KEY);
 }

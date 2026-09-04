@@ -30,6 +30,7 @@ export interface NumberCompareValue {
 export type DatePreset =
   | "today"
   | "yesterday"
+  | "thisWeek"
   | "last7"
   | "last30"
   | "thisMonth"
@@ -61,6 +62,26 @@ export interface FilterOption {
  * Erfasser-Aufloesung). `now` wird injiziert, damit Datums-Presets testbar
  * sind und gespeicherte Ansichten rollierend bleiben.
  */
+/** Notiz-Stand eines Produkts (aus GET /api/products/notes-overview). */
+export interface ProductNotesInfo {
+  count: number;
+  lastNoteAt: string | null;
+  /** Wann DIESER Nutzer die Notizen zuletzt geoeffnet hat (null = nie). */
+  seenAt: string | null;
+}
+
+/**
+ * Ungelesen = es gibt Notizen UND der Nutzer hat sie seit der letzten Notiz
+ * nicht geoeffnet. Fehlt der Notiz-Zeitstempel (Altbestand), entscheidet
+ * allein "je geoeffnet?".
+ */
+export function hasUnreadNotes(info: ProductNotesInfo | undefined): boolean {
+  if (!info || info.count <= 0) return false;
+  if (!info.seenAt) return true;
+  if (!info.lastNoteAt) return false;
+  return info.lastNoteAt > info.seenAt;
+}
+
 export interface FilterContext {
   now: Date;
   myInitials: string;
@@ -71,6 +92,7 @@ export interface FilterContext {
   kauflandEanSet: ReadonlySet<string>;
   resolveErfasstVon: (p: Product) => string;
   getDisplayCategory: (p: Product) => string;
+  notesById: ReadonlyMap<string, ProductNotesInfo>;
 }
 
 export const NONE_SENTINEL = "__none__";
@@ -90,6 +112,8 @@ export interface ProductFilterDef {
   buildOptions?: (products: Product[], ctx: FilterContext) => FilterOption[];
   /** Anzeigename eines Multi-Werts (Sentinel-Aufloesung, Zustands-Namen). */
   optionLabel?: (value: string) => string;
+  /** Zusaetzliche Suchbegriffe fuers "+ Filter"-Menue (Alt-Namen, Synonyme). */
+  keywords?: string[];
   defaultValue: FilterValue;
   isActive: (value: FilterValue | undefined) => boolean;
   predicate: (p: Product, value: FilterValue, ctx: FilterContext) => boolean;
@@ -181,6 +205,7 @@ export function numberCompareChipText(label: string, v: NumberCompareValue, unit
 export const DATE_PRESET_LABELS: Record<DatePreset, string> = {
   today: "Heute",
   yesterday: "Gestern",
+  thisWeek: "Diese Woche",
   last7: "Letzte 7 Tage",
   last30: "Letzte 30 Tage",
   thisMonth: "Dieser Monat",
@@ -214,6 +239,11 @@ export function resolveDateRange(v: DateRangeValue, now: Date): { fromMs: number
       return { fromMs: startOfDayMs(y, m, d), toMs: endOfDayMs(y, m, d) };
     case "yesterday":
       return { fromMs: startOfDayMs(y, m, d - 1), toMs: endOfDayMs(y, m, d - 1) };
+    case "thisWeek": {
+      // Deutsche Woche: Montag bis Sonntag. getDay(): 0=So … 6=Sa.
+      const daysSinceMonday = (now.getDay() + 6) % 7;
+      return { fromMs: startOfDayMs(y, m, d - daysSinceMonday), toMs: endOfDayMs(y, m, d - daysSinceMonday + 6) };
+    }
     case "last7":
       return { fromMs: startOfDayMs(y, m, d - 6), toMs: endOfDayMs(y, m, d) };
     case "last30":
@@ -521,7 +551,7 @@ interface DateDefArgs {
   id: string;
   label: string;
   group: string;
-  read: (p: Product) => string | null;
+  read: (p: Product, ctx: FilterContext) => string | null;
 }
 
 const dateDef = ({ id, label, group, read }: DateDefArgs): ProductFilterDef => ({
@@ -531,7 +561,7 @@ const dateDef = ({ id, label, group, read }: DateDefArgs): ProductFilterDef => (
   kind: "dateRange",
   defaultValue: { preset: null, from: null, to: null },
   isActive: (v) => Boolean(v) && isDateRangeActive(v as DateRangeValue),
-  predicate: (p, v, ctx) => matchesDateRange(read(p), v as DateRangeValue, ctx.now),
+  predicate: (p, v, ctx) => matchesDateRange(read(p, ctx), v as DateRangeValue, ctx.now),
   chipLabel: (v) => dateRangeChipText(label, v as DateRangeValue),
 });
 
@@ -648,6 +678,32 @@ const DEFS: ProductFilterDef[] = [
     optionLabel: (value) => (value === NONE_SENTINEL ? "Ohne Zuordnung" : value),
     chipLabel: (v) => multiChip("Erfasst von", v, (value) => (value === NONE_SENTINEL ? "Ohne Zuordnung" : value)),
   },
+  {
+    id: "notizen",
+    label: "Notizen",
+    keywords: ["kommentar", "ungelesen", "gelesen"],
+    group: GROUP_STATUS,
+    kind: "select",
+    selectOptions: [
+      { value: "unread", label: "Ungelesen" },
+      { value: "read", label: "Gelesen" },
+      { value: "withNotes", label: "Vorhanden" },
+      { value: "noNotes", label: "Keine" },
+    ],
+    defaultValue: "all",
+    isActive: selectActive,
+    predicate: (p, v, ctx) => {
+      const info = ctx.notesById.get(p.id);
+      const hasNotes = Boolean(info && info.count > 0);
+      if (v === "withNotes") return hasNotes;
+      if (v === "noNotes") return !hasNotes;
+      if (v === "unread") return hasUnreadNotes(info);
+      return hasNotes && !hasUnreadNotes(info);
+    },
+    chipLabel(v) {
+      return selectChip(this, v);
+    },
+  },
   numberDef({ id: "menge", label: "Menge", group: GROUP_BESTAND, read: (p) => getProductQuantity(p) }),
   numberDef({ id: "verfuegbar", label: "Verfügbar", group: GROUP_BESTAND, read: (p) => getProductAvailableQuantity(p) }),
   {
@@ -729,6 +785,7 @@ const DEFS: ProductFilterDef[] = [
   {
     id: "los",
     label: "Los",
+    keywords: ["losnummer", "los-nummer", "einkauf"],
     group: GROUP_BESTAND,
     kind: "multi",
     defaultValue: [],
@@ -757,12 +814,25 @@ const DEFS: ProductFilterDef[] = [
       return selectChip(this, v);
     },
   },
-  dateDef({ id: "erstellt", label: "Erstellt", group: GROUP_TERMINE, read: productCreatedAtIso }),
-  dateDef({ id: "aktualisiert", label: "Aktualisiert", group: GROUP_TERMINE, read: (p) => p.ops?.last_saved_iso || null }),
+  {
+    ...dateDef({ id: "erstellt", label: "Erfasst am", group: GROUP_TERMINE, read: productCreatedAtIso }),
+    keywords: ["erstellt", "erfassungsdatum", "angelegt", "datum"],
+  },
+  {
+    ...dateDef({ id: "aktualisiert", label: "Zuletzt gespeichert", group: GROUP_TERMINE, read: (p) => p.ops?.last_saved_iso || null }),
+    keywords: ["aktualisiert", "geändert", "bearbeitet", "gespeichert"],
+  },
   dateDef({ id: "zuletztVerkauft", label: "Zuletzt verkauft", group: GROUP_TERMINE, read: productLastSoldIso }),
+  dateDef({
+    id: "letzteNotiz",
+    label: "Letzte Notiz",
+    group: GROUP_TERMINE,
+    read: (p, ctx) => ctx.notesById.get(p.id)?.lastNoteAt ?? null,
+  }),
   {
     id: "marke",
     label: "Marke",
+    keywords: ["hersteller", "brand"],
     group: GROUP_DATEN,
     kind: "multi",
     defaultValue: [],
@@ -904,6 +974,17 @@ const DEFS: ProductFilterDef[] = [
     },
   },
 ];
+
+/**
+ * Trifft die Menue-Suche diese Dimension? Matcht Label UND keywords —
+ * der Betreiber suchte "erfasst" und fand den Filter unter "Erstellt" nicht.
+ */
+export function filterDefMatchesQuery(def: ProductFilterDef, query: string): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  if (def.label.toLowerCase().includes(q)) return true;
+  return (def.keywords ?? []).some((k) => k.toLowerCase().includes(q));
+}
 
 export function getFilterDefs(isAdmin: boolean): ProductFilterDef[] {
   return isAdmin ? DEFS : DEFS.filter((d) => !d.adminOnly);

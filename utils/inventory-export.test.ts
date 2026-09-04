@@ -3,6 +3,11 @@ import assert from "node:assert";
 import {
   INVENTORY_EXPORT_DEFAULT_FIELDS,
   INVENTORY_EXPORT_FIELDS,
+  PRODUCT_EXPORT_DEFAULT_FIELDS,
+  PRODUCT_EXPORT_STORAGE_KEY,
+  buildProductExportFilename,
+  loadProductExportPreferences,
+  saveProductExportPreferences,
   buildInventoryExport,
   buildInventoryExportFilename,
   formatExportCell,
@@ -330,4 +335,56 @@ test("die gebaute Zeile trägt den Identifikator excel-fest", () => {
   // sie zwangsläufig, und Excel liest sie als Text statt als Zahl.
   assert.strictEqual(rows[0][1], '="04006381333931"');
   assert.ok(rows[0][1].includes('"'), "ohne Anführungszeichen bliebe die Zelle unmaskiert");
+});
+
+
+// ---------------------------------------------------------------------------
+// Produktdaten-Export (Betreiber 2026-08-30: "es kommen nicht alle daten mit
+// und es nimmt jedes mal alle daten statt der gefilterten")
+// ---------------------------------------------------------------------------
+
+test("Produkt-Vorauswahl enthaelt nur bekannte Katalog-Felder", () => {
+  const known = new Set(INVENTORY_EXPORT_FIELDS.map((f) => f.key));
+  PRODUCT_EXPORT_DEFAULT_FIELDS.forEach((key) => assert.ok(known.has(key), `unbekannt: ${key}`));
+  // Kernfrage des Betreibers: Erfassungsdatum + Los muessen dabei sein.
+  assert.ok(PRODUCT_EXPORT_DEFAULT_FIELDS.includes("createdAt"));
+  assert.ok(PRODUCT_EXPORT_DEFAULT_FIELDS.includes("sourceLot"));
+});
+
+test("Katalog liefert Erfasst am/von aus ops", () => {
+  const p = {
+    id: "p1",
+    identification: { name: "X" },
+    details: {},
+    ops: {
+      created_at_iso: "2026-08-26T10:30:00.000Z",
+      identified_by: { name: "Oguz" },
+    },
+  } as any;
+  const ctx = { marketplace: () => ({ isEbayActive: false, isKauflandActive: false, isListed: false, hasErrors: false, errorCount: 0 }) };
+  const { headers, rows } = buildInventoryExport([p], ["createdAt", "identifiedBy"], ctx, "de");
+  assert.deepStrictEqual(headers, ["Erfasst am", "Erfasst von"]);
+  assert.strictEqual(rows[0][0], "26.08.2026");
+  assert.strictEqual(rows[0][1], "Oguz");
+});
+
+test("Produkt-Dateiname traegt produktdaten-Praefix und Umfang", () => {
+  const now = new Date(2026, 7, 30, 12, 0, 0);
+  assert.strictEqual(buildProductExportFilename("filtered", now), "produktdaten-auswahl-2026-08-30.csv");
+  assert.strictEqual(buildProductExportFilename("all", now), "produktdaten-gesamt-2026-08-30.csv");
+});
+
+test("Produkt-Exportauswahl speichert unter eigenem Schluessel und stoert den Warenbestand nicht", () => {
+  const daten = new Map<string, string>();
+  const storage = {
+    getItem: (k: string) => (daten.has(k) ? daten.get(k)! : null),
+    setItem: (k: string, v: string) => void daten.set(k, v),
+  };
+  assert.deepStrictEqual(loadProductExportPreferences(storage).fields, PRODUCT_EXPORT_DEFAULT_FIELDS);
+  saveProductExportPreferences({ fields: ["name", "sourceLot"], numberFormat: "intl" }, storage);
+  assert.ok(daten.has(PRODUCT_EXPORT_STORAGE_KEY));
+  assert.ok(!daten.has("avystock:inventory-export:preferences"));
+  const geladen = loadProductExportPreferences(storage);
+  assert.deepStrictEqual(geladen.fields, ["name", "sourceLot"]);
+  assert.strictEqual(geladen.numberFormat, "intl");
 });

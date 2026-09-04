@@ -727,6 +727,37 @@ router.get('/products/notes-counts', requirePermission('products', 'read'), asyn
   }
 });
 
+// Notizen-Uebersicht je Produkt (Anzahl, letzte Notiz, eigener Gelesen-Stand)
+// fuer Spalte + Notizen-Filter der Produkttabelle. MUSS vor '/products/:id'
+// stehen, sonst schluckt :id den Pfad.
+router.get('/products/notes-overview', requirePermission('products', 'read'), async (req, res) => {
+  try {
+    const tenantId = req.user?.tenantId || 'default';
+    const { getNotesOverview } = require('../services/product-notes');
+    const data = await getNotesOverview({ tenantId, userId: req.user?.uid || null });
+    res.json({ ok: true, data });
+  } catch (err) {
+    console.error(`[GET /api/products/notes-overview] ${err.message}`, err);
+    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+  }
+});
+
+// Markiert die Notizen eines Produkts fuer DEN ANGEMELDETEN Nutzer als gesehen
+// (Basis des Ungelesen-Filters). Wird beim Oeffnen der Notizen im Datenblatt
+// gesetzt — bewusst kein Auto-Read beim blossen Tabellen-Scrollen.
+router.post('/products/:id/notes/seen', requirePermission('products', 'read'), async (req, res) => {
+  try {
+    const tenantId = req.user?.tenantId || 'default';
+    const { markNotesSeen } = require('../services/product-notes');
+    const data = await markNotesSeen({ tenantId, userId: req.user?.uid, productId: req.params.id });
+    res.json({ ok: true, data });
+  } catch (err) {
+    const bad = /erforderlich/.test(err.message);
+    console.error(`[POST /api/products/:id/notes/seen] ${err.message}`, err);
+    res.status(bad ? 400 : 500).json({ ok: false, error: { code: bad ? 'VALIDATION' : 'INTERNAL', message: err.message } });
+  }
+});
+
 router.get('/products/:id/notes', requirePermission('products', 'read'), async (req, res) => {
   try {
     const tenantId = req.user?.tenantId || 'default';

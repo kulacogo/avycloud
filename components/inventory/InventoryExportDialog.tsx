@@ -21,6 +21,10 @@ interface InventoryExportDialogProps {
   filterActive: boolean;
   initialFields: string[];
   initialNumberFormat: InventoryExportNumberFormat;
+  /** Dialog-Titel — Default ist die Warenbestands-Beschriftung. */
+  title?: string;
+  /** Beschriftung der "alles"-Umfangsoption (z. B. "Alle Produkte"). */
+  allScopeLabel?: string;
   onExport: (options: {
     scope: InventoryExportScope;
     fields: string[];
@@ -53,6 +57,8 @@ const InventoryExportDialog: React.FC<InventoryExportDialogProps> = ({
   filterActive,
   initialFields,
   initialNumberFormat,
+  title = "Warenbestand exportieren",
+  allScopeLabel = "Gesamter Bestand",
   onExport,
 }) => {
   const [scope, setScope] = useState<InventoryExportScope>("filtered");
@@ -92,7 +98,7 @@ const InventoryExportDialog: React.FC<InventoryExportDialogProps> = ({
 
   return (
     <Modal open={open} onClose={onClose} size="lg">
-      <ModalHeader onClose={onClose}>Warenbestand exportieren</ModalHeader>
+      <ModalHeader onClose={onClose}>{title}</ModalHeader>
 
       <ModalBody className="space-y-5 max-h-[65vh] overflow-y-auto">
         {/* Umfang */}
@@ -103,7 +109,7 @@ const InventoryExportDialog: React.FC<InventoryExportDialogProps> = ({
               {filterActive ? "Gefilterte Auswahl" : "Aktuelle Ansicht"} ({filteredCount.toLocaleString("de-DE")})
             </SegmentedOption>
             <SegmentedOption active={scope === "all"} onClick={() => setScope("all")}>
-              Gesamter Bestand ({totalCount.toLocaleString("de-DE")})
+              {allScopeLabel} ({totalCount.toLocaleString("de-DE")})
             </SegmentedOption>
           </div>
           <p className="text-xs text-txt-muted mt-1.5">

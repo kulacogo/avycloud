@@ -7,6 +7,7 @@ import {
   effectiveSellPrice,
   FILTERS_STORAGE_KEY,
   getFilterDefs,
+  hasUnreadNotes,
   isEbayListed,
   isKauflandListed,
   loadFilterState,
@@ -26,6 +27,16 @@ import {
   type SortLevel,
 } from '../utils/productSort';
 import {
+  buildInventoryExport,
+  buildProductExportFilename,
+  loadProductExportPreferences,
+  saveProductExportPreferences,
+  PRODUCT_EXPORT_DEFAULT_FIELDS,
+  type InventoryExportPreferences,
+} from '../utils/inventory-export';
+import { exportToCsv } from '../utils/csv-export';
+import InventoryExportDialog, { type InventoryExportScope } from './inventory/InventoryExportDialog';
+import {
   deleteSavedView,
   loadSavedViews,
   serializeSavedViews,
@@ -33,7 +44,7 @@ import {
   VIEWS_STORAGE_KEY,
   type SavedView,
 } from '../utils/savedViews';
-import { fetchProducts, getProductBulkJob, runProductBulkAction, deleteProductsBulk, openProductLabelBatchWindow, assignInventoryToProducts, uploadKTypeCsv, bulkVerifyEbayPublish, bulkPublishToEbay, fetchEbaySkuIndex, lightSyncEbayLiveListings, bulkUpdateEbayListings, fetchKauflandSkuIndex, syncKauflandListings, getProductNotesCounts, type ProductBulkActionName } from '../api/client';
+import { fetchProducts, getProductBulkJob, runProductBulkAction, deleteProductsBulk, openProductLabelBatchWindow, assignInventoryToProducts, uploadKTypeCsv, bulkVerifyEbayPublish, bulkPublishToEbay, fetchEbaySkuIndex, lightSyncEbayLiveListings, bulkUpdateEbayListings, fetchKauflandSkuIndex, syncKauflandListings, getProductNotesOverview, getProductNotesCounts, type ProductBulkActionName, type ProductNotesOverviewEntry } from '../api/client';
 import { SearchIcon } from './icons/Icons';
 import {
   getStableNumericId,
@@ -445,13 +456,67 @@ const AdminTable: React.FC<AdminTableProps> = ({
     return null;
   };
 
-  const [notesCounts, setNotesCounts] = useState<Record<string, number>>({});
+  // Notiz-Stand je Produkt (Anzahl, letzte Notiz, eigener Gelesen-Stand) —
+  // Basis fuer Spalte + Filter "Notizen"/"Letzte Notiz".
+  const [notesOverview, setNotesOverview] = useState<Map<string, ProductNotesOverviewEntry>>(new Map());
   useEffect(() => {
     let cancelled = false;
-    getProductNotesCounts()
-      .then((c) => { if (!cancelled) setNotesCounts(c || {}); })
+    getProductNotesOverview()
+      .then(async (o) => {
+        const entries = Object.entries(o || {});
+        if (entries.length > 0) {
+          if (!cancelled) setNotesOverview(new Map(entries));
+          return;
+        }
+        // Fallback (aelterer Backend-Stand / Deploy-Fenster): der alte
+        // Zaehler-Endpoint liefert nur Anzahlen. seenAt wird auf "jetzt"
+        // gesetzt, damit ohne bekannten Gelesen-Stand NICHTS faelschlich
+        // als ungelesen markiert wird.
+        const counts = await getProductNotesCounts();
+        if (cancelled) return;
+        const fallbackSeen = new Date().toISOString();
+        setNotesOverview(
+          new Map(
+            Object.entries(counts || {}).map(([pid, count]) => [
+              pid,
+              { count, lastNoteAt: null, seenAt: fallbackSeen },
+            ])
+          )
+        );
+      })
       .catch(() => {});
     return () => { cancelled = true; };
+  }, []);
+  // Oeffnet jemand die Notizen im Datenblatt, meldet ProductNotes das hierher —
+  // der Ungelesen-Filter stellt sofort um, ohne Neuladen der Tabelle.
+  useEffect(() => {
+    const onSeen = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { productId?: string; seenAt?: string } | undefined;
+      if (!detail?.productId) return;
+      setNotesOverview((prev) => {
+        const current = prev.get(detail.productId!);
+        if (!current) return prev;
+        const next = new Map(prev);
+        next.set(detail.productId!, { ...current, seenAt: detail.seenAt || new Date().toISOString() });
+        return next;
+      });
+    };
+    window.addEventListener('avy:notes-seen', onSeen);
+    return () => window.removeEventListener('avy:notes-seen', onSeen);
+  }, []);
+
+  // ---- Produktdaten-Export (Dialog mit Feldauswahl + Umfang) ----
+  // Der Kopf-Knopf "Export" der Produkte-Seite feuert dieses Event: die
+  // Tabelle kennt Filter, Suche und Sortierung — der alte Backend-CSV-Weg
+  // exportierte IMMER alle Produkte mit fester Spaltenliste.
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [exportPrefs, setExportPrefs] = useState<InventoryExportPreferences>(() =>
+    loadProductExportPreferences(safeLocalStorage())
+  );
+  useEffect(() => {
+    const onOpen = () => setExportDialogOpen(true);
+    window.addEventListener('avy:produktdaten-export', onOpen);
+    return () => window.removeEventListener('avy:produktdaten-export', onOpen);
   }, []);
 
   // Admin-only: "Erfasst von" — Zuordnung aus dem Erfassungs-Protokoll (deckt
@@ -489,8 +554,9 @@ const AdminTable: React.FC<AdminTableProps> = ({
       kauflandEanSet,
       resolveErfasstVon,
       getDisplayCategory: getProductDisplayCategory,
+      notesById: notesOverview,
     }),
-    [myInitials, ebayLinkedMap, ebayProductIdMap, ebayActiveItemIds, kauflandSkuSet, kauflandEanSet, resolveErfasstVon]
+    [myInitials, ebayLinkedMap, ebayProductIdMap, ebayActiveItemIds, kauflandSkuSet, kauflandEanSet, resolveErfasstVon, notesOverview]
   );
   const filterOptionsById = useMemo(() => {
     const map = new Map<string, FilterOption[]>();
@@ -769,10 +835,18 @@ const AdminTable: React.FC<AdminTableProps> = ({
         label: 'Notizen',
         defaultVisible: true,
         render: ({ product }) => {
-          const n = notesCounts[(product as any).id] || 0;
+          const info = notesOverview.get(product.id);
+          const n = info?.count || 0;
           if (n <= 0) return <span className="text-txt-muted text-sm">—</span>;
+          const unread = hasUnreadNotes(info);
           return (
-            <span className="inline-flex items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold bg-accent/15 text-accent" title={`${n} Notiz${n === 1 ? '' : 'en'}`}>
+            <span
+              className={`inline-flex items-center justify-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${
+                unread ? 'bg-warning-dim text-warning' : 'bg-accent/15 text-accent'
+              }`}
+              title={`${n} Notiz${n === 1 ? '' : 'en'}${unread ? ' · ungelesen' : ''}`}
+            >
+              {unread && <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-warning" />}
               {n}
             </span>
           );
@@ -808,6 +882,25 @@ const AdminTable: React.FC<AdminTableProps> = ({
           ) : (
             <span className="text-txt-muted">{t('table.noBin')}</span>
           ),
+      },
+      {
+        id: 'los',
+        label: 'Los',
+        sortKey: 'ops.sourceLot',
+        defaultVisible: true,
+        render: ({ product }) => {
+          const lot = product.ops?.sourceLot;
+          if (!lot) return <span className="text-txt-muted text-sm">—</span>;
+          const assignedAt = product.ops?.sourceLotAt;
+          return (
+            <span
+              className="font-mono text-sm text-txt-secondary whitespace-nowrap"
+              title={assignedAt ? `Los zugeordnet am ${new Date(assignedAt).toLocaleDateString('de-DE')}` : undefined}
+            >
+              {lot}
+            </span>
+          );
+        },
       },
       {
         id: 'ebay',
@@ -1066,7 +1159,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
     kauflandEanUrlMap,
     kauflandSkuProductIdMap,
     kauflandEanProductIdMap,
-    notesCounts,
+    notesOverview,
     isAdmin,
     resolveErfasstVon,
   ]);
@@ -1301,6 +1394,43 @@ const AdminTable: React.FC<AdminTableProps> = ({
     kauflandEanSet,
     sortLevels,
   ]);
+
+  // Marktplatz-Zustand fuer den Export — dieselbe Live-Index-Wahrheit wie
+  // Badge, Filter und Sortierung; Validierungsfehler wie im Warenbestand.
+  const exportMarketplaceInfo = useCallback(
+    (p: Product) => {
+      const isEbayActive = isEbayListed(p, filterCtx);
+      const isKauflandActive = isKauflandListed(p, filterCtx);
+      const ebayValidation = p.marketplace_listings?.ebay?.validation;
+      const kauflandValidation = p.marketplace_listings?.kaufland?.validation;
+      const hasErrors = Boolean(
+        (ebayValidation && !ebayValidation.ready) || (kauflandValidation && !kauflandValidation.ready)
+      );
+      const errorCount = (ebayValidation?.issues?.length ?? 0) + (kauflandValidation?.issues?.length ?? 0);
+      return { isEbayActive, isKauflandActive, isListed: isEbayActive || isKauflandActive, hasErrors, errorCount };
+    },
+    [filterCtx]
+  );
+
+  const handleProduktExport = useCallback(
+    ({ scope, fields, numberFormat }: { scope: InventoryExportScope; fields: string[]; numberFormat: InventoryExportPreferences['numberFormat'] }) => {
+      // "Gefilterte Auswahl" = exakt die aktuelle Ansicht in ihrer Sortierung;
+      // "Alle Produkte" = kompletter Datensatz in Ladereihenfolge.
+      const list = scope === 'all' ? products : filteredAndSortedProducts;
+      const { headers, rows } = buildInventoryExport(
+        list,
+        fields,
+        { marketplace: exportMarketplaceInfo, identifiedBy: resolveErfasstVon },
+        numberFormat
+      );
+      exportToCsv(buildProductExportFilename(scope), headers, rows);
+      const next: InventoryExportPreferences = { fields, numberFormat };
+      saveProductExportPreferences(next, safeLocalStorage());
+      setExportPrefs(next);
+      setExportDialogOpen(false);
+    },
+    [products, filteredAndSortedProducts, exportMarketplaceInfo, resolveErfasstVon]
+  );
 
   const totalPages = Math.max(1, Math.ceil(filteredAndSortedProducts.length / pageSize));
   useEffect(() => {
@@ -2003,6 +2133,19 @@ const AdminTable: React.FC<AdminTableProps> = ({
           </Notice>
         ) : null}
 
+        <InventoryExportDialog
+          open={exportDialogOpen}
+          onClose={() => setExportDialogOpen(false)}
+          filteredCount={filteredAndSortedProducts.length}
+          totalCount={products.length}
+          filterActive={activeFilterCount > 0 || searchTerm.trim() !== ''}
+          initialFields={exportPrefs.fields}
+          initialNumberFormat={exportPrefs.numberFormat}
+          title="Produktdaten exportieren"
+          allScopeLabel="Alle Produkte"
+          onExport={handleProduktExport}
+        />
+
         {confirmDialog ? (
           <ConfirmDialog
             open
@@ -2114,6 +2257,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
               normalizeMarketplaceColumnOrder={normalizeMarketplaceColumnOrder}
               mode={mode}
               handleExportCsv={handleExportCsv}
+              onOpenProduktExport={() => setExportDialogOpen(true)}
               onBulkImprove={onBulkImprove}
               enqueueBulkForAllInCurrentMode={enqueueBulkForAllInCurrentMode}
               setKtypeModalOpen={setKtypeModalOpen}

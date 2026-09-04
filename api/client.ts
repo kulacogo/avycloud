@@ -2324,6 +2324,26 @@ export const getProductNotesCounts = async (): Promise<Record<string, number>> =
   return (result?.data as Record<string, number>) || {};
 };
 
+// Notizen-Uebersicht je Produkt: Anzahl, letzte Notiz, eigener Gelesen-Stand.
+// Basis fuer die Notizen-Spalte + die Filter "Notizen"/"Letzte Notiz".
+export type ProductNotesOverviewEntry = { count: number; lastNoteAt: string | null; seenAt: string | null };
+export const getProductNotesOverview = async (): Promise<Record<string, ProductNotesOverviewEntry>> => {
+  const res = await fetchApi(`${BACKEND_URL}/api/products/notes-overview`);
+  const result = await parseResponse(res);
+  if (!res.ok || result?.ok === false) return {};
+  return (result?.data as Record<string, ProductNotesOverviewEntry>) || {};
+};
+
+// Markiert die Notizen eines Produkts fuer den angemeldeten Nutzer als gesehen.
+export const markProductNotesSeen = async (productId: string): Promise<string | null> => {
+  const res = await fetchApi(`${BACKEND_URL}/api/products/${encodeURIComponent(productId)}/notes/seen`, {
+    method: "POST",
+  });
+  const result = await parseResponse(res);
+  if (!res.ok || result?.ok === false) return null;
+  return (result?.data?.seenAt as string) || null;
+};
+
 export const adminSetUserGroups = async (uid: string, groupIds: string[]) => {
   const res = await fetchApi(`${BACKEND_URL}/api/admin/users/${encodeURIComponent(uid)}/groups`, {
     method: 'PUT',

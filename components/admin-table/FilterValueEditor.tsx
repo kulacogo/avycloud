@@ -1,5 +1,6 @@
 import React from "react";
 import {
+  filterDefMatchesQuery,
   NUMBER_OP_LABELS,
   DATE_PRESET_LABELS,
   type DatePreset,
@@ -202,7 +203,7 @@ export const NumberCompareEditor: React.FC<{
   );
 };
 
-const DATE_PRESETS_IN_ORDER: DatePreset[] = ["today", "yesterday", "last7", "last30", "thisMonth", "lastMonth"];
+const DATE_PRESETS_IN_ORDER: DatePreset[] = ["today", "yesterday", "thisWeek", "last7", "last30", "thisMonth", "lastMonth"];
 
 export const DateRangeEditor: React.FC<{
   value: DateRangeValue;
@@ -338,7 +339,8 @@ export const AddFilterMenu: React.FC<{
   }, [levelId]);
 
   const q = query.trim().toLowerCase();
-  const fieldMatches = q ? defs.filter((d) => d.label.toLowerCase().includes(q)) : defs;
+  // Label + Synonyme ("erfasst" findet auch den frueher "Erstellt" genannten Filter).
+  const fieldMatches = q ? defs.filter((d) => filterDefMatchesQuery(d, q)) : defs;
 
   // Wert-Treffer: Options-Labels aller Dimensionen durchsuchen (max. 10).
   const valueHits = React.useMemo<ValueHit[]>(() => {

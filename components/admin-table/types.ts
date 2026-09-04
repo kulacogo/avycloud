@@ -14,6 +14,7 @@ export type ColumnId =
   | "inventory"
   | "pendingIntake"
   | "storage"
+  | "los"
   | "ebay"
   | "kaufland"
   | "lastSold"
@@ -48,6 +49,7 @@ export const COLUMN_PRESETS: Record<ColumnPreset, ColumnId[]> = {
     "notizen",
     "pendingIntake",
     "storage",
+    "los",
     "ebay",
     "kaufland",
     "readiness",
@@ -63,6 +65,7 @@ export const COLUMN_PRESETS: Record<ColumnPreset, ColumnId[]> = {
     "sold",
     "pendingIntake",
     "storage",
+    "los",
     "ebay",
     "kaufland",
     "readiness",

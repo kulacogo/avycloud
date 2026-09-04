@@ -96,6 +96,7 @@ interface AdminTableFiltersProps {
   // Tools-Menue
   mode: "inventory" | "products" | "all";
   handleExportCsv: () => void;
+  onOpenProduktExport: () => void;
   onBulkImprove?: () => void;
   enqueueBulkForAllInCurrentMode: (
     action: ProductBulkActionName,
@@ -250,6 +251,7 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
   normalizeMarketplaceColumnOrder,
   mode,
   handleExportCsv,
+  onOpenProduktExport,
   onBulkImprove,
   enqueueBulkForAllInCurrentMode,
   setKtypeModalOpen,
@@ -898,8 +900,16 @@ const AdminTableFilters: React.FC<AdminTableFiltersProps> = ({
               <div className="px-2.5 pt-1 pb-1 text-[10px] font-semibold uppercase tracking-wider text-txt-muted">
                 Export &amp; Import
               </div>
-              <button type="button" onClick={handleExportCsv} className={menuItemClass}>
-                Export CSV
+              <button type="button" onClick={onOpenProduktExport} className={menuItemClass}>
+                Produktdaten exportieren (CSV) …
+              </button>
+              <button
+                type="button"
+                onClick={handleExportCsv}
+                className={menuItemClass}
+                title="Startet den Marktplatz-Export-Job des Backends fuer die AUSGEWAEHLTEN Produkte"
+              >
+                Marktplatz-Export (nur Auswahl)
               </button>
               <button
                 type="button"
