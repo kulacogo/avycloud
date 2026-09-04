@@ -55,7 +55,9 @@ const STUDIO_PROMPT =
   'lighting is fine and even wanted — do NOT turn it into a glossy, high-end, hyper-polished or overly ' +
   'perfect commercial studio render. It should keep a slightly amateur, genuine look, not an advertisement. ' +
   'No props, no added text, no watermark, no people, no reflections of other objects, no added items. ' +
-  'Keep the original camera perspective and framing; show the product fully in frame.';
+  'Keep the original camera perspective, framing and crop; do NOT rotate, rescale or re-compose the shot. ' +
+  'CRITICAL: every printed character, label, barcode, product code and line of small print must stay EXACTLY ' +
+  'as photographed, letter for letter. Do NOT re-typeset, re-render, translate or invent any text.';
 
 // Modellkette kommt seit 2026-09-02 aus lib/gemini-image-models.js. Vorher stand
 // hier ein eigener Default-String, und der in CLAUDE.md dokumentierte
@@ -161,7 +163,12 @@ async function tryGeminiStudio(preBuffer, attempts, siblingDataUrls = []) {
             ? `${STUDIO_PROMPT} ${SIBLING_HINT(referenceImages.length)}`
             : STUDIO_PROMPT,
         count: 1,
-        aspectRatio: '1:1',
+        // KEIN erzwungenes Seitenverhaeltnis (gemessen 2026-09-04). '1:1' zwang
+        // das Modell, ein 4:3-Foto neu zu KOMPONIEREN — und dabei zeichnete es
+        // den Kleindruck neu: aus "glaskoch B. Koch jr. GmbH + Co. KG" wurde
+        // "glaskooh B. Naoh p. Gnditt + Oa. KG". Ohne Vorgabe behaelt es das
+        // Format der Vorlage und der Text bleibt buchstabengetreu.
+        aspectRatio: null,
         referenceImages,
         model,
         timeoutMs: studioTimeoutMs(),
@@ -181,6 +188,14 @@ async function tryGeminiStudio(preBuffer, attempts, siblingDataUrls = []) {
         attempts.push({ model, reason: verdict.reason });
         continue;
       }
+
+      // BEWUSST KEINE Identitaets-Zweitmeinung im Studio-Pfad (geprueft und
+      // verworfen 2026-09-04). Sie war kurz eingebaut und verwarf im Test gute
+      // Bilder, weil der Vision-Aufruf scheiterte — genau der Fehlertyp, der
+      // einen Tag zuvor JEDES Studio-Foto gekostet hat (siehe Ecken-Korrektur
+      // oben). Eine Pruefung, die im Zweifel loescht und deren Verhalten wir
+      // nicht messen koennen, richtet mehr Schaden an als sie verhindert.
+      // Der Drift-Schutz liegt jetzt woanders: genau EIN Referenzfoto je Aufruf.
       return {
         buffer,
         mimeType: candidate.mimeType || 'image/png',

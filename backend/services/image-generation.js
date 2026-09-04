@@ -391,7 +391,10 @@ async function renderOneView({ product, planEntry, references, sourceIndex, dead
       const report = await generateProductImagesWithReport({
         prompt,
         count: 1,
-        aspectRatio: '1:1',
+        // KEIN erzwungenes Seitenverhaeltnis — siehe image-studio.js: '1:1'
+        // zwang das Modell zur Neukomposition und damit zum Neuzeichnen des
+        // Kleindrucks (gemessen 2026-09-04).
+        aspectRatio: null,
         referenceImages: used.map((r) => r.dataUrl),
         model,
         timeoutMs: callTimeout,
