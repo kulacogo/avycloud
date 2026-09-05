@@ -459,21 +459,32 @@ async function bauePackshot(originalBuffer, maskenQuelle) {
   }
 
   const pMeta = await sharp(produkt).metadata();
-  const zielKante = Math.round(LEINWAND * FUELLGRAD);
+
+  // NIE VERGRÖSSERN (Korrektur 2026-09-04). Vorher wurde jedes Produkt auf
+  // LEINWAND × FUELLGRAD gezogen — ein 980-px-Ausschnitt also auf 1560 px, das
+  // 1,6-fache. Das ist reine Qualitätsvernichtung: die Galeriebilder sind
+  // ohnehin schon auf 1200 px normalisiert, mehr Pixel gibt es nicht. Die
+  // Leinwand richtet sich jetzt nach dem Produkt, nicht umgekehrt.
+  const langeKante = Math.max(pMeta.width || 1, pMeta.height || 1);
+  const leinwand = Math.min(
+    LEINWAND,
+    Math.max(800, Math.round(Math.min(langeKante, LEINWAND * FUELLGRAD) / FUELLGRAD))
+  );
+  const zielKante = Math.round(leinwand * FUELLGRAD);
   const skaliert = await sharp(produkt)
-    .resize(zielKante, zielKante, { fit: 'inside', withoutEnlargement: false })
+    .resize(zielKante, zielKante, { fit: 'inside', withoutEnlargement: true })
     .png()
     .toBuffer();
   const sMeta = await sharp(skaliert).metadata();
   const pw = sMeta.width || zielKante;
   const ph = sMeta.height || zielKante;
-  const px = Math.round((LEINWAND - pw) / 2);
-  const py = Math.round((LEINWAND - ph) / 2);
+  const px = Math.round((leinwand - pw) / 2);
+  const py = Math.round((leinwand - ph) / 2);
 
   const schatten = await baueKontaktschatten(skaliert, pw, ph);
 
   const packshot = await sharp({
-    create: { width: LEINWAND, height: LEINWAND, channels: 3, background: { r: 255, g: 255, b: 255 } },
+    create: { width: leinwand, height: leinwand, channels: 3, background: { r: 255, g: 255, b: 255 } },
   })
     .composite([
       { input: schatten.buffer, left: px + schatten.dx, top: py + ph + schatten.dy },
@@ -488,8 +499,8 @@ async function bauePackshot(originalBuffer, maskenQuelle) {
   return {
     ok: true,
     buffer: packshot,
-    width: LEINWAND,
-    height: LEINWAND,
+    width: leinwand,
+    height: leinwand,
     info: {
       deckung: +(deckung * 100).toFixed(1),
       anteilGroessteFlaeche: +(komp.anteilGroesste * 100).toFixed(1),
@@ -498,6 +509,9 @@ async function bauePackshot(originalBuffer, maskenQuelle) {
       randberuehrungen: raender,
       soliditaet: +(solidität * 100).toFixed(1),
       produktQuelle: `${pMeta.width}x${pMeta.height}`,
+      leinwand,
+      // TATSAECHLICHE Skalierung (nach withoutEnlargement), nicht die angestrebte.
+      skalierung: +(Math.max(pw, ph) / langeKante).toFixed(2),
     },
   };
 }
@@ -507,18 +521,29 @@ async function bauePackshot(originalBuffer, maskenQuelle) {
  * den grauen Balken, den niemand für einen Schatten hält.
  */
 async function baueKontaktschatten(produktPng, pw, ph) {
-  const hoehe = Math.max(6, Math.round(ph * 0.09));
-  const alpha = await sharp(produktPng).ensureAlpha().extractChannel('alpha').toColourspace('b-w').toBuffer();
-
-  // Unteres Drittel der Silhouette nehmen und flach stauchen — das ist die
-  // Fläche, die den Boden berührt.
-  const unteres = await sharp(alpha)
-    .extract({ left: 0, top: Math.round(ph * 0.66), width: pw, height: Math.max(1, Math.round(ph * 0.34)) })
-    .resize(pw, hoehe, { fit: 'fill' })
+  const hoehe = Math.max(6, Math.round(ph * 0.05));
+  const alpha = await sharp(produktPng)
+    .ensureAlpha()
+    .extractChannel('alpha')
+    .toColourspace('b-w')
+    .png()
     .toBuffer();
 
-  const { data } = await sharp(unteres).raw().toBuffer({ resolveWithObject: true });
-  const deckkraft = zahl('STUDIO_SHADOW_OPACITY', 0.42);
+  // NUR DIE UNTERSTEN ZEILEN — die AUFSTANDSFLÄCHE (Korrektur 2026-09-04).
+  // Vorher wurde das untere DRITTEL der Silhouette gestaucht: bei einem Produkt,
+  // dessen Seitenkante schräg verläuft, ragte der Schatten dadurch weit über die
+  // Standfläche hinaus und stand als grauer Balken neben dem Produkt.
+  // Ein Kontaktschatten liegt da, wo das Objekt den Boden berührt — sonst nirgends.
+  const bandHoehe = Math.max(2, Math.round(ph * 0.04));
+  const zuschnitt = await sharp(alpha)
+    .extract({ left: 0, top: Math.max(0, ph - bandHoehe), width: pw, height: bandHoehe })
+    .resize(pw, hoehe, { fit: 'fill' })
+    .png()
+    .toBuffer();
+  const unteres = await sharp(zuschnitt).removeAlpha().toColourspace('b-w').raw().toBuffer();
+
+  const data = unteres;
+  const deckkraft = zahl('STUDIO_SHADOW_OPACITY', 0.30);
   const out = Buffer.alloc(pw * hoehe);
   for (let y = 0; y < hoehe; y += 1) {
     // Nach unten ausblenden (Potenz 1,5) — nah am Produkt dunkel, dann weich weg.
@@ -540,11 +565,12 @@ async function baueKontaktschatten(produktPng, pw, ph) {
     rgba[p * 4 + 3] = out[p];
   }
   const schatten = await sharp(rgba, { raw: { width: pw, height: hoehe, channels: 4 } })
-    .blur(Math.max(2, pw * 0.018))
+    .blur(Math.max(2, pw * 0.012))
     .png()
     .toBuffer();
 
-  return { buffer: schatten, dx: 0, dy: -Math.round(hoehe * 0.45) };
+  // Leicht unter die Unterkante schieben, damit er anliegt statt zu schweben.
+  return { buffer: schatten, dx: 0, dy: -Math.round(hoehe * 0.55) };
 }
 
 /**

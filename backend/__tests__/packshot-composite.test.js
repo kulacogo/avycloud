@@ -191,8 +191,12 @@ describe('bauePackshot — Gesamtdurchlauf', () => {
   it('liefert eine quadratische Leinwand mit reinweissem Rand', async () => {
     const r = await bauePackshot(await echtesFoto(), await maskenQuelle());
     expect(r.ok).toBe(true);
-    expect(r.width).toBe(LEINWAND);
-    expect(r.height).toBe(LEINWAND);
+    // Die Leinwand RICHTET SICH NACH DEM PRODUKT (Korrektur 2026-09-04): ein
+    // kleiner Ausschnitt wird nicht mehr auf 2000 px hochgerechnet. Quadratisch
+    // bleibt sie, und groesser als LEINWAND wird sie nie.
+    expect(r.width).toBe(r.height);
+    expect(r.width).toBeLessThanOrEqual(LEINWAND);
+    expect(r.width).toBeGreaterThanOrEqual(800);
 
     const ecke = await sharp(r.buffer).extract({ left: 0, top: 0, width: 40, height: 40 }).removeAlpha().toBuffer();
     const stats = await sharp(ecke).stats();
@@ -226,6 +230,14 @@ describe('bauePackshot — Gesamtdurchlauf', () => {
     }
     // Die Produktfarbe aus dem FOTO muss im Ergebnis vorkommen.
     expect(dunkelProdukt).toBeGreaterThan(1000);
+  });
+
+  it('vergroessert das Produkt NIE — sonst reine Qualitaetsvernichtung', async () => {
+    // Gemeldet 2026-09-04: ein 980-px-Ausschnitt wurde auf 1560 px gezogen.
+    // Die Galeriebilder sind auf 1200 px normalisiert, mehr Pixel gibt es nicht.
+    const r = await bauePackshot(await echtesFoto(), await maskenQuelle());
+    expect(r.ok).toBe(true);
+    expect(r.info.skalierung).toBeLessThanOrEqual(1);
   });
 
   it('verwirft fail-closed statt ein zerstoertes Produkt zu liefern', async () => {
