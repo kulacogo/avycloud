@@ -82,6 +82,12 @@ beforeEach(() => {
 });
 
 describe('makeStudioPhoto — Modell-Kette', () => {
+  // Diese Gruppe prueft gezielt den RETUSCHE-Rueckfall. Der pixeltreue
+  // Primaerweg (Composite) wird dafuer abgeschaltet, sonst verbraucht er den
+  // ersten Modellaufruf und die Zaehlungen hier stimmen nicht mehr.
+  beforeEach(() => { process.env.STUDIO_COMPOSITE = 'off'; });
+  afterEach(() => { delete process.env.STUDIO_COMPOSITE; });
+
   it('nutzt das Primärmodell wenn es ein gültiges helles Bild liefert', async () => {
     generateProductImagesSpy.mockResolvedValue([{ base64: brightPng.toString('base64'), mimeType: 'image/png' }]);
 

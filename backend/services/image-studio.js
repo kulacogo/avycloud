@@ -15,17 +15,20 @@
  * bis dahin im Prompt und war mit ein Grund, warum die Funktion nichts tat.
  *
  * Ablauf (jede Stufe best-effort, es wird nie aufgegeben ohne alles versucht zu haben):
- *   1. Gemini-Modellkette: STUDIO_IMAGE_MODEL → STUDIO_IMAGE_FALLBACK_MODEL
- *   2. Ergebnispruefung (dekodierbar, Mindestkante, HELLE ECKEN = Studiogrund)
- *   3. Deterministischer Rueckfall: Produkt intakt auf Weiss (KEIN Freisteller)
- *   4. Upload to GCS; if upload fails the data URL is returned instead (the UI
- *      stores data URLs the same way the client-side improve actions do).
+ *   1. PIXELTREUES COMPOSITE (Primaerweg, lib/packshot-composite.js): das Modell
+ *      liefert nur die Silhouette, ins Endbild gehen ORIGINALPIXEL. Der
+ *      Kleindruck bleibt damit buchstabengetreu. Faellt eine Wache -> Stufe 2.
+ *   2. Retusche durch das Modell (STUDIO_PROMPT, Fassung F): Studio-Look, aber
+ *      das Bild wird neu gerendert und der Kleindruck leidet.
+ *   3. Deterministischer Rueckfall: Produkt intakt auf Weiss (KEIN Freisteller).
+ *   4. Upload nach GCS; scheitert der, wird die Data-URL zurueckgegeben.
  */
 
 const sharp = require('sharp');
 const { generateProductImages } = require('../lib/vertex-ai');
 const { studioImageModelChain, maxObjectReferences } = require('../lib/gemini-image-models');
 const { assessBackgroundBrightness } = require('../lib/image-result-check');
+const { bauePackshot, compositeEnabled } = require('../lib/packshot-composite');
 const { fetchImageAsDataUrl } = require('./image-generation');
 const { uploadBase64Image } = require('../lib/storage');
 
@@ -66,9 +69,38 @@ const SIBLING_HINT = (total) =>
  * EHRLICHE GRENZE: der kopfstehende Kleindruck wird in JEDER Fassung verfaelscht,
  * auch in dieser — ein Bildmodell rendert das ganze Bild neu, es gibt kein "nur
  * ein bisschen". F ist die beste der Fassungen (8 von 13 Pruefeldern korrekt
- * gegen 5-6), aber buchstabengetreu ist sie NICHT. Der Weg dahin ist
- * lib/packshot-composite.js (Originalpixel durch eine Maske), noch nicht scharf.
+ * gegen 5-6), aber buchstabengetreu ist sie NICHT.
+ *
+ * DESHALB IST DIESER PROMPT NUR NOCH DER RUECKFALL. Primaer laeuft das
+ * pixeltreue Composite (lib/packshot-composite.js): dort liefert das Modell nur
+ * die Silhouette, ins Bild gehen Originalpixel, und der Kleindruck bleibt
+ * unversehrt. Dieser Prompt greift, wenn eine der Composite-Wachen faellt.
  */
+/**
+ * MASKEN_PROMPT — für den PIXELTREUEN Primärweg (lib/packshot-composite.js).
+ *
+ * Diese Aufnahme wird NIE gespeichert. Sie dient ausschliesslich dazu, die
+ * Silhouette des Produkts zu bestimmen; ins Endbild gehen danach nur
+ * ORIGINALPIXEL. Deshalb ist es egal, dass auch hier der Kleindruck verfälscht
+ * wird — diese Pixel werden weggeworfen.
+ *
+ * KEIN SCHATTEN BESTELLEN (teuer gelernt, 3 von 3 Läufen): ein gemalter Schatten
+ * ist nicht weiss, zählt damit als Produkt — und darunter lag im Original die
+ * Hand. Der Schatten entsteht deterministisch aus der Silhouette.
+ */
+const MASKEN_PROMPT = [
+  'Remove the background and any human hand or fingers from this photo. Place the product',
+  'on a completely plain PURE WHITE background (#FFFFFF, RGB 255,255,255), nothing else.',
+  '',
+  'ABSOLUTELY CRITICAL — the product must not move:',
+  '- Keep the product at the EXACT same position, the EXACT same size and the EXACT same',
+  '  camera perspective and rotation as in the input photo. Do NOT crop, do NOT zoom,',
+  '  do NOT re-center, do NOT rescale, do NOT rotate, do NOT re-compose.',
+  '- The output image must have the same aspect ratio and framing as the input.',
+  '- Where the hand covered part of the product, reconstruct only that small hidden part.',
+  '- No shadow, no reflection, no gradient, no props, no text, no watermark.',
+].join('\n');
+
 const STUDIO_PROMPT = [
   'Retouch this photo into a clean e-commerce packshot of the SAME physical item.',
   '',
@@ -163,7 +195,7 @@ async function validateStudioResult(buffer) {
   }
 }
 
-async function tryGeminiStudio(preBuffer, attempts, siblingDataUrls = []) {
+async function tryGeminiStudio(preBuffer, attempts, siblingDataUrls = [], promptText = STUDIO_PROMPT) {
   const referenceImageBase64 = `data:image/jpeg;base64,${preBuffer.toString('base64')}`;
 
   // NUR DAS GEWAEHLTE FOTO (Korrektur 2026-09-04, Betreiber: "Studio-Foto nimmt
@@ -190,8 +222,8 @@ async function tryGeminiStudio(preBuffer, attempts, siblingDataUrls = []) {
       const images = await generateProductImages({
         prompt:
           referenceImages.length > 1
-            ? `${STUDIO_PROMPT} ${SIBLING_HINT(referenceImages.length)}`
-            : STUDIO_PROMPT,
+            ? `${promptText} ${SIBLING_HINT(referenceImages.length)}`
+            : promptText,
         count: 1,
         // KEIN erzwungenes Seitenverhaeltnis (gemessen 2026-09-04). '1:1' zwang
         // das Modell, ein 4:3-Foto neu zu KOMPONIEREN — und dabei zeichnete es
@@ -344,9 +376,45 @@ async function makeStudioPhoto({ productId, image, siblingImages = [] }) {
   ).filter(Boolean);
 
   const attempts = [];
-  let result = await tryGeminiStudio(preBuffer, attempts, siblingDataUrls);
-  let method = 'gemini';
-  let model = result?.model || null;
+  let result = null;
+  let method = null;
+  let model = null;
+
+  // ---------------------------------------------------------------------------
+  // PRIMÄRWEG: pixeltreues Composite (lib/packshot-composite.js).
+  // Das Modell liefert nur die Silhouette; ins Bild gehen ORIGINALPIXEL. Damit
+  // bleibt der Kleindruck buchstabengetreu — an einem echten Produktfoto Zeichen
+  // für Zeichen verifiziert, inklusive ß, Makron und Kyrillisch.
+  // Fällt eine der Wachen, wird NICHTS geliefert und der Retusche-Weg übernimmt.
+  // ---------------------------------------------------------------------------
+  if (compositeEnabled()) {
+    try {
+      const maskenLauf = await tryGeminiStudio(preBuffer, attempts, [], MASKEN_PROMPT);
+      if (maskenLauf) {
+        const packshot = await bauePackshot(sourceBuffer, maskenLauf.buffer);
+        if (packshot.ok) {
+          result = { buffer: packshot.buffer, mimeType: 'image/jpeg', width: packshot.width, height: packshot.height };
+          method = 'composite';
+          model = maskenLauf.model;
+          console.log(
+            `[image-studio] Composite für ${productId} (${maskenLauf.model}): ${JSON.stringify(packshot.info)}`
+          );
+        } else {
+          attempts.push({ model: maskenLauf.model, reason: `composite_verworfen: ${packshot.gruende.join(', ')}` });
+        }
+      }
+    } catch (err) {
+      attempts.push({ model: 'composite', reason: `composite_fehler: ${err.message}` });
+    }
+  }
+
+  // RÜCKFALL 1: der Retusche-Weg (Fassung F) — Studio-Look, aber das Modell
+  // zeichnet das Bild neu und der Kleindruck leidet.
+  if (!result) {
+    result = await tryGeminiStudio(preBuffer, attempts, siblingDataUrls);
+    method = 'gemini';
+    model = result?.model || null;
+  }
 
   if (!result) {
     console.warn(
