@@ -188,34 +188,53 @@ describe('STUDIO_PROMPT — reinweißer Hintergrund (kein Verlauf)', () => {
   it('fordert reines Weiß und verbietet Verlauf/Off-White', () => {
     const p = _internal.STUDIO_PROMPT.toLowerCase();
     expect(p).toContain('pure white');
-    expect(p).toContain('#ffffff');
+    // Seit Fassung F (2026-09-04) als RGB-Tripel statt als Hex-Wert formuliert —
+    // an der echten API gemessen die wirksamere Schreibweise.
+    expect(p).toContain('255,255,255');
     expect(p).toContain('no gradient');
     expect(p).not.toContain('off-white with a very');
   });
 });
 
-describe('STUDIO_PROMPT — Produkt-Erhalt + authentischer (nicht überprofessioneller) Look', () => {
+describe('STUDIO_PROMPT — Studio-Auftrag + Produkt-Erhalt (Fassung F, 2026-09-04)', () => {
   const p = () => _internal.STUDIO_PROMPT.toLowerCase();
 
-  it('erzwingt Produkt-Erhalt: nur Hintergrund/Licht ändern, Produkt nicht neu zeichnen/verfälschen', () => {
+  it('erzwingt Produkt-Erhalt inklusive Gebrauchsspuren', () => {
     const s = p();
-    // Nur Hintergrund/Licht bearbeiten
-    expect(s).toContain('only the background');
-    // Produkt darf nicht neu gezeichnet/verändert werden
-    expect(s).toMatch(/do not\b[^.]*\bredraw/);
-    // Auch Gebrauchsspuren bleiben erhalten (kein Beauty-Retusche-Drift)
-    expect(s).toMatch(/scratches|imperfections|wear/);
+    expect(s).toContain('keep exactly as photographed');
+    expect(s).toMatch(/scratches|imperfections|wear|scuffs/);
+    // Der Artikel bleibt derselbe reale Gegenstand, er wird nicht neu entworfen.
+    expect(s).toMatch(/same real object|not redesigned/);
+  });
+
+  it('verlangt den Kleindruck buchstabengetreu — Zeichen kopieren, nicht neu setzen', () => {
+    const s = p();
+    expect(s).toContain('letter for letter');
+    // Der wirksame Satz: als FORMEN kopieren statt lesen und neu setzen.
+    expect(s).toMatch(/copy these characters as shapes/);
+    expect(s).toMatch(/do not read them and set them again/);
   });
 
   it('behält einen Kontaktschatten', () => {
     expect(p()).toContain('contact shadow');
   });
 
-  it('verlangt einen authentischen, leicht amateurhaften Look statt Hochglanz-Studio', () => {
+  it('verlangt Geraderücken und Zentrieren — der Betreiber-Auftrag vom 2026-09-04', () => {
     const s = p();
-    expect(s).toMatch(/amateur|private online seller|phone snapshot/);
-    // Hochglanz/„hyper-polished" commercial render wird ausdrücklich verboten
-    expect(s).toMatch(/do not\b[^.]*\b(glossy|hyper-polished|commercial)/);
+    expect(s).toMatch(/straighten/);
+    expect(s).toMatch(/centre it|center it/);
+    expect(s).toMatch(/remove everything that is not the item/);
+  });
+
+  it('enthält die WIDERRUFENEN Sätze NICHT MEHR', () => {
+    // Diese zwei Sätze waren die Erlaubnis, nichts zu tun. Der Betreiber hat die
+    // "amateurhaft"-Vorgabe am 2026-09-04 widerrufen ("kein sauberer Hintergrund,
+    // kein Geraderücken, keine Studio-Beschattung"). Kommen sie zurück, tut die
+    // Funktion wieder nichts.
+    const s = p();
+    expect(s).not.toMatch(/amateur/);
+    expect(s).not.toMatch(/phone snapshot/);
+    expect(s).not.toMatch(/leave the product pixel-for-pixel/);
   });
 });
 

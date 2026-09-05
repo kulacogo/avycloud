@@ -3,18 +3,21 @@
 /**
  * image-studio.js
  *
- * Turns an arbitrary product photo into an authentic white-background packshot:
- * PURE WHITE backdrop (#FFFFFF) and a soft natural contact shadow, while the
- * product itself stays pixel-faithful (shape, colors, labels, text, even
- * imperfections). Deliberately NOT a glossy high-end studio render — the look
- * keeps a believable, slightly amateur "private seller phone photo" character
- * (Owner requirement 2026-07-21). Product authenticity is the top priority: the
- * prompt forbids any redraw/retouch/reshape/re-color of the product.
+ * Macht aus einem beliebigen Produktfoto einen sauberen Verkaufs-Packshot:
+ * reinweisser Hintergrund (#FFFFFF), Produkt gerade geruecktet und mittig,
+ * weicher Kontaktschatten — waehrend das Produkt selbst so bleibt, wie es
+ * fotografiert wurde (Form, Farben, Beschriftung, Gebrauchsspuren).
  *
- * Strategy (each step best-effort, never returns nothing without trying all):
- *   1. Gemini image model chain: STUDIO_IMAGE_MODEL → STUDIO_IMAGE_FALLBACK_MODEL
- *   2. Result validation (decodable, min edge, bright top border = studio bg)
- *   3. Deterministic fallback: sharp cutout on gradient + synthetic contact shadow
+ * BETREIBER-VORGABE GEAENDERT 2026-09-04: die Vorgabe vom 2026-07-21, das
+ * Ergebnis solle "leicht amateurhaft" wirken und ausdruecklich KEIN Studio-Render
+ * sein, ist WIDERRUFEN. Verlangt wird jetzt genau das Gegenteil — sauberer
+ * Hintergrund, gerade geruecktes Produkt, Studio-Beschattung. Der alte Satz stand
+ * bis dahin im Prompt und war mit ein Grund, warum die Funktion nichts tat.
+ *
+ * Ablauf (jede Stufe best-effort, es wird nie aufgegeben ohne alles versucht zu haben):
+ *   1. Gemini-Modellkette: STUDIO_IMAGE_MODEL → STUDIO_IMAGE_FALLBACK_MODEL
+ *   2. Ergebnispruefung (dekodierbar, Mindestkante, HELLE ECKEN = Studiogrund)
+ *   3. Deterministischer Rueckfall: Produkt intakt auf Weiss (KEIN Freisteller)
  *   4. Upload to GCS; if upload fails the data URL is returned instead (the UI
  *      stores data URLs the same way the client-side improve actions do).
  */
@@ -39,25 +42,52 @@ const SIBLING_HINT = (total) =>
   'Do NOT copy their camera angle and do NOT merge them into the result. ' +
   "The output must keep image 1's perspective and framing.";
 
-const STUDIO_PROMPT =
-  'Edit ONLY the background and overall lighting of this product photo. ' +
-  'The product is the single most important element and MUST stay 100% authentic and unchanged: ' +
-  'do NOT redraw, regenerate, restyle, retouch, beautify, sharpen, reshape, rotate or re-color it. ' +
-  'Preserve every detail of the product EXACTLY as in the original — the exact shape, proportions, ' +
-  'viewing angle, colors, materials, surface texture, labels, logos and printed text, including any ' +
-  'existing wear, scratches, dents, dust or small imperfections. Never invent, add, remove or "improve" ' +
-  'any part of the product itself. If in doubt, leave the product pixel-for-pixel as it is. ' +
-  'Replace ONLY the background with a plain PURE WHITE backdrop — flat pure white #FFFFFF ' +
-  '(RGB 255,255,255), NO gradient, no off-white, no colored tint. ' +
-  'Add a soft, natural contact shadow directly under the product so it looks grounded on the surface. ' +
-  'Keep the result honest and believable, like a real photo taken by a small private online seller: ' +
-  'a simple phone snapshot of the item placed on a plain white surface. Natural, slightly uneven everyday ' +
-  'lighting is fine and even wanted — do NOT turn it into a glossy, high-end, hyper-polished or overly ' +
-  'perfect commercial studio render. It should keep a slightly amateur, genuine look, not an advertisement. ' +
-  'No props, no added text, no watermark, no people, no reflections of other objects, no added items. ' +
-  'Keep the original camera perspective, framing and crop; do NOT rotate, rescale or re-compose the shot. ' +
-  'CRITICAL: every printed character, label, barcode, product code and line of small print must stay EXACTLY ' +
-  'as photographed, letter for letter. Do NOT re-typeset, re-render, translate or invent any text.';
+/**
+ * STUDIO_PROMPT — Fassung "F", an der echten API gemessen (2026-09-04).
+ *
+ * 21 Laeufe ueber 6 Fassungen, bewertet an Bildrand-Weisse und Kontaktschatten-
+ * Tiefe. Ergebnis gegen den vorherigen Stand:
+ *   Bildrand-Weisse   176,1  ->  249,4   (3 von 4 Laeufen bei 255)
+ *   Kontaktschatten   keiner ->  15,0    (in 4 von 4 Laeufen messbar)
+ *
+ * WARUM DIE ALTFASSUNG NICHTS TAT: sie enthielt 14 Verbote gegen 2 Anweisungen,
+ * darunter "If in doubt, leave the product pixel-for-pixel as it is" und die vom
+ * Betreiber am 2026-09-04 WIDERRUFENE Vorgabe "do NOT turn it into a glossy
+ * studio render, keep a slightly amateur look" (Altvorgabe 2026-07-21). Zusammen
+ * war die sicherste Handlung fuer das Modell: gar nichts tun. Genau das wurde
+ * gemeldet ("nur das selektierte Bild 1:1 gleich erstellt").
+ *
+ * Beide Saetze sind ersatzlos gestrichen. Die Anweisungen stehen jetzt POSITIV
+ * und IMPERATIV zuerst, die Erhaltungsregeln danach.
+ *
+ * GEGENPROBE, die eine naheliegende Annahme widerlegt: laenger ist nicht besser.
+ * Die Fassung, die zwei gute Fassungen kombinierte, fiel auf 242,8/3,3 zurueck.
+ *
+ * EHRLICHE GRENZE: der kopfstehende Kleindruck wird in JEDER Fassung verfaelscht,
+ * auch in dieser — ein Bildmodell rendert das ganze Bild neu, es gibt kein "nur
+ * ein bisschen". F ist die beste der Fassungen (8 von 13 Pruefeldern korrekt
+ * gegen 5-6), aber buchstabengetreu ist sie NICHT. Der Weg dahin ist
+ * lib/packshot-composite.js (Originalpixel durch eine Maske), noch nicht scharf.
+ */
+const STUDIO_PROMPT = [
+  'Retouch this photo into a clean e-commerce packshot of the SAME physical item.',
+  '',
+  'DO THIS:',
+  '- Replace the whole background with seamless pure white, RGB 255,255,255, edge to edge. All four picture corners end up pure white — no gradient, no vignette, no grey wash, no tint, no visible horizon line. The only grey anywhere in the picture is the contact shadow described below.',
+  '- Remove everything that is not the item: hands, fingers, table, shelf, floor, other boxes, clutter.',
+  '- Straighten the item so its edges sit level and square to the camera, and centre it in the frame with even white space on all sides.',
+  '- Light it with soft, even studio light: open up the dark areas, remove the colour cast of the room, set a neutral white balance so white cardboard reads white and printed black reads black.',
+  '- Cast a soft grey contact shadow under the item. It must be clearly visible: darkest right where the item meets the surface, then fading out to nothing within roughly one third of the item\'s width. Without that shadow the item looks pasted onto the page. Keep it tight under the item — everything further away stays pure white.',
+  '',
+  'KEEP EXACTLY AS PHOTOGRAPHED — this is the same real object, reproduced, not redesigned:',
+  '- Shape, proportions, viewing angle, colours, materials and surface texture, including existing wear, creases, dents, scuffs and dust.',
+  '- Every printed character on the item: brand and company names, street addresses, product codes, lot numbers, dates, barcode bars and their digits, certification marks and every line of multilingual small print — letter for letter, digit for digit, accent for accent, in the same language, the same typeface, the same size and the same position. Print that sits sideways or upside down on the item stays sideways or upside down.',
+  '- Copy these characters as shapes; do not read them and set them again. Where a line is too small or too blurred to copy, reproduce it exactly that small and that blurred rather than inventing legible words.',
+  '',
+  'Add nothing: no props, no reflections, no overlay text, no watermark, no border, no people.',
+  '',
+  'Output the retouched photograph only.',
+].join('\n');
 
 // Modellkette kommt seit 2026-09-02 aus lib/gemini-image-models.js. Vorher stand
 // hier ein eigener Default-String, und der in CLAUDE.md dokumentierte
