@@ -364,7 +364,7 @@ async function _onOrderShipped({ orderId, tenantId }) {
     for (const [sku, sold] of Object.entries(skuQtyMap)) {
       await withStockLock(sku, async () => {
         try {
-          await decrementProductByIdOrSku(sku, sold);
+          await decrementProductByIdOrSku(sku, sold, { orderId });
           console.log(`[order-state-machine] stock-out sku=${sku} qty=${sold} (bins + inventory decremented)`);
         } catch (err) {
           console.error(`[order-state-machine] decrementProductByIdOrSku failed sku=${sku}: ${err.message}`);
