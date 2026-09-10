@@ -60,9 +60,22 @@ describe('Studio-Prompt', () => {
     expect(p).toMatch(/macro close-up/i);
   });
 
-  it('verlangt den e-commerce-Studiogrund aus der Betreiber-Vorlage', () => {
+  /**
+   * KEHRTWENDE 2026-09-10 (Betreiber: "der hintergrund aller 4 bilder ist
+   * unterschiedlich!"): der Verlauf wird NICHT mehr beim Modell bestellt,
+   * sondern hinterher deterministisch gelegt. Vom Modell kommt nur noch ein
+   * Grund, der sich sauber vom Artikel trennen laesst — reinweiss.
+   * Gemessen: der Prompt allein reicht nicht (das Modell malte trotzdem einen
+   * Verlauf mit Eckenspanne 24,6), deshalb folgt ein Maskenaufruf und der
+   * Composite. Der Prompt-Wortlaut bleibt trotzdem wichtig: je weisser der
+   * Grund, desto sauberer die Maske.
+   */
+  it('verlangt einen NAHTLOS REINWEISSEN Grund, keinen gemalten Verlauf', () => {
     const p = bau({ key: 'hero', winkel: 'three-quarter hero view' });
-    expect(p).toMatch(/light-grey e-commerce gradient background/i);
+    expect(p).toMatch(/seamless PURE WHITE background/i);
+    expect(p).toMatch(/no gradient/i);
+    expect(p).toMatch(/no vignette/i);
+    expect(p).not.toMatch(/gradient background/i);
     expect(p).toMatch(/no props/i);
     expect(p).toMatch(/no added text/i);
   });
@@ -141,7 +154,7 @@ describe('buildGalleryPrompt — Weiche', () => {
       planEntry: { art: 'lifestyle', key: 'inuse', szene: PRODUKT.szeneA },
       referenceCount: 1,
     });
-    expect(studio).toMatch(/e-commerce gradient background/i);
+    expect(studio).toMatch(/seamless PURE WHITE background/i);
     expect(life).toMatch(/lifestyle photograph/i);
   });
 
@@ -150,6 +163,6 @@ describe('buildGalleryPrompt — Weiche', () => {
       product: PRODUCT, produkt: PRODUKT,
       planEntry: { key: 'front', winkel: 'front view' }, referenceCount: 1,
     });
-    expect(p).toMatch(/e-commerce gradient background/i);
+    expect(p).toMatch(/seamless PURE WHITE background/i);
   });
 });

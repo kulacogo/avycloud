@@ -60,18 +60,30 @@ function zahl(env, fallback) {
 /**
  * Kostendeckel JE LAUF in US-Dollar.
  *
- * Voreinstellung 0,75 $, gerechnet statt geraten:
- *   4 Studio-Ansichten  x 0,101 $ (flash-image @ 2K)  = 0,404 $
- *   2 Anwendungsszenen  x 0,067 $ (flash-image @ 1K)  = 0,134 $
- *   volle Serie                                        = 0,538 $
- *   dazu Luft fuer etwa zwei Rueckfall-Versuche auf dem teuren Modell.
+ * Voreinstellung 0,90 $, gerechnet statt geraten. Der schlimmste ZULAESSIGE
+ * Fall ist eine volle Serie ohne ein einziges brauchbares Foto der jeweiligen
+ * Seite, also vier ABGELEITETE Studio-Ansichten:
+ *   4 x (Render 2K 0,101 $ + Masken-Aufruf fuer die einheitliche Leinwand
+ *        0,034 $)                                      = 0,540 $
+ *   2 Anwendungsszenen x 0,067 $ (flash-image @ 1K)     = 0,134 $
+ *   Summe                                               = 0,674 $
+ *   dazu Luft fuer etwa einen Rueckfall auf das teure Modell (0,134 $).
  *
- * Derselbe Lauf auf `gemini-3-pro-image` kostete 0,80 $ und schlaegt damit
+ * Der typische Lauf liegt deutlich darunter: sitzen zwei Ansichten auf echten
+ * Fotos, kosten sie nur ihre Maske (0,034 $ statt 0,135 $).
+ *
+ * ANGEHOBEN VON 0,75 AUF 0,90 (2026-09-10): mit der einheitlichen Leinwand kam
+ * je abgeleiteter Studio-Ansicht ein Maskenaufruf dazu. Beim alten Deckel
+ * verhungerten dadurch die zuletzt geplanten Bilder — die Anwendungsszenen —,
+ * und der Bediener bekam statt eines uneinheitlichen Hintergrunds GAR KEIN
+ * Bild. Der Deckel bleibt eine harte Grenze, nur an der richtigen Stelle.
+ *
+ * Derselbe Lauf auf `gemini-3-pro-image` kostete deutlich mehr und schlaegt
  * bewusst an den Deckel — wer Pro als Primaermodell will, muss ihn anheben und
  * weiss dann, was er tut. `0` schaltet den Deckel ab.
  */
 function deckelJeLauf() {
-  return zahl('IMAGE_COST_CAP_USD', 0.75);
+  return zahl('IMAGE_COST_CAP_USD', 0.9);
 }
 
 /**

@@ -262,6 +262,31 @@ Wörtlich zu den Studio-Fotos (Futtereimer „Stiefel Pflanzenkohle", Produkt `d
   - **ZWEI LAGEN, die vorher gleich aussahen, sind jetzt getrennt** (`evidence.klassifiziert`): eine AUSGEFALLENE Ansichtserkennung bleibt **fail-open** auf die vom Bediener gewählte Vorlage (ein Ausfall darf den Knopf nicht totlegen); eine GELAUFENE, die nur Kartons fand, sperrt **fail-closed**.
   - **BESTÄTIGT: die Lichter-Wache der Schattenaufhellung schützte gegen nichts und richtete Schaden an.** Sie verwarf die Kurve, sobald das obere Prozent über 252 gelandet wäre — ein einziges reinweisses Etikett genügte, und die **ganze** Aufhellung fiel weg (gemessen: gamma 1,18 → null, Grund `lichter_zu_nah_an_weiss`). Betroffen waren genau die Artikel, die sie am nötigsten haben: dunkles Gehäuse, helles Etikett. Eine Gamma-Kurve KANN die Lichter nicht ausbrennen — 255 ist ein Fixpunkt, die Abbildung ist streng monoton auf [0,255]. Wache entfernt; gemessen bleibt ein reinweisses Etikett danach bei 255/255/255. Gegen ein ausgewaschenes Mittelfeld schützt weiterhin `LIFT_MEDIAN_MAX`.
   - **WIDERLEGT, nicht gebaut:** „ungekippte Ellipse wird um 1,91 Grad gedreht". Am echten Code nachgemessen: **0,00 Grad**. Kein Eingriff.
+#### EINHEITLICHE LEINWAND für alle Studio-Bilder (2026-09-10, dritte Runde)
+Betreiber zu einer Galerie für ein Edelstahl-Abgasrohr: „die oberen 4 bilder wurden generiert und grundsätzlich sehr gut! aber... der hintergrund aller 4 bilder ist unterschiedlich!"
+
+**Ursache: ZWEI Quellen für denselben Bildteil.** Der pixeltreue Weg legt seinen Grund deterministisch an (`baueVerlaufsgrund`), der Render-Weg liess ihn das BILDMODELL malen — und ein Modell malt ihn jedes Mal anders. Gemessen an der echten Galerie (Produkt `6c764467`), Helligkeit der vier Bildecken:
+
+| Bild | Weg | Ecken | Spanne |
+|---|---|---|---|
+| studio_detail | pixeltreu | 237/237/230/230 | 7,7 |
+| studio_side | pixeltreu | 237/237/230/230 | 7,7 |
+| studio_hero | **gerendert** | **220/221/219/218** | 2,0 |
+
+Über mehrere Renderläufe schwankte der Grund zwischen **196 und 221**.
+
+- **PROMPT ALLEIN REICHT NICHT — gemessen und verworfen.** Eine Fassung, die ausdrücklich „seamless PURE WHITE background, edge to edge, no gradient, no vignette, no colour tint" verlangt, lieferte trotzdem einen Verlauf mit **Eckenspanne 24,6**. Der Prompt wurde trotzdem umgestellt (je weisser der Grund, desto sauberer die Maske), aber er ist nicht die Lösung.
+- **SELBSTMASKIERUNG DES RENDERS — gemessen und verworfen.** `bauePackshot(render, render)` scheitert zu Recht: ein grauer Grund liegt unter der Produktschwelle 228 und gilt damit als Produkt. Die Wächter meldeten `kein_hintergrund_erkannt(99,9 %)` und `hintergrund_nicht_entfernt(4_raender_beruehrt)` — fail-closed hat funktioniert.
+- **WAS FUNKTIONIERT, ebenfalls gemessen: ein eigener MASKEN-Aufruf auf das FERTIGE Renderbild.** Der `MASKEN_PROMPT` liefert dort verlässlich Weiss (Ecken 254/255/255/255), der anschliessende Composite trifft die Zielwerte exakt: **237/237/230/230, Spanne 7,7** — Zeichen für Zeichen wie die pixeltreuen Bilder. `vereinheitlicheLeinwand()` in `services/image-generation.js`.
+- **Es vereinheitlicht MEHR als den Hintergrund:** Leinwandformat, Füllgrad, senkrechte Platzierung und Kontaktschatten kommen danach für JEDES Studio-Bild aus derselben Stelle. Auf dem Screenshot des Betreibers schwankte auch die Produktgrösse sichtbar. **Gemessen am ganzen Lauf: 4 von 4 Studio-Bildern mit Ecken 237/237/230/230 und Höhenfüllung 86 %.**
+- **KEIN Weissabgleich für gerenderte Bilder** (`bauePackshot(..., {weissabgleich:false})`). Der Hintergrund eines Renders ist keine Graukarte, sondern ein frei gewählter Ton (196–221); ein daraus abgeleiteter Faktor schwankte 1,12–1,27 und hätte die PRODUKThelligkeit von Bild zu Bild verschoben — also genau die Uneinheitlichkeit erzeugt, die beseitigt werden soll. Die Schattenaufhellung bleibt: sie misst am Produkt und zielt auf einen festen Wert.
+- **ANWENDUNGSSZENEN bleiben unangetastet** — dort ist die Umgebung der Inhalt.
+- **Reihenfolge ist Absicht:** die Vereinheitlichung läuft ERST nach Ergebnisprüfung und Identitäts-Urteil. Für ein Bild, das gleich verworfen wird, soll kein Maskenaufruf bezahlt werden.
+- **Kosten, ehrlich: +0,034 $ je GERENDERTER Studio-Ansicht** (günstigstes Modell, 1K). Gemessener Lauf: 0,472 $ für vier Studio-Bilder. Fail-open: scheitert der Aufruf oder eine Wache, bleibt das rohe Renderbild und der Grund steht im Bericht — **lieber ein Bild mit abweichendem Grund als gar keins**.
+- **`IMAGE_COST_CAP_USD` von 0,75 auf 0,90 angehoben, neu hergeleitet:** 4 × (Render 2K 0,101 + Leinwand-Maske 0,034) + 2 × Szene 0,067 = 0,674, dazu Luft für einen Rückfall. Beim alten Deckel verhungerten sonst die zuletzt geplanten Bilder — die Szenen — und der Bediener bekam statt eines abweichenden Hintergrunds GAR KEIN Bild.
+- Bildfeld neu: `einheitlicheLeinwand` (bool). Bericht: `report.einheitlicheLeinwand` — weicht die Zahl von `studioProduced` ab, ist die Galerie uneinheitlich.
+- Schalter: `GALLERY_UNIFORM_CANVAS` (nur exakt `'off'`; zusätzlich gilt `STUDIO_COMPOSITE`).
+
 - Schalter neu: `STUDIO_FILL_W=0.92`, `STUDIO_FILL_H=0.86`, `VARIANT_MASK_FALLBACK_MODEL` (leer = ein Versuch).
 
 - Tests: `image-generation-gallery.test.js` (36), `prompt-engine-gallery.test.js` (17), `packshot-composite.test.js` (36), erweitert `image-viewpoint.test.js` (48).

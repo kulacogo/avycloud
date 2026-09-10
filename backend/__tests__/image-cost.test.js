@@ -49,8 +49,15 @@ describe('Deckel', () => {
   });
 
   it('bremst dieselbe Serie auf dem TEUREN Modell aus', () => {
-    // 6 x 0,134 = 0,80 $ — bewusst über dem Deckel.
-    expect(6 * preisJeBild('gemini-3-pro-image', '2K')).toBeGreaterThan(deckelJeLauf());
+    // Deckel 0,90 $ (hergeleitet: 4 abgeleitete Studio-Ansichten je Render 2K
+    // 0,101 + Leinwand-Maske 0,034, plus 2 Szenen zu 0,067 = 0,674, dazu Luft
+    // fuer einen Rueckfall). Auf dem teuren Modell reisst schon eine Serie aus
+    // sieben Aufrufen darueber.
+    expect(7 * preisJeBild('gemini-3-pro-image', '2K')).toBeGreaterThan(deckelJeLauf());
+    // Die reale Vollserie passt dagegen hinein.
+    const vollserie = 4 * (preisJeBild('gemini-3.1-flash-image', '2K') + preisJeBild('gemini-3.1-flash-lite-image', '1K'))
+      + 2 * preisJeBild('gemini-3.1-flash-image', '1K');
+    expect(vollserie).toBeLessThan(deckelJeLauf());
   });
 
   it('laesst sich per ENV setzen', () => {
@@ -60,7 +67,7 @@ describe('Deckel', () => {
 
   it('faellt bei Muell auf den Default zurueck', () => {
     process.env.IMAGE_COST_CAP_USD = 'billig';
-    expect(deckelJeLauf()).toBe(0.75);
+    expect(deckelJeLauf()).toBe(0.9);
   });
 });
 

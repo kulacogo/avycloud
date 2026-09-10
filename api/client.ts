@@ -3833,6 +3833,8 @@ export const generateProductImages = async (
     ausEchtemFoto?: number;
     /** Wie viele Bilder aus ORIGINALPIXELN bestehen (echter Kleindruck). */
     pixeltreu?: number;
+    /** Wie viele Studio-Bilder dieselbe Leinwand tragen (Hintergrund, Fuellgrad, Schatten). */
+    einheitlicheLeinwand?: number;
     /** Was der Lauf gekostet hat — Bildaufrufe sind der teure Teil. */
     kosten?: {
       bildaufrufe?: number;

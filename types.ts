@@ -181,6 +181,12 @@ export interface ProductImage {
    * false = neu gezeichnet, Kleindruck nur angenähert.
    */
   pixeltreu?: boolean;
+  /**
+   * true = Hintergrund, Füllgrad und Kontaktschatten dieses Studio-Bildes kommen
+   * aus der deterministischen Stelle. Nur so sehen alle Bilder einer Galerie
+   * gleich aus.
+   */
+  einheitlicheLeinwand?: boolean;
   /** Adresse des Quellfotos, aus dem die Ansicht entstanden ist. */
   derivedFrom?: string | null;
   /** Hinweise der Identitätsprüfung (z. B. „Beschriftungen verändert"). */

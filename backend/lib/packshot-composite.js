@@ -449,6 +449,12 @@ function pruefeMaske({ anteilGroesste, deckung, seitenAbweichung, raender, solid
  * @param {Buffer} originalBuffer Das ECHTE Foto in voller Auflösung
  * @param {Buffer} maskenQuelle   Die Weissgrund-Aufnahme des Bildmodells
  * @param {Object} [opts]
+ * @param {boolean} [opts.weissabgleich=true] Weissabgleich aus dem Hintergrund.
+ *   Fuer ein GERENDERTES Bild abschalten: dessen Hintergrund ist keine Graukarte,
+ *   sondern ein vom Modell frei gewaehlter Ton (gemessen 196 bis 221 ueber
+ *   mehrere Laeufe). Ein daraus abgeleiteter Faktor schwankte zwischen 1,12 und
+ *   1,27 und haette die PRODUKTHELLIGKEIT von Bild zu Bild verschoben — also
+ *   genau die Uneinheitlichkeit erzeugt, die hier beseitigt werden soll.
  * @param {'weiss'|'verlauf'} [opts.hintergrund='weiss'] Grund der Leinwand.
  *   `weiss` ist die Voreinstellung und damit das unveränderte Studio-Verhalten.
  *   `verlauf` legt den hellgrauen e-Commerce-Verlauf an, den der Betreiber für
@@ -516,7 +522,10 @@ async function bauePackshot(originalBuffer, maskenQuelle, opts = {}) {
   // BELICHTUNG/WEISSABGLEICH aus dem HINTERGRUND — die Graukarten-Methode.
   // Gemessen am Marstek-Speicher: Hintergrund 195, weisses Produkt 125. Ohne
   // Korrektur zeigt der Packshot ein mattgraues Geraet, obwohl es weiss ist.
-  const belichtung = await messeBelichtung(original, maskePng, oMeta);
+  const belichtung =
+    opts.weissabgleich === false
+      ? { faktoren: null, grund: 'nicht_angefordert' }
+      : await messeBelichtung(original, maskePng, oMeta);
 
   // Originalpixel + Maske als Alpha → Produkt freigestellt, Pixel unangetastet.
   // Die Belichtungskorrektur ist eine LINEARE Verstaerkung je Kanal, kein

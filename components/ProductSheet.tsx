@@ -208,6 +208,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     lifestyle?: number;
     ausEchtemFoto?: number;
     pixeltreu?: number;
+    einheitlich?: number;
     kostenUsd?: number;
     skipped: ImageViewSkipEntry[];
     evidence?: ImageGenerationEvidence;
@@ -665,6 +666,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
         lifestyle: result.report?.lifestyleProduced,
         ausEchtemFoto: result.report?.ausEchtemFoto,
         pixeltreu: result.report?.pixeltreu,
+        einheitlich: result.report?.einheitlicheLeinwand,
         kostenUsd: result.report?.kosten?.kostenUsd,
         skipped,
         evidence: result.evidence,
@@ -2455,6 +2457,17 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                         Beschriftungen und Kleindruck darauf sind echt. Diese Bilder behalten die
                         Ausrichtung des Fotos: steht ein Artikel darauf schief oder kopfueber, das
                         Foto drehen und neu erzeugen.
+                      </p>
+                    ) : null}
+
+                    {typeof generationReport.einheitlich === 'number' &&
+                    typeof generationReport.studio === 'number' &&
+                    generationReport.studio > 0 &&
+                    generationReport.einheitlich < generationReport.studio ? (
+                      <p className="mt-1 text-warning">
+                        Nur {generationReport.einheitlich} von {generationReport.studio} Studio-Bildern
+                        haben denselben Hintergrund — bei den übrigen ist die Freistellung
+                        gescheitert, sie behalten den vom Modell gemalten Grund.
                       </p>
                     ) : null}
 

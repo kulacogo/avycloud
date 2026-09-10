@@ -553,6 +553,119 @@ async function renderPixeltreu({ planEntry, references, sourceIndex, deadline, k
 }
 
 /**
+ * Ist der Weg zur EINHEITLICHEN Leinwand aktiv? Nur der exakte Wert 'off'
+ * schaltet ab; zusaetzlich gilt der gemeinsame `STUDIO_COMPOSITE`.
+ */
+function einheitlicheLeinwandAktiv() {
+  return compositeEnabled() && String(process.env.GALLERY_UNIFORM_CANVAS || '').trim() !== 'off';
+}
+
+/**
+ * EINHEITLICHE LEINWAND fuer GERENDERTE Studio-Ansichten.
+ *
+ * ============================================================================
+ * WARUM (Betreiber 2026-09-10): "die oberen 4 bilder wurden generiert und
+ * grundsaetzlich sehr gut! aber... der hintergrund aller 4 bilder ist
+ * unterschiedlich!"
+ *
+ * Ursache waren ZWEI Quellen fuer denselben Bildteil. Der pixeltreue Weg legt
+ * seinen Grund deterministisch an (`baueVerlaufsgrund`), der Render-Weg liess
+ * ihn das Modell malen — und ein Modell malt ihn jedes Mal anders. Gemessen an
+ * einer echten Galerie (Abgasrohr, Produkt 6c764467), Helligkeit der vier
+ * Bildecken:
+ *     pixeltreu   237 / 237 / 230 / 230   (zwei Bilder, exakt gleich)
+ *     gerendert   220 / 221 / 219 / 218   (17 Stufen daneben)
+ * Ueber mehrere Renderlaeufe schwankte der Grund zwischen 196 und 221.
+ *
+ * PROMPT ALLEIN REICHT NICHT — gemessen. Eine Fassung, die ausdruecklich
+ * "seamless PURE WHITE, edge to edge, no gradient, no vignette" verlangt,
+ * lieferte trotzdem einen Verlauf mit Eckenspanne 24,6. Und eine Selbst-
+ * maskierung des Renders scheitert daran zu Recht: die Waechter meldeten
+ * "kein_hintergrund_erkannt(99,9 %)", weil ein grauer Grund unter der
+ * Produktschwelle liegt und damit als Produkt gilt.
+ *
+ * WAS FUNKTIONIERT, ebenfalls gemessen: ein eigener MASKEN-Aufruf auf das
+ * fertige Renderbild. Der MASKEN_PROMPT liefert dort verlaesslich Weiss
+ * (Ecken 254/255/255/255), und der anschliessende Composite trifft die Zielwerte
+ * auf den Punkt: 237/237/230/230, Eckenspanne 7,7 — Zeichen fuer Zeichen wie die
+ * pixeltreuen Bilder.
+ *
+ * ES VEREINHEITLICHT MEHR ALS DEN HINTERGRUND: Leinwandformat, Fuellgrad,
+ * senkrechte Platzierung und Kontaktschatten kommen danach fuer JEDES
+ * Studio-Bild aus derselben Stelle. Auf dem Screenshot des Betreibers schwankte
+ * auch die Produktgroesse sichtbar.
+ *
+ * KOSTEN, ehrlich: ein Maskenaufruf je gerenderter Studio-Ansicht,
+ * 0,034 $ auf dem guenstigsten Modell in 1K. Bei einer typischen Serie mit zwei
+ * abgeleiteten Studio-Ansichten sind das 0,068 $ je Knopfdruck. Notbremse
+ * `GALLERY_UNIFORM_CANVAS='off'`.
+ *
+ * ANWENDUNGSSZENEN BLEIBEN UNANGETASTET — sie zeigen eine echte Umgebung, die
+ * gerade nicht wegmaskiert werden soll.
+ * ============================================================================
+ *
+ * @returns {Promise<{buffer:Buffer, mimeType:string, width:number, height:number,
+ *                    info:Object}|null>} null = unveraendert lassen.
+ */
+async function vereinheitlicheLeinwand({ bild, planEntry, deadline, kosten, attempts }) {
+  const [model] = maskImageModelChain();
+  const rest = typeof deadline === 'number' ? deadline - Date.now() : Infinity;
+  if (rest < 5000) {
+    attempts.push({ model, reason: 'leinwand_zeitbudget_erschoepft' });
+    return null;
+  }
+  if (kosten && !kosten.darfNoch(model, MASK_IMAGE_SIZE)) {
+    attempts.push({ model, reason: 'leinwand_kostendeckel_erreicht' });
+    return null;
+  }
+
+  try {
+    const report = await generateProductImagesWithReport({
+      prompt: buildMaskPrompt(),
+      count: 1,
+      aspectRatio: null,
+      referenceImages: [`data:image/png;base64,${bild.toString('base64')}`],
+      model,
+      timeoutMs: Math.min(variantTimeoutMs(), rest),
+      imageSize: MASK_IMAGE_SIZE,
+      maxAttempts: 1,
+    });
+    if (kosten) kosten.buche(report.model || model, MASK_IMAGE_SIZE, `${planEntry?.variant}:leinwand`);
+
+    const candidate = report.images?.[0];
+    if (!candidate?.base64) {
+      attempts.push({ model, reason: 'leinwand_maske_kein_bild' });
+      return null;
+    }
+
+    const packshot = await bauePackshot(bild, Buffer.from(candidate.base64, 'base64'), {
+      hintergrund: 'verlauf',
+      // KEIN Weissabgleich: der Hintergrund eines Renders ist keine Graukarte,
+      // sondern ein frei gewaehlter Ton. Ein daraus abgeleiteter Faktor haette
+      // die Produkthelligkeit von Bild zu Bild verschoben — genau die
+      // Uneinheitlichkeit, die hier beseitigt wird. Die Schattenaufhellung
+      // bleibt: sie misst am PRODUKT und zielt auf einen festen Wert.
+      weissabgleich: false,
+    });
+    if (!packshot.ok) {
+      attempts.push({ model, reason: `leinwand_verworfen: ${packshot.gruende.join(', ')}` });
+      return null;
+    }
+    return {
+      buffer: packshot.buffer,
+      mimeType: 'image/jpeg',
+      width: packshot.width,
+      height: packshot.height,
+      info: packshot.info,
+    };
+  } catch (err) {
+    const code = err instanceof GeminiImageError ? err.code : 'UNKNOWN';
+    attempts.push({ model, reason: `leinwand ${code}: ${err.message}` });
+    return null;
+  }
+}
+
+/**
  * Erzeugt EINE Ansicht: Vorlage zuerst, übrige Fotos als Identitätsanker.
  * Läuft die Modellkette durch, ohne ein gültiges Ergebnis, wird nichts geliefert.
  */
@@ -725,15 +838,36 @@ async function renderOneView({ product, produktInfo, planEntry, references, sour
         continue;
       }
 
+      // EINHEITLICHE LEINWAND — erst JETZT, nach allen Pruefungen: fuer ein
+      // Bild, das gleich verworfen wird, soll kein Maskenaufruf bezahlt werden.
+      // Nur Studio-Ansichten; eine Anwendungsszene zeigt eine echte Umgebung,
+      // die gerade nicht wegmaskiert werden soll.
+      let ausgabe = { buffer, mimeType: candidate.mimeType || 'image/png', width: verdict.width, height: verdict.height };
+      let leinwandVereinheitlicht = false;
+      if (!istSzene && einheitlicheLeinwandAktiv()) {
+        const einheitlich = await vereinheitlicheLeinwand({
+          bild: buffer,
+          planEntry,
+          deadline,
+          kosten,
+          attempts,
+        });
+        if (einheitlich) {
+          ausgabe = einheitlich;
+          leinwandVereinheitlicht = true;
+        }
+      }
+
       return {
-        buffer,
-        mimeType: candidate.mimeType || 'image/png',
+        buffer: ausgabe.buffer,
+        mimeType: ausgabe.mimeType,
         model: report.model || model,
-        width: verdict.width,
-        height: verdict.height,
+        width: ausgabe.width,
+        height: ausgabe.height,
         referenceCount: used.length,
         warnings: identityVerdict.warnings,
         identityChecked: identityVerdict.action !== 'ungeprueft',
+        leinwandVereinheitlicht,
         attempts,
       };
     } catch (err) {
@@ -905,6 +1039,9 @@ async function generateImagesForProduct(product, options = {}) {
         // Beschriftung darauf ist echt. false = vom Modell neu gezeichnet,
         // Kleindruck ist dort nur angenaehert.
         pixeltreu: result.pixeltreu === true,
+        // true = Hintergrund, Fuellgrad und Kontaktschatten kommen aus der
+        // deterministischen Stelle. Pixeltreue Bilder haben das bauartbedingt.
+        einheitlicheLeinwand: result.pixeltreu === true || result.leinwandVereinheitlicht === true,
         width: uploaded.width || result.width || null,
         height: uploaded.height || result.height || null,
         mimeType: uploaded.mimeType || result.mimeType,
@@ -956,6 +1093,9 @@ async function generateImagesForProduct(product, options = {}) {
       // Wie viele Bilder aus ORIGINALPIXELN bestehen und damit garantiert
       // echten Kleindruck tragen. Der Rest ist neu gezeichnet.
       pixeltreu: images.filter((i) => i.pixeltreu).length,
+      // Wie viele Studio-Bilder dieselbe Leinwand tragen. Weicht die Zahl von
+      // studioProduced ab, sieht der Bediener eine uneinheitliche Galerie.
+      einheitlicheLeinwand: images.filter((i) => i.art === 'studio' && i.einheitlicheLeinwand).length,
       durationMs: Date.now() - startedAt,
     },
     // Rückwärtskompatibel: die Route reicht `prompts` an die Oberfläche durch.

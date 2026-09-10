@@ -300,11 +300,27 @@ function buildStudioPrompt({ product, produkt, planEntry, referenceCount = 1 }) 
     zeilen.push(`Produce a high-end ${winkel} product photo of the ${artikel}.`);
   }
 
+  // HINTERGRUND: SEAMLESS REINWEISS, NICHT DER GRAUE VERLAUF (seit 2026-09-10).
+  //
+  // Betreiber: "der hintergrund aller 4 bilder ist unterschiedlich!" Ursache waren
+  // ZWEI Quellen fuer denselben Bildteil: der pixeltreue Weg legt seinen Grund
+  // deterministisch an (baueVerlaufsgrund), der Render-Weg liess ihn das Modell
+  // malen — und ein Modell malt ihn jedes Mal anders. Gemessen an einer echten
+  // Galerie (Abgasrohr, Produkt 6c764467): pixeltreue Bilder Ecken 237/237/230/230,
+  // gerendertes Bild 220/221/219/218 — 17 Stufen daneben.
+  //
+  // Der Verlauf wird deshalb NICHT mehr bestellt, sondern hinterher deterministisch
+  // gelegt. Das Modell soll nur noch einen Grund liefern, der sich sauber vom
+  // Artikel trennen laesst. Der Wortlaut folgt bewusst dem MASKEN_PROMPT, der
+  // genau das seit Wochen zuverlaessig liefert.
   zeilen.push(
-    'Shoot it on a premium light-grey e-commerce gradient background (eBay style), with',
-    'soft directional studio lighting that produces clean, natural shadows and accurate',
-    'colour. Ultra-sharp edges, high resolution, realistic material rendering, no harsh',
-    'reflections, no props, no added text, no watermark, no people.',
+    'Place it on a completely plain, seamless PURE WHITE background (#FFFFFF, RGB',
+    '255,255,255), edge to edge — no gradient, no vignette, no grey wash, no colour',
+    'tint, no visible horizon line, no surface texture. All four picture corners are',
+    'pure white. Light it with soft directional studio lighting that produces clean,',
+    'natural shading on the item and accurate colour. Ultra-sharp edges, high',
+    'resolution, realistic material rendering, no harsh reflections, no props, no',
+    'added text, no watermark, no people.',
     'Marketplace-ready composition: item centred, fully in frame, generous even margins.',
     IDENTITAETS_BLOCK
   );

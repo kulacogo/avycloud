@@ -128,12 +128,17 @@ beforeEach(async () => {
       echtesFoto.buffer.slice(echtesFoto.byteOffset, echtesFoto.byteOffset + echtesFoto.byteLength),
   }));
 
-  generateSpy.mockResolvedValue({
+  // Der Dienst meldet zurueck, WELCHES Modell wirklich gelaufen ist — und danach
+  // wird abgerechnet. Der Mock spiegelt deshalb das angefragte Modell, statt
+  // pauschal das teuerste zu behaupten: sonst kostet eine 0,034-$-Maske im Test
+  // 0,134 $, der Kostendeckel greift viel zu frueh und die zuletzt geplanten
+  // Bilder verhungern aus einem reinen Fixture-Artefakt.
+  generateSpy.mockImplementation(async (args) => ({
     images: [{ base64: studioPng.toString('base64'), mimeType: 'image/png' }],
-    model: 'gemini-3-pro-image',
+    model: args?.model || 'gemini-3.1-flash-image',
     attempts: [],
-    referenceCount: 1,
-  });
+    referenceCount: Array.isArray(args?.referenceImages) ? args.referenceImages.length : 1,
+  }));
   uploadSpy.mockImplementation(async (_d, _p, variant) => ({
     url: `https://gcs/${variant}.png`,
     mimeType: 'image/png',
@@ -684,3 +689,100 @@ describe('pixeltreuer Weg', () => {
   });
 });
 
+
+/**
+ * EINHEITLICHE LEINWAND (2026-09-10).
+ *
+ * Betreiber: "die oberen 4 bilder wurden generiert und grundsaetzlich sehr gut!
+ * aber... der hintergrund aller 4 bilder ist unterschiedlich!"
+ *
+ * Ursache: ZWEI Quellen fuer denselben Bildteil. Gemessen an einer echten
+ * Galerie (Abgasrohr, Produkt 6c764467), Helligkeit der vier Bildecken —
+ * pixeltreu 237/237/230/230 (zwei Bilder, exakt gleich), gerendert
+ * 220/221/219/218. Ueber mehrere Renderlaeufe schwankte der Grund 196 bis 221.
+ *
+ * Ein Prompt allein heilt das nicht: eine Fassung, die ausdruecklich
+ * "seamless PURE WHITE, no gradient, no vignette" verlangt, lieferte gemessen
+ * trotzdem einen Verlauf mit Eckenspanne 24,6.
+ */
+describe('einheitliche Leinwand', () => {
+  it('schickt fuer eine GERENDERTE Studio-Ansicht einen Masken-Aufruf hinterher', async () => {
+    classifySpy.mockResolvedValue(klassifikation([V(0, 'front')]));
+
+    const res = await generateImagesForProduct(produkt([{ url_or_base64: 'https://x/1.jpg' }]), {
+      referenceImage: { url_or_base64: 'https://x/1.jpg' },
+      lifestyle: false,
+    });
+
+    const leinwand = res.report.kosten.posten.filter((p) => /leinwand/.test(p.zweck || ''));
+    expect(leinwand.length).toBeGreaterThan(0);
+    // Auf dem guenstigsten Modell in kleiner Groesse — die Maskenpixel landen
+    // nie im Endbild.
+    for (const p of leinwand) {
+      expect(p.model).toBe('gemini-3.1-flash-lite-image');
+      expect(p.imageSize).toBe('1K');
+    }
+  });
+
+  it('meldet, wie viele Studio-Bilder DIESELBE Leinwand tragen', async () => {
+    classifySpy.mockResolvedValue(klassifikation([V(0, 'front')]));
+    const res = await generateImagesForProduct(produkt([{ url_or_base64: 'https://x/1.jpg' }]), {
+      referenceImage: { url_or_base64: 'https://x/1.jpg' },
+      lifestyle: false,
+    });
+    expect(res.report.einheitlicheLeinwand).toBe(res.report.studioProduced);
+  });
+
+  it('laesst ANWENDUNGSSZENEN unangetastet — dort ist die Umgebung der Inhalt', async () => {
+    classifySpy.mockResolvedValue(klassifikation([V(0, 'front')]));
+    const res = await generateImagesForProduct(produkt([{ url_or_base64: 'https://x/1.jpg' }]), {
+      referenceImage: { url_or_base64: 'https://x/1.jpg' },
+    });
+    for (const bild of res.images.filter((b) => b.art === 'lifestyle')) {
+      expect(bild.einheitlicheLeinwand).toBe(false);
+    }
+    const szenenLeinwand = res.report.kosten.posten.filter(
+      (p) => /lifestyle_.*:leinwand/.test(p.zweck || '')
+    );
+    expect(szenenLeinwand).toHaveLength(0);
+  });
+
+  it('liefert das rohe Renderbild, wenn die Vereinheitlichung scheitert — nie GAR KEIN Bild', async () => {
+    classifySpy.mockResolvedValue(klassifikation([V(0, 'front')]));
+    // Eine reinweisse Maskenaufnahme hat keine Silhouette; die Waechter lehnen ab.
+    const leer = await sharp({
+      create: { width: 1024, height: 1024, channels: 3, background: { r: 255, g: 255, b: 255 } },
+    })
+      .png()
+      .toBuffer();
+    generateSpy.mockImplementation(async (args) => ({
+      images: [
+        {
+          base64: (/Remove the background/.test(args.prompt) ? leer : studioPng).toString('base64'),
+          mimeType: 'image/png',
+        },
+      ],
+      model: args?.model || 'gemini-3.1-flash-image',
+      attempts: [],
+      referenceCount: 1,
+    }));
+
+    const res = await generateImagesForProduct(produkt([{ url_or_base64: 'https://x/1.jpg' }]), {
+      referenceImage: { url_or_base64: 'https://x/1.jpg' },
+      lifestyle: false,
+    });
+    expect(res.images.length).toBeGreaterThan(0);
+    expect(res.images.every((b) => b.einheitlicheLeinwand === false)).toBe(true);
+  });
+
+  it('laesst sich per Notbremse abschalten und kostet dann nichts extra', async () => {
+    process.env.GALLERY_UNIFORM_CANVAS = 'off';
+    classifySpy.mockResolvedValue(klassifikation([V(0, 'front')]));
+    const res = await generateImagesForProduct(produkt([{ url_or_base64: 'https://x/1.jpg' }]), {
+      referenceImage: { url_or_base64: 'https://x/1.jpg' },
+      lifestyle: false,
+    });
+    expect(res.report.kosten.posten.filter((p) => /leinwand/.test(p.zweck || ''))).toHaveLength(0);
+    delete process.env.GALLERY_UNIFORM_CANVAS;
+  });
+});
