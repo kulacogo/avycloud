@@ -880,16 +880,21 @@ async function messeSchattenlift(bild, maske, mw, mh) {
       }
     }
 
-    // Lichter duerfen nicht ausbrennen: waere das obere Prozent danach ueber
-    // 252, wird die Kurve so weit zurueckgenommen, dass es darunter bleibt.
-    if (p99 > 1) {
-      const nachher = 255 * Math.pow(p99 / 255, 1 / gamma);
-      if (nachher > 252) {
-        const erlaubt = Math.log(p99 / 255) / Math.log(252 / 255);
-        gamma = Math.max(1, Math.min(gamma, erlaubt));
-        if (gamma < LIFT_MIN_GAMMA) return { gamma: null, p10, median, grund: 'lichter_zu_nah_an_weiss' };
-      }
-    }
+    // KEINE LICHTER-WACHE MEHR (entfernt 2026-09-10, nachgemessen).
+    //
+    // Hier stand eine Pruefung, die die Kurve zuruecknahm, sobald das obere
+    // Prozent danach ueber 252 gelandet waere. Sie hat gegen nichts geschuetzt
+    // und dafuer echten Schaden angerichtet:
+    //   - Eine Gamma-Kurve KANN die Lichter nicht ausbrennen. 255 ist ein
+    //     Fixpunkt (255*(255/255)^x = 255), die Abbildung ist streng monoton
+    //     und bildet [0,255] auf [0,255] ab. Es gibt kein Clipping.
+    //   - Dafuer genuegte EIN reinweisser Bildpunkt, um die GANZE Aufhellung
+    //     zu verwerfen: gemessen an einem dunklen Artikel mit weissem Etikett
+    //     fiel gamma von 1,18 auf null mit dem Grund "lichter_zu_nah_an_weiss".
+    //     Genau die Artikel, die die Aufhellung am noetigsten haben — dunkles
+    //     Gehaeuse, helles Etikett — gingen leer aus.
+    // Gegen ein ausgewaschenes Mittelfeld schuetzt weiterhin LIFT_MEDIAN_MAX.
+    void p99;
     return { gamma: +gamma.toFixed(3), p10: Math.round(p10), median: Math.round(median), grund: null };
   } catch (err) {
     return { gamma: null, p10: 0, median: 0, grund: `messung_fehlgeschlagen: ${err.message}` };

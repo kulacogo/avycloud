@@ -448,3 +448,94 @@ describe('Anwendungsszenen, Folie und Anker', () => {
     expect(e.referenceIndexes[0]).toBe(1);
   });
 });
+
+/**
+ * OHNE BRAUCHBARE VORLAGE ENTSTEHT NICHTS (2026-09-10, nachgestellt und gemessen).
+ *
+ * `referenceIndexes` fuehrt bewusst auch unsichere und Verpackungsfotos — als
+ * IDENTITAETSANKER taugen sie. Als VORLAGE taugen sie nicht. Bis hierher fiel
+ * `besteVorlage` per `?? 0` auf Bild 0 zurueck: bei einem Produkt mit
+ * ausschliesslich Karton-, Folien- und Szenenfotos wurde damit das KARTONFOTO
+ * zur Vorlage von vier Studio-Ansichten und einer Anwendungsszene — und das
+ * Modell sah nichts ausser dem Karton. Genau daraus entstanden das erfundene
+ * Bedienfeld (das gruene LCD "43.2" ist auf den Karton GEDRUCKT) und die Folie
+ * am erzeugten Bild.
+ */
+describe('keine brauchbare Vorlage', () => {
+  const { summarizeEvidence, planGalleryVariants } = require('../lib/image-viewpoint');
+  const v = (index, viewpoint, extra = {}) => ({
+    index, viewpoint, showsProduct: true, fullyVisible: true,
+    usableAsReference: true, confidence: 0.95, verpackungsreste: 'keine', ...extra,
+  });
+  const P = {
+    wasEsIst: 'x', woBenutzt: 'y', wieBenutzt: 'z', schluesselbereich: 'k',
+    szeneA: 'A', szeneB: 'B', lifestyleSinnvoll: true,
+  };
+
+  it('leitet NICHTS ab, wenn nur Karton, Folie und Szene vorliegen', () => {
+    const e = summarizeEvidence({
+      views: [v(0, 'packaging'), v(1, 'side', { verpackungsreste: 'folie' }), v(2, 'anwendung')],
+    });
+    // Als Anker taugt der Karton weiterhin nicht, als Referenz schon.
+    expect(e.referenceIndexes).toEqual([0]);
+    expect(e.vorlageIndexes).toEqual([]);
+
+    const { plan, skipped } = planGalleryVariants(e, { produkt: P, studioAnzahl: 4 });
+    expect(plan).toHaveLength(0);
+    expect(skipped.filter((x) => x.reason === 'keine_brauchbare_vorlage')).toHaveLength(2);
+    // "Kanon erschoepft" waere daneben nur Rauschen.
+    expect(skipped.some((x) => x.reason === 'kanon_erschoepft')).toBe(false);
+  });
+
+  it('plant unveraendert weiter, sobald EIN brauchbares Foto dabei ist', () => {
+    const e = summarizeEvidence({ views: [v(0, 'packaging'), v(1, 'front')] });
+    expect(e.vorlageIndexes).toEqual([1]);
+    const { plan } = planGalleryVariants(e, { produkt: P, studioAnzahl: 4 });
+    expect(plan.filter((p) => p.art === 'studio')).toHaveLength(4);
+    // Der Karton wird nie Vorlage.
+    for (const p of plan) expect(p.sourceIndex).toBe(1);
+  });
+
+  it('nimmt als Vorlage das BESTE Foto, nicht das erste', () => {
+    const e = summarizeEvidence({
+      views: [
+        v(0, 'side', { confidence: 0.5, fullyVisible: false }),
+        v(1, 'front', { confidence: 0.99 }),
+      ],
+    });
+    expect(e.vorlageIndexes[0]).toBe(1);
+  });
+});
+
+/**
+ * ZWEI LAGEN, DIE GLEICH AUSSEHEN UND ES NICHT SIND (2026-09-10):
+ * eine AUSGEFALLENE Ansichtserkennung darf den Knopf nicht totlegen; eine
+ * GELAUFENE, die nur Kartons und Folie gefunden hat, muss sperren.
+ */
+describe('ausgefallene gegen ergebnislose Ansichtserkennung', () => {
+  const { summarizeEvidence, planGalleryVariants } = require('../lib/image-viewpoint');
+  const P = {
+    wasEsIst: 'x', woBenutzt: 'y', wieBenutzt: 'z', schluesselbereich: 'k',
+    szeneA: 'A', szeneB: 'B', lifestyleSinnvoll: true,
+  };
+
+  it('AUSGEFALLEN -> fail-open auf die gewaehlte Vorlage', () => {
+    const e = summarizeEvidence(null);
+    expect(e.klassifiziert).toBe(false);
+    const { plan } = planGalleryVariants(e, { produkt: P, studioAnzahl: 4 });
+    expect(plan.filter((p) => p.art === 'studio')).toHaveLength(4);
+  });
+
+  it('GELAUFEN, aber nur Karton -> fail-closed, gar nichts', () => {
+    const e = summarizeEvidence({
+      views: [{
+        index: 0, viewpoint: 'packaging', showsProduct: true, fullyVisible: true,
+        usableAsReference: true, confidence: 0.95, verpackungsreste: 'keine',
+      }],
+    });
+    expect(e.klassifiziert).toBe(true);
+    const { plan, skipped } = planGalleryVariants(e, { produkt: P, studioAnzahl: 4 });
+    expect(plan).toHaveLength(0);
+    expect(skipped.some((x) => x.reason === 'keine_brauchbare_vorlage')).toBe(true);
+  });
+});

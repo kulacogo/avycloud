@@ -593,3 +593,56 @@ describe('Fuellung und Schattenaufhellung', () => {
     expect(Math.abs(winkelMinRechteck(gef, bin.w, bin.h))).toBeLessThan(12);
   });
 });
+
+/**
+ * EIN WEISSES ETIKETT DARF DIE AUFHELLUNG NICHT KIPPEN (2026-09-10, gemessen).
+ *
+ * Hier stand eine "Lichter-Wache", die die Kurve zuruecknahm, sobald das obere
+ * Prozent ueber 252 gelandet waere. Sie schuetzte gegen nichts — 255 ist ein
+ * Fixpunkt der Gamma-Kurve, es gibt kein Clipping — und genuegte doch, um die
+ * GANZE Aufhellung zu verwerfen. Betroffen waren genau die Artikel, die sie am
+ * noetigsten haben: dunkles Gehaeuse, helles Etikett.
+ */
+describe('Lichter und Schattenaufhellung', () => {
+  async function dunkelMitEtikett(etikettTon) {
+    const koerper = await sharp({
+      create: { width: 600, height: 400, channels: 3, background: { r: 22, g: 22, b: 22 } },
+    }).png().toBuffer();
+    const etikett = await sharp({
+      create: { width: 300, height: 150, channels: 3, background: etikettTon },
+    }).png().toBuffer();
+    return sharp({ create: { width: 1000, height: 1000, channels: 3, background: { r: 238, g: 238, b: 238 } } })
+      .composite([{ input: koerper, left: 200, top: 300 }, { input: etikett, left: 350, top: 420 }])
+      .jpeg()
+      .toBuffer();
+  }
+  async function koerperMaske() {
+    const koerper = await sharp({
+      create: { width: 600, height: 400, channels: 3, background: { r: 22, g: 22, b: 22 } },
+    }).png().toBuffer();
+    return sharp({ create: { width: 1000, height: 1000, channels: 3, background: { r: 255, g: 255, b: 255 } } })
+      .composite([{ input: koerper, left: 200, top: 300 }])
+      .png()
+      .toBuffer();
+  }
+
+  it('hellt auch dann auf, wenn ein REINWEISSES Etikett im Bild ist', async () => {
+    const r = await bauePackshot(await dunkelMitEtikett({ r: 255, g: 255, b: 255 }), await koerperMaske());
+    expect(r.ok).toBe(true);
+    expect(r.info.schattenlift.gamma).toBeGreaterThan(1);
+  });
+
+  it('laesst Weiss dabei WEISS — die Kurve hat 255 als Fixpunkt', async () => {
+    const r = await bauePackshot(await dunkelMitEtikett({ r: 255, g: 255, b: 255 }), await koerperMaske());
+    const m = await sharp(r.buffer).metadata();
+    const teil = await sharp(r.buffer)
+      .extract({
+        left: Math.round(m.width * 0.47), top: Math.round(m.height * 0.47),
+        width: 40, height: 20,
+      })
+      .removeAlpha()
+      .toBuffer();
+    const st = await sharp(teil).stats();
+    for (const k of st.channels.slice(0, 3)) expect(k.mean).toBeGreaterThan(250);
+  });
+});

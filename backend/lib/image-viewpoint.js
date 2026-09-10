@@ -269,7 +269,16 @@ function minViewpointConfidence() {
  * @returns {{byViewpoint: Object, belegt: string[], referenceIndexes: number[]}}
  */
 function summarizeEvidence(classification) {
-  const empty = { byViewpoint: {}, belegt: [], referenceIndexes: [], ankerIndexes: [], anwendungIndexes: [] };
+  // `klassifiziert` unterscheidet ZWEI grundverschiedene Lagen, die vorher
+  // gleich aussahen: (a) die Erkennung ist AUSGEFALLEN — dann darf sie den
+  // Knopf nicht totlegen, es gilt fail-open auf die gewaehlte Vorlage; (b) die
+  // Erkennung LIEF und hat kein brauchbares Foto gefunden — dann ist belegt,
+  // dass es nur Kartons/Folie/Szenen gibt, und es wird fail-closed nichts
+  // abgeleitet.
+  const empty = {
+    byViewpoint: {}, belegt: [], referenceIndexes: [], ankerIndexes: [],
+    vorlageIndexes: [], anwendungIndexes: [], klassifiziert: false,
+  };
   if (!classification?.views?.length) return empty;
 
   const minConf = minViewpointConfidence();
@@ -305,7 +314,7 @@ function summarizeEvidence(classification) {
     if (view.usableAsReference) referenceIndexes.push(view);
     if (view.confidence < minConf) continue;
     if (view.viewpoint === 'unclear' || view.viewpoint === 'packaging') continue;
-    if (view.usableAsReference) ankerIndexes.push(view.index);
+    if (view.usableAsReference) ankerIndexes.push(view);
     // Ein unscharfes oder zu dunkles Foto wird NICHT Vorlage: aus einer schlechten
     // Vorlage kann nur ein schlechter Packshot werden, und das Modell fuellt
     // Unschaerfe mit Erfindung auf. Es zaehlt auch nicht als Identitaetsanker
@@ -329,16 +338,25 @@ function summarizeEvidence(classification) {
   // Element `besteVorlage`, was damit eine Behauptung ohne Grundlage war.
   // Jetzt wird nach derselben Kennzahl sortiert, die auch innerhalb einer
   // Ansicht gilt: sicher, vollstaendig, brauchbar.
-  referenceIndexes.sort((a, b) => {
-    const score = (v) => v.confidence + (v.fullyVisible ? 0.5 : 0) + (v.usableAsReference ? 0.5 : 0);
-    return score(b) - score(a);
-  });
+  const guete = (v) => v.confidence + (v.fullyVisible ? 0.5 : 0) + (v.usableAsReference ? 0.5 : 0);
+  referenceIndexes.sort((a, b) => guete(b) - guete(a));
+  ankerIndexes.sort((a, b) => guete(b) - guete(a));
 
   return {
     byViewpoint,
     belegt: Object.keys(byViewpoint),
     referenceIndexes: referenceIndexes.map((v) => v.index),
-    ankerIndexes,
+    ankerIndexes: ankerIndexes.map((v) => v.index),
+    // VORLAGEN fuer ABGELEITETE Ansichten und Szenen. Bewusst eine dritte Liste:
+    // `referenceIndexes` darf weiterhin auch ein unsicheres oder ein
+    // Verpackungsfoto fuehren — als IDENTITAETSANKER taugt es, und ein Test
+    // haelt das ausdruecklich fest. Als VORLAGE taugt es nicht: aus einem
+    // Kartonfoto laesst sich keine Produktansicht ableiten, nur erfinden.
+    // Gemessen: bei einem Produkt mit ausschliesslich Karton-, Folien- und
+    // Szenenfotos war `referenceIndexes[0]` das KARTONFOTO, und der Plan baute
+    // daraus vier Studio-Ansichten und eine Szene.
+    vorlageIndexes: ankerIndexes.map((v) => v.index),
+    klassifiziert: true,
     anwendungIndexes,
   };
 }
@@ -552,8 +570,25 @@ function planGalleryVariants(evidence, opts = {}) {
   }
 
   // --- Runde 2: restliche Kanon-Ansichten auffüllen --------------------------
-  const besteVorlage = evidence?.referenceIndexes?.[0] ?? 0;
+  // KEIN `?? 0` MEHR (2026-09-10). Der Rueckfall auf Bild 0 war der Weg, auf dem
+  // ein KARTONFOTO Vorlage von vier Studio-Ansichten und einer Anwendungsszene
+  // wurde — nachgestellt und gemessen. Aus einem Karton laesst sich keine
+  // Produktansicht ableiten, nur erfinden.
+  // Fail-OPEN bei ausgefallener Erkennung (Bild 0 ist die vom Bediener
+  // gewaehlte Vorlage), fail-CLOSED wenn die Erkennung lief und nichts
+  // Brauchbares fand.
+  const gelaufen = evidence?.klassifiziert === true;
+  const besteVorlage = gelaufen ? evidence?.vorlageIndexes?.[0] : 0;
+  const ohneVorlage = besteVorlage === undefined;
+  if (ohneVorlage) {
+    skipped.push({
+      viewpoint: 'studio',
+      label: 'Abgeleitete Studio-Ansichten',
+      reason: 'keine_brauchbare_vorlage',
+    });
+  }
   for (const eintrag of STUDIO_SERIE) {
+    if (ohneVorlage) break;
     if (plan.length >= studioAnzahl) break;
     if (vergebeneKeys.has(eintrag.key)) continue;
     // MAKROAUFNAHMEN WERDEN NIE ABGELEITET (seit 2026-09-10).
@@ -584,7 +619,9 @@ function planGalleryVariants(evidence, opts = {}) {
     });
   }
 
-  if (plan.length < studioAnzahl) {
+  // Ohne Vorlage ist der Grund bereits gemeldet — "Kanon erschoepft" waere
+  // daneben nur Rauschen und wuerde die eigentliche Ursache verdecken.
+  if (!ohneVorlage && plan.length < studioAnzahl) {
     skipped.push({
       viewpoint: 'studio',
       label: `${studioAnzahl - plan.length} weitere Studio-Ansichten`,
@@ -595,6 +632,12 @@ function planGalleryVariants(evidence, opts = {}) {
   // --- Anwendungsszenen ------------------------------------------------------
   if (!lifestyleGewuenscht) {
     // Nicht angefragt — kein Hinweis, das wäre Rauschen.
+  } else if (ohneVorlage) {
+    skipped.push({
+      viewpoint: 'lifestyle',
+      label: 'Anwendungsszenen',
+      reason: 'keine_brauchbare_vorlage',
+    });
   } else if (!produkt || !produkt.lifestyleSinnvoll) {
     skipped.push({
       viewpoint: 'lifestyle',

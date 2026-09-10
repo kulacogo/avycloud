@@ -696,6 +696,8 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     if (reason === 'produkt_nicht_erkannt') return 'Artikel auf den Fotos nicht sicher erkannt — keine erfundene Szene';
     if (reason === 'keine_szene_beschrieben') return 'keine passende Szene ableitbar';
     if (reason === 'kanon_erschoepft') return 'mehr Ansichten sind aus diesem Artikel nicht sinnvoll';
+    if (reason === 'keine_brauchbare_vorlage')
+      return 'kein brauchbares Foto des AUSGEPACKTEN Artikels vor neutralem Grund — vorhanden sind nur Karton-, Folien- oder Anwendungsfotos. Aus einem Karton lässt sich keine Produktansicht ableiten, nur erfinden. Artikel auspacken, abfotografieren, erneut starten';
     if (reason === 'kein_foto_makro_wird_nicht_erfunden')
       return 'kein Nahfoto vorhanden — eine Makroaufnahme wird nicht erfunden (dort fällt jedes erfundene Detail auf). Nahaufnahme des Bedienfelds/Typenschilds machen und erneut starten';
     if (reason.startsWith('bereits_vorhanden')) {
