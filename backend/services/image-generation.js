@@ -66,6 +66,7 @@ const {
   validateGeneratedImage,
   judgeProductIdentity,
   classifyIdentityVerdict,
+  MIN_EDGE_PX,
 } = require('../lib/image-result-check');
 const {
   variantImageModelChain,
@@ -651,6 +652,20 @@ async function vereinheitlicheLeinwand({ bild, planEntry, deadline, kosten, atte
       attempts.push({ model, reason: `leinwand_verworfen: ${packshot.gruende.join(', ')}` });
       return null;
     }
+    // AUFLOESUNGS-WACHE. `validateGeneratedImage` hat den RENDER geprueft; hier
+    // wird der Puffer ausgetauscht, und danach schaut niemand mehr hin. Die
+    // Leinwand richtet sich nach dem PRODUKT und wird nie vergroessert — ein
+    // klein gerenderter Artikel ergaebe eine kleine Leinwand, die `lib/storage.js`
+    // anschliessend wieder auf 1200 px hochrechnet. Dann lieber das rohe,
+    // bereits geprueste Renderbild behalten. Dieselbe Quelle wie die
+    // Eingangspruefung, keine zweite Zahl.
+    if (Math.min(packshot.width, packshot.height) < MIN_EDGE_PX) {
+      attempts.push({
+        model,
+        reason: `leinwand_zu_klein(${packshot.width}x${packshot.height}, min ${MIN_EDGE_PX})`,
+      });
+      return null;
+    }
     return {
       buffer: packshot.buffer,
       mimeType: 'image/jpeg',
@@ -669,7 +684,7 @@ async function vereinheitlicheLeinwand({ bild, planEntry, deadline, kosten, atte
  * Erzeugt EINE Ansicht: Vorlage zuerst, übrige Fotos als Identitätsanker.
  * Läuft die Modellkette durch, ohne ein gültiges Ergebnis, wird nichts geliefert.
  */
-async function renderOneView({ product, produktInfo, planEntry, references, sourceIndex, deadline, kosten, ankerErlaubt }) {
+async function renderOneView({ product, produktInfo, planEntry, references, sourceIndex, deadline, kosten, ankerErlaubt, nurPixeltreu }) {
   const chain = variantImageModelChain();
   const attempts = [];
 
@@ -689,6 +704,12 @@ async function renderOneView({ product, produktInfo, planEntry, references, sour
     // kann — Display, Bedienfeld, Typenschild, Kleindruck — das ganze Bild.
     // Lieber die Detailansicht weglassen und den Grund melden.
     if (planEntry?.key === 'detail') {
+      return { failed: true, attempts: [...attempts, ...(treu?.attempts || [])] };
+    }
+    // Im NUR-PIXELTREU-Betrieb gibt es keinen Render-Rueckfall: der Aufrufer hat
+    // ausdruecklich Originalpixel bestellt und rechnet mit Maskenkosten. Ein
+    // stiller Render waere dreimal so teuer und inhaltlich das Gegenteil.
+    if (nurPixeltreu) {
       return { failed: true, attempts: [...attempts, ...(treu?.attempts || [])] };
     }
     // Gescheitert ist kein Beinbruch — der Render-Weg uebernimmt. Die Gruende
@@ -908,10 +929,15 @@ async function generateImagesForProduct(product, options = {}) {
   const evidence = summarizeEvidence(classification);
   const produkt = classification?.produkt || null;
 
+  // NUR-PIXELTREU: ausschliesslich Ansichten mit echtem Foto, keine
+  // abgeleiteten, keine Szenen. Additiv, Voreinstellung aus — der
+  // Galerie-Knopf verhaelt sich unveraendert.
+  const nurPixeltreu = options.nurPixeltreu === true;
   const planned = planGalleryVariants(evidence, {
     studioAnzahl: studioCount(maxVariants),
     lifestyle: lifestyleGewuenscht(options),
     produkt,
+    nurPixeltreu,
   });
   const plan = planned.plan;
   const skipped = planned.skipped;
@@ -927,29 +953,40 @@ async function generateImagesForProduct(product, options = {}) {
   // kleinerer Render fuer Szenen.
   const [erstesModell] = variantImageModelChain();
   const [erstesMaskenModell] = maskImageModelChain();
-  const posten = plan.map((entry) => {
-    if (pixeltreuAktiv() && entry.art === 'studio' && entry.quelleIstEcht === true) {
-      return { model: erstesMaskenModell, imageSize: MASK_IMAGE_SIZE };
+  const posten = plan.flatMap((entry) => {
+    if (nurPixeltreu || (pixeltreuAktiv() && entry.art === 'studio' && entry.quelleIstEcht === true)) {
+      return [{ model: erstesMaskenModell, imageSize: MASK_IMAGE_SIZE }];
     }
-    return {
+    const render = {
       model: erstesModell,
       imageSize: entry.art === 'lifestyle' ? LIFESTYLE_IMAGE_SIZE : VARIANT_IMAGE_SIZE,
     };
+    // Eine ABGELEITETE Studio-Ansicht kostet Render UND Leinwand-Maske. Der
+    // zweite Posten fehlte hier, obwohl er real gebucht wird — die Schaetzung
+    // lag dadurch systematisch unter dem eigenen Schlimmstfall (gemessen:
+    // geschaetzt 0,471-0,572, abgerechnet 0,573).
+    if (entry.art === 'studio' && einheitlicheLeinwandAktiv()) {
+      return [render, { model: erstesMaskenModell, imageSize: MASK_IMAGE_SIZE }];
+    }
+    return [render];
   });
   // Die Schaetzung ist eine SPANNE, keine Punktzahl. Der pixeltreue Weg kann an
   // den Composite-Wachen scheitern; dann kommt zur bezahlten Maske noch der
   // volle Render. Eine Punktschaetzung lag deshalb systematisch zu niedrig
   // (gemessen: geschaetzt 0,337, abgerechnet 0,505) — und eine Zahl, die
   // regelmaessig danebenliegt, liest bald niemand mehr.
-  const postenSchlimmst = plan.map((entry, i) => {
-    const p = posten[i];
-    if (p.model !== erstesMaskenModell) return p;
-    return { model: erstesModell, imageSize: VARIANT_IMAGE_SIZE, zusatz: p };
-  });
+  // Schlimmstfall: jede pixeltreu geplante Ansicht faellt auf den Render zurueck
+  // (Maske ist bezahlt, Render kommt obendrauf) und bekommt dann ihrerseits eine
+  // Leinwand-Maske.
+  const postenSchlimmst = nurPixeltreu
+    ? posten // ohne Render-Rueckfall gibt es keinen teureren Fall
+    : posten.flatMap((p) =>
+        p.model === erstesMaskenModell
+          ? [p, { model: erstesModell, imageSize: VARIANT_IMAGE_SIZE }]
+          : [p]
+      );
   const bestenfalls = schaetzePosten(posten);
-  const schlimmstenfalls =
-    schaetzePosten(postenSchlimmst) +
-    schaetzePosten(posten.filter((p) => p.model === erstesMaskenModell));
+  const schlimmstenfalls = nurPixeltreu ? bestenfalls : schaetzePosten(postenSchlimmst);
   console.log(
     `[image-generation] ${product.id}: ${plan.length} Bilder geplant, ` +
       `geschaetzt ${bestenfalls.toFixed(3)}–${schlimmstenfalls.toFixed(3)} USD, ` +
@@ -963,7 +1000,7 @@ async function generateImagesForProduct(product, options = {}) {
         return {
           entry,
           sourceIndex,
-          result: await renderOneView({ product, produktInfo: produkt, planEntry: entry, references, sourceIndex, deadline, kosten, ankerErlaubt: classification ? evidence.ankerIndexes : null }),
+          result: await renderOneView({ product, produktInfo: produkt, planEntry: entry, references, sourceIndex, deadline, kosten, ankerErlaubt: classification ? evidence.ankerIndexes : null, nurPixeltreu }),
         };
       } catch (err) {
         // Eine einzelne Ansicht darf den GANZEN Lauf nicht killen. renderOneView
@@ -1051,6 +1088,25 @@ async function generateImagesForProduct(product, options = {}) {
       // undefined-Feld lässt den gesamten Produkt-Schreibvorgang scheitern.
       if (result.warnings?.length) eintrag.warnings = result.warnings;
       images.push(eintrag);
+
+      // Ein Bild, das ENTSTANDEN ist, dessen Leinwand aber nicht vereinheitlicht
+      // werden konnte, faellt in der Galerie auf — bisher stand der Grund nur in
+      // `attempts`, und die werden ausschliesslich im Fehlerfall gelesen. Der
+      // Bediener sah eine abweichende Zahl und nicht, warum.
+      if (entry.art === 'studio' && !eintrag.einheitlicheLeinwand) {
+        const grund = (result.attempts || [])
+          .map((a) => a.reason)
+          .filter((r) => typeof r === 'string' && r.startsWith('leinwand'))
+          .join(' · ');
+        if (grund) {
+          failures.push({
+            viewpoint: entry.viewpoint,
+            label: entry.label,
+            reason: 'leinwand_nicht_vereinheitlicht',
+            attempts: [{ model: '-', reason: grund }],
+          });
+        }
+      }
     } catch (err) {
       failures.push({
         viewpoint: entry.viewpoint,

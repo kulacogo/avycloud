@@ -538,8 +538,29 @@ function normalisiereProdukt(roh) {
  * @returns {{plan: Array, skipped: Array, hauptbildBleibtEcht: boolean}}
  */
 function planGalleryVariants(evidence, opts = {}) {
-  const studioAnzahl = Number.isInteger(opts.studioAnzahl) && opts.studioAnzahl >= 0 ? opts.studioAnzahl : 4;
-  const lifestyleGewuenscht = opts.lifestyle !== false;
+  /**
+   * NUR-PIXELTREU-BETRIEB (seit 2026-09-10, additiv, Voreinstellung aus).
+   *
+   * Plant AUSSCHLIESSLICH Ansichten, fuer die ein echtes Foto derselben Seite
+   * vorliegt — keine abgeleiteten Ansichten, keine Anwendungsszenen. Damit
+   * kostet ein Produkt nur seine Masken (0,034 $ je Ansicht) statt eines vollen
+   * Laufs, und jedes Ergebnis besteht aus ORIGINALPIXELN.
+   *
+   * Wofuer: die Massen-Bildbereinigung, die fremde Bild-Adressen durch eigene
+   * Aufnahmen ersetzt. Dort waere eine ABGELEITETE Ansicht sinnlos — sie soll ja
+   * gerade ein vorhandenes Foto ersetzen, nicht eines erfinden.
+   *
+   * Das ist NICHT der Galerie-Knopf. Dessen Vorgabe "mindestens 4 Studio-Fotos"
+   * (Betreiber 2026-09-10) bleibt unberuehrt; dieser Betrieb wird nur von einem
+   * anderen Aufrufer ausdruecklich angefordert.
+   */
+  const nurPixeltreu = opts.nurPixeltreu === true;
+  const studioAnzahl = nurPixeltreu
+    ? STUDIO_SERIE.length
+    : Number.isInteger(opts.studioAnzahl) && opts.studioAnzahl >= 0
+      ? opts.studioAnzahl
+      : 4;
+  const lifestyleGewuenscht = !nurPixeltreu && opts.lifestyle !== false;
   const produkt = opts.produkt || null;
 
   const plan = [];
@@ -580,14 +601,25 @@ function planGalleryVariants(evidence, opts = {}) {
   const gelaufen = evidence?.klassifiziert === true;
   const besteVorlage = gelaufen ? evidence?.vorlageIndexes?.[0] : 0;
   const ohneVorlage = besteVorlage === undefined;
-  if (ohneVorlage) {
+  if (ohneVorlage && !nurPixeltreu) {
     skipped.push({
       viewpoint: 'studio',
       label: 'Abgeleitete Studio-Ansichten',
       reason: 'keine_brauchbare_vorlage',
     });
   }
+  // Im Nur-Pixeltreu-Betrieb ist ein leerer Plan die ehrliche Antwort "es gibt
+  // kein brauchbares eigenes Foto" — und genau die braucht der Aufrufer.
+  if (nurPixeltreu && plan.length === 0) {
+    skipped.push({
+      viewpoint: 'studio',
+      label: 'Alle Ansichten',
+      reason: 'keine_brauchbare_vorlage',
+    });
+  }
   for (const eintrag of STUDIO_SERIE) {
+    // Im Nur-Pixeltreu-Betrieb wird GAR NICHTS abgeleitet.
+    if (nurPixeltreu) break;
     if (ohneVorlage) break;
     if (plan.length >= studioAnzahl) break;
     if (vergebeneKeys.has(eintrag.key)) continue;
@@ -621,7 +653,7 @@ function planGalleryVariants(evidence, opts = {}) {
 
   // Ohne Vorlage ist der Grund bereits gemeldet — "Kanon erschoepft" waere
   // daneben nur Rauschen und wuerde die eigentliche Ursache verdecken.
-  if (!ohneVorlage && plan.length < studioAnzahl) {
+  if (!nurPixeltreu && !ohneVorlage && plan.length < studioAnzahl) {
     skipped.push({
       viewpoint: 'studio',
       label: `${studioAnzahl - plan.length} weitere Studio-Ansichten`,

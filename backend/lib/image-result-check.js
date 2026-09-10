@@ -335,6 +335,9 @@ function classifyIdentityVerdict(verdict, opts = {}) {
 }
 
 module.exports = {
+  // EINE Quelle fuer die Mindestkante — wer sie sonst braucht, importiert sie
+  // hier, statt eine zweite Zahl zu pflegen (Lehre aus CLAUDE.md 16c).
+  MIN_EDGE_PX,
   validateGeneratedImage,
   assessBackgroundBrightness,
   judgeProductIdentity,

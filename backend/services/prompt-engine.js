@@ -321,6 +321,11 @@ function buildStudioPrompt({ product, produkt, planEntry, referenceCount = 1 }) 
     'natural shading on the item and accurate colour. Ultra-sharp edges, high',
     'resolution, realistic material rendering, no harsh reflections, no props, no',
     'added text, no watermark, no people.',
+    // KEIN GEMALTER BODENSCHATTEN. Der Kontaktschatten entsteht spaeter
+    // deterministisch aus der Silhouette. Ein gemalter Schatten ist nicht weiss,
+    // zaehlt damit als Produkt und zieht die Maske nach unten auf — im
+    // Studio-Pfad in 3 von 3 Laeufen belegt (packshot-composite.js).
+    'No cast shadow and no reflection on the ground.',
     'Marketplace-ready composition: item centred, fully in frame, generous even margins.',
     IDENTITAETS_BLOCK
   );

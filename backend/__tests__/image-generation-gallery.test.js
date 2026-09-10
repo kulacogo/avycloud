@@ -786,3 +786,138 @@ describe('einheitliche Leinwand', () => {
     delete process.env.GALLERY_UNIFORM_CANVAS;
   });
 });
+
+/**
+ * NUR-PIXELTREU (2026-09-10, additiv, Voreinstellung aus).
+ *
+ * Fuer die Massen-Bildbereinigung, die fremde Bild-Adressen durch eigene
+ * Aufnahmen ersetzt: dort waere eine ABGELEITETE Ansicht sinnlos — sie soll ein
+ * vorhandenes Foto ersetzen, nicht eines erfinden. Statt eines vollen Laufs
+ * (~0,5 $) kostet ein Produkt dann nur seine Masken (0,034 $ je Ansicht).
+ *
+ * Der Galerie-Knopf ist NICHT betroffen: dessen Vorgabe "mindestens 4
+ * Studio-Fotos" gilt unveraendert, solange der Aufrufer nichts anderes sagt.
+ */
+describe('nurPixeltreu', () => {
+  it('plant NUR Ansichten mit echtem Foto — keine abgeleiteten, keine Szenen', async () => {
+    classifySpy.mockResolvedValue(klassifikation([V(0, 'front'), V(1, 'side')]));
+
+    const res = await generateImagesForProduct(
+      produkt([{ url_or_base64: 'https://x/1.jpg' }, { url_or_base64: 'https://x/2.jpg' }]),
+      { referenceImage: { url_or_base64: 'https://x/1.jpg' }, nurPixeltreu: true }
+    );
+
+    expect(res.plan).toHaveLength(2);
+    expect(res.plan.every((p) => p.quelleIstEcht === true)).toBe(true);
+    expect(res.plan.every((p) => p.art === 'studio')).toBe(true);
+    expect(res.images.every((b) => b.pixeltreu === true)).toBe(true);
+  });
+
+  it('bezahlt dabei NUR Masken — kein Render, keine Szene', async () => {
+    classifySpy.mockResolvedValue(klassifikation([V(0, 'front'), V(1, 'side')]));
+
+    const res = await generateImagesForProduct(
+      produkt([{ url_or_base64: 'https://x/1.jpg' }, { url_or_base64: 'https://x/2.jpg' }]),
+      { referenceImage: { url_or_base64: 'https://x/1.jpg' }, nurPixeltreu: true }
+    );
+
+    for (const p of res.report.kosten.posten) {
+      expect(p.model).toBe('gemini-3.1-flash-lite-image');
+      expect(p.imageSize).toBe('1K');
+    }
+    // Zwei Masken zu 0,034 — statt ~0,5 $ fuer einen vollen Lauf.
+    expect(res.report.kosten.kostenUsd).toBeLessThan(0.1);
+  });
+
+  it('FAELLT NICHT auf den Render zurueck — sonst waere es dreimal so teuer', async () => {
+    classifySpy.mockResolvedValue(klassifikation([V(0, 'front')]));
+    const leer = await sharp({
+      create: { width: 1024, height: 1024, channels: 3, background: { r: 255, g: 255, b: 255 } },
+    })
+      .png()
+      .toBuffer();
+    generateSpy.mockImplementation(async (args) => ({
+      images: [{ base64: leer.toString('base64'), mimeType: 'image/png' }],
+      model: args?.model || 'gemini-3.1-flash-lite-image',
+      attempts: [],
+      referenceCount: 1,
+    }));
+
+    const res = await generateImagesForProduct(produkt([{ url_or_base64: 'https://x/1.jpg' }]), {
+      referenceImage: { url_or_base64: 'https://x/1.jpg' },
+      nurPixeltreu: true,
+    });
+
+    expect(res.images).toHaveLength(0);
+    // Nur der Maskenaufruf wurde bezahlt, kein Render hinterher.
+    expect(res.report.kosten.posten.every((p) => /maske/.test(p.zweck || ''))).toBe(true);
+  });
+
+  it('meldet ehrlich, wenn es gar kein brauchbares eigenes Foto gibt', async () => {
+    classifySpy.mockResolvedValue(klassifikation([V(0, 'packaging')]));
+    const res = await generateImagesForProduct(produkt([{ url_or_base64: 'https://x/karton.jpg' }]), {
+      referenceImage: { url_or_base64: 'https://x/karton.jpg' },
+      nurPixeltreu: true,
+    });
+    expect(res.images).toHaveLength(0);
+    expect(res.report.kosten.bildaufrufe).toBe(0);
+    expect(res.skipped.some((x) => x.reason === 'keine_brauchbare_vorlage')).toBe(true);
+  });
+
+  it('aendert den Galerie-Knopf NICHT — ohne die Option bleibt alles wie bisher', async () => {
+    classifySpy.mockResolvedValue(klassifikation([V(0, 'front')]));
+    const res = await generateImagesForProduct(produkt([{ url_or_base64: 'https://x/1.jpg' }]), {
+      referenceImage: { url_or_base64: 'https://x/1.jpg' },
+    });
+    expect(res.report.studioProduced).toBeGreaterThanOrEqual(4);
+    expect(res.report.lifestyleProduced).toBe(2);
+  });
+});
+
+/**
+ * NACHZUEGE AUS DER ADVERSARISCHEN GEGENLESE (2026-09-10).
+ * Alle drei ohne zusaetzlichen Modellaufruf.
+ */
+describe('Nachzuege zur einheitlichen Leinwand', () => {
+  it('macht eine GESCHEITERTE Vereinheitlichung sichtbar, statt sie zu verschlucken', async () => {
+    classifySpy.mockResolvedValue(klassifikation([V(0, 'front')]));
+    const leer = await sharp({
+      create: { width: 1024, height: 1024, channels: 3, background: { r: 255, g: 255, b: 255 } },
+    })
+      .png()
+      .toBuffer();
+    generateSpy.mockImplementation(async (args) => ({
+      images: [
+        {
+          base64: (/Remove the background/.test(args.prompt) ? leer : studioPng).toString('base64'),
+          mimeType: 'image/png',
+        },
+      ],
+      model: args?.model || 'gemini-3.1-flash-image',
+      attempts: [],
+      referenceCount: 1,
+    }));
+
+    const res = await generateImagesForProduct(produkt([{ url_or_base64: 'https://x/1.jpg' }]), {
+      referenceImage: { url_or_base64: 'https://x/1.jpg' },
+      lifestyle: false,
+    });
+
+    // Die Bilder bleiben — fail-open ist richtig.
+    expect(res.images.length).toBeGreaterThan(0);
+    // Aber der Grund steht jetzt im BLEIBENDEN Bericht.
+    const hinweis = res.skipped.find((x) => x.reason === 'leinwand_nicht_vereinheitlicht');
+    expect(hinweis).toBeTruthy();
+    expect(hinweis.attempts[0].reason).toMatch(/leinwand/);
+  });
+
+  it('rechnet den Leinwand-Posten in die Vorabschaetzung ein', () => {
+    const { schaetzePosten } = require('../lib/image-cost');
+    // Eine abgeleitete Studio-Ansicht kostet Render UND Maske.
+    const abgeleitet = schaetzePosten([
+      { model: 'gemini-3.1-flash-image', imageSize: '2K' },
+      { model: 'gemini-3.1-flash-lite-image', imageSize: '1K' },
+    ]);
+    expect(abgeleitet).toBeCloseTo(0.135, 3);
+  });
+});
