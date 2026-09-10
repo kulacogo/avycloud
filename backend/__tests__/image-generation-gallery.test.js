@@ -921,3 +921,65 @@ describe('Nachzuege zur einheitlichen Leinwand', () => {
     expect(abgeleitet).toBeCloseTo(0.135, 3);
   });
 });
+
+/**
+ * EIN GESCHEITERTER PIXELTREUER WEG DARF NICHT STUMM SEIN (2026-09-10).
+ *
+ * War fuer eine Ansicht ein ECHTES Foto da und scheitert die Freistellung an
+ * einer Wache, wird gerendert — richtig, aber bisher unsichtbar. Der Bediener
+ * sah ein Bild mit erfundenem Kleindruck und nicht, dass ein originalgetreues
+ * moeglich gewesen waere.
+ *
+ * Gemessen an echten Formen: die Kompaktheits-Wache (>= 90 %) lehnt einen
+ * offenen Koffer (83,6 %), einen Buegel (55,6 %) und alles Rahmenartige
+ * (47,9 %) ab — legitime Artikelformen, die vom Schadensfall "Hand am Produkt"
+ * (79,9 %) geometrisch NICHT zu unterscheiden sind.
+ */
+describe('gescheiterte Pixeltreue wird gemeldet', () => {
+  it('meldet, wenn ein echtes Foto da war, die Freistellung aber scheiterte', async () => {
+    classifySpy.mockResolvedValue(klassifikation([V(0, 'front')]));
+    // Reinweisse Maskenaufnahme = keine Silhouette -> die Wachen lehnen ab.
+    const leer = await sharp({
+      create: { width: 1024, height: 1024, channels: 3, background: { r: 255, g: 255, b: 255 } },
+    })
+      .png()
+      .toBuffer();
+    generateSpy.mockImplementation(async (args) => ({
+      images: [
+        {
+          base64: (/Remove the background/.test(args.prompt) ? leer : studioPng).toString('base64'),
+          mimeType: 'image/png',
+        },
+      ],
+      model: args?.model || 'gemini-3.1-flash-image',
+      attempts: [],
+      referenceCount: 1,
+    }));
+
+    const res = await generateImagesForProduct(produkt([{ url_or_base64: 'https://x/1.jpg' }]), {
+      referenceImage: { url_or_base64: 'https://x/1.jpg' },
+      lifestyle: false,
+    });
+
+    const front = res.images.find((b) => b.variant === 'studio_front');
+    // Das Bild entsteht trotzdem — fail-open ist richtig.
+    expect(front).toBeTruthy();
+    expect(front.pixeltreu).toBe(false);
+    // Aber der Grund steht jetzt im bleibenden Bericht.
+    const hinweis = res.skipped.find((x) => x.reason === 'nicht_pixeltreu_moeglich');
+    expect(hinweis).toBeTruthy();
+    expect(hinweis.attempts[0].reason).toMatch(/packshot_verworfen/);
+  });
+
+  it('meldet NICHT, wenn die Ansicht ohnehin abgeleitet war', async () => {
+    classifySpy.mockResolvedValue(klassifikation([V(0, 'front')]));
+    const res = await generateImagesForProduct(produkt([{ url_or_base64: 'https://x/1.jpg' }]), {
+      referenceImage: { url_or_base64: 'https://x/1.jpg' },
+      lifestyle: false,
+    });
+    // hero/top/side sind abgeleitet — dort war nie ein echtes Foto im Spiel.
+    for (const h of res.skipped.filter((x) => x.reason === 'nicht_pixeltreu_moeglich')) {
+      expect(h.viewpoint).toBe('front');
+    }
+  });
+});

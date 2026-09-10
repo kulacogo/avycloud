@@ -1093,6 +1093,30 @@ async function generateImagesForProduct(product, options = {}) {
       // werden konnte, faellt in der Galerie auf — bisher stand der Grund nur in
       // `attempts`, und die werden ausschliesslich im Fehlerfall gelesen. Der
       // Bediener sah eine abweichende Zahl und nicht, warum.
+      // DERSELBE FEHLER EINE STUFE FRUEHER: war fuer diese Ansicht ein ECHTES
+      // Foto da, der pixeltreue Weg scheiterte aber an einer Wache, wurde bisher
+      // stumm gerendert. Der Bediener sah ein Bild mit erfundenem Kleindruck und
+      // nicht, dass ein originalgetreues moeglich gewesen waere — und konnte
+      // deshalb auch nicht gegensteuern (anderes Foto, freigestellter machen).
+      // Gemessen an echten Formen: die Kompaktheits-Wache lehnt einen offenen
+      // Koffer (83,6 %), einen Buegel (55,6 %) und alles Rahmenartige (47,9 %)
+      // ab — legitime Artikelformen, die vom Schadensfall "Hand am Produkt"
+      // (79,9 %) geometrisch NICHT zu unterscheiden sind.
+      if (entry.art === 'studio' && entry.quelleIstEcht === true && !eintrag.pixeltreu) {
+        const grund = (result.attempts || [])
+          .map((a) => a.reason)
+          .filter((r) => typeof r === 'string' && /packshot_verworfen|maske_kein_bild|^maske /.test(r))
+          .join(' · ');
+        if (grund) {
+          failures.push({
+            viewpoint: entry.viewpoint,
+            label: entry.label,
+            reason: 'nicht_pixeltreu_moeglich',
+            attempts: [{ model: '-', reason: grund }],
+          });
+        }
+      }
+
       if (entry.art === 'studio' && !eintrag.einheitlicheLeinwand) {
         const grund = (result.attempts || [])
           .map((a) => a.reason)
