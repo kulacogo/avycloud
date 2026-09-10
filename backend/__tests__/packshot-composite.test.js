@@ -194,9 +194,14 @@ describe('bauePackshot — Gesamtdurchlauf', () => {
     // Die Leinwand RICHTET SICH NACH DEM PRODUKT (Korrektur 2026-09-04): ein
     // kleiner Ausschnitt wird nicht mehr auf 2000 px hochgerechnet. Quadratisch
     // bleibt sie, und groesser als LEINWAND wird sie nie.
+    //
+    // KEINE 800-px-UNTERGRENZE MEHR (2026-09-10): sie band bei kleineren
+    // Ausschnitten VOR dem Fuellziel und drueckte die Fuellung auf 75 % statt
+    // 92 %. Geschuetzt hat sie nichts — lib/storage.js normalisiert jedes
+    // Galeriebild ohnehin auf 1200 px lange Kante.
     expect(r.width).toBe(r.height);
     expect(r.width).toBeLessThanOrEqual(LEINWAND);
-    expect(r.width).toBeGreaterThanOrEqual(800);
+    expect(r.info.fuellungBreite).toBeGreaterThan(88);
 
     const ecke = await sharp(r.buffer).extract({ left: 0, top: 0, width: 40, height: 40 }).removeAlpha().toBuffer();
     const stats = await sharp(ecke).stats();
@@ -449,5 +454,142 @@ describe('Belichtung aus dem Hintergrund', () => {
     if (r.ok && r.info.belichtung.faktoren) {
       for (const f of r.info.belichtung.faktoren) expect(f).toBeLessThanOrEqual(1.6);
     }
+  });
+});
+
+/**
+ * FUELLUNG + SCHATTENAUFHELLUNG + KAPPEN DER DREHUNG (seit 2026-09-10).
+ *
+ * Betreiber am Futtereimer "Stiefel Pflanzenkohle": "es ist sogar schlechter
+ * geworden … das produkt darf gerne korrekt platziert werden also nicht schief
+ * und krumm und die belichtung/helligkeit darf auch verbessert werden da die
+ * vorderseite in diesem fall beschattet ist."
+ *
+ * Am ECHTEN Bild nachgemessen, vorher -> nachher:
+ *   Fuellung   78 % B / 42 % H / 28 % Flaeche  ->  92 / 49 / 45
+ *   Schatten   p10 4, Median 39, p90 104       ->  p10 19, Median 65, p90 125
+ *   Zielband aus drei HERSTELLER-Studiofotos desselben Eimers:
+ *              p10 15-31, Median 54-64, p90 111-152
+ */
+describe('Fuellung und Schattenaufhellung', () => {
+  async function fotoMit({ grund, produktTon, breite = 600, hoehe = 500 }) {
+    const produkt = await sharp({
+      create: { width: breite, height: hoehe, channels: 3, background: produktTon },
+    })
+      .png()
+      .toBuffer();
+    return sharp({ create: { width: 1000, height: 1000, channels: 3, background: grund } })
+      .composite([{ input: produkt, left: Math.round((1000 - breite) / 2), top: 250 }])
+      .jpeg()
+      .toBuffer();
+  }
+
+  it('fuellt die Leinwand deutlich besser als die alten 78 Prozent', async () => {
+    const r = await bauePackshot(await echtesFoto(), await maskenQuelle());
+    expect(r.ok).toBe(true);
+    // Die Breite ist bei einem breiten Artikel die bindende Richtung.
+    expect(r.info.fuellungBreite).toBeGreaterThan(88);
+    // Frueher waren es 28 % Flaeche — der Artikel schwamm im Weiss.
+    expect(r.info.fuellungFlaeche).toBeGreaterThan(40);
+  });
+
+  it('vergroessert dabei NIE — die Leinwand richtet sich nach dem Produkt', async () => {
+    const r = await bauePackshot(await echtesFoto(), await maskenQuelle());
+    expect(r.info.skalierung).toBeLessThanOrEqual(1);
+  });
+
+  it('laesst dem Kontaktschatten Platz — der Rand bleibt sauber', async () => {
+    // Die Rand-Wache ist fail-closed: ein angeschnittener Schatten wuerde den
+    // ganzen Packshot verwerfen. Dass ok:true herauskommt, IST der Nachweis.
+    const r = await bauePackshot(await echtesFoto(), await maskenQuelle());
+    expect(r.ok).toBe(true);
+  });
+
+  it('oeffnet die Schatten eines unterbelichteten Artikels', async () => {
+    const foto = await fotoMit({ grund: { r: 235, g: 235, b: 235 }, produktTon: { r: 22, g: 22, b: 22 } });
+    const r = await bauePackshot(foto, await maskenQuelle());
+    expect(r.ok).toBe(true);
+    expect(r.info.schattenlift.gamma).toBeGreaterThan(1);
+    expect(r.info.schattenlift.zielP10).toBe(32);
+  });
+
+  it('faehrt die Kurve NICHT, wenn die Schatten schon offen sind', async () => {
+    const foto = await fotoMit({ grund: { r: 240, g: 240, b: 240 }, produktTon: { r: 120, g: 120, b: 120 } });
+    const r = await bauePackshot(foto, await maskenQuelle());
+    expect(r.ok).toBe(true);
+    expect(r.info.schattenlift.gamma).toBeNull();
+    expect(r.info.schattenlift.grund).toMatch(/schatten_bereits_offen/);
+  });
+
+  it('HAELT DEN FARBTON — eine Kurve pro Kanal wuerde Gesaettigtes ausbleichen', async () => {
+    // Kraeftiges Rot, unterbelichtet. Nach der Aufhellung muss es ROT bleiben:
+    // die Kanalverhaeltnisse duerfen sich nicht verschieben.
+    const foto = await fotoMit({ grund: { r: 235, g: 235, b: 235 }, produktTon: { r: 90, g: 18, b: 18 } });
+    const r = await bauePackshot(foto, await maskenQuelle());
+    expect(r.ok).toBe(true);
+    const m = await sharp(r.buffer).metadata();
+    const teil = await sharp(r.buffer)
+      .extract({
+        left: Math.round(m.width * 0.45),
+        top: Math.round(m.height * 0.4),
+        width: Math.round(m.width * 0.1),
+        height: Math.round(m.height * 0.1),
+      })
+      .removeAlpha()
+      .toBuffer();
+    const st = await sharp(teil).stats();
+    const [rr, gg, bb] = st.channels.map((c) => c.mean);
+    // Ausgangsverhaeltnis R:G war 5:1. Es darf sich nur wenig verschieben.
+    expect(rr / Math.max(1, gg)).toBeGreaterThan(3.2);
+    expect(Math.abs(gg - bb)).toBeLessThan(6);
+  });
+
+  it('KAPPT eine grosse Schieflage, statt sie stehen zu lassen', async () => {
+    // Bis 2026-09-10 stand hier `return 0`: ein um 20 Grad gekipptes Foto blieb
+    // vollstaendig schief. Jetzt wird um die Deckelung (12 Grad) aufgerichtet,
+    // sofern die Silhouette den Winkel belegt.
+    const { winkelMinRechteck, binarisiere, groessteKomponente, fuelleLoecher } = _internal;
+    const schraeg = await sharp({
+      create: { width: 1000, height: 1000, channels: 3, background: { r: 255, g: 255, b: 255 } },
+    })
+      .composite([
+        {
+          input: await sharp({
+            create: { width: 520, height: 260, channels: 3, background: { r: 40, g: 40, b: 40 } },
+          })
+            .rotate(20, { background: { r: 255, g: 255, b: 255 } })
+            .png()
+            .toBuffer(),
+          left: 200,
+          top: 300,
+        },
+      ])
+      .png()
+      .toBuffer();
+    const bin = await binarisiere(schraeg);
+    const gef = fuelleLoecher(groessteKomponente(bin.maske, bin.w, bin.h).maske, bin.w, bin.h);
+    const w = winkelMinRechteck(gef, bin.w, bin.h);
+    expect(Math.abs(w)).toBe(12);
+  });
+
+  it('kappt NICHT bei einem runden Umriss — dort ist der Winkel Rauschen', async () => {
+    const { winkelMinRechteck, binarisiere, groessteKomponente, fuelleLoecher } = _internal;
+    const kreis = await sharp({
+      create: { width: 900, height: 900, channels: 3, background: { r: 255, g: 255, b: 255 } },
+    })
+      .composite([
+        {
+          input: Buffer.from(
+            '<svg width="900" height="900"><circle cx="450" cy="450" r="300" fill="#282828"/></svg>'
+          ),
+          left: 0,
+          top: 0,
+        },
+      ])
+      .png()
+      .toBuffer();
+    const bin = await binarisiere(kreis);
+    const gef = fuelleLoecher(groessteKomponente(bin.maske, bin.w, bin.h).maske, bin.w, bin.h);
+    expect(Math.abs(winkelMinRechteck(gef, bin.w, bin.h))).toBeLessThan(12);
   });
 });

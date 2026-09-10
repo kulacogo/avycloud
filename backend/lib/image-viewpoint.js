@@ -48,6 +48,14 @@ const VIEWPOINTS = Object.freeze([
   'detail',     // Nahaufnahme eines Teilbereichs
   'label',      // Etikett, Typenschild, Verpackungsaufdruck
   'packaging',  // Karton/Verpackung statt Produkt
+  // Produkt IN BENUTZUNG bzw. in einer Wohn-/Nutzungsumgebung (Lifestyle).
+  // Eigene Klasse seit 2026-09-10: ohne sie galt ein Szenenfoto als normale
+  // Produktansicht, wurde zur BESTEN Vorlage und speiste damit sowohl die
+  // abgeleiteten Studio-Ansichten (Artikel schraeg, halb verdeckt, Bedienfeld
+  // unlesbar -> das Modell erfindet es) als auch die "neue" Anwendungsszene,
+  // die dadurch eine Kopie der vorhandenen wurde. Beides gemessen am
+  // Heimtrainer Christopeit AL1000 (Produkt ddf4532e).
+  'anwendung',
   'unclear',    // nicht zuzuordnen
 ]);
 
@@ -60,6 +68,7 @@ const VIEWPOINT_LABELS_DE = Object.freeze({
   detail: 'Detailaufnahme',
   label: 'Etikett',
   packaging: 'Verpackung',
+  anwendung: 'In Benutzung',
   unclear: 'nicht zuzuordnen',
 });
 
@@ -77,6 +86,12 @@ const CLASSIFY_SCHEMA = {
           product_fully_visible: { type: 'boolean', description: 'true wenn das Produkt vollständig im Bild ist und nicht angeschnitten.' },
           usable_as_reference: { type: 'boolean', description: 'true wenn das Bild scharf und hell genug ist, um die Form und Farbe des Produkts zuverlässig zu zeigen.' },
           confidence: { type: 'number', description: '0..1 — wie sicher die Zuordnung ist.' },
+          verpackungsreste: {
+            type: 'string',
+            enum: ['keine', 'folie', 'unklar'],
+            description:
+              'BEOBACHTUNG, kein Urteil: klebt am PRODUKT SELBST noch Verpackungsmaterial? "folie" = Klarsichtfolie, Luftpolsterfolie, Schrumpffolie, Tüte, Kantenschutz aus Schaum oder Klebeband ist am Artikel zu sehen. "keine" = der Artikel ist ausgepackt. "unklar" = nicht erkennbar.',
+          },
           note: { type: 'string', description: 'Kurze Begründung, deutsch, maximal ein Satz.' },
         },
         required: ['index', 'viewpoint', 'shows_product', 'usable_as_reference', 'confidence'],
@@ -117,6 +132,17 @@ const PROMPT = [
   '- Ein Bild, das ueberwiegend den Karton zeigt, ist "packaging", auch wenn das Produkt',
   '  darauf abgebildet ist.',
   '- Ein Bild eines Typenschilds, Aufklebers oder einer Beschriftung ist "label".',
+  '- "anwendung" ist ein Foto, auf dem der Artikel BENUTZT wird oder in einer',
+  '  Wohn-/Arbeits-/Aussenumgebung steht: ein Mensch bedient ihn, er steht in einem',
+  '  eingerichteten Raum, auf einem Balkon, in einer Werkstatt. Das gilt AUCH DANN,',
+  '  wenn der Artikel darauf gut zu sehen ist. Unterscheidungsfrage: wurde das Foto',
+  '  vor neutralem Studiohintergrund gemacht (dann front/side/back/…) oder in einer',
+  '  echten Umgebung (dann "anwendung")?',
+  '- "verpackungsreste": sieh am ARTIKEL selbst nach, nicht auf den Hintergrund.',
+  '  Ist noch Klarsichtfolie, Luftpolsterfolie, Schrumpffolie, eine Tüte, ein',
+  '  Schaumstoff-Kantenschutz oder Klebeband am Artikel? Dann "folie". Ist der',
+  '  Artikel ausgepackt, dann "keine". Ein Foto, das nur den geschlossenen Karton',
+  '  zeigt, ist "packaging" — dort ist die Frage nach Verpackungsresten "unklar".',
   '- "usable_as_reference" ist nur dann true, wenn Form und Farbe des Artikels klar erkennbar',
   '  sind: nicht unscharf, nicht zu dunkel, nicht extrem angeschnitten.',
   '- Setze "confidence" ehrlich niedrig, wenn du dir nicht sicher bist. Eine niedrige',
@@ -205,6 +231,9 @@ async function classifyViewpointParts(imageParts, opts = {}) {
         fullyVisible: row?.product_fully_visible === true,
         usableAsReference: row?.usable_as_reference === true,
         confidence: clamp01(row?.confidence),
+        // Nur der ausdrueckliche Befund 'folie' sperrt. Fehlt das Feld (aeltere
+        // Antwort, Modellwechsel), verhaelt sich alles wie vorher.
+        verpackungsreste: row?.verpackungsreste === 'folie' ? 'folie' : (row?.verpackungsreste === 'keine' ? 'keine' : 'unklar'),
         note: typeof row?.note === 'string' ? row.note.slice(0, 200) : '',
       });
     }
@@ -240,18 +269,43 @@ function minViewpointConfidence() {
  * @returns {{byViewpoint: Object, belegt: string[], referenceIndexes: number[]}}
  */
 function summarizeEvidence(classification) {
-  const empty = { byViewpoint: {}, belegt: [], referenceIndexes: [] };
+  const empty = { byViewpoint: {}, belegt: [], referenceIndexes: [], ankerIndexes: [], anwendungIndexes: [] };
   if (!classification?.views?.length) return empty;
 
   const minConf = minViewpointConfidence();
   const byViewpoint = {};
   const referenceIndexes = [];
+  // Fotos, die als IDENTITAETSANKER an das Bildmodell gehen duerfen. Bewusst
+  // eine EIGENE Liste (2026-09-10): bis dahin bekam der Render-Weg schlicht
+  // ALLE geladenen Bilder als Anker, ungefiltert vom Urteil dieser Stelle.
+  // Gemessen am Heimtrainer Christopeit AL1000: unter den Ankern waren Fotos
+  // des KARTONS, auf dem ein kleines gruenes LCD mit "43.2" aufgedruckt ist —
+  // genau dieses Display malte das Modell dem Artikel an, und die
+  // Klarsichtfolie vom selben Foto gleich mit dazu.
+  const ankerIndexes = [];
+  // Vorhandene Anwendungs-/Lifestyle-Fotos. Sie sind KEINE Studio-Vorlage und
+  // kein Anker, aber sie beantworten die Frage, ob ueberhaupt noch eine Szene
+  // erzeugt werden muss.
+  const anwendungIndexes = [];
 
   for (const view of classification.views) {
     if (!view.showsProduct) continue;
-    if (view.usableAsReference) referenceIndexes.push(view.index);
+    if (view.viewpoint === 'anwendung') {
+      if (view.confidence >= minConf) anwendungIndexes.push(view.index);
+      // NICHT als Referenz, nicht als Anker, nicht als Vorlage: auf einer Szene
+      // ist der Artikel schraeg, angeschnitten und halb von einem Menschen
+      // verdeckt. Als Vorlage einer Studio-Ansicht zwingt sie das Modell zum
+      // Erfinden; als Anker traegt sie einen fremden Raum in den Packshot.
+      continue;
+    }
+    // Verpackungsmaterial AM ARTIKEL schliesst das Foto komplett aus. Ein
+    // Angebotsbild mit Folie ist unbrauchbar, und als Anker faerbt die Folie
+    // auf jede erzeugte Ansicht ab (gemessen 2026-09-10).
+    if (view.verpackungsreste === 'folie') continue;
+    if (view.usableAsReference) referenceIndexes.push(view);
     if (view.confidence < minConf) continue;
     if (view.viewpoint === 'unclear' || view.viewpoint === 'packaging') continue;
+    if (view.usableAsReference) ankerIndexes.push(view.index);
     // Ein unscharfes oder zu dunkles Foto wird NICHT Vorlage: aus einer schlechten
     // Vorlage kann nur ein schlechter Packshot werden, und das Modell fuellt
     // Unschaerfe mit Erfindung auf. Es zaehlt auch nicht als Identitaetsanker
@@ -270,10 +324,22 @@ function summarizeEvidence(classification) {
     });
   }
 
+  // `referenceIndexes` war bis 2026-09-10 UNSORTIERT — es stand schlicht die
+  // Reihenfolge der Bilder am Produkt drin. Der Aufrufer nennt das erste
+  // Element `besteVorlage`, was damit eine Behauptung ohne Grundlage war.
+  // Jetzt wird nach derselben Kennzahl sortiert, die auch innerhalb einer
+  // Ansicht gilt: sicher, vollstaendig, brauchbar.
+  referenceIndexes.sort((a, b) => {
+    const score = (v) => v.confidence + (v.fullyVisible ? 0.5 : 0) + (v.usableAsReference ? 0.5 : 0);
+    return score(b) - score(a);
+  });
+
   return {
     byViewpoint,
     belegt: Object.keys(byViewpoint),
-    referenceIndexes,
+    referenceIndexes: referenceIndexes.map((v) => v.index),
+    ankerIndexes,
+    anwendungIndexes,
   };
 }
 
@@ -490,6 +556,23 @@ function planGalleryVariants(evidence, opts = {}) {
   for (const eintrag of STUDIO_SERIE) {
     if (plan.length >= studioAnzahl) break;
     if (vergebeneKeys.has(eintrag.key)) continue;
+    // MAKROAUFNAHMEN WERDEN NIE ABGELEITET (seit 2026-09-10).
+    // Eine Nahaufnahme ist die gefaehrlichste Kategorie: bei einer Totalen sind
+    // erfundene Details wenige Pixel gross, bei einer Makroaufnahme fuellen sie
+    // das Bild — und der Schluesselbereich eines Artikels ist typischerweise
+    // genau das, was ein Modell nicht kann: Bedienfeld, Display, Typenschild,
+    // Kleindruck. Gemessen am Heimtrainer: das erfundene Bedienfeld war die
+    // Haupt-Beschwerde. Liegt ein ECHTES Foto der Stelle vor, entsteht die
+    // Detailansicht in Runde 1 pixeltreu — genau so soll es sein.
+    if (eintrag.key === 'detail') {
+      skipped.push({
+        viewpoint: 'detail',
+        label: eintrag.label,
+        reason: 'kein_foto_makro_wird_nicht_erfunden',
+      });
+      vergebeneKeys.add(eintrag.key);
+      continue;
+    }
     vergebeneKeys.add(eintrag.key);
     plan.push({
       ...eintrag,
@@ -519,7 +602,24 @@ function planGalleryVariants(evidence, opts = {}) {
       reason: produkt ? 'nicht_sinnvoll_darstellbar' : 'produkt_nicht_erkannt',
     });
   } else {
-    for (const eintrag of LIFESTYLE_SERIE) {
+    // SCHON VORHANDENE SZENEN ZAEHLEN (seit 2026-09-10). Der Betreiber bekam
+    // eine erzeugte Szene, die eine Beinah-Kopie eines bereits vorhandenen
+    // Web-Lifestyle-Fotos war — sie hat Geld gekostet und nichts hinzugefuegt.
+    // Zwei echte Szenen decken die Galerie ab; bei einer wird noch EINE
+    // ergaenzt (die zweite, deutlich andere), bei zweien gar keine.
+    const vorhandeneSzenen = Array.isArray(evidence?.anwendungIndexes) ? evidence.anwendungIndexes.length : 0;
+    const nochOffen = Math.max(0, LIFESTYLE_SERIE.length - vorhandeneSzenen);
+    if (nochOffen < LIFESTYLE_SERIE.length) {
+      skipped.push({
+        viewpoint: 'lifestyle',
+        label: `${LIFESTYLE_SERIE.length - nochOffen} Anwendungsszene(n)`,
+        reason: `bereits_vorhanden(${vorhandeneSzenen} echte)`,
+      });
+    }
+    // Von hinten nehmen: liegt schon eine Szene vor, entsteht die WEITERE
+    // (szene_b, mit Umgebung) statt einer zweiten Nahaufnahme.
+    const zuErzeugen = LIFESTYLE_SERIE.slice(LIFESTYLE_SERIE.length - nochOffen);
+    for (const eintrag of zuErzeugen) {
       const szene = produkt[eintrag.szeneFeld];
       if (!szene) {
         skipped.push({ viewpoint: eintrag.key, label: eintrag.label, reason: 'keine_szene_beschrieben' });

@@ -310,17 +310,31 @@ describe('planGalleryVariants — mindestens 4 Studio + 2 Szenen', () => {
     expect(planGalleryVariants(e, { produkt: PRODUKT }).hauptbildBleibtEcht).toBe(true);
   });
 
-  it('kann mehr als vier Studio-Ansichten planen', () => {
+  it('kann mehr als vier Studio-Ansichten planen — ohne die Makroansicht', () => {
     const e = summarizeEvidence({ views: [view(0, 'front')] });
     const { plan } = planGalleryVariants(e, { produkt: PRODUKT, studioAnzahl: 6 });
-    expect(plan.filter((p) => p.art === 'studio')).toHaveLength(6);
+    // Der Kanon hat sechs Eintraege, aber 'detail' wird NIE abgeleitet
+    // (2026-09-10): eine erfundene Makroaufnahme zeigt genau das gross, was das
+    // Modell nicht kann. Ohne Nahfoto bleiben also fuenf.
+    expect(plan.filter((p) => p.art === 'studio')).toHaveLength(STUDIO_SERIE.length - 1);
+    expect(plan.some((p) => p.key === 'detail')).toBe(false);
+  });
+
+  it('erlaubt die Makroansicht sehr wohl, wenn ein echtes Nahfoto vorliegt', () => {
+    const e = summarizeEvidence({ views: [view(0, 'front'), view(1, 'detail')] });
+    const { plan } = planGalleryVariants(e, { produkt: PRODUKT, studioAnzahl: 6 });
+    const detail = plan.find((p) => p.key === 'detail');
+    expect(detail).toBeTruthy();
+    expect(detail.quelleIstEcht).toBe(true);
+    expect(detail.sourceIndex).toBe(1);
   });
 
   it('meldet, wenn der Kanon nicht fuer die gewuenschte Anzahl reicht', () => {
     const e = summarizeEvidence({ views: [view(0, 'front')] });
     const { plan, skipped } = planGalleryVariants(e, { produkt: PRODUKT, studioAnzahl: 99 });
-    expect(plan.filter((p) => p.art === 'studio')).toHaveLength(STUDIO_SERIE.length);
+    expect(plan.filter((p) => p.art === 'studio')).toHaveLength(STUDIO_SERIE.length - 1);
     expect(skipped.some((x) => x.reason === 'kanon_erschoepft')).toBe(true);
+    expect(skipped.some((x) => x.reason === 'kein_foto_makro_wird_nicht_erfunden')).toBe(true);
   });
 });
 
@@ -345,3 +359,92 @@ describe('normalisiereProdukt', () => {
   });
 });
 
+
+/**
+ * VORHANDENE ANWENDUNGSSZENEN, FOLIE AM PRODUKT, GEFILTERTE ANKER (2026-09-10).
+ *
+ * Anlass, alles am Heimtrainer Christopeit AL1000 (Produkt ddf4532e) gemessen:
+ *  - Die "beste Vorlage" war ein LIFESTYLE-Foto (Frau auf dem Rad im Loft).
+ *    Daraus wurden Front und Hero abgeleitet (Artikel schraeg, Bedienfeld
+ *    verdeckt -> erfunden) UND eine "neue" Szene, die eine Kopie davon war.
+ *  - Unter den Ankern lagen Kartonfotos mit Klarsichtfolie. Die Folie landete
+ *    am Produkt, das aufgedruckte gruene Karton-LCD wurde zum Bedienfeld.
+ */
+describe('Anwendungsszenen, Folie und Anker', () => {
+  const { summarizeEvidence, planGalleryVariants } = require('../lib/image-viewpoint');
+
+  const v = (index, viewpoint, extra = {}) => ({
+    index,
+    viewpoint,
+    showsProduct: true,
+    fullyVisible: true,
+    usableAsReference: true,
+    confidence: 0.95,
+    verpackungsreste: 'keine',
+    ...extra,
+  });
+  const P = {
+    wasEsIst: 'exercise bike',
+    woBenutzt: 'in a living room',
+    wieBenutzt: 'a person pedals on it',
+    schluesselbereich: 'the console',
+    szeneA: 'A', szeneB: 'B',
+    lifestyleSinnvoll: true,
+  };
+
+  it('fuehrt ein Szenenfoto NICHT als Vorlage und NICHT als Anker', () => {
+    const e = summarizeEvidence({ views: [v(0, 'front'), v(1, 'anwendung')] });
+    expect(e.belegt).not.toContain('anwendung');
+    expect(e.referenceIndexes).not.toContain(1);
+    expect(e.ankerIndexes).not.toContain(1);
+    expect(e.anwendungIndexes).toEqual([1]);
+  });
+
+  it('erzeugt KEINE Szene, wenn schon zwei echte vorliegen', () => {
+    const e = summarizeEvidence({ views: [v(0, 'front'), v(1, 'anwendung'), v(2, 'anwendung')] });
+    const { plan, skipped } = planGalleryVariants(e, { produkt: P, studioAnzahl: 4 });
+    expect(plan.filter((p) => p.art === 'lifestyle')).toHaveLength(0);
+    expect(skipped.some((x) => String(x.reason).startsWith('bereits_vorhanden'))).toBe(true);
+  });
+
+  it('ergaenzt genau EINE Szene, wenn erst eine vorliegt — und zwar die andere', () => {
+    const e = summarizeEvidence({ views: [v(0, 'front'), v(1, 'anwendung')] });
+    const { plan } = planGalleryVariants(e, { produkt: P, studioAnzahl: 4 });
+    const szenen = plan.filter((p) => p.art === 'lifestyle');
+    expect(szenen).toHaveLength(1);
+    // Vorhanden ist eine Nahaufnahme -> ergaenzt wird die Umgebungsszene.
+    expect(szenen[0].key).toBe('scene');
+  });
+
+  it('erzeugt beide Szenen, wenn keine vorliegt', () => {
+    const e = summarizeEvidence({ views: [v(0, 'front')] });
+    const { plan } = planGalleryVariants(e, { produkt: P, studioAnzahl: 4 });
+    expect(plan.filter((p) => p.art === 'lifestyle')).toHaveLength(2);
+  });
+
+  it('schliesst ein Foto mit Folie am Produkt komplett aus', () => {
+    const e = summarizeEvidence({
+      views: [v(0, 'front'), v(1, 'side', { verpackungsreste: 'folie' })],
+    });
+    expect(e.referenceIndexes).not.toContain(1);
+    expect(e.ankerIndexes).not.toContain(1);
+    expect(e.byViewpoint.side).toBeUndefined();
+  });
+
+  it('haelt Karton und Unklares aus den Ankern, laesst sie aber als Referenz gelten', () => {
+    const e = summarizeEvidence({
+      views: [v(0, 'front'), v(1, 'packaging'), v(2, 'unclear')],
+    });
+    expect(e.ankerIndexes).toEqual([0]);
+  });
+
+  it('sortiert die Referenzen nach Guete — "beste Vorlage" war vorher blosse Bildreihenfolge', () => {
+    const e = summarizeEvidence({
+      views: [
+        v(0, 'side', { confidence: 0.5, fullyVisible: false }),
+        v(1, 'front', { confidence: 0.99, fullyVisible: true }),
+      ],
+    });
+    expect(e.referenceIndexes[0]).toBe(1);
+  });
+});

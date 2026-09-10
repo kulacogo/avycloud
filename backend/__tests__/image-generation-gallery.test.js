@@ -241,10 +241,10 @@ describe('alle echten Fotos gehen als Referenz mit', () => {
     delete process.env.GALLERY_PIXEL_FAITHFUL;
   });
 
-  it('sendet ALLE echten Fotos als Referenz mit', async () => {
+  it('sendet alle SAUBEREN echten Fotos als Referenz mit', async () => {
     // KEHRTWENDE zum 04.09.: damals genau EIN Bild, weil nur geputzt wurde.
     // Jetzt werden Ansichten ABGELEITET — dafuer braucht das Modell alle Seiten.
-    classifySpy.mockResolvedValue(klassifikation([V(0, 'front')]));
+    classifySpy.mockResolvedValue(klassifikation([V(0, 'front'), V(1, 'side'), V(2, 'back')]));
 
     await generateImagesForProduct(
       produkt([
@@ -256,6 +256,63 @@ describe('alle echten Fotos gehen als Referenz mit', () => {
     );
 
     expect(generateSpy.mock.calls[0][0].referenceImages).toHaveLength(3);
+  });
+
+  /**
+   * DAS WAR DIE URSACHE DER SCHWERSTEN BESCHWERDE (gemessen 2026-09-10 am
+   * Heimtrainer Christopeit AL1000): unter den Ankern lagen KARTONFOTOS. Auf dem
+   * Karton ist ein kleines gruenes LCD mit "43.2" aufgedruckt — genau dieses
+   * Display malte das Modell dem Artikel an. Und die Klarsichtfolie vom selben
+   * Foto landete AM PRODUKT: der Artikel wirkte im Angebotsbild noch eingetuetet.
+   */
+  it('haelt Kartonfotos aus den Ankern heraus', async () => {
+    classifySpy.mockResolvedValue(klassifikation([V(0, 'front'), V(1, 'packaging'), V(2, 'side')]));
+
+    await generateImagesForProduct(
+      produkt([
+        { url_or_base64: 'https://x/1.jpg' },
+        { url_or_base64: 'https://x/karton.jpg' },
+        { url_or_base64: 'https://x/3.jpg' },
+      ]),
+      { referenceImage: { url_or_base64: 'https://x/1.jpg' } }
+    );
+
+    // Vorlage + Seitenansicht, NICHT der Karton.
+    for (const call of generateSpy.mock.calls) {
+      expect(call[0].referenceImages.length).toBeLessThanOrEqual(2);
+    }
+  });
+
+  it('haelt ein Foto mit Folie am Produkt aus den Ankern heraus', async () => {
+    classifySpy.mockResolvedValue(
+      klassifikation([V(0, 'front'), V(1, 'side', { verpackungsreste: 'folie' })])
+    );
+
+    await generateImagesForProduct(
+      produkt([{ url_or_base64: 'https://x/1.jpg' }, { url_or_base64: 'https://x/folie.jpg' }]),
+      { referenceImage: { url_or_base64: 'https://x/1.jpg' } }
+    );
+
+    for (const call of generateSpy.mock.calls) {
+      expect(call[0].referenceImages).toHaveLength(1);
+    }
+  });
+
+  it('haelt eine Anwendungsszene aus den Ankern UND aus den Vorlagen heraus', async () => {
+    // Ein Lifestyle-Foto als Vorlage einer Studio-Ansicht zwingt das Modell zum
+    // Erfinden: der Artikel steht schraeg, ist angeschnitten und halb von einem
+    // Menschen verdeckt.
+    classifySpy.mockResolvedValue(klassifikation([V(0, 'front'), V(1, 'anwendung')]));
+
+    const res = await generateImagesForProduct(
+      produkt([{ url_or_base64: 'https://x/1.jpg' }, { url_or_base64: 'https://x/szene.jpg' }]),
+      { referenceImage: { url_or_base64: 'https://x/1.jpg' } }
+    );
+
+    expect(res.evidence.belegt).not.toContain('anwendung');
+    for (const bild of res.images) {
+      expect(bild.derivedFrom).not.toBe('https://x/szene.jpg');
+    }
   });
 
   it('laesst sich per Notbremse auf ein einziges Referenzbild zurueckstellen', async () => {

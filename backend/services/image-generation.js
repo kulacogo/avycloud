@@ -556,7 +556,7 @@ async function renderPixeltreu({ planEntry, references, sourceIndex, deadline, k
  * Erzeugt EINE Ansicht: Vorlage zuerst, übrige Fotos als Identitätsanker.
  * Läuft die Modellkette durch, ohne ein gültiges Ergebnis, wird nichts geliefert.
  */
-async function renderOneView({ product, produktInfo, planEntry, references, sourceIndex, deadline, kosten }) {
+async function renderOneView({ product, produktInfo, planEntry, references, sourceIndex, deadline, kosten, ankerErlaubt }) {
   const chain = variantImageModelChain();
   const attempts = [];
 
@@ -570,6 +570,14 @@ async function renderOneView({ product, produktInfo, planEntry, references, sour
   if (kommtInFrage) {
     const treu = await renderPixeltreu({ planEntry, references, sourceIndex, deadline, kosten });
     if (treu && !treu.failed) return treu;
+    // MAKROAUFNAHMEN FALLEN NICHT AUF DEN RENDER ZURUECK (seit 2026-09-10).
+    // Bei jeder anderen Ansicht ist ein gerendertes Bild besser als keines.
+    // Bei einer Nahaufnahme nicht: dort fuellt genau das, was das Modell nicht
+    // kann — Display, Bedienfeld, Typenschild, Kleindruck — das ganze Bild.
+    // Lieber die Detailansicht weglassen und den Grund melden.
+    if (planEntry?.key === 'detail') {
+      return { failed: true, attempts: [...attempts, ...(treu?.attempts || [])] };
+    }
     // Gescheitert ist kein Beinbruch — der Render-Weg uebernimmt. Die Gruende
     // wandern aber mit in den Bericht, sonst bliebe unsichtbar, dass der
     // billigere und treuere Weg gar nicht durchkam.
@@ -594,9 +602,28 @@ async function renderOneView({ product, produktInfo, planEntry, references, sour
   // Foto gibt; dafuer braucht das Modell alle Seiten, sonst erfindet es sie.
   // Notbremse: `VARIANT_SIBLING_ANCHORS='off'`.
   const ankerAus = String(process.env.VARIANT_SIBLING_ANCHORS || '').trim() === 'off';
+
+  // ANKER SIND GEFILTERT (seit 2026-09-10) — vorher gingen ALLE geladenen Bilder
+  // mit, ungefiltert vom Urteil der Ansichtserkennung. Gemessen am Heimtrainer
+  // Christopeit AL1000 (Produkt ddf4532e) war das die Ursache der beiden
+  // schwersten Beschwerden:
+  //   - Unter den Ankern lagen Fotos des KARTONS. Auf dessen Aufdruck sitzt ein
+  //     kleines gruenes LCD mit "43.2" — genau dieses Display malte das Modell
+  //     dem Artikel an, statt des echten blauen Displays mit TIME/PULSE/LEVEL.
+  //   - Dasselbe Kartonfoto zeigt Klarsichtfolie. Sie landete im erzeugten
+  //     Anwendungsbild AM PRODUKT: der Artikel wirkte noch eingetuetet.
+  // `ankerIndexes` enthaelt nur Fotos, die den Artikel ausgepackt, brauchbar und
+  // vor neutralem Grund zeigen (kein Karton, keine Szene, keine Folie).
+  const erlaubteAnker = Array.isArray(ankerErlaubt) ? new Set(ankerErlaubt) : null;
+  const weitere = references.filter((_, i) => {
+    if (i === sourceIndex) return false;
+    // Ohne Klassifikation (Vision-Call gescheitert) bleibt es beim alten
+    // Verhalten — fail-open, sonst faellt der ganze Lauf auf ein Bild zurueck.
+    return erlaubteAnker ? erlaubteAnker.has(i) : true;
+  });
   const ordered = ankerAus
     ? [references[sourceIndex]].filter(Boolean)
-    : [references[sourceIndex], ...references.filter((_, i) => i !== sourceIndex)].filter(Boolean);
+    : [references[sourceIndex], ...weitere].filter(Boolean);
 
   for (const model of chain) {
     // Der Einzel-Timeout wird aus der VERBLEIBENDEN Gesamtfrist abgeleitet. Eine
@@ -775,9 +802,23 @@ async function generateImagesForProduct(product, options = {}) {
       imageSize: entry.art === 'lifestyle' ? LIFESTYLE_IMAGE_SIZE : VARIANT_IMAGE_SIZE,
     };
   });
+  // Die Schaetzung ist eine SPANNE, keine Punktzahl. Der pixeltreue Weg kann an
+  // den Composite-Wachen scheitern; dann kommt zur bezahlten Maske noch der
+  // volle Render. Eine Punktschaetzung lag deshalb systematisch zu niedrig
+  // (gemessen: geschaetzt 0,337, abgerechnet 0,505) — und eine Zahl, die
+  // regelmaessig danebenliegt, liest bald niemand mehr.
+  const postenSchlimmst = plan.map((entry, i) => {
+    const p = posten[i];
+    if (p.model !== erstesMaskenModell) return p;
+    return { model: erstesModell, imageSize: VARIANT_IMAGE_SIZE, zusatz: p };
+  });
+  const bestenfalls = schaetzePosten(posten);
+  const schlimmstenfalls =
+    schaetzePosten(postenSchlimmst) +
+    schaetzePosten(posten.filter((p) => p.model === erstesMaskenModell));
   console.log(
     `[image-generation] ${product.id}: ${plan.length} Bilder geplant, ` +
-      `geschaetzt ${schaetzePosten(posten).toFixed(3)} USD, ` +
+      `geschaetzt ${bestenfalls.toFixed(3)}–${schlimmstenfalls.toFixed(3)} USD, ` +
       `Deckel ${kosten.deckel.toFixed(2)} USD`
   );
 
@@ -788,7 +829,7 @@ async function generateImagesForProduct(product, options = {}) {
         return {
           entry,
           sourceIndex,
-          result: await renderOneView({ product, produktInfo: produkt, planEntry: entry, references, sourceIndex, deadline, kosten }),
+          result: await renderOneView({ product, produktInfo: produkt, planEntry: entry, references, sourceIndex, deadline, kosten, ankerErlaubt: classification ? evidence.ankerIndexes : null }),
         };
       } catch (err) {
         // Eine einzelne Ansicht darf den GANZEN Lauf nicht killen. renderOneView
@@ -844,11 +885,21 @@ async function generateImagesForProduct(product, options = {}) {
         // Läufe heraus und macht es für den Publish-Pfad erkennbar.
         generatedByAi: true,
         derivedFrom: references[sourceIndex]?.image?.url_or_base64 || null,
+        // Die Notiz muss sagen, WAS das Bild ist. Bis 2026-09-10 stand auf JEDER
+        // gerenderten Ansicht "aus einem echten Foto" — auch auf den
+        // abgeleiteten, die es gerade nicht sind, und auf Anwendungsszenen, die
+        // gar keine Studio-Aufbereitung sind.
         notes: result.pixeltreu
           ? `${entry.label} aus ORIGINALPIXELN des echten Fotos freigestellt ` +
             `(Silhouette via ${result.model}, Kleindruck unveraendert)`
-          : `Studio-Aufbereitung der ${entry.label} aus einem echten Foto ` +
-            `(${result.model}, ${result.referenceCount} Referenzbilder)`,
+          : entry.art === 'lifestyle'
+            ? `Anwendungsszene "${entry.label}", vom Modell erzeugt ` +
+              `(${result.model}, ${result.referenceCount} Referenzfotos)`
+            : entry.quelleIstEcht === true
+              ? `Studio-Aufbereitung der ${entry.label} aus einem echten Foto ` +
+                `(${result.model}, ${result.referenceCount} Referenzfotos)`
+              : `${entry.label} ABGELEITET — es gibt kein Foto dieser Seite ` +
+                `(${result.model}, ${result.referenceCount} Referenzfotos)`,
         identityChecked: result.identityChecked === true,
         // true = das Bild besteht aus den Pixeln des Referenzfotos; jede
         // Beschriftung darauf ist echt. false = vom Modell neu gezeichnet,

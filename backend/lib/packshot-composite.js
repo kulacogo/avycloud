@@ -46,13 +46,45 @@ const MASKEN_KANTE = 1200;
 /** Kantenlänge der fertigen Leinwand. */
 const LEINWAND = 2000;
 /**
- * Produkt füllt so viel der Leinwand. BEWUSST NICHT höher: der Kontaktschatten
- * braucht darunter Platz, sonst wird er am Bildrand abgeschnitten und steht als
- * dunkler Balken da (gemessen 2026-09-04).
+ * Wie viel der Leinwand das Produkt fuellen darf — GETRENNT nach Breite und
+ * Hoehe (seit 2026-09-10).
+ *
+ * WARUM GETRENNT: vorher galt EIN Fuellgrad von 0,78 auf die lange Kante, bei
+ * quadratischer Leinwand. Fuer ein BREITES Produkt heisst das 78 % Breite und
+ * entsprechend wenig Hoehe. Am Futtereimer "Stiefel Pflanzenkohle" (Produkt
+ * d500e1d0) gemessen: 1394x1394 Leinwand, Produkt 936x503 = 78 % Breite,
+ * 42 % Hoehe, **28 % der Bildflaeche**. Der Betreiber sah das Ergebnis als
+ * "schlechter geworden" — der Artikel schwamm im Weiss.
+ *
+ * Zum Vergleich gemessen: die drei HERSTELLER-Studiofotos desselben Eimers
+ * (nice-cdn) fuellen ihre Leinwand zu 100 % x 100 %, also randlos. So weit
+ * gehen wir bewusst nicht — ein Angebotsbild braucht Luft und der
+ * Kontaktschatten Platz. 92 % Breite / 86 % Hoehe liegt dazwischen und hebt
+ * die Flaeche beim selben Eimer von 28 % auf rund 45 %.
+ *
+ * Die Hoehe bleibt kleiner als die Breite, weil unten der Kontaktschatten
+ * anschliesst. Nachgerechnet fuer den schlimmsten Fall (hohes Produkt, das die
+ * Hoehe ausschoepft): Schattenhoehe = 5 % der Produkthoehe, davon ragen 45 %
+ * unter die Unterkante; bei 86 % Fuellung und Platzierung auf 45 % der
+ * Restflaeche endet der Schatten bei rund 94 % der Leinwand — die Rand-Wache
+ * prueft die aeussersten 1 %. Passt mit Reserve.
  */
-const FUELLGRAD = 0.78;
+function fuellgradBreite() { return Math.min(0.98, Math.max(0.3, zahl('STUDIO_FILL_W', 0.92))); }
+function fuellgradHoehe() { return Math.min(0.94, Math.max(0.3, zahl('STUDIO_FILL_H', 0.86))); }
+/**
+ * Senkrechte Platzierung: 0,5 waere exakt mittig. Etwas hoeher gesetzt gibt dem
+ * Kontaktschatten Raum und laesst den Artikel stehen statt schweben.
+ */
+const SENKRECHT = 0.45;
 /** Drehung wird gedeckelt — eine falsche Vierteldrehung ist schlimmer als eine schiefe Kante. */
 const MAX_DREHUNG_GRAD = 12;
+/**
+ * Ab welchem Flaechengewinn ein Winkel ueber der Deckelung noch als ECHT gilt.
+ * Der Gewinn ist der Anteil, um den das flaechenkleinste umschliessende Rechteck
+ * kleiner ist als das achsparallele — bei einem runden Umriss null, bei einem
+ * echt gekippten Quader gross.
+ */
+const MIN_DREHUNG_GEWINN = 0.08;
 /**
  * Hellster und dunkelster Wert des e-Commerce-Verlaufs. Bewusst ein SCHMALES
  * Band: der Verlauf soll Tiefe andeuten, nicht als grauer Kasten auffallen. Er
@@ -272,8 +304,33 @@ function winkelMinRechteck(maske, w, h) {
   let grad = (besterWinkel * 180) / Math.PI;
   grad = ((grad % 90) + 90) % 90;
   if (grad > 45) grad -= 90;
-  if (Math.abs(grad) > MAX_DREHUNG_GRAD) return 0;
-  return grad;
+
+  if (Math.abs(grad) <= MAX_DREHUNG_GRAD) return grad;
+
+  // ÜBER DER DECKELUNG WIRD GEKAPPT, NICHT AUFGEGEBEN (seit 2026-09-10).
+  // Vorher stand hier `return 0` — ein um 20 Grad gekipptes Foto blieb also
+  // vollstaendig schief, obwohl der Betreiber ausdruecklich "nicht schief und
+  // krumm" verlangt hat. Die Deckelung war gegen FEHLMESSUNGEN gedacht (bei
+  // einem runden oder nahezu quadratischen Umriss ist die Hauptachse zufaellig),
+  // nicht gegen echte Schieflagen.
+  //
+  // Ob die Silhouette den Winkel wirklich hergibt, ist MESSBAR: bei einem echt
+  // gekippten Objekt ist das flaechenkleinste umschliessende Rechteck deutlich
+  // kleiner als das achsparallele. Nachgerechnet fuer ein 2:1-Rechteck bei
+  // 20 Grad Kippung: 45 % kleiner. Bei einem Kreis: 0 %. Bei einem nahezu
+  // quadratischen Umriss mit 5 Grad: 15 %. Unter 8 % ist der Winkel Rauschen —
+  // dann bleibt es beim Nichtstun.
+  let aMinX = Infinity; let aMaxX = -Infinity; let aMinY = Infinity; let aMaxY = -Infinity;
+  for (const p of huelle) {
+    if (p[0] < aMinX) aMinX = p[0];
+    if (p[0] > aMaxX) aMaxX = p[0];
+    if (p[1] < aMinY) aMinY = p[1];
+    if (p[1] > aMaxY) aMaxY = p[1];
+  }
+  const achsparallel = Math.max(1, (aMaxX - aMinX) * (aMaxY - aMinY));
+  const gewinn = 1 - besteFlaeche / achsparallel;
+  if (gewinn < MIN_DREHUNG_GEWINN) return 0;
+  return Math.sign(grad) * MAX_DREHUNG_GRAD;
 }
 
 function bereichAusMaske(maske, w, h) {
@@ -464,9 +521,24 @@ async function bauePackshot(originalBuffer, maskenQuelle, opts = {}) {
   // Originalpixel + Maske als Alpha → Produkt freigestellt, Pixel unangetastet.
   // Die Belichtungskorrektur ist eine LINEARE Verstaerkung je Kanal, kein
   // Neuzeichnen: Formen, Kanten und jeder Buchstabe bleiben, wo sie sind.
-  const grundBild = belichtung.faktoren
+  let grundBild = belichtung.faktoren
     ? await sharp(original).linear(belichtung.faktoren, [0, 0, 0]).toBuffer()
     : original;
+
+  // SCHATTEN AUF DEM PRODUKT OEFFNEN. Erst jetzt, nach dem Weissabgleich, und
+  // gemessen an den Pixeln, die die Maske als PRODUKT ausweist — der
+  // Hintergrund faellt ohnehin weg und darf die Messung nicht verfaelschen.
+  // Die Kurve laeuft auf dem ganzen Bild; das ist gleichwertig, weil vom
+  // Hintergrund nichts uebrig bleibt, und spart einen Maskierungsschritt.
+  const lift = await messeSchattenlift(grundBild, gefuellt, roh.w, roh.h);
+  if (lift.gamma) {
+    try {
+      grundBild = await wendeGammaAn(grundBild, lift.gamma);
+    } catch (err) {
+      lift.gamma = null;
+      lift.grund = `anwendung_fehlgeschlagen: ${err.message}`;
+    }
+  }
 
   const freigestellt = await sharp(grundBild)
     .ensureAlpha()
@@ -500,21 +572,35 @@ async function bauePackshot(originalBuffer, maskenQuelle, opts = {}) {
   // 1,6-fache. Das ist reine Qualitätsvernichtung: die Galeriebilder sind
   // ohnehin schon auf 1200 px normalisiert, mehr Pixel gibt es nicht. Die
   // Leinwand richtet sich jetzt nach dem Produkt, nicht umgekehrt.
-  const langeKante = Math.max(pMeta.width || 1, pMeta.height || 1);
-  const leinwand = Math.min(
-    LEINWAND,
-    Math.max(800, Math.round(Math.min(langeKante, LEINWAND * FUELLGRAD) / FUELLGRAD))
-  );
-  const zielKante = Math.round(leinwand * FUELLGRAD);
+  const fw = fuellgradBreite();
+  const fh = fuellgradHoehe();
+  const pw0 = pMeta.width || 1;
+  const ph0 = pMeta.height || 1;
+  // Die Leinwand richtet sich nach dem Produkt, nicht umgekehrt: sie ist so
+  // gross, dass das Produkt seine Ziel-Box GENAU ausfuellt, ohne vergroessert
+  // zu werden. Massgeblich ist die Richtung, die zuerst anschlaegt — bei einem
+  // breiten Artikel die Breite, bei einem hohen die Hoehe.
+  // KEINE Untergrenze mehr (2026-09-10). Vorher stand hier `Math.max(800, …)`.
+  // Bei einem kleineren Ausschnitt band diese Grenze VOR dem Fuellziel und
+  // drueckte die Fuellung wieder herunter — gemessen an einem 600-px-Produkt:
+  // 75 % statt der angestrebten 92 %. Sie schuetzte auch nichts: `lib/storage.js`
+  // normalisiert jedes Galeriebild ohnehin auf 1200 px lange Kante. Eine
+  // kleinere Leinwand heisst also nur, dass das Produkt einen groesseren Teil
+  // dieser 1200 px bekommt — bei identischen Ausgangspixeln.
+  const leinwand = Math.min(LEINWAND, Math.max(64, Math.ceil(Math.max(pw0 / fw, ph0 / fh))));
+  const zielB = Math.round(leinwand * fw);
+  const zielH = Math.round(leinwand * fh);
   const skaliert = await sharp(produkt)
-    .resize(zielKante, zielKante, { fit: 'inside', withoutEnlargement: true })
+    .resize(zielB, zielH, { fit: 'inside', withoutEnlargement: true })
     .png()
     .toBuffer();
   const sMeta = await sharp(skaliert).metadata();
-  const pw = sMeta.width || zielKante;
-  const ph = sMeta.height || zielKante;
+  const pw = sMeta.width || zielB;
+  const ph = sMeta.height || zielH;
   const px = Math.round((leinwand - pw) / 2);
-  const py = Math.round((leinwand - ph) / 2);
+  // Waagerecht mittig, senkrecht leicht nach oben — darunter sitzt der
+  // Kontaktschatten. Genau mittig wuerde der Artikel schweben.
+  const py = Math.round((leinwand - ph) * SENKRECHT);
 
   const schatten = await baueKontaktschatten(skaliert, pw, ph);
 
@@ -549,12 +635,19 @@ async function bauePackshot(originalBuffer, maskenQuelle, opts = {}) {
       soliditaet: +(solidität * 100).toFixed(1),
       produktQuelle: `${pMeta.width}x${pMeta.height}`,
       leinwand,
+      fuellungBreite: +((pw / leinwand) * 100).toFixed(1),
+      fuellungHoehe: +((ph / leinwand) * 100).toFixed(1),
+      fuellungFlaeche: +(((pw * ph) / (leinwand * leinwand)) * 100).toFixed(1),
       hintergrund: verlauf ? 'verlauf' : 'weiss',
       belichtung: belichtung.faktoren
         ? { faktoren: belichtung.faktoren.map((f) => +f.toFixed(3)), hintergrund: belichtung.hintergrund }
         : { faktoren: null, grund: belichtung.grund },
+      schattenlift: lift.gamma
+        ? { gamma: lift.gamma, p10Vorher: lift.p10, medianVorher: lift.median, zielP10: LIFT_ZIEL_P10 }
+        : { gamma: null, p10Vorher: lift.p10, medianVorher: lift.median, grund: lift.grund },
       // TATSAECHLICHE Skalierung (nach withoutEnlargement), nicht die angestrebte.
-      skalierung: +(Math.max(pw, ph) / langeKante).toFixed(2),
+      // TATSAECHLICHE Skalierung (nach withoutEnlargement), nicht die angestrebte.
+      skalierung: +(Math.max(pw, ph) / Math.max(pw0, ph0)).toFixed(2),
     },
   };
 }
@@ -697,6 +790,146 @@ async function messeBelichtung(original, maskePng, oMeta) {
   } catch (err) {
     return { faktoren: null, grund: `messung_fehlgeschlagen: ${err.message}` };
   }
+}
+
+/**
+ * SCHATTEN-AUFHELLUNG auf dem PRODUKT (seit 2026-09-10, Betreiber: "die
+ * belichtung/helligkeit darf auch verbessert werden da die vorderseite in
+ * diesem fall beschattet ist").
+ *
+ * Die Graukarten-Korrektur weiter oben normiert den RAUM — sie kann eine
+ * ungleiche Ausleuchtung AUF dem Artikel bauartbedingt nicht beheben. Am
+ * Futtereimer gemessen: Hintergrund p90 = 221, Faktor also nur 1,12; der
+ * schwarze Korpus blieb bei Median 38 und damit eine formlose Flaeche.
+ *
+ * DER ZIELWERT IST GEMESSEN, NICHT GESCHAETZT. Derselbe Eimer liegt als
+ * Hersteller-Studiofoto vor (drei Aufnahmen, nice-cdn). Gesteuert wird ueber das
+ * 10. PERZENTIL der Produkt-Helligkeit — also die Schattentiefe, nicht den
+ * Median. Der Median taugt nicht: beim Eimer zieht ihn das grosse helle Etikett
+ * auf 96, obwohl der schwarze Korpus bei 40 liegt und die Aufhellung genau ihn
+ * meint. Gemessen ueber alle Produktpixel:
+ *
+ *              p05  p10  p20  p50
+ *   Hersteller  28   36   46   92
+ *   Hersteller  18   31   54  188
+ *   Hersteller  20   30   44   88
+ *   UNSERER      4    8   23  110   <- die Schatten saufen ab
+ *
+ * LIFT_ZIEL_P10 = 32 ist der Mittelwert der drei Herstellerwerte.
+ *
+ * WARUM GAMMA: die Kurve haelt 0 auf 0 und 255 auf 255 fest. Tiefes Schwarz
+ * bleibt schwarz (5 -> 12), Weiss bleibt Weiss (250 -> 252), angehoben wird
+ * ausschliesslich der Mittelbereich — also genau der beschattete Teil. Die
+ * Reihenfolge der Helligkeiten bleibt erhalten, und weil alle drei Kanaele
+ * dieselbe Kurve bekommen, verschiebt sich kein Farbton.
+ *
+ * WARUM ES KEINE PRODUKTVERAENDERUNG IST: angehoben wird NUR, solange der
+ * Artikel dunkler ist als der Studio-Normwert. Ein Artikel, der bereits bei
+ * oder ueber Median 60 liegt, wird nicht angefasst — ein dunkelgraues Gehaeuse
+ * kann also nie hellgrau werden. Und der Deckel begrenzt, wie weit ein sehr
+ * dunkler Artikel ueberhaupt kommt.
+ */
+const LIFT_ZIEL_P10 = 32;
+const LIFT_MAX_GAMMA = 1.7;
+const LIFT_MIN_GAMMA = 1.04;
+/**
+ * Rueckhaltegrenze: nach der Aufhellung darf der Median der Produktpixel diesen
+ * Wert nicht ueberschreiten. Verhindert, dass ein bereits mittelheller Artikel
+ * ausgewaschen wirkt. Die drei Herstellerfotos liegen bei Median 92/188/88 —
+ * 180 laesst diesen Bereich zu und bremst nur darueber hinaus.
+ */
+const LIFT_MEDIAN_MAX = 180;
+
+/**
+ * Ermittelt die Gamma-Staerke aus dem Histogramm der PRODUKTPIXEL.
+ * @param {Uint8Array} maske  Maske in Maskenaufloesung (1 = Produkt)
+ * @returns {{gamma:number|null, median:number, grund:string|null}}
+ */
+async function messeSchattenlift(bild, maske, mw, mh) {
+  try {
+    const { data, info } = await sharp(bild)
+      .removeAlpha()
+      .resize(mw, mh, { fit: 'fill' })
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    const lum = [];
+    for (let p = 0; p < mw * mh; p += 1) {
+      if (!maske[p]) continue;
+      const i = p * info.channels;
+      lum.push(0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2]);
+    }
+    if (lum.length < 500) return { gamma: null, p10: 0, median: 0, grund: 'zu_wenig_produkt' };
+    lum.sort((a, b) => a - b);
+    const p10 = lum[Math.floor(lum.length * 0.1)];
+    const median = lum[Math.floor(lum.length * 0.5)];
+    const p99 = lum[Math.floor(lum.length * 0.99)];
+    if (p10 >= LIFT_ZIEL_P10) return { gamma: null, p10, median, grund: 'schatten_bereits_offen' };
+    if (p10 < 1) return { gamma: null, p10, median, grund: 'schatten_ohne_zeichnung' };
+
+    let gamma = Math.log(p10 / 255) / Math.log(LIFT_ZIEL_P10 / 255);
+    gamma = Math.min(LIFT_MAX_GAMMA, gamma);
+    if (gamma < LIFT_MIN_GAMMA) return { gamma: null, p10, median, grund: 'unter_merkschwelle' };
+
+    // Rueckhalt: ein mittelheller Artikel darf nicht ausgewaschen werden.
+    if (median > 1) {
+      const medianNachher = 255 * Math.pow(median / 255, 1 / gamma);
+      if (medianNachher > LIFT_MEDIAN_MAX) {
+        const erlaubt = Math.log(median / 255) / Math.log(LIFT_MEDIAN_MAX / 255);
+        gamma = Math.max(1, Math.min(gamma, erlaubt));
+        if (gamma < LIFT_MIN_GAMMA) return { gamma: null, p10, median, grund: 'artikel_schon_mittelhell' };
+      }
+    }
+
+    // Lichter duerfen nicht ausbrennen: waere das obere Prozent danach ueber
+    // 252, wird die Kurve so weit zurueckgenommen, dass es darunter bleibt.
+    if (p99 > 1) {
+      const nachher = 255 * Math.pow(p99 / 255, 1 / gamma);
+      if (nachher > 252) {
+        const erlaubt = Math.log(p99 / 255) / Math.log(252 / 255);
+        gamma = Math.max(1, Math.min(gamma, erlaubt));
+        if (gamma < LIFT_MIN_GAMMA) return { gamma: null, p10, median, grund: 'lichter_zu_nah_an_weiss' };
+      }
+    }
+    return { gamma: +gamma.toFixed(3), p10: Math.round(p10), median: Math.round(median), grund: null };
+  } catch (err) {
+    return { gamma: null, p10: 0, median: 0, grund: `messung_fehlgeschlagen: ${err.message}` };
+  }
+}
+
+/**
+ * Wendet eine Gamma-Kurve ueber eine 256er-Tabelle an.
+ *
+ * BEWUSST EIGENE TABELLE statt sharp `.gamma()`: dessen Signatur ist ein
+ * Paar aus Ein- und Ausgangs-Gamma fuer Resize-Ablaeufe und tut ohne zweiten
+ * Wert nichts Sichtbares. Eine eigene Tabelle ist exakt das, was hier gemeint
+ * ist, ist testbar und ueberlebt einen sharp-Versionswechsel. Kosten bei
+ * 2000x2000: ein Durchlauf ueber 12 Mio Bytes, unter 100 ms.
+ */
+async function wendeGammaAn(buffer, gamma) {
+  const tabelle = new Float32Array(256);
+  for (let v = 0; v < 256; v += 1) {
+    tabelle[v] = 255 * Math.pow(v / 255, 1 / gamma);
+  }
+  const { data, info } = await sharp(buffer).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+  const k = info.channels;
+  // ÜBER DIE LUMINANZ, NICHT KANALWEISE. Legt man die Kurve auf R, G und B
+  // einzeln, wandert der Farbton: der schwaechste Kanal wird relativ staerker
+  // angehoben als der staerkste, ein gesaettigtes Rot wird blasser. Stattdessen
+  // wird EIN gemeinsamer Faktor aus der Helligkeit abgeleitet und auf alle drei
+  // Kanaele gelegt — die Verhaeltnisse untereinander bleiben damit exakt
+  // erhalten, es aendert sich nur die Helligkeit.
+  for (let i = 0; i < data.length; i += k) {
+    const y = 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
+    if (y < 1) continue; // Schwarz bleibt Schwarz, und 0 hat kein Verhaeltnis
+    const f = tabelle[Math.round(y)] / y;
+    data[i] = Math.min(255, Math.round(data[i] * f));
+    data[i + 1] = Math.min(255, Math.round(data[i + 1] * f));
+    data[i + 2] = Math.min(255, Math.round(data[i + 2] * f));
+  }
+  // RAW rein IMMER mit Ausgabeformat wieder raus — sonst kommen Rohdaten zurueck.
+  return sharp(data, { raw: { width: info.width, height: info.height, channels: info.channels } })
+    .png()
+    .toBuffer();
 }
 
 /**

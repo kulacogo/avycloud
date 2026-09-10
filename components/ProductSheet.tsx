@@ -696,6 +696,12 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     if (reason === 'produkt_nicht_erkannt') return 'Artikel auf den Fotos nicht sicher erkannt — keine erfundene Szene';
     if (reason === 'keine_szene_beschrieben') return 'keine passende Szene ableitbar';
     if (reason === 'kanon_erschoepft') return 'mehr Ansichten sind aus diesem Artikel nicht sinnvoll';
+    if (reason === 'kein_foto_makro_wird_nicht_erfunden')
+      return 'kein Nahfoto vorhanden — eine Makroaufnahme wird nicht erfunden (dort fällt jedes erfundene Detail auf). Nahaufnahme des Bedienfelds/Typenschilds machen und erneut starten';
+    if (reason.startsWith('bereits_vorhanden')) {
+      const anzahl = /\((\d+)/.exec(reason)?.[1];
+      return `es gibt schon ${anzahl || 'genug'} echte Anwendungsfotos — eine weitere Szene wäre eine Dublette und kostet nur Geld`;
+    }
     if (reason === 'erzeugung_fehlgeschlagen') {
       const detail = entry.attempts?.map((a) => a.reason).filter(Boolean).join(' · ');
       return detail ? `Aufbereitung fehlgeschlagen (${detail})` : 'Aufbereitung fehlgeschlagen';

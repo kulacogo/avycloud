@@ -144,8 +144,18 @@ function variantImageModelChain() {
  */
 function maskImageModelChain() {
   const primary = resolveImageModel(process.env.VARIANT_MASK_MODEL, DEFAULT_MASK_MODEL);
-  const fallback = resolveImageModel(process.env.VARIANT_MASK_FALLBACK_MODEL, DEFAULT_FAST_MODEL);
-  return [...new Set([primary, fallback])];
+  // NUR EIN VERSUCH (Korrektur 2026-09-10, gemessen). Der Rueckfall auf ein
+  // teureres Maskenmodell ist hier Geld fuer nichts: scheitert der pixeltreue
+  // Weg, dann fast immer an den WACHEN in packshot-composite.js (Deckung,
+  // Kompaktheit, Randberuehrung) — und die haengen an der Form des Fotos, nicht
+  // an der Qualitaet des Modells. Am Heimtrainer gemessen: die Seitenansicht
+  // verbrannte 0,034 $ (flash-lite) + 0,067 $ (flash) fuer zwei verworfene
+  // Masken und lief danach ohnehin in den Render fuer 0,101 $ — 0,202 $ statt
+  // 0,135 $ fuer EIN Bild. Der Render IST der Rueckfall; einen zweiten braucht
+  // es nicht. Wer ihn doch will, setzt VARIANT_MASK_FALLBACK_MODEL.
+  const fallbackName = String(process.env.VARIANT_MASK_FALLBACK_MODEL || '').trim();
+  if (!fallbackName) return [primary];
+  return [...new Set([primary, resolveImageModel(fallbackName, DEFAULT_FAST_MODEL)])];
 }
 
 function maxObjectReferences(model) {

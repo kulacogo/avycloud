@@ -26,7 +26,7 @@
 
 const sharp = require('sharp');
 const { generateProductImages } = require('../lib/vertex-ai');
-const { studioImageModelChain, maxObjectReferences } = require('../lib/gemini-image-models');
+const { studioImageModelChain, maskImageModelChain, maxObjectReferences } = require('../lib/gemini-image-models');
 const { assessBackgroundBrightness } = require('../lib/image-result-check');
 const { bauePackshot, compositeEnabled } = require('../lib/packshot-composite');
 const { buildMaskPrompt } = require('./prompt-engine');
@@ -178,7 +178,15 @@ async function validateStudioResult(buffer) {
   }
 }
 
-async function tryGeminiStudio(preBuffer, attempts, siblingDataUrls = [], promptText = STUDIO_PROMPT) {
+async function tryGeminiStudio(preBuffer, attempts, siblingDataUrls = [], promptText = STUDIO_PROMPT, opts = {}) {
+  // Der MASKEN-Lauf ist ein anderer Auftrag als der Retusche-Lauf: von ihm wird
+  // nur die SILHOUETTE gelesen, seine Pixel landen nie im Endbild. Detailtreue,
+  // Kleindruck und Farbe sind dort gleichgueltig — also gehoert er auf das
+  // billigste Modell in kleiner Groesse. Bis 2026-09-10 lief er auf demselben
+  // teuren Modell in 2K wie die Retusche: 0,134 $ fuer Pixel, die weggeworfen
+  // werden. Dieselbe Quelle wie die Galerie, keine zweite Tabelle.
+  const kette = opts.maske ? maskImageModelChain() : studioModelChain();
+  const zielGroesse = opts.maske ? (process.env.VARIANT_MASK_IMAGE_SIZE || '1K') : STUDIO_IMAGE_SIZE;
   const referenceImageBase64 = `data:image/jpeg;base64,${preBuffer.toString('base64')}`;
 
   // NUR DAS GEWAEHLTE FOTO (Korrektur 2026-09-04, Betreiber: "Studio-Foto nimmt
@@ -197,7 +205,7 @@ async function tryGeminiStudio(preBuffer, attempts, siblingDataUrls = [], prompt
   const ankerErlaubt = String(process.env.STUDIO_SIBLING_ANCHORS || '').trim() === 'on';
   const anker = ankerErlaubt ? siblingDataUrls : [];
 
-  for (const model of studioModelChain()) {
+  for (const model of kette) {
     // Die Obergrenze fuer Objekt-Referenzen ist MODELLABHAENGIG.
     const limit = Math.max(1, maxObjectReferences(model));
     const referenceImages = [referenceImageBase64, ...anker].slice(0, limit);
@@ -217,7 +225,7 @@ async function tryGeminiStudio(preBuffer, attempts, siblingDataUrls = [], prompt
         referenceImages,
         model,
         timeoutMs: studioTimeoutMs(),
-        imageSize: STUDIO_IMAGE_SIZE,
+        imageSize: zielGroesse,
         // Die Modellkette IST die Wiederholung — sonst bis zu sechs bezahlte
         // Bildaufrufe und ~360 s Laufzeit je Studio-Foto.
         maxAttempts: 1,
@@ -372,7 +380,7 @@ async function makeStudioPhoto({ productId, image, siblingImages = [] }) {
   // ---------------------------------------------------------------------------
   if (compositeEnabled()) {
     try {
-      const maskenLauf = await tryGeminiStudio(preBuffer, attempts, [], MASKEN_PROMPT);
+      const maskenLauf = await tryGeminiStudio(preBuffer, attempts, [], MASKEN_PROMPT, { maske: true });
       if (maskenLauf) {
         const packshot = await bauePackshot(sourceBuffer, maskenLauf.buffer);
         if (packshot.ok) {
