@@ -224,12 +224,24 @@ describe('bauePackshot — Gesamtdurchlauf', () => {
     const r = await bauePackshot(foto, await maskenQuelle());
     expect(r.ok).toBe(true);
     const { data, info } = await sharp(r.buffer).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+    // Das Fenster deckt den Quellton (70/65/60) UND seine belichtungskorrigierte
+    // Fassung ab: der Untergrund des Fixtures ist hell, also greift seit
+    // 2026-09-10 eine Verstaerkung von bis zu 1,6. Sie ist LINEAR — die
+    // Pixelherkunft aendert sie nicht, nur den Tonwert. Geprueft wird deshalb
+    // die dunkle Produkthuelle gegen den hellen Grund, nicht ein exakter Wert.
     let dunkelProdukt = 0;
     for (let i = 0; i < data.length; i += info.channels) {
-      if (data[i] > 55 && data[i] < 90 && data[i + 1] > 50 && data[i + 1] < 85) dunkelProdukt += 1;
+      if (data[i] > 55 && data[i] < 130 && data[i + 1] > 50 && data[i + 1] < 125) dunkelProdukt += 1;
     }
     // Die Produktfarbe aus dem FOTO muss im Ergebnis vorkommen.
     expect(dunkelProdukt).toBeGreaterThan(1000);
+    // Und der Kontrast zum hellen Innenfeld bleibt erhalten — eine lineare
+    // Verstaerkung verschiebt beide, sie zieht sie nicht zusammen.
+    let hellInnen = 0;
+    for (let i = 0; i < data.length; i += info.channels) {
+      if (data[i] > 240 && data[i + 1] > 240 && data[i + 2] > 240) hellInnen += 1;
+    }
+    expect(hellInnen).toBeGreaterThan(1000);
   });
 
   it('vergroessert das Produkt NIE — sonst reine Qualitaetsvernichtung', async () => {
@@ -335,5 +347,107 @@ describe('Hintergrund der Leinwand', () => {
       .toBuffer();
     const r = await bauePackshot(await echtesFoto(), randvoll, { hintergrund: 'verlauf' });
     expect(r.ok).toBe(false);
+  });
+});
+
+/**
+ * BELICHTUNG / WEISSABGLEICH aus dem HINTERGRUND (seit 2026-09-10).
+ *
+ * Anlass: der pixeltreue Weg übernimmt die Pixel des Fotos — und damit dessen
+ * Belichtung. Gemessen am Marstek-Speicher: Hintergrund 195, das WEISSE Gerät
+ * nur 125. Der Packshot zeigte ein mattgraues Produkt.
+ *
+ * Die Korrektur nimmt bewusst den HINTERGRUND als Referenz (Graukarten-Methode)
+ * und nicht das Produkt: derselbe Faktor wirkt überall, also bleiben alle Farben
+ * ZUEINANDER unverändert. Aus Beige kann so bauartbedingt kein Weiss werden.
+ */
+describe('Belichtung aus dem Hintergrund', () => {
+  /** Foto mit einstellbarem Untergrund und Produkt-Tonwert. */
+  async function fotoMit({ grund, produktTon }) {
+    const produkt = await sharp({
+      create: { width: 600, height: 500, channels: 3, background: produktTon },
+    })
+      .png()
+      .toBuffer();
+    return sharp({ create: { width: 1000, height: 1000, channels: 3, background: grund } })
+      .composite([{ input: produkt, left: 200, top: 250 }])
+      .jpeg()
+      .toBuffer();
+  }
+
+  /** Mittlerer Tonwert der Produktfläche im fertigen Packshot. */
+  async function produktTon(buffer) {
+    const m = await sharp(buffer).metadata();
+    const teil = await sharp(buffer)
+      .extract({
+        left: Math.round(m.width * 0.45),
+        top: Math.round(m.height * 0.45),
+        width: Math.round(m.width * 0.1),
+        height: Math.round(m.height * 0.1),
+      })
+      .removeAlpha()
+      .toBuffer();
+    return (await sharp(teil).stats()).channels[0].mean;
+  }
+
+  it('hebt ein unterbelichtetes Produkt an — heller Untergrund als Referenz', async () => {
+    const foto = await fotoMit({
+      grund: { r: 195, g: 195, b: 195 },
+      produktTon: { r: 125, g: 125, b: 125 },
+    });
+    const r = await bauePackshot(foto, await maskenQuelle(), { hintergrund: 'verlauf' });
+    expect(r.ok).toBe(true);
+    expect(r.info.belichtung.faktoren).not.toBeNull();
+    // Untergrund 195 auf ~248 → Faktor rund 1,27.
+    expect(r.info.belichtung.faktoren[0]).toBeGreaterThan(1.2);
+    expect(await produktTon(r.buffer)).toBeGreaterThan(140);
+  });
+
+  it('HELLT EIN WIRKLICH DUNKLES PRODUKT NICHT AUF — sonst wäre es eine Produktveränderung', async () => {
+    const foto = await fotoMit({
+      grund: { r: 225, g: 225, b: 225 },
+      produktTon: { r: 20, g: 20, b: 20 },
+    });
+    const r = await bauePackshot(foto, await maskenQuelle(), { hintergrund: 'verlauf' });
+    expect(r.ok).toBe(true);
+    // Der Faktor richtet sich nach dem Untergrund (225 → ~1,10), nicht nach dem
+    // Produkt. Ein schwarzes Gehäuse bleibt schwarz.
+    expect(r.info.belichtung.faktoren[0]).toBeLessThan(1.15);
+    expect(await produktTon(r.buffer)).toBeLessThan(45);
+  });
+
+  it('korrigiert NICHT vor dunklem Untergrund — das war keine Graukarte', async () => {
+    const foto = await fotoMit({ grund: { r: 90, g: 90, b: 90 }, produktTon: { r: 60, g: 60, b: 60 } });
+    const r = await bauePackshot(foto, await maskenQuelle(), { hintergrund: 'verlauf' });
+    // Der Packshot selbst darf scheitern (Rand nicht hell) — entscheidend ist,
+    // dass KEINE Korrektur aus einem untauglichen Bezug abgeleitet wurde.
+    const info = r.ok ? r.info.belichtung : null;
+    if (info) {
+      expect(info.faktoren).toBeNull();
+      expect(info.grund).toMatch(/hintergrund_zu_dunkel/);
+    }
+  });
+
+  it('korrigiert NICHT vor farbigem Untergrund — ein Weissabgleich darauf färbte den Artikel um', async () => {
+    const foto = await fotoMit({
+      grund: { r: 230, g: 170, b: 150 },
+      produktTon: { r: 120, g: 120, b: 120 },
+    });
+    const r = await bauePackshot(foto, await maskenQuelle(), { hintergrund: 'verlauf' });
+    if (r.ok) {
+      expect(r.info.belichtung.faktoren).toBeNull();
+      expect(r.info.belichtung.grund).toMatch(/hintergrund_farbig/);
+    }
+  });
+
+  it('deckelt die Verstaerkung — kein ausgebranntes Bild aus einem sehr dunklen Foto', async () => {
+    const foto = await fotoMit({
+      grund: { r: 145, g: 145, b: 145 },
+      produktTon: { r: 90, g: 90, b: 90 },
+    });
+    const r = await bauePackshot(foto, await maskenQuelle(), { hintergrund: 'verlauf' });
+    if (r.ok && r.info.belichtung.faktoren) {
+      for (const f of r.info.belichtung.faktoren) expect(f).toBeLessThanOrEqual(1.6);
+    }
   });
 });

@@ -456,8 +456,19 @@ async function bauePackshot(originalBuffer, maskenQuelle, opts = {}) {
     .png()
     .toBuffer();
 
+  // BELICHTUNG/WEISSABGLEICH aus dem HINTERGRUND — die Graukarten-Methode.
+  // Gemessen am Marstek-Speicher: Hintergrund 195, weisses Produkt 125. Ohne
+  // Korrektur zeigt der Packshot ein mattgraues Geraet, obwohl es weiss ist.
+  const belichtung = await messeBelichtung(original, maskePng, oMeta);
+
   // Originalpixel + Maske als Alpha → Produkt freigestellt, Pixel unangetastet.
-  const freigestellt = await sharp(original)
+  // Die Belichtungskorrektur ist eine LINEARE Verstaerkung je Kanal, kein
+  // Neuzeichnen: Formen, Kanten und jeder Buchstabe bleiben, wo sie sind.
+  const grundBild = belichtung.faktoren
+    ? await sharp(original).linear(belichtung.faktoren, [0, 0, 0]).toBuffer()
+    : original;
+
+  const freigestellt = await sharp(grundBild)
     .ensureAlpha()
     .composite([{ input: maskePng, blend: 'dest-in' }])
     .png()
@@ -539,6 +550,9 @@ async function bauePackshot(originalBuffer, maskenQuelle, opts = {}) {
       produktQuelle: `${pMeta.width}x${pMeta.height}`,
       leinwand,
       hintergrund: verlauf ? 'verlauf' : 'weiss',
+      belichtung: belichtung.faktoren
+        ? { faktoren: belichtung.faktoren.map((f) => +f.toFixed(3)), hintergrund: belichtung.hintergrund }
+        : { faktoren: null, grund: belichtung.grund },
       // TATSAECHLICHE Skalierung (nach withoutEnlargement), nicht die angestrebte.
       skalierung: +(Math.max(pw, ph) / langeKante).toFixed(2),
     },
@@ -600,6 +614,89 @@ async function baueKontaktschatten(produktPng, pw, ph) {
 
   // Leicht unter die Unterkante schieben, damit er anliegt statt zu schweben.
   return { buffer: schatten, dx: 0, dy: -Math.round(hoehe * 0.55) };
+}
+
+/**
+ * Belichtung und Weissabgleich aus dem HINTERGRUND ableiten — die Methode, die
+ * ein Fotograf mit einer Graukarte anwendet.
+ *
+ * WARUM AUS DEM HINTERGRUND und nicht aus dem Produkt: eine Korrektur, die sich
+ * am Produkt orientiert, verschiebt dessen Farbe — aus Beige wuerde Weiss, aus
+ * einem dunkelgrauen Gehaeuse ein helles. Das waere eine Produktveraenderung,
+ * also genau das, was dieser ganze Weg vermeiden soll. Der Hintergrund dagegen
+ * ist BEKANNT neutral: er ist die Flaeche, die das Modell als Nicht-Produkt
+ * ausgewiesen hat. Bringt man IHN auf Weiss und wendet denselben Faktor auf
+ * alles an, bleiben alle Farben ZUEINANDER unveraendert — korrigiert wird nur
+ * das Licht des Raumes, nicht der Artikel.
+ *
+ * Drei Wachen, alle fail-open (im Zweifel gar keine Korrektur):
+ *   - zu dunkler Hintergrund (< MIN_HG): das war kein heller Untergrund,
+ *     womoeglich wurde vor einer dunklen Wand fotografiert. Nichts tun.
+ *   - farbiger Hintergrund (Kanalfaktoren weichen > MAX_FARBSPREIZUNG ab):
+ *     dann ist er keine gueltige Graukarte, und ein Weissabgleich darauf
+ *     faerbte den ganzen Artikel um.
+ *   - Verstaerkung gedeckelt (MAX_FAKTOR): ein stark unterbelichtetes Foto
+ *     wird aufgehellt, aber nicht bis zur Unkenntlichkeit ausgebrannt.
+ */
+const BELICHTUNG_MIN_HG = 140;
+const BELICHTUNG_ZIEL = 248;
+const BELICHTUNG_MAX_FAKTOR = 1.6;
+const BELICHTUNG_MAX_FARBSPREIZUNG = 1.3;
+
+async function messeBelichtung(original, maskePng, oMeta) {
+  try {
+    // Der Hintergrund ist alles, was die Maske NICHT als Produkt fuehrt. Die
+    // Maske wird invertiert und als Alpha gelegt; danach tragen nur noch
+    // Hintergrundpixel Deckkraft.
+    const nurHintergrund = await sharp(original)
+      .ensureAlpha()
+      // `negate({alpha:true})` ist Pflicht: die Maske traegt ihren Wert im
+      // ALPHA-Kanal, und `dest-in` liest ausschliesslich Alpha. Mit
+      // `{alpha:false}` — dem naheliegenden "nur die Farben umdrehen" — bliebe
+      // Alpha stehen und man maesse das PRODUKT statt des Hintergrunds
+      // (gemessen: 127 statt 195). Dieselbe Falle wie beim Maskieren selbst.
+      .composite([{ input: await sharp(maskePng).negate({ alpha: true }).toBuffer(), blend: 'dest-in' }])
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+
+    const { data, info } = nurHintergrund;
+    const kanal = [[], [], []];
+    // Grob abtasten — fuer einen Hellwert braucht es keine vier Millionen Pixel.
+    const schritt = Math.max(1, Math.floor((info.width * info.height) / 40000));
+    for (let p = 0; p < info.width * info.height; p += schritt) {
+      const i = p * info.channels;
+      if (info.channels === 4 && data[i + 3] < 200) continue; // Produkt, nicht Hintergrund
+      kanal[0].push(data[i]);
+      kanal[1].push(data[i + 1]);
+      kanal[2].push(data[i + 2]);
+    }
+    if (kanal[0].length < 500) return { faktoren: null, grund: 'zu_wenig_hintergrund' };
+
+    // 90. Perzentil statt Maximum: ein einzelner Lichtreflex darf den
+    // Weisspunkt nicht bestimmen.
+    const hell = kanal.map((werte) => {
+      werte.sort((a, b) => a - b);
+      return werte[Math.floor(werte.length * 0.9)];
+    });
+
+    if (Math.min(...hell) < BELICHTUNG_MIN_HG) {
+      return { faktoren: null, grund: `hintergrund_zu_dunkel(${Math.min(...hell)})` };
+    }
+
+    const roh = hell.map((v) => BELICHTUNG_ZIEL / Math.max(1, v));
+    const spreizung = Math.max(...roh) / Math.max(1e-6, Math.min(...roh));
+    if (spreizung > BELICHTUNG_MAX_FARBSPREIZUNG) {
+      return { faktoren: null, grund: `hintergrund_farbig(${spreizung.toFixed(2)})` };
+    }
+
+    const faktoren = roh.map((f) => Math.min(BELICHTUNG_MAX_FAKTOR, Math.max(1, f)));
+    // Unter 2 % Aenderung lohnt der Rechenweg nicht.
+    if (Math.max(...faktoren) < 1.02) return { faktoren: null, grund: 'bereits_neutral' };
+
+    return { faktoren, hintergrund: hell, grund: null };
+  } catch (err) {
+    return { faktoren: null, grund: `messung_fehlgeschlagen: ${err.message}` };
+  }
 }
 
 /**
