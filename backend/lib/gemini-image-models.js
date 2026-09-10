@@ -40,6 +40,11 @@ const RETIRED_IMAGE_MODELS = Object.freeze(
 const DEFAULT_QUALITY_MODEL = 'gemini-3-pro-image';
 // Schnelleres Arbeitspferd für Massenläufe (bis 10 Objekt-Referenzen, 512/1K/2K/4K).
 const DEFAULT_FAST_MODEL = 'gemini-3.1-flash-image';
+// Billigstes Modell — ausschliesslich fuer MASKEN-Aufnahmen (lib/packshot-composite.js).
+// Deren Pixel landen NIE im Endbild; gebraucht wird nur die Silhouette. Detailtreue,
+// Kleindruck und Farbe sind dort gleichgueltig, also waere jedes teurere Modell
+// verschwendetes Geld: 0,034 $ statt 0,101 $ je Ansicht.
+const DEFAULT_MASK_MODEL = 'gemini-3.1-flash-lite-image';
 
 /**
  * Maximale Anzahl OBJEKT-Referenzbilder je Modell (dokumentierte, rollenbezogene
@@ -103,17 +108,46 @@ function studioImageModelChain() {
   return [...new Set([primary, fallback])];
 }
 
-/** Modellkette für die Varianten-Erzeugung (mehrere Referenzen → weitere Ansicht). */
+/**
+ * Modellkette für die Angebotsgalerie — BILLIG ZUERST (seit 2026-09-10).
+ *
+ * Umgekehrt zum Studio-Pfad: dort erzeugt EIN Aufruf das eine Ergebnis, hier
+ * sind es sechs Bilder je Knopfdruck. Preisliste je Bild:
+ *   gemini-3-pro-image      0,134 $  ->  6 Bilder = 0,80 $
+ *   gemini-3.1-flash-image  0,101 $ (2K) / 0,067 $ (1K)  ->  Serie ~0,54 $
+ *
+ * Das schnelle Modell steht deshalb VORN, das teure ist der Rückfall. Das ist
+ * auch qualitativ vertretbar: der Rückfall ist das BESSERE Modell, nicht das
+ * schlechtere — scheitert das billige an einer Prüfung, übernimmt das teure.
+ * Am echten Produkt gemessen (10.09.): das Pro-Modell wurde von den Prüfungen
+ * nicht seltener verworfen als Flash.
+ */
 function variantImageModelChain() {
   const primary = resolveImageModel(
     process.env.VARIANT_IMAGE_MODEL || process.env.GEMINI_IMAGE_MODEL,
-    DEFAULT_QUALITY_MODEL
+    DEFAULT_FAST_MODEL
   );
-  const fallback = resolveImageModel(process.env.VARIANT_IMAGE_FALLBACK_MODEL, DEFAULT_FAST_MODEL);
+  const fallback = resolveImageModel(process.env.VARIANT_IMAGE_FALLBACK_MODEL, DEFAULT_QUALITY_MODEL);
   return [...new Set([primary, fallback])];
 }
 
 /** Wie viele Objekt-Referenzbilder dieses Modell mit hoher Treue hält. */
+/**
+ * Kette fuer MASKEN-Aufnahmen (Silhouette fuer den pixeltreuen Packshot-Weg).
+ *
+ * BILLIG ZUERST, und zwar aus einem inhaltlichen Grund, nicht aus Geiz: von dieser
+ * Aufnahme wird ausschliesslich die Silhouette benutzt, alle ihre Pixel werden
+ * weggeworfen. Ein Modell, das schoenere Oberflaechen malt, liefert hier exakt
+ * nichts Zusaetzliches. Das Zweitmodell steht nur bereit, falls das erste die
+ * Freistellung nicht sauber hinbekommt (die Waechter in packshot-composite.js
+ * merken das und sind fail-closed).
+ */
+function maskImageModelChain() {
+  const primary = resolveImageModel(process.env.VARIANT_MASK_MODEL, DEFAULT_MASK_MODEL);
+  const fallback = resolveImageModel(process.env.VARIANT_MASK_FALLBACK_MODEL, DEFAULT_FAST_MODEL);
+  return [...new Set([primary, fallback])];
+}
+
 function maxObjectReferences(model) {
   const resolved = resolveImageModel(model);
   const limit = OBJECT_REFERENCE_LIMITS[resolved];
@@ -143,10 +177,12 @@ function resolveImageSize(model, requested) {
 module.exports = {
   DEFAULT_QUALITY_MODEL,
   DEFAULT_FAST_MODEL,
+  DEFAULT_MASK_MODEL,
   RETIRED_IMAGE_MODELS,
   resolveImageModel,
   studioImageModelChain,
   variantImageModelChain,
+  maskImageModelChain,
   maxObjectReferences,
   resolveImageSize,
 };

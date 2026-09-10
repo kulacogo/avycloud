@@ -10,6 +10,9 @@
 const {
   summarizeEvidence,
   planFaithfulVariants,
+  planGalleryVariants,
+  normalisiereProdukt,
+  STUDIO_SERIE,
   VIEWPOINT_LABELS_DE,
 } = require('../lib/image-viewpoint');
 
@@ -226,3 +229,119 @@ describe('Sicherheitsschwelle', () => {
     expect(e.belegt).toEqual(['front']);
   });
 });
+
+
+// ---------------------------------------------------------------------------
+// Galerie-Planer (Betreiber-Auftrag 2026-09-10)
+// ---------------------------------------------------------------------------
+
+const PRODUKT = {
+  wasEsIst: 'non-slip bathtub mat',
+  woBenutzt: 'inside a bathtub',
+  wieBenutzt: 'a person stands on it',
+  schluesselbereich: 'the suction cups',
+  szeneA: 'a bare foot stepping onto the wet mat',
+  szeneB: 'a person standing in a bright bathroom tub',
+  lifestyleSinnvoll: true,
+};
+
+describe('planGalleryVariants — mindestens 4 Studio + 2 Szenen', () => {
+  it('liefert die volle Serie auch aus EINEM einzigen Foto', () => {
+    const e = summarizeEvidence({ views: [view(0, 'front')] });
+    const { plan } = planGalleryVariants(e, { produkt: PRODUKT });
+    expect(plan.filter((p) => p.art === 'studio')).toHaveLength(4);
+    expect(plan.filter((p) => p.art === 'lifestyle')).toHaveLength(2);
+  });
+
+  it('nimmt Ansichten MIT echtem Foto zuerst', () => {
+    const e = summarizeEvidence({ views: [view(0, 'front'), view(1, 'side'), view(2, 'back')] });
+    const { plan } = planGalleryVariants(e, { produkt: PRODUKT });
+    const echte = plan.filter((p) => p.quelleIstEcht);
+    expect(echte.map((p) => p.key).sort()).toEqual(['back', 'front', 'side']);
+    // Jede echte Ansicht sitzt auf ihrem eigenen Foto.
+    expect(new Set(echte.map((p) => p.sourceIndex)).size).toBe(3);
+  });
+
+  it('markiert abgeleitete Ansichten als NICHT aus echtem Foto', () => {
+    const e = summarizeEvidence({ views: [view(0, 'front')] });
+    const { plan } = planGalleryVariants(e, { produkt: PRODUKT });
+    expect(plan.some((p) => p.art === 'studio' && p.quelleIstEcht === false)).toBe(true);
+  });
+
+  it('vergibt eindeutige Variantennamen', () => {
+    const e = summarizeEvidence({ views: [view(0, 'front'), view(1, 'side')] });
+    const { plan } = planGalleryVariants(e, { produkt: PRODUKT, studioAnzahl: 6 });
+    const namen = plan.map((p) => p.variant);
+    expect(new Set(namen).size).toBe(namen.length);
+  });
+
+  it('haengt jeder Szene ihren eigenen Szenentext an', () => {
+    const e = summarizeEvidence({ views: [view(0, 'front')] });
+    const { plan } = planGalleryVariants(e, { produkt: PRODUKT });
+    const szenen = plan.filter((p) => p.art === 'lifestyle');
+    expect(szenen[0].szene).toBe(PRODUKT.szeneA);
+    expect(szenen[1].szene).toBe(PRODUKT.szeneB);
+  });
+
+  it('laesst die Szenen weg, wenn der Artikel sie nicht hergibt', () => {
+    const e = summarizeEvidence({ views: [view(0, 'front')] });
+    const { plan, skipped } = planGalleryVariants(e, {
+      produkt: { ...PRODUKT, lifestyleSinnvoll: false },
+    });
+    expect(plan.filter((p) => p.art === 'lifestyle')).toHaveLength(0);
+    expect(skipped.some((x) => x.reason === 'nicht_sinnvoll_darstellbar')).toBe(true);
+  });
+
+  it('meldet fehlende Produkterkennung, statt Szenen zu raten', () => {
+    const e = summarizeEvidence({ views: [view(0, 'front')] });
+    const { plan, skipped } = planGalleryVariants(e, { produkt: null });
+    expect(plan.filter((p) => p.art === 'lifestyle')).toHaveLength(0);
+    expect(skipped.some((x) => x.reason === 'produkt_nicht_erkannt')).toBe(true);
+  });
+
+  it('funktioniert ohne jede Ansichtserkennung — die Serie bleibt vollstaendig', () => {
+    const { plan } = planGalleryVariants(summarizeEvidence(null), { produkt: PRODUKT });
+    expect(plan.filter((p) => p.art === 'studio')).toHaveLength(4);
+    expect(plan.every((p) => p.quelleIstEcht === false)).toBe(true);
+  });
+
+  it('das Hauptbild bleibt ein echtes Foto', () => {
+    const e = summarizeEvidence({ views: [view(0, 'front')] });
+    expect(planGalleryVariants(e, { produkt: PRODUKT }).hauptbildBleibtEcht).toBe(true);
+  });
+
+  it('kann mehr als vier Studio-Ansichten planen', () => {
+    const e = summarizeEvidence({ views: [view(0, 'front')] });
+    const { plan } = planGalleryVariants(e, { produkt: PRODUKT, studioAnzahl: 6 });
+    expect(plan.filter((p) => p.art === 'studio')).toHaveLength(6);
+  });
+
+  it('meldet, wenn der Kanon nicht fuer die gewuenschte Anzahl reicht', () => {
+    const e = summarizeEvidence({ views: [view(0, 'front')] });
+    const { plan, skipped } = planGalleryVariants(e, { produkt: PRODUKT, studioAnzahl: 99 });
+    expect(plan.filter((p) => p.art === 'studio')).toHaveLength(STUDIO_SERIE.length);
+    expect(skipped.some((x) => x.reason === 'kanon_erschoepft')).toBe(true);
+  });
+});
+
+describe('normalisiereProdukt', () => {
+  it('uebernimmt die Felder der Vision-Antwort', () => {
+    const p = normalisiereProdukt({
+      was_es_ist: '  a mat  ', wo_benutzt: 'a tub', wie_benutzt: 'stand on it',
+      schluesselbereich: 'cups', szene_a: 'A', szene_b: 'B', lifestyle_sinnvoll: true,
+    });
+    expect(p.wasEsIst).toBe('a mat');
+    expect(p.lifestyleSinnvoll).toBe(true);
+  });
+
+  it('liefert null ohne Benennung — ein leerer Satz gehoert nicht in den Prompt', () => {
+    expect(normalisiereProdukt({ szene_a: 'A' })).toBeNull();
+    expect(normalisiereProdukt(null)).toBeNull();
+  });
+
+  it('lifestyle_sinnvoll ist nur bei echtem true wahr', () => {
+    const p = normalisiereProdukt({ was_es_ist: 'x', lifestyle_sinnvoll: 'ja' });
+    expect(p.lifestyleSinnvoll).toBe(false);
+  });
+});
+

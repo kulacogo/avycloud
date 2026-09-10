@@ -167,6 +167,25 @@ export interface ProductImage {
   width?: number | null;
   height?: number | null;
   mimeType?: string | null;
+  /** Von der Bilderzeugung gesetzt — alle additiv, Altbestände haben sie nicht. */
+  generatedByAi?: boolean;
+  /** 'studio' = Packshot, 'lifestyle' = Anwendungsszene. */
+  art?: 'studio' | 'lifestyle';
+  /** Welche Seite des Artikels die Ansicht zeigt. */
+  viewpoint?: string;
+  /** true, wenn die Ansicht auf einem ECHTEN Foto derselben Seite sitzt. */
+  ausEchtemFoto?: boolean;
+  /**
+   * true = das Bild besteht aus den ORIGINALPIXELN des Fotos; das Modell hat nur
+   * die Silhouette geliefert. Jede Beschriftung darauf ist damit echt.
+   * false = neu gezeichnet, Kleindruck nur angenähert.
+   */
+  pixeltreu?: boolean;
+  /** Adresse des Quellfotos, aus dem die Ansicht entstanden ist. */
+  derivedFrom?: string | null;
+  /** Hinweise der Identitätsprüfung (z. B. „Beschriftungen verändert"). */
+  warnings?: string[];
+  identityChecked?: boolean;
 }
 
 export interface Identifiers {

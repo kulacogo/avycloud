@@ -53,6 +53,23 @@ const LEINWAND = 2000;
 const FUELLGRAD = 0.78;
 /** Drehung wird gedeckelt — eine falsche Vierteldrehung ist schlimmer als eine schiefe Kante. */
 const MAX_DREHUNG_GRAD = 12;
+/**
+ * Hellster und dunkelster Wert des e-Commerce-Verlaufs. Bewusst ein SCHMALES
+ * Band: der Verlauf soll Tiefe andeuten, nicht als grauer Kasten auffallen. Er
+ * wird klein gerechnet und hochskaliert — ein Verlauf ist niederfrequent, das
+ * sieht man nicht, spart aber das Durchrechnen von vier Millionen Pixeln.
+ */
+const VERLAUF_HELL = 252;
+const VERLAUF_DUNKEL = 226;
+const VERLAUF_KANTE = 64;
+/**
+ * Mindestwert des äusseren Rahmens. Der Zweck der Prüfung ist "ragt Hintergrund
+ * oder eine Hand ins Bild?", nicht "ist es exakt 255" — deshalb bekommt der
+ * Verlauf seine eigene, zu ihm passende Schranke statt einer aufgeweichten
+ * gemeinsamen. Alles Dunklere ist in BEIDEN Fällen ein Fremdkörper.
+ */
+const WEISS_RAND_MIN = 250;
+const VERLAUF_RAND_MIN = VERLAUF_DUNKEL - 8;
 
 function zahl(env, fallback) {
   const raw = parseFloat(process.env[env]);
@@ -369,15 +386,22 @@ function pruefeMaske({ anteilGroesste, deckung, seitenAbweichung, raender, solid
 // ---------------------------------------------------------------------------
 
 /**
- * Baut den Packshot: ORIGINALPIXEL durch die Maske auf reinweiss, gerade
- * gerückt, mittig, mit deterministischem Kontaktschatten.
+ * Baut den Packshot: ORIGINALPIXEL durch die Maske, gerade gerückt, mittig, mit
+ * deterministischem Kontaktschatten.
  *
  * @param {Buffer} originalBuffer Das ECHTE Foto in voller Auflösung
  * @param {Buffer} maskenQuelle   Die Weissgrund-Aufnahme des Bildmodells
+ * @param {Object} [opts]
+ * @param {'weiss'|'verlauf'} [opts.hintergrund='weiss'] Grund der Leinwand.
+ *   `weiss` ist die Voreinstellung und damit das unveränderte Studio-Verhalten.
+ *   `verlauf` legt den hellgrauen e-Commerce-Verlauf an, den der Betreiber für
+ *   die Angebotsgalerie vorgegeben hat — damit ein pixeltreuer Packshot neben
+ *   einer gerenderten Ansicht nicht als Fremdkörper auffällt.
  * @returns {Promise<{ok:true, buffer:Buffer, width:number, height:number, info:Object}
  *                  | {ok:false, gruende:string[]}>}
  */
-async function bauePackshot(originalBuffer, maskenQuelle) {
+async function bauePackshot(originalBuffer, maskenQuelle, opts = {}) {
+  const verlauf = opts.hintergrund === 'verlauf';
   // EXIF anwenden, damit Original und Maskenquelle dieselbe Orientierung haben.
   const original = await sharp(originalBuffer).rotate().toBuffer();
   const oMeta = await sharp(original).metadata();
@@ -483,9 +507,13 @@ async function bauePackshot(originalBuffer, maskenQuelle) {
 
   const schatten = await baueKontaktschatten(skaliert, pw, ph);
 
-  const packshot = await sharp({
-    create: { width: leinwand, height: leinwand, channels: 3, background: { r: 255, g: 255, b: 255 } },
-  })
+  const grund = verlauf
+    ? await baueVerlaufsgrund(leinwand)
+    : {
+        create: { width: leinwand, height: leinwand, channels: 3, background: { r: 255, g: 255, b: 255 } },
+      };
+
+  const packshot = await sharp(grund)
     .composite([
       { input: schatten.buffer, left: px + schatten.dx, top: py + ph + schatten.dy },
       { input: skaliert, left: px, top: py },
@@ -493,7 +521,7 @@ async function bauePackshot(originalBuffer, maskenQuelle) {
     .jpeg({ quality: 95, chromaSubsampling: '4:4:4' })
     .toBuffer();
 
-  const randOk = await pruefeRand(packshot);
+  const randOk = await pruefeRand(packshot, verlauf ? VERLAUF_RAND_MIN : WEISS_RAND_MIN);
   if (!randOk.ok) return { ok: false, gruende: [randOk.grund] };
 
   return {
@@ -510,6 +538,7 @@ async function bauePackshot(originalBuffer, maskenQuelle) {
       soliditaet: +(solidität * 100).toFixed(1),
       produktQuelle: `${pMeta.width}x${pMeta.height}`,
       leinwand,
+      hintergrund: verlauf ? 'verlauf' : 'weiss',
       // TATSAECHLICHE Skalierung (nach withoutEnlargement), nicht die angestrebte.
       skalierung: +(Math.max(pw, ph) / langeKante).toFixed(2),
     },
@@ -574,10 +603,51 @@ async function baueKontaktschatten(produktPng, pw, ph) {
 }
 
 /**
- * Schlusskontrolle: der äussere Rahmen MUSS reinweiss sein. Ist er es nicht,
- * ragt Hintergrund oder Hand ins Bild — dann lieber gar kein Packshot.
+ * Hellgrauer Studioverlauf als Leinwandgrund — heller Kern leicht oberhalb der
+ * Mitte (wie eine Softbox), zu den Ecken hin abfallend.
+ *
+ * Der helle Punkt sitzt bei 38 % der Höhe und NICHT mittig: das Produkt steht
+ * mittig auf der Leinwand, ein exakt konzentrischer Verlauf legte den hellsten
+ * Fleck genau hinter das Produkt, wo ihn niemand sieht, und liesse den Bereich
+ * um den Kontaktschatten am dunkelsten — dort, wo er am meisten stört.
  */
-async function pruefeRand(buffer) {
+async function baueVerlaufsgrund(leinwand) {
+  const n = VERLAUF_KANTE;
+  const roh = Buffer.alloc(n * n * 3);
+  const cx = 0.5;
+  const cy = 0.38;
+  // Weiteste Ecke vom hellen Punkt aus — darauf wird normiert, damit der
+  // dunkelste Wert genau in der Ecke erreicht wird und nicht schon vorher.
+  const maxD = Math.max(
+    Math.hypot(0 - cx, 0 - cy),
+    Math.hypot(1 - cx, 0 - cy),
+    Math.hypot(0 - cx, 1 - cy),
+    Math.hypot(1 - cx, 1 - cy)
+  );
+  for (let y = 0; y < n; y += 1) {
+    for (let x = 0; x < n; x += 1) {
+      const d = Math.hypot((x + 0.5) / n - cx, (y + 0.5) / n - cy) / maxD;
+      const wert = Math.round(VERLAUF_HELL - (VERLAUF_HELL - VERLAUF_DUNKEL) * Math.min(1, d) ** 1.6);
+      const p = (y * n + x) * 3;
+      roh[p] = wert;
+      roh[p + 1] = wert;
+      roh[p + 2] = wert;
+    }
+  }
+  // RAW-Eingabe IMMER mit Ausgabeformat verlassen — sonst kommen wieder Rohdaten
+  // zurueck und der naechste composite() meldet "unsupported image format".
+  return sharp(roh, { raw: { width: n, height: n, channels: 3 } })
+    .resize(leinwand, leinwand, { fit: 'fill', kernel: 'cubic' })
+    .png()
+    .toBuffer();
+}
+
+/**
+ * Schlusskontrolle: der äussere Rahmen MUSS dem bestellten Grund entsprechen.
+ * Ist er dunkler, ragt Hintergrund oder Hand ins Bild — dann lieber gar kein
+ * Packshot.
+ */
+async function pruefeRand(buffer, minWert = WEISS_RAND_MIN) {
   const meta = await sharp(buffer).metadata();
   const w = meta.width || 0;
   const h = meta.height || 0;
@@ -592,7 +662,7 @@ async function pruefeRand(buffer) {
     const teil = await sharp(buffer).extract(s).removeAlpha().toBuffer();
     const stats = await sharp(teil).stats();
     for (const kanal of stats.channels.slice(0, 3)) {
-      if (kanal.min < 250) return { ok: false, grund: `rand_nicht_weiss(${kanal.min})` };
+      if (kanal.min < minWert) return { ok: false, grund: `rand_nicht_weiss(${kanal.min})` };
     }
   }
   return { ok: true };

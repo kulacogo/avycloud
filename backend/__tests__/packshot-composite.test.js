@@ -278,3 +278,62 @@ describe('Betriebsschalter', () => {
     expect(compositeEnabled()).toBe(false);
   });
 });
+
+/**
+ * VERLAUFSGRUND (seit 2026-09-10) — fuer die Angebotsgalerie.
+ *
+ * Der Betreiber hat den hellgrauen e-Commerce-Verlauf vorgegeben. Die
+ * gerenderten Ansichten liefern ihn ohnehin; ein reinweisser Packshot daneben
+ * fiele als Fremdkoerper auf. Die VOREINSTELLUNG bleibt Weiss, damit der
+ * Studio-Foto-Weg unveraendert bleibt.
+ */
+describe('Hintergrund der Leinwand', () => {
+  it('ist ohne Angabe REINWEISS — Studio-Weg unveraendert', async () => {
+    const r = await bauePackshot(await echtesFoto(), await maskenQuelle());
+    expect(r.ok).toBe(true);
+    expect(r.info.hintergrund).toBe('weiss');
+    const ecke = await sharp(r.buffer)
+      .extract({ left: 0, top: 0, width: 40, height: 40 })
+      .removeAlpha()
+      .toBuffer();
+    const stats = await sharp(ecke).stats();
+    for (const k of stats.channels) expect(k.min).toBeGreaterThanOrEqual(250);
+  });
+
+  it('legt auf Wunsch einen hellgrauen Verlauf an — Ecke dunkler als Mitte', async () => {
+    const r = await bauePackshot(await echtesFoto(), await maskenQuelle(), {
+      hintergrund: 'verlauf',
+    });
+    expect(r.ok).toBe(true);
+    expect(r.info.hintergrund).toBe('verlauf');
+
+    const mittel = async (left, top) => {
+      const teil = await sharp(r.buffer)
+        .extract({ left, top, width: 30, height: 30 })
+        .removeAlpha()
+        .toBuffer();
+      return (await sharp(teil).stats()).channels[0].mean;
+    };
+    const ecke = await mittel(0, 0);
+    // Knapp neben dem hellen Kern, aber noch ausserhalb des Produkts.
+    const nahMitte = await mittel(Math.round(r.width * 0.5) - 15, Math.round(r.height * 0.04));
+
+    expect(nahMitte).toBeGreaterThan(ecke);
+    // Schmales Band: der Verlauf soll Tiefe andeuten, nicht als grauer Kasten
+    // auffallen. Faellt er zu weit ab, sieht das Bild schmutzig aus.
+    expect(ecke).toBeGreaterThan(215);
+    expect(nahMitte).toBeLessThanOrEqual(255);
+  });
+
+  it('haelt auch beim Verlauf die Rand-Wache scharf', async () => {
+    // Eine Maske, die den ganzen Rahmen als Produkt fuehrt, muss auch mit
+    // Verlauf abgelehnt werden — sonst raegt Hintergrund oder Hand ins Bild.
+    const randvoll = await sharp({
+      create: { width: 1000, height: 1000, channels: 3, background: { r: 20, g: 20, b: 20 } },
+    })
+      .png()
+      .toBuffer();
+    const r = await bauePackshot(await echtesFoto(), randvoll, { hintergrund: 'verlauf' });
+    expect(r.ok).toBe(false);
+  });
+});

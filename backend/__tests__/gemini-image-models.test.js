@@ -13,6 +13,7 @@ const {
   maxObjectReferences,
   resolveImageSize,
   DEFAULT_QUALITY_MODEL,
+  DEFAULT_FAST_MODEL,
   RETIRED_IMAGE_MODELS,
 } = require('../lib/gemini-image-models');
 
@@ -51,9 +52,17 @@ describe('resolveImageModel', () => {
 });
 
 describe('Modellketten', () => {
-  it('nutzt ohne ENV das staerkste Modell zuerst', () => {
+  it('Studio-Kette nimmt das staerkste Modell zuerst', () => {
+    // Ein Aufruf, ein Ergebnis — hier zaehlt Qualitaet, nicht der Stueckpreis.
     expect(studioImageModelChain()[0]).toBe(DEFAULT_QUALITY_MODEL);
-    expect(variantImageModelChain()[0]).toBe(DEFAULT_QUALITY_MODEL);
+  });
+
+  it('Varianten-Kette nimmt das GUENSTIGE Modell zuerst — sechs Bilder je Klick', () => {
+    // Seit 2026-09-10: die Galerie erzeugt 4 Studio + 2 Szenen pro Knopfdruck.
+    // Auf dem Pro-Modell waeren das 0,80 $, auf Flash rund 0,54 $. Der Rueckfall
+    // ist bewusst das BESSERE Modell, nicht das schlechtere.
+    expect(variantImageModelChain()[0]).toBe(DEFAULT_FAST_MODEL);
+    expect(variantImageModelChain()[1]).toBe(DEFAULT_QUALITY_MODEL);
   });
 
   it('heilt einen ENV-Pin auf ein totes Modell, statt ihn blind zu uebernehmen', () => {

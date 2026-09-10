@@ -1241,7 +1241,7 @@ router.post('/intake/resolve', requirePermission('identify', 'run'), async (req,
 // vollständig (Datenverlust-Klasse aus CLAUDE.md Punkt 16).
 router.post('/generate-images', requirePermission('products', 'write'), async (req, res) => {
   try {
-    const { productId, product, referenceImage, maxVariants } = req.body || {};
+    const { productId, product, referenceImage, maxVariants, lifestyle } = req.body || {};
 
     let targetProduct = product;
     if (!targetProduct && productId) {
@@ -1298,6 +1298,8 @@ router.post('/generate-images', requirePermission('products', 'write'), async (r
     const result = await generateImagesForProduct(targetProduct, {
       referenceImage,
       maxVariants: Number.isInteger(maxVariants) ? maxVariants : undefined,
+      // Anwendungsszenen sind optional (Betreiber 2026-09-10). Ohne Angabe an.
+      lifestyle: typeof lifestyle === 'boolean' ? lifestyle : undefined,
     });
 
     res.json({

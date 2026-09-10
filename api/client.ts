@@ -3796,12 +3796,22 @@ export interface ImageGenerationEvidence {
   referenceCount: number;
   classified: boolean;
   sameProductThroughout: boolean;
+  /** Was die Bildanalyse im Artikel erkannt hat — steuert die Anwendungsszenen. */
+  produkt?: { wasEsIst?: string; woBenutzt?: string; lifestyleSinnvoll?: boolean } | null;
 }
 
 export const generateProductImages = async (
   productId: string,
   referenceImage: ProductImage,
-  options?: { sampleCount?: number; product?: Product; mode?: string; maxVariants?: number }
+  options?: {
+    sampleCount?: number;
+    product?: Product;
+    mode?: string;
+    /** Anzahl der Studio-Ansichten (mindestens 4). */
+    maxVariants?: number;
+    /** Anwendungsszenen mitgenerieren (Default true). */
+    lifestyle?: boolean;
+  }
 ): Promise<{
   ok: boolean;
   data?: ProductImage[];
@@ -3814,7 +3824,24 @@ export const generateProductImages = async (
   /** Welche Ansichten NICHT entstanden sind — mit Grund. Muss dem Bediener gezeigt werden. */
   skipped?: ImageViewSkipEntry[];
   evidence?: ImageGenerationEvidence;
-  report?: { mode?: string; requestedVariants?: number; producedVariants?: number };
+  report?: {
+    mode?: string;
+    requestedVariants?: number;
+    producedVariants?: number;
+    studioProduced?: number;
+    lifestyleProduced?: number;
+    ausEchtemFoto?: number;
+    /** Wie viele Bilder aus ORIGINALPIXELN bestehen (echter Kleindruck). */
+    pixeltreu?: number;
+    /** Was der Lauf gekostet hat — Bildaufrufe sind der teure Teil. */
+    kosten?: {
+      bildaufrufe?: number;
+      kostenUsd?: number;
+      deckelUsd?: number;
+      deckelErreicht?: boolean;
+    };
+    durationMs?: number;
+  };
   error?: { code: number; message: string };
 }> => {
   let response: Response | undefined;
@@ -3836,6 +3863,7 @@ export const generateProductImages = async (
         sampleCount: options?.sampleCount ?? 1,
         mode: options?.mode,
         maxVariants: options?.maxVariants,
+        lifestyle: options?.lifestyle,
       }),
     });
     const result = await parseResponse(response);

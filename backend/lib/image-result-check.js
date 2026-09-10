@@ -169,6 +169,35 @@ const IDENTITY_SCHEMA = {
   required: ['same_item', 'perspective_kept', 'markings_kept', 'confidence'],
 };
 
+/**
+ * Prompt fuer die GALERIE-Aufgabe (seit 2026-09-10): das Ergebnis zeigt den
+ * Artikel ABSICHTLICH aus einem anderen Blickwinkel oder in einer Anwendungs-
+ * szene. Der Retusche-Prompt darunter taugt dafuer NICHT — er sagt dem Richter,
+ * es haetten nur Hintergrund und Licht geaendert werden duerfen, und fragt nach
+ * unveraendertem Blickwinkel. Gemessen am 10.09.: damit verwarf die Pruefung
+ * 5 von 6 erzeugten Bildern, obwohl sie gut waren.
+ *
+ * Hier zaehlt NUR: ist es derselbe physische Artikel, und stimmen die Merkmale.
+ */
+const IDENTITY_PROMPT_GALERIE = [
+  'Die ersten Bilder sind ORIGINALFOTOS eines Artikels.',
+  'Das LETZTE Bild wurde daraus erzeugt und zeigt denselben Artikel ABSICHTLICH aus',
+  'einem anderen Blickwinkel oder in einer Anwendungssituation.',
+  'Ein anderer Blickwinkel, ein anderer Hintergrund und eine Umgebung sind ERWUENSCHT',
+  'und KEIN Fehler.',
+  '',
+  'Pruefe nur diese Fragen:',
+  '- Ist es derselbe physische Artikel? Achte auf Bauform, Proportionen, Farbe, Material,',
+  '  Anordnung der Bauteile. Ein aehnliches Produkt derselben Art ist NICHT derselbe Artikel.',
+  '- Sind Marken- und Modellbeschriftungen sinngemaess erhalten, wo sie sichtbar sind?',
+  '  Ein neu erfundener Marken- oder Modellname ist ein schwerer Fehler.',
+  '  Kleindruck, der im Original schon unlesbar war, darf unlesbar bleiben.',
+  '',
+  'Setze "perspective_kept" IMMER auf true — der Blickwinkel darf hier abweichen.',
+  'Nenne unter "problems" nur konkrete, sichtbare Abweichungen am ARTIKEL. Erfinde keine.',
+  'Antworte ausschliesslich mit dem geforderten JSON.',
+].join('\n');
+
 const IDENTITY_PROMPT = [
   'Die ersten Bilder sind ORIGINALFOTOS eines Artikels.',
   'Das LETZTE Bild ist eine bearbeitete Fassung, bei der nur Hintergrund und Beleuchtung',
@@ -208,6 +237,8 @@ function minIdentityConfidence() {
  *                    confidence:number, problems:string[], model:string}|null>}
  */
 async function judgeProductIdentity(referenceParts, candidate, opts = {}) {
+  // `modus:'galerie'` fuer absichtlich neue Blickwinkel/Szenen, sonst Retusche.
+  const prompt = opts.modus === 'galerie' ? IDENTITY_PROMPT_GALERIE : IDENTITY_PROMPT;
   if (!identityCheckEnabled()) return null;
   if (!Array.isArray(referenceParts) || !referenceParts.length) return null;
   if (!candidate?.data) return null;
@@ -225,7 +256,7 @@ async function judgeProductIdentity(referenceParts, candidate, opts = {}) {
 
     const ai = opts.aiClient || (await getGenAIClient());
     const parts = [
-      { text: IDENTITY_PROMPT },
+      { text: prompt },
       ...referenceParts.slice(0, 4),
       { inlineData: { data: candidate.data, mimeType: candidate.mimeType || 'image/png' } },
     ];
@@ -282,11 +313,14 @@ async function judgeProductIdentity(referenceParts, candidate, opts = {}) {
  * gedrehter Blickwinkel — wird als WARNUNG durchgereicht und dem Menschen gezeigt.
  * Ein Modell, das im Zweifel löscht, würde brauchbare Bilder vernichten.
  */
-function classifyIdentityVerdict(verdict) {
+function classifyIdentityVerdict(verdict, opts = {}) {
   if (!verdict) return { action: 'ungeprueft', warnings: [] };
 
   const warnings = [];
-  if (!verdict.perspectiveKept) warnings.push('Blickwinkel wurde verändert');
+  // In der Galerie ist ein anderer Blickwinkel der ZWECK, keine Abweichung.
+  if (!verdict.perspectiveKept && opts.perspektiveDarfAbweichen !== true) {
+    warnings.push('Blickwinkel wurde verändert');
+  }
   if (!verdict.markingsKept) warnings.push('Beschriftungen wurden verändert oder entfernt');
   for (const problem of verdict.problems || []) warnings.push(problem);
 
@@ -306,5 +340,5 @@ module.exports = {
   judgeProductIdentity,
   classifyIdentityVerdict,
   identityCheckEnabled,
-  _internal: { IDENTITY_SCHEMA, IDENTITY_PROMPT },
+  _internal: { IDENTITY_SCHEMA, IDENTITY_PROMPT, IDENTITY_PROMPT_GALERIE },
 };

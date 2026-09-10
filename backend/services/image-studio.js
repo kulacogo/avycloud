@@ -29,6 +29,7 @@ const { generateProductImages } = require('../lib/vertex-ai');
 const { studioImageModelChain, maxObjectReferences } = require('../lib/gemini-image-models');
 const { assessBackgroundBrightness } = require('../lib/image-result-check');
 const { bauePackshot, compositeEnabled } = require('../lib/packshot-composite');
+const { buildMaskPrompt } = require('./prompt-engine');
 const { fetchImageAsDataUrl } = require('./image-generation');
 const { uploadBase64Image } = require('../lib/storage');
 
@@ -77,29 +78,11 @@ const SIBLING_HINT = (total) =>
  * unversehrt. Dieser Prompt greift, wenn eine der Composite-Wachen faellt.
  */
 /**
- * MASKEN_PROMPT — für den PIXELTREUEN Primärweg (lib/packshot-composite.js).
- *
- * Diese Aufnahme wird NIE gespeichert. Sie dient ausschliesslich dazu, die
- * Silhouette des Produkts zu bestimmen; ins Endbild gehen danach nur
- * ORIGINALPIXEL. Deshalb ist es egal, dass auch hier der Kleindruck verfälscht
- * wird — diese Pixel werden weggeworfen.
- *
- * KEIN SCHATTEN BESTELLEN (teuer gelernt, 3 von 3 Läufen): ein gemalter Schatten
- * ist nicht weiss, zählt damit als Produkt — und darunter lag im Original die
- * Hand. Der Schatten entsteht deterministisch aus der Silhouette.
+ * Der MASKEN_PROMPT liegt seit 2026-09-10 in `services/prompt-engine.js` — die
+ * Angebotsgalerie braucht denselben Wortlaut, und zwei Kopien wären eine Quelle
+ * für Abweichungen.
  */
-const MASKEN_PROMPT = [
-  'Remove the background and any human hand or fingers from this photo. Place the product',
-  'on a completely plain PURE WHITE background (#FFFFFF, RGB 255,255,255), nothing else.',
-  '',
-  'ABSOLUTELY CRITICAL — the product must not move:',
-  '- Keep the product at the EXACT same position, the EXACT same size and the EXACT same',
-  '  camera perspective and rotation as in the input photo. Do NOT crop, do NOT zoom,',
-  '  do NOT re-center, do NOT rescale, do NOT rotate, do NOT re-compose.',
-  '- The output image must have the same aspect ratio and framing as the input.',
-  '- Where the hand covered part of the product, reconstruct only that small hidden part.',
-  '- No shadow, no reflection, no gradient, no props, no text, no watermark.',
-].join('\n');
+const MASKEN_PROMPT = buildMaskPrompt();
 
 const STUDIO_PROMPT = [
   'Retouch this photo into a clean e-commerce packshot of the SAME physical item.',

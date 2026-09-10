@@ -197,11 +197,18 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   const [qualityBusy, setQualityBusy] = useState(false);
   const [qualityMessage, setQualityMessage] = useState<string | null>(null);
   const [isGeneratingImages, setIsGeneratingImages] = useState(false);
+  // Anwendungsszenen sind optional (Betreiber-Vorgabe 2026-09-10).
+  const [withLifestyle, setWithLifestyle] = useState(true);
   // BLEIBENDER Bericht der Bildaufbereitung. Bewusst kein Toast: eine Meldung mit
   // Auto-Ausblenden ist genau der Fehler aus CLAUDE.md Punkt 16b — der Bediener
   // haelt ein unvollstaendiges Ergebnis sonst fuer vollstaendig.
   const [generationReport, setGenerationReport] = useState<{
     produced: number;
+    studio?: number;
+    lifestyle?: number;
+    ausEchtemFoto?: number;
+    pixeltreu?: number;
+    kostenUsd?: number;
     skipped: ImageViewSkipEntry[];
     evidence?: ImageGenerationEvidence;
   } | null>(null);
@@ -625,6 +632,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
       const result = await generateProductImages(laufProduktId, selectedReferenceImage, {
         sampleCount: 1,
         product: localProduct,
+        lifestyle: withLifestyle,
       });
 
       if (laufProduktId !== localProduct.id) return;
@@ -651,7 +659,16 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
 
       // Der Bericht bleibt IMMER stehen — auch im Erfolgsfall. Er ist die einzige
       // Stelle, an der der Bediener erfaehrt, welche Ansicht es nicht gibt und warum.
-      setGenerationReport({ produced: produced.length, skipped, evidence: result.evidence });
+      setGenerationReport({
+        produced: produced.length,
+        studio: result.report?.studioProduced,
+        lifestyle: result.report?.lifestyleProduced,
+        ausEchtemFoto: result.report?.ausEchtemFoto,
+        pixeltreu: result.report?.pixeltreu,
+        kostenUsd: result.report?.kosten?.kostenUsd,
+        skipped,
+        evidence: result.evidence,
+      });
 
       if (produced.length) {
         updateImages((images) => [...images, ...produced]);
@@ -675,6 +692,10 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     if (reason === 'keine_ansichtserkennung') return 'Ansichten liessen sich nicht bestimmen';
     if (reason === 'zeitbudget_erschoepft') return 'Zeitbudget des Laufs erschöpft — bitte erneut starten';
     if (reason === 'quelle_bereits_vergeben') return 'kein eigenes Foto dieser Seite (Vorlage schon für eine andere Ansicht verwendet)';
+    if (reason === 'nicht_sinnvoll_darstellbar') return 'Artikel lässt sich nicht sinnvoll in Benutzung zeigen';
+    if (reason === 'produkt_nicht_erkannt') return 'Artikel auf den Fotos nicht sicher erkannt — keine erfundene Szene';
+    if (reason === 'keine_szene_beschrieben') return 'keine passende Szene ableitbar';
+    if (reason === 'kanon_erschoepft') return 'mehr Ansichten sind aus diesem Artikel nicht sinnvoll';
     if (reason === 'erzeugung_fehlgeschlagen') {
       const detail = entry.attempts?.map((a) => a.reason).filter(Boolean).join(' · ');
       return detail ? `Aufbereitung fehlgeschlagen (${detail})` : 'Aufbereitung fehlgeschlagen';
@@ -2368,19 +2389,30 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   {isGeneratingImages ? t('sheet.ai.running') : t('sheet.ai.cta')}
                 </button>
                 <p className="mt-2 text-[11px] leading-snug text-txt-muted">
-                  Wertet <strong>alle vorhandenen Fotos</strong> aus und macht daraus bis zu
-                  <strong> 4 saubere Packshots</strong> — je Foto einen (Produkt unverändert, nur
-                  Hintergrund und Licht). Perspektiven ohne echtes Foto werden{' '}
-                  <strong>nicht erfunden</strong>: mit weniger Fotos gibt es weniger Bilder.
+                  Wertet <strong>alle vorhandenen Fotos</strong> aus und erzeugt daraus{' '}
+                  <strong>4 Studio-Ansichten</strong> (Hero 3/4, Front, Draufsicht, Detail) plus{' '}
+                  <strong>2 Anwendungsszenen</strong>. Ansichten, für die ein echtes Foto vorliegt,
+                  werden daraus gebaut — die übrigen leitet das Modell aus dem vorhandenen Material
+                  ab und sind unten als solche gekennzeichnet.
                 </p>
+                <label className="mt-2 flex items-center gap-2 text-[11px] text-txt-secondary">
+                  <input
+                    type="checkbox"
+                    checked={withLifestyle}
+                    onChange={(e) => setWithLifestyle(e.target.checked)}
+                    className="accent-accent"
+                  />
+                  Anwendungsszenen mit erzeugen (2 Bilder)
+                </label>
 
                 {generationReport && (
                   <div className="mt-3 rounded-lg border border-app-border bg-app-bg/60 p-3 text-xs">
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-semibold text-txt-primary">
                         {generationReport.produced > 0
-                          ? `${generationReport.produced} Ansicht${generationReport.produced === 1 ? '' : 'en'} aufbereitet`
-                          : 'Keine Ansicht aufbereitet'}
+                          ? `${generationReport.studio ?? generationReport.produced} Studio-Ansichten` +
+                            (generationReport.lifestyle ? ` + ${generationReport.lifestyle} Szenen` : '')
+                          : 'Kein Bild erzeugt'}
                       </span>
                       <button
                         type="button"
@@ -2392,10 +2424,35 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                       </button>
                     </div>
 
+                    {generationReport.evidence?.produkt?.wasEsIst ? (
+                      <p className="mt-1 text-txt-secondary">
+                        Erkannt: {generationReport.evidence.produkt.wasEsIst}
+                      </p>
+                    ) : null}
+
                     {generationReport.evidence?.belegtLabels?.length ? (
                       <p className="mt-1 text-txt-secondary">
                         Fotografiert vorhanden: {generationReport.evidence.belegtLabels.join(', ')}
                         {` (${generationReport.evidence.referenceCount} Referenzfotos genutzt)`}
+                        {typeof generationReport.ausEchtemFoto === 'number'
+                          ? ` — ${generationReport.ausEchtemFoto} Ansicht${generationReport.ausEchtemFoto === 1 ? '' : 'en'} direkt daraus`
+                          : ''}
+                      </p>
+                    ) : null}
+
+                    {typeof generationReport.pixeltreu === 'number' && generationReport.pixeltreu > 0 ? (
+                      <p className="mt-1 text-txt-secondary">
+                        {generationReport.pixeltreu} Bild
+                        {generationReport.pixeltreu === 1 ? '' : 'er'} aus Originalpixeln freigestellt —
+                        Beschriftungen und Kleindruck darauf sind echt. Diese Bilder behalten die
+                        Ausrichtung des Fotos: steht ein Artikel darauf schief oder kopfueber, das
+                        Foto drehen und neu erzeugen.
+                      </p>
+                    ) : null}
+
+                    {typeof generationReport.kostenUsd === 'number' ? (
+                      <p className="mt-1 text-txt-muted">
+                        Modellkosten dieses Laufs: {generationReport.kostenUsd.toFixed(2)} USD
                       </p>
                     ) : null}
 

@@ -3,53 +3,63 @@
 /* eslint-disable no-console */
 
 /**
- * image-generation.js — Studio-Aufbereitung ECHTER Produktansichten.
+ * image-generation.js — Angebotsgalerie aus den vorhandenen Produktfotos.
  *
  * ============================================================================
- * UMBAU 2026-09-02 — Beschwerde: "erzeugt keine sauberen originalgetreuen
- * Produktbilder aus verschiedenen Perspektiven".
+ * AUFTRAG (Betreiber 2026-09-10, mit Beispiel-Vorlage):
+ *   "die funktion muss alle vorhandenen bilder im produktdatenblatt analysieren
+ *    und logisch und plausibel dann mindestens 4 studio fotos generiert und
+ *    2 optionale lifestyle scene bilder."
  *
- * Die Ursache war keine Prompt-Schwäche, sondern der Auftrag selbst. Der Dienst
- * verlangte vier feste Perspektiven — 3/4-Front, 45-Grad-Seite, Makro-Detail und
- * RÜCKANSICHT — und schickte dem Modell dazu genau EIN Foto: er sammelte bis zu
- * vier echte Bilder, lud alle herunter und benutzte davon `referenceDataUrls[0]`.
- * Drei der vier verlangten Ansichten hatte nie jemand fotografiert. Das Modell
- * konnte sie nicht reproduzieren, es konnte sie nur erfinden.
+ * Ablauf:
+ *   1. ALLE echten Produktfotos laden (erzeugte sind ausgeschlossen).
+ *   2. EIN Vision-Call beantwortet zwei Fragen: welche Seite zeigt jedes Foto,
+ *      und WAS ist der Artikel / wie wird er benutzt (`lib/image-viewpoint.js`).
+ *      Das Zweite traegt die Anwendungsszenen — ohne es waeren sie geraten.
+ *   3. `planGalleryVariants` plant mindestens vier Studio-Ansichten plus zwei
+ *      Szenen. Ansichten MIT echtem Foto kommen zuerst und bekommen dieses Foto
+ *      als Vorlage; erst danach wird auf den Kanon aufgefuellt.
+ *   4. Je Ansicht ein Bildaufruf mit ALLEN echten Fotos als Referenz, danach
+ *      Ergebnispruefung und Identitaets-Zweitmeinung.
  *
- * Belegt und nicht verhandelbar:
- *   - Novel-View-Synthesis aus einem Bild ist mathematisch unterbestimmt; ab etwa
- *     60 Grad Blickwinkeländerung ist praktisch das gesamte Zielbild erfunden.
- *     Kein Modellwechsel und kein Prompt heilt das.
- *   - eBay-Bildrichtlinie: "Photos that don't accurately represent the item" sind
- *     verboten; zu den eigenen KI-Werkzeugen schreibt eBay ausdrücklich "using
- *     these tools to alter a product in any way is against eBay's policies".
- *     Die Nutzungsvereinbarung nennt generative KI beim Namen und weist die
- *     Verantwortung dem Verkäufer zu.
- *   - Kaufland-Guideline verlangt FOTOS und verbietet Collagen/Montagen.
- *   - TrendOcean verkauft Gebrauchtware aus Auktionslosen — dort verbietet eBay
- *     schon das echte Herstellerfoto. Ein erfundenes ist erst recht unzulässig.
+ * ============================================================================
+ * WIDERRUFENE VORGABE — bitte nicht wiederbeleben, ohne den Betreiber zu fragen.
  *
- * DIE NEUE AUFGABE: nicht Perspektiven erfinden, sondern die VORHANDENEN
- * Perspektiven sauber machen. Der Bediener fotografiert Vorderseite, Rückseite,
- * Typenschild — und bekommt genau diese Ansichten als saubere Packshots zurück,
- * Produkt pixelgetreu, nur Hintergrund und Licht ersetzt. Das ist exakt die
- * Klasse, die eBay mit seinem eigenen "Background Swap" vorlebt.
- * Fehlt eine Ansicht, entsteht sie NICHT — sie wird mit Begründung gemeldet.
+ * Vom 02.09. bis 10.09. galt hier das Gegenteil: es wurde NUR aufbereitet, was
+ * als echtes Foto belegt war, und eine fehlende Ansicht entstand NICHT. Der
+ * Grund war die Beschwerde "nicht originalgetreu" plus die Marktplatz-Regeln
+ * (eBay: "using these tools to alter a product in any way is against eBay's
+ * policies"; Kaufland verlangt Fotos, keine Montagen).
  *
- * Kette je Ansicht: Modellkette (Qualität → schnell) → Ergebnisprüfung →
- * Identitäts-Zweitmeinung → Upload. Scheitert alles, fehlt die Ansicht ehrlich.
+ * Der Betreiber hat das am 10.09. ausdruecklich widerrufen und die Serie mit
+ * einem konkreten Beispiel bestellt. Die Abwaegung dahinter, damit sie nicht
+ * verloren geht: die erzeugten Bilder sind ZUSATZbilder fuer die Galerie, das
+ * HAUPTBILD bleibt ein echtes Foto. Supplementaere Studio- und Anwendungsbilder
+ * sind im Handel ueblich; die Regeln zielen auf die irrefuehrende Darstellung
+ * des Artikels, nicht auf jede erzeugte Ansicht. Verantwortlich bleibt laut
+ * eBay-Nutzungsvereinbarung ausdruecklich der Verkaeufer.
+ *
+ * Was aus der alten Fassung BLEIBT, weil es unabhaengig davon richtig ist:
+ *   - Erzeugte Bilder sind als solche gekennzeichnet (`generatedByAi`) und
+ *     koennen NIE Referenz eines Folgelaufs werden ("Kopie einer Kopie").
+ *   - Jede Ausgabe traegt `ausEchtemFoto`: sitzt sie auf einer echten Aufnahme
+ *     derselben Seite, oder wurde sie abgeleitet? Der Bediener sieht das.
+ *   - Der Prompt verlangt, Beschriftungen als FORMEN zu kopieren statt sie zu
+ *     lesen und neu zu setzen — gemessen am 04.09. ueber 21 Laeufe die einzige
+ *     Formulierung, die den Kleindruck halbwegs haelt.
+ *   - Ergebnispruefung, Zeitbudget, Nebenlaeufigkeit, Modellkette bleiben.
  * ============================================================================
  */
 
 const sharp = require('sharp');
 const { generateProductImagesWithReport, GeminiImageError } = require('../lib/vertex-ai');
 const { uploadBase64Image } = require('../lib/storage');
-const { buildViewPrompt, generateVisualDescriptions } = require('./prompt-engine');
+const { buildGalleryPrompt, buildMaskPrompt, generateVisualDescriptions } = require('./prompt-engine');
 const { fetchWithUnlocker } = require('../lib/web-unlocker');
 const {
   classifyViewpointParts,
   summarizeEvidence,
-  planFaithfulVariants,
+  planGalleryVariants,
   VIEWPOINT_LABELS_DE,
 } = require('../lib/image-viewpoint');
 const {
@@ -57,7 +67,13 @@ const {
   judgeProductIdentity,
   classifyIdentityVerdict,
 } = require('../lib/image-result-check');
-const { variantImageModelChain, maxObjectReferences } = require('../lib/gemini-image-models');
+const {
+  variantImageModelChain,
+  maskImageModelChain,
+  maxObjectReferences,
+} = require('../lib/gemini-image-models');
+const { neuerZaehler, schaetzePosten } = require('../lib/image-cost');
+const { bauePackshot, compositeEnabled } = require('../lib/packshot-composite');
 
 const GENERATED_IMAGE_PATTERN =
   /(generated|gpt|gemini|vertex|ai[-\s]?image|ai[-\s]?render|background_removal|studio_)/i;
@@ -72,6 +88,46 @@ const PRE_MAX_EDGE_PX = parseInt(process.env.VARIANT_PRE_MAX_EDGE || '1600', 10)
 // '2K' liegt darüber. Führt ein Modell die Grösse nicht, wird das Feld gar nicht
 // gesendet (resolveImageSize) — ein unbekanntes Feld ignoriert Gemini stillschweigend.
 const VARIANT_IMAGE_SIZE = process.env.VARIANT_IMAGE_SIZE || '2K';
+
+/**
+ * Zielgroesse je Bildart — der groesste Einzelhebel bei den Kosten.
+ *
+ * STUDIO bleibt auf 2K (2048 px): eBay schaltet die Zoomlupe erst ab 1.600 px
+ * frei, 1K waeren nur 1024 px und damit unter der Schwelle.
+ * SZENEN brauchen keine Zoomlupe — ein Umgebungsbild wird nicht herangezoomt.
+ * Preisliste: 0,101 $ (2K) gegen 0,067 $ (1K) je Bild auf gemini-3.1-flash-image
+ * — 34 % gespart, ohne dass es jemand sieht.
+ */
+const LIFESTYLE_IMAGE_SIZE = process.env.LIFESTYLE_IMAGE_SIZE || '1K';
+
+/**
+ * Zielgroesse der MASKEN-Aufnahme. Bewusst klein: von ihr wird nur die
+ * Silhouette gelesen, und die wird intern ohnehin auf 1.200 px gerechnet
+ * (packshot-composite.js MASKEN_KANTE). Mehr Pixel waeren bezahlte Pixel, die
+ * niemand ansieht — das Endbild besteht aus ORIGINALPIXELN.
+ */
+const MASK_IMAGE_SIZE = process.env.VARIANT_MASK_IMAGE_SIZE || '1K';
+
+/**
+ * Der pixeltreue Weg ist AN, solange nicht ausdruecklich abgeschaltet
+ * (Hausregel: nur der exakte Wert 'off'). Zusaetzlich gilt der gemeinsame
+ * Schalter `STUDIO_COMPOSITE` — wer den Composite global abschaltet, schaltet
+ * ihn auch hier ab.
+ */
+function pixeltreuAktiv() {
+  return compositeEnabled() && String(process.env.GALLERY_PIXEL_FAITHFUL || '').trim() !== 'off';
+}
+
+/**
+ * Wie viele Referenzbilder hoechstens mitgehen. Jedes Eingabebild kostet Token,
+ * und der Nutzen saettigt: die ersten Ansichten legen Form und Farbe fest, das
+ * sechste Foto aendert daran nichts mehr. Das modellabhaengige Limit bleibt
+ * zusaetzlich in Kraft (`maxObjectReferences`), es gilt der kleinere Wert.
+ */
+function maxReferenzen() {
+  const raw = parseInt(process.env.VARIANT_MAX_REFERENCES || '4', 10);
+  return Number.isFinite(raw) && raw > 0 ? raw : 4;
+}
 
 function variantTimeoutMs() {
   const raw = parseInt(process.env.VARIANT_IMAGE_TIMEOUT_MS || '90000', 10);
@@ -143,6 +199,28 @@ async function runLimited(tasks, limit, deadline) {
  */
 function variantsMode() {
   return 'faithful';
+}
+
+/**
+ * Wie viele STUDIO-Ansichten die Serie hat. Betreiber-Vorgabe 2026-09-10:
+ * mindestens vier. Der Aufrufer darf hochsetzen, aber nicht unter vier fallen —
+ * eine dreiteilige Serie war ausdruecklich nicht gewuenscht.
+ */
+function studioCount(maxVariants) {
+  const gewuenscht = Number.isInteger(maxVariants) && maxVariants > 0 ? maxVariants : 4;
+  const min = parseInt(process.env.IMAGE_STUDIO_MIN || '4', 10);
+  return Math.max(Number.isFinite(min) && min > 0 ? min : 4, gewuenscht);
+}
+
+/**
+ * Anwendungsszenen sind OPTIONAL (Betreiber: "2 optionale lifestyle scene bilder").
+ * Der Aufrufer entscheidet je Lauf; ohne Angabe sind sie an.
+ * Notbremse fuer den Betrieb: `IMAGE_LIFESTYLE_SCENES='off'`.
+ */
+function lifestyleGewuenscht(options = {}) {
+  if (String(process.env.IMAGE_LIFESTYLE_SCENES || '').trim() === 'off') return false;
+  if (typeof options.lifestyle === 'boolean') return options.lifestyle;
+  return true;
 }
 
 function isLikelyAiImage(image = {}) {
@@ -336,6 +414,10 @@ async function loadReferences(candidates) {
           image: img,
           dataUrl: `data:image/jpeg;base64,${b64}`,
           part: { inlineData: { data: b64, mimeType: 'image/jpeg' } },
+          // Die ENTSCHLUESSELTEN Pixel. Der pixeltreue Weg legt genau sie ins
+          // Endbild — nicht das, was ein Bildmodell daraus macht. Kostet nichts
+          // extra: der Puffer liegt hier ohnehin schon aufbereitet vor.
+          buffer: pre,
         };
       } catch (err) {
         // Best-effort, aber die Ursache muss sichtbar bleiben (Incident 2026-07-09:
@@ -349,12 +431,150 @@ async function loadReferences(candidates) {
 }
 
 /**
+ * PIXELTREUER WEG — nur fuer Studio-Ansichten, die ein ECHTES Foto haben.
+ *
+ * ============================================================================
+ * WARUM (gemessen 2026-09-10 am Marstek-Speicher, sechs erzeugte Galeriebilder):
+ * ein Bildmodell rendert IMMER alles neu, auch wenn es nur den Hintergrund
+ * tauschen soll. Grosse Schrift uebersteht das ("MARSTEK" blieb korrekt),
+ * KLEINDRUCK nicht. Auf der Rueckansicht wurde aus "DO NOT CONNECT SOLAR
+ * PANELS" ein "CUT CONT CONNECT SPLAR PANLS", aus den Anschluessen OUT1/OUT2
+ * wurden "LUT0"/"2 UT2", und die Hero-Ansicht erfand einen Anschluss "OUT3",
+ * den das Geraet nicht hat. Das ist dieselbe Klasse wie im Studio-Pfad
+ * (CLAUDE.md 2026-09-04) und dort steht auch das Urteil: ein erfundener Text
+ * auf einem Angebotsbild ist eine falsche Produktangabe.
+ *
+ * Kein Prompt heilt das — 21 Laeufe ueber 6 Prompt-Fassungen haben es im
+ * Studio-Pfad nicht geschafft. Die Loesung ist, das Modell gar nicht erst
+ * malen zu lassen: es liefert nur die SILHOUETTE, seine Pixel werden
+ * weggeworfen, ins Endbild gehen ORIGINALPIXEL. Der Kleindruck bleibt damit
+ * BAUARTBEDINGT unversehrt.
+ *
+ * DAS GILT NUR, WO ES EIN FOTO GIBT. Eine Ansicht, die nie fotografiert wurde
+ * (Hero, Draufsicht ohne Vorlage), MUSS gerendert werden — dort ist die
+ * Textnaeherung der Preis fuer eine Ansicht, die es sonst gar nicht gaebe.
+ * Der Betreiber hat diese Ableitung am 2026-09-10 ausdruecklich bestellt.
+ *
+ * UND ER IST BILLIGER, nicht teurer: die Maske kommt vom guenstigsten Modell
+ * in 1K (0,034 $) statt eines 2K-Renders (0,101 $), und die Zweitmeinung
+ * "zeigt das noch denselben Artikel?" entfaellt — bei Originalpixeln ist die
+ * Frage bauartbedingt beantwortet. Das spart je echter Ansicht rund 66 %.
+ *
+ * FAIL-CLOSED: greift eine der Waechter in packshot-composite.js (Deckung,
+ * groesste Flaeche, Seitenverhaeltnis, Randberuehrung, Kompaktheit, Rand), wird
+ * KEIN Packshot geliefert und der normale Render-Weg uebernimmt. Lieber ein
+ * gerendertes Bild als ein zerfallenes Produkt (Incident 2026-07-18).
+ * ============================================================================
+ *
+ * @returns {Promise<Object|null>} Ergebnis wie renderOneView, oder null wenn
+ *          dieser Weg gar nicht in Frage kommt (dann still weiter zum Render).
+ */
+async function renderPixeltreu({ planEntry, references, sourceIndex, deadline, kosten }) {
+  const quelle = references[sourceIndex];
+  if (!quelle?.buffer || !quelle?.dataUrl) return null;
+
+  const attempts = [];
+
+
+  for (const model of maskImageModelChain()) {
+    const rest = typeof deadline === 'number' ? deadline - Date.now() : Infinity;
+    if (rest < 5000) {
+      attempts.push({ model, reason: 'zeitbudget_erschoepft' });
+      break;
+    }
+    if (kosten && !kosten.darfNoch(model, MASK_IMAGE_SIZE)) {
+      attempts.push({
+        model,
+        reason: `kostendeckel_erreicht(${kosten.usd.toFixed(2)}/${kosten.deckel.toFixed(2)} USD)`,
+      });
+      break;
+    }
+
+    try {
+      const report = await generateProductImagesWithReport({
+        prompt: buildMaskPrompt(),
+        count: 1,
+        // Kein erzwungenes Seitenverhaeltnis: der Composite vergleicht die
+        // Seitenverhaeltnisse von Foto und Maske und verwirft bei Abweichung.
+        aspectRatio: null,
+        // NUR die Vorlage. Weitere Fotos koennten das Modell dazu bringen, eine
+        // andere Ansicht zu zeichnen — dann passt die Maske nicht mehr auf das
+        // Originalfoto und der Composite baut Unsinn.
+        referenceImages: [quelle.dataUrl],
+        model,
+        timeoutMs: Math.min(variantTimeoutMs(), rest),
+        imageSize: MASK_IMAGE_SIZE,
+        maxAttempts: 1,
+      });
+
+      if (kosten) kosten.buche(report.model || model, MASK_IMAGE_SIZE, `${planEntry?.variant}:maske`);
+
+      const candidate = report.images?.[0];
+      if (!candidate?.base64) {
+        attempts.push({ model, reason: 'maske_kein_bild' });
+        continue;
+      }
+
+      const packshot = await bauePackshot(quelle.buffer, Buffer.from(candidate.base64, 'base64'), {
+        // Derselbe helle Verlauf wie bei den gerenderten Ansichten — sonst
+        // stuende ein reinweisser Packshot neben grau verlaufenden Bildern und
+        // die Galerie saehe zusammengewuerfelt aus.
+        hintergrund: 'verlauf',
+      });
+      if (!packshot.ok) {
+        attempts.push({ model, reason: `packshot_verworfen: ${packshot.gruende.join(', ')}` });
+        continue;
+      }
+
+      return {
+        buffer: packshot.buffer,
+        mimeType: 'image/jpeg',
+        model: report.model || model,
+        width: packshot.width,
+        height: packshot.height,
+        referenceCount: 1,
+        warnings: [],
+        // KEINE Vision-Zweitmeinung, und das ist kein Versaeumnis: das Ergebnis
+        // besteht aus den Pixeln des Referenzfotos. "Zeigt es denselben
+        // Artikel?" ist damit staerker beantwortet, als ein Modellurteil es
+        // je koennte — und ein gesparter Aufruf.
+        identityChecked: false,
+        pixeltreu: true,
+        packshotInfo: packshot.info,
+        attempts,
+      };
+    } catch (err) {
+      const code = err instanceof GeminiImageError ? err.code : 'UNKNOWN';
+      attempts.push({ model, reason: `maske ${code}: ${err.message}` });
+    }
+  }
+
+  return { failed: true, attempts };
+}
+
+/**
  * Erzeugt EINE Ansicht: Vorlage zuerst, übrige Fotos als Identitätsanker.
  * Läuft die Modellkette durch, ohne ein gültiges Ergebnis, wird nichts geliefert.
  */
-async function renderOneView({ product, planEntry, references, sourceIndex, deadline }) {
+async function renderOneView({ product, produktInfo, planEntry, references, sourceIndex, deadline, kosten }) {
   const chain = variantImageModelChain();
   const attempts = [];
+
+  // --- PIXELTREU ZUERST, wo es ein echtes Foto gibt -------------------------
+  // Nur Studio-Ansichten mit echter Vorlage: eine Anwendungsszene MUSS gemalt
+  // werden (sie zeigt eine Umgebung, die es auf keinem Foto gibt), und eine
+  // abgeleitete Ansicht hat definitionsgemaess kein Foto, dessen Pixel man
+  // uebernehmen koennte.
+  const kommtInFrage =
+    pixeltreuAktiv() && planEntry?.art === 'studio' && planEntry?.quelleIstEcht === true;
+  if (kommtInFrage) {
+    const treu = await renderPixeltreu({ planEntry, references, sourceIndex, deadline, kosten });
+    if (treu && !treu.failed) return treu;
+    // Gescheitert ist kein Beinbruch — der Render-Weg uebernimmt. Die Gruende
+    // wandern aber mit in den Bericht, sonst bliebe unsichtbar, dass der
+    // billigere und treuere Weg gar nicht durchkam.
+    if (treu?.attempts?.length) attempts.push(...treu.attempts);
+  }
 
   // NUR DIE VORLAGE (Korrektur 2026-09-04, Betreiber: "Produkt weicht vom
   // Original ab"). Bis dahin gingen ALLE geladenen Fotos als "Identitaetsanker"
@@ -365,10 +585,18 @@ async function renderOneView({ product, planEntry, references, sourceIndex, dead
   // Der Denkfehler: Anker helfen, wenn eine Ansicht ERFUNDEN werden muss. Seit
   // der Umstellung wird jede Ansicht aus GENAU EINEM echten Foto aufbereitet —
   // alles Noetige steckt darin. Weitere Bilder koennen nur Drift erzeugen.
-  const ankerErlaubt = String(process.env.VARIANT_SIBLING_ANCHORS || '').trim() === 'on';
-  const ordered = ankerErlaubt
-    ? [references[sourceIndex], ...references.filter((_, i) => i !== sourceIndex)].filter(Boolean)
-    : [references[sourceIndex]].filter(Boolean);
+  // ALLE echten Fotos gehen mit (Betreiber-Vorgabe 2026-09-10). Die Vorlage der
+  // geplanten Ansicht steht vorn, die uebrigen folgen als Identitaetsanker.
+  //
+  // KEHRTWENDE gegenueber dem 04.09.: damals wurden die Anker abgeschaltet, weil
+  // das Modell die Vorlagen vermischte — richtig, SOLANGE nur EIN vorhandenes
+  // Foto geputzt wurde. Jetzt wird eine Ansicht ABGELEITET, die es nicht als
+  // Foto gibt; dafuer braucht das Modell alle Seiten, sonst erfindet es sie.
+  // Notbremse: `VARIANT_SIBLING_ANCHORS='off'`.
+  const ankerAus = String(process.env.VARIANT_SIBLING_ANCHORS || '').trim() === 'off';
+  const ordered = ankerAus
+    ? [references[sourceIndex]].filter(Boolean)
+    : [references[sourceIndex], ...references.filter((_, i) => i !== sourceIndex)].filter(Boolean);
 
   for (const model of chain) {
     // Der Einzel-Timeout wird aus der VERBLEIBENDEN Gesamtfrist abgeleitet. Eine
@@ -383,9 +611,27 @@ async function renderOneView({ product, planEntry, references, sourceIndex, dead
     }
     const callTimeout = Math.min(variantTimeoutMs(), rest);
 
-    const limit = Math.max(1, maxObjectReferences(model));
+    // Zielgroesse haengt an der Bildart — Szenen brauchen keine Zoom-Aufloesung.
+    const zielGroesse = planEntry?.art === 'lifestyle' ? LIFESTYLE_IMAGE_SIZE : VARIANT_IMAGE_SIZE;
+
+    // KOSTENDECKEL: passt dieses Bild noch ins Budget? Ein Deckel, der erst
+    // nach dem Bezahlen greift, spart nichts — deshalb VOR dem Aufruf.
+    if (kosten && !kosten.darfNoch(model, zielGroesse)) {
+      attempts.push({
+        model,
+        reason: `kostendeckel_erreicht(${kosten.usd.toFixed(2)}/${kosten.deckel.toFixed(2)} USD)`,
+      });
+      break;
+    }
+
+    const limit = Math.min(maxReferenzen(), Math.max(1, maxObjectReferences(model)));
     const used = ordered.slice(0, limit);
-    const prompt = buildViewPrompt(product, planEntry, used.length);
+    const prompt = buildGalleryPrompt({
+      product,
+      produkt: produktInfo,
+      planEntry,
+      referenceCount: used.length,
+    });
 
     try {
       const report = await generateProductImagesWithReport({
@@ -398,12 +644,17 @@ async function renderOneView({ product, planEntry, references, sourceIndex, dead
         referenceImages: used.map((r) => r.dataUrl),
         model,
         timeoutMs: callTimeout,
-        imageSize: VARIANT_IMAGE_SIZE,
+        imageSize: zielGroesse,
         // Die MODELLKETTE ist bereits die Wiederholung. Zusaetzlich drei
         // Versuche je Modell ergaeben bis zu sechs bezahlte Bildaufrufe pro
         // Ansicht — und dieselbe Vervielfachung im Studio-Pfad.
         maxAttempts: 1,
       });
+
+      // Gebucht wird SOFORT nach dem Aufruf: auch ein Bild, das gleich an einer
+      // Pruefung scheitert, ist bereits bezahlt. Erst nach der Pruefung zu
+      // buchen wuerde den Deckel systematisch unterlaufen.
+      if (kosten) kosten.buche(report.model || model, zielGroesse, planEntry?.variant);
 
       const candidate = report.images?.[0];
       if (!candidate?.base64) {
@@ -412,18 +663,33 @@ async function renderOneView({ product, planEntry, references, sourceIndex, dead
       }
 
       const buffer = Buffer.from(candidate.base64, 'base64');
-      const verdict = await validateGeneratedImage(buffer);
+      // Eine ANWENDUNGSSZENE hat keinen weissen Hintergrund — ein Balkon oder
+      // ein Badezimmer ist keine Studiowand. Die Hintergrundpruefung gilt nur
+      // fuer Packshots; sonst faellt jede Szene durch (gemessen 10.09.: 2 von 2).
+      const istSzene = planEntry?.art === 'lifestyle';
+      const verdict = await validateGeneratedImage(buffer, {
+        requireBrightBackground: !istSzene,
+      });
       if (!verdict.ok) {
         attempts.push({ model, reason: verdict.reason });
         continue;
       }
 
       // Zweitmeinung: zeigt das Ergebnis noch denselben Artikel?
-      const identity = await judgeProductIdentity(used.map((r) => r.part), {
-        data: candidate.base64,
-        mimeType: candidate.mimeType || 'image/png',
+      // GALERIE-Modus: der Blickwinkel weicht hier ABSICHTLICH ab. Mit dem
+      // Retusche-Prompt verwarf der Richter 5 von 6 guten Bildern, weil ihm
+      // gesagt wurde, es haetten nur Hintergrund und Licht wechseln duerfen.
+      // Fuer die Zweitmeinung reichen ZWEI Referenzen (Vorlage + eine weitere
+      // Ansicht). Jedes Eingabebild kostet Token; ein dritter Blickwinkel
+      // aendert am Urteil "derselbe Artikel?" praktisch nichts.
+      const identity = await judgeProductIdentity(
+        used.slice(0, 2).map((r) => r.part),
+        { data: candidate.base64, mimeType: candidate.mimeType || 'image/png' },
+        { modus: 'galerie' }
+      );
+      const identityVerdict = classifyIdentityVerdict(identity, {
+        perspektiveDarfAbweichen: true,
       });
-      const identityVerdict = classifyIdentityVerdict(identity);
       if (identityVerdict.action === 'verwerfen') {
         attempts.push({
           model,
@@ -473,40 +739,47 @@ async function generateImagesForProduct(product, options = {}) {
     throw new Error('Reference images could not be downloaded');
   }
 
-  // --- Beleg-Bilanz: welche Ansichten sind FOTOGRAFIERT? ---------------------
+  // --- ALLE Bilder analysieren: Ansichten UND was der Artikel ist -----------
+  // Ein Vision-Call, zwei Antworten: welche Seite zeigt jedes Foto, und was ist
+  // das ueberhaupt fuer ein Gegenstand / wie wird er benutzt. Letzteres traegt
+  // die Anwendungsszenen — ohne es waeren sie geraten.
   const classification = await classifyViewpointParts(references.map((r) => r.part));
   const evidence = summarizeEvidence(classification);
+  const produkt = classification?.produkt || null;
 
-  let plan;
-  let skipped;
-  if (!evidence.belegt.length) {
-    // Kein Urteil möglich (Klassifikation gescheitert oder alle Fotos unklar).
-    // Fail-closed für das Erfinden, fail-open für den Nutzen: die vom Bediener
-    // GEWÄHLTE Vorlage wird aufbereitet, aber keine weitere Ansicht erfunden.
-    plan = [
-      {
-        viewpoint: 'unclear',
-        label: 'Gewähltes Foto',
-        sourceIndex: 0,
-        confidence: 0,
-        variant: 'studio_source',
-      },
-    ];
-    skipped = [
-      { viewpoint: 'alle_weiteren', label: 'Weitere Ansichten', reason: 'keine_ansichtserkennung' },
-    ];
-  } else {
-    const planned = planFaithfulVariants(evidence, {
-      maxVariants: Number.isInteger(maxVariants) && maxVariants > 0 ? maxVariants : 4,
-    });
-    plan = planned.plan;
-    skipped = planned.skipped;
-  }
+  const planned = planGalleryVariants(evidence, {
+    studioAnzahl: studioCount(maxVariants),
+    lifestyle: lifestyleGewuenscht(options),
+    produkt,
+  });
+  const plan = planned.plan;
+  const skipped = planned.skipped;
 
   // --- Ansichten rendern (parallel, mit Gesamt-Zeitbudget) ------------------
   const images = [];
   const failures = [];
   const deadline = startedAt + totalBudgetMs();
+  const kosten = neuerZaehler({ deckel: options.kostendeckelUsd });
+
+  // Jeder Posten wird so bepreist, wie er tatsaechlich laufen wird: billige
+  // Maske fuer Ansichten mit echtem Foto, voller Render fuer abgeleitete,
+  // kleinerer Render fuer Szenen.
+  const [erstesModell] = variantImageModelChain();
+  const [erstesMaskenModell] = maskImageModelChain();
+  const posten = plan.map((entry) => {
+    if (pixeltreuAktiv() && entry.art === 'studio' && entry.quelleIstEcht === true) {
+      return { model: erstesMaskenModell, imageSize: MASK_IMAGE_SIZE };
+    }
+    return {
+      model: erstesModell,
+      imageSize: entry.art === 'lifestyle' ? LIFESTYLE_IMAGE_SIZE : VARIANT_IMAGE_SIZE,
+    };
+  });
+  console.log(
+    `[image-generation] ${product.id}: ${plan.length} Bilder geplant, ` +
+      `geschaetzt ${schaetzePosten(posten).toFixed(3)} USD, ` +
+      `Deckel ${kosten.deckel.toFixed(2)} USD`
+  );
 
   const ergebnisse = await runLimited(
     plan.map((entry) => async () => {
@@ -515,7 +788,7 @@ async function generateImagesForProduct(product, options = {}) {
         return {
           entry,
           sourceIndex,
-          result: await renderOneView({ product, planEntry: entry, references, sourceIndex, deadline }),
+          result: await renderOneView({ product, produktInfo: produkt, planEntry: entry, references, sourceIndex, deadline, kosten }),
         };
       } catch (err) {
         // Eine einzelne Ansicht darf den GANZEN Lauf nicht killen. renderOneView
@@ -560,15 +833,27 @@ async function generateImagesForProduct(product, options = {}) {
         url_or_base64: uploaded.url,
         variant: entry.variant,
         viewpoint: entry.viewpoint,
+        // 'studio' oder 'lifestyle' — die Oberflaeche und der Publish-Pfad
+        // sollen eine Anwendungsszene von einem Packshot unterscheiden koennen.
+        art: entry.art || 'studio',
+        // true, wenn diese Ansicht auf einem ECHTEN Foto derselben Seite sitzt.
+        // false heisst: aus dem vorhandenen Material ABGELEITET.
+        ausEchtemFoto: entry.quelleIstEcht === true,
         source: 'generated',
         // EINDEUTIGE Kennzeichnung: hält das Bild aus der Referenzliste künftiger
         // Läufe heraus und macht es für den Publish-Pfad erkennbar.
         generatedByAi: true,
         derivedFrom: references[sourceIndex]?.image?.url_or_base64 || null,
-        notes:
-          `Studio-Aufbereitung der ${entry.label} aus einem echten Foto ` +
-          `(${result.model}, ${result.referenceCount} Referenzbilder)`,
+        notes: result.pixeltreu
+          ? `${entry.label} aus ORIGINALPIXELN des echten Fotos freigestellt ` +
+            `(Silhouette via ${result.model}, Kleindruck unveraendert)`
+          : `Studio-Aufbereitung der ${entry.label} aus einem echten Foto ` +
+            `(${result.model}, ${result.referenceCount} Referenzbilder)`,
         identityChecked: result.identityChecked === true,
+        // true = das Bild besteht aus den Pixeln des Referenzfotos; jede
+        // Beschriftung darauf ist echt. false = vom Modell neu gezeichnet,
+        // Kleindruck ist dort nur angenaehert.
+        pixeltreu: result.pixeltreu === true,
         width: uploaded.width || result.width || null,
         height: uploaded.height || result.height || null,
         mimeType: uploaded.mimeType || result.mimeType,
@@ -587,6 +872,12 @@ async function generateImagesForProduct(product, options = {}) {
     }
   }
 
+  console.log(
+    `[image-generation] ${product.id}: ${images.length} Bilder erzeugt, ` +
+      `${kosten.anzahl} Bildaufrufe, ${kosten.usd.toFixed(3)} USD` +
+      (kosten.erschoepft ? ' — KOSTENDECKEL ERREICHT' : '')
+  );
+
   return {
     images,
     plan,
@@ -597,11 +888,23 @@ async function generateImagesForProduct(product, options = {}) {
       referenceCount: references.length,
       classified: Boolean(classification),
       sameProductThroughout: classification?.sameProductThroughout !== false,
+      // Was die Bildanalyse im Artikel erkannt hat — steuert die Szenen und
+      // gehoert in den Bericht, damit der Bediener eine falsche Erkennung sieht.
+      produkt: produkt
+        ? { wasEsIst: produkt.wasEsIst, woBenutzt: produkt.woBenutzt, lifestyleSinnvoll: produkt.lifestyleSinnvoll }
+        : null,
     },
     report: {
       mode: variantsMode(),
       requestedVariants: plan.length,
       producedVariants: images.length,
+      kosten: kosten.bericht(),
+      studioProduced: images.filter((i) => i.art === 'studio').length,
+      lifestyleProduced: images.filter((i) => i.art === 'lifestyle').length,
+      ausEchtemFoto: images.filter((i) => i.ausEchtemFoto).length,
+      // Wie viele Bilder aus ORIGINALPIXELN bestehen und damit garantiert
+      // echten Kleindruck tragen. Der Rest ist neu gezeichnet.
+      pixeltreu: images.filter((i) => i.pixeltreu).length,
       durationMs: Date.now() - startedAt,
     },
     // Rückwärtskompatibel: die Route reicht `prompts` an die Oberfläche durch.

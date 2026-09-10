@@ -86,8 +86,24 @@ const CLASSIFY_SCHEMA = {
       type: 'boolean',
       description: 'false wenn die Bilder erkennbar verschiedene Artikel zeigen.',
     },
+    produkt: {
+      type: 'object',
+      description: 'Was ist der Artikel und wie wird er benutzt — abgeleitet AUS DEN FOTOS.',
+      properties: {
+        was_es_ist: { type: 'string', description: 'Kurze sachliche Benennung auf ENGLISCH, z. B. "non-slip bathtub mat made of soft plastic with suction cups".' },
+        material: { type: 'string', description: 'Sichtbares Hauptmaterial, ENGLISCH.' },
+        wo_benutzt: { type: 'string', description: 'Der reale Ort, an dem der Artikel benutzt wird, ENGLISCH. z. B. "inside a bathtub or shower tray".' },
+        wie_benutzt: { type: 'string', description: 'Wie ein Mensch ihn konkret benutzt, ENGLISCH. z. B. "laid flat on the tub floor, a person stands barefoot on it".' },
+        wer_benutzt: { type: 'string', description: 'Wer ihn benutzt, ENGLISCH. z. B. "an adult, often an elderly person".' },
+        schluesselbereich: { type: 'string', description: 'Der Bereich, den ein Kaeufer aus der Naehe sehen will, ENGLISCH. z. B. "the suction cups on the underside".' },
+        szene_a: { type: 'string', description: 'KONKRETE Szene fuer ein Anwendungsfoto, ENGLISCH, ein Satz. Nah am Artikel, zeigt die Benutzung.' },
+        szene_b: { type: 'string', description: 'ZWEITE, deutlich andere Szene, ENGLISCH, ein Satz. Weiter weg, zeigt die Umgebung.' },
+        lifestyle_sinnvoll: { type: 'boolean', description: 'false bei Artikeln, die man nicht sinnvoll in Benutzung zeigen kann (reine Ersatzteile, Rohmaterial).' },
+      },
+      required: ['was_es_ist', 'wo_benutzt', 'wie_benutzt', 'schluesselbereich', 'szene_a', 'szene_b', 'lifestyle_sinnvoll'],
+    },
   },
-  required: ['images', 'same_product_throughout'],
+  required: ['images', 'same_product_throughout', 'produkt'],
 };
 
 const PROMPT = [
@@ -105,6 +121,20 @@ const PROMPT = [
   '  sind: nicht unscharf, nicht zu dunkel, nicht extrem angeschnitten.',
   '- Setze "confidence" ehrlich niedrig, wenn du dir nicht sicher bist. Eine niedrige',
   '  Sicherheit ist brauchbar, eine falsche Zuordnung nicht.',
+  '',
+  'ZWEITE AUFGABE — beschreibe den ARTIKEL und seine BENUTZUNG (Feld "produkt").',
+  'Diese Angaben steuern spaeter die Bilderzeugung, deshalb muessen sie AUS DEN FOTOS',
+  'kommen und konkret sein:',
+  '- "was_es_ist": benenne den Artikel so, wie ein Fotograf ihn beschreiben wuerde.',
+  '- "schluesselbereich": der eine Bereich, den ein Kaeufer aus der Naehe sehen will',
+  '  (Saugnaepfe, Anschluss, Verschluss, Gewinde, Bedienfeld …).',
+  '- "szene_a" und "szene_b": zwei DEUTLICH VERSCHIEDENE Anwendungsszenen. szene_a nah',
+  '  am Artikel waehrend der Benutzung, szene_b weiter weg mit der Umgebung. Nenne den',
+  '  Ort, die Tageszeit/Lichtstimmung und was der Mensch tut. Keine Marken, keine Schrift.',
+  '- Erkennst du den Artikel nicht sicher, beschreibe NUR, was du siehst, und setze',
+  '  "lifestyle_sinnvoll" auf false. Eine erfundene Benutzung ist schlimmer als keine.',
+  '',
+  'Alle Felder unter "produkt" auf ENGLISCH — sie gehen unveraendert in einen Bild-Prompt.',
   '',
   'Antworte ausschliesslich mit dem geforderten JSON.',
 ].join('\n');
@@ -183,6 +213,7 @@ async function classifyViewpointParts(imageParts, opts = {}) {
     return {
       views,
       sameProductThroughout: parsed.same_product_throughout !== false,
+      produkt: normalisiereProdukt(parsed.produkt),
       model,
     };
   } catch (err) {
@@ -355,9 +386,167 @@ function planFaithfulVariants(evidence, opts = {}) {
   return { plan, skipped };
 }
 
+// ---------------------------------------------------------------------------
+// Galerie-Plan (Betreiber-Vorgabe 2026-09-10)
+// ---------------------------------------------------------------------------
+
+/**
+ * Die feste Studio-Serie. Vier Ansichten, die zusammen ein Angebot tragen —
+ * unabhängig davon, welche Seiten fotografiert wurden.
+ *
+ * BEWUSSTE KEHRTWENDE gegenüber dem Stand vom 02.09.: dort wurde NUR aufbereitet,
+ * was belegt war. Der Betreiber hat das am 10.09. ausdrücklich widerrufen und
+ * mindestens vier Studio-Fotos plus zwei Anwendungsszenen verlangt, mit einem
+ * konkreten Beispiel. Die erzeugten Bilder sind ZUSATZbilder für die Galerie;
+ * das Hauptbild bleibt ein echtes Foto (`hauptbildBleibtEcht`).
+ */
+const STUDIO_SERIE = Object.freeze([
+  { key: 'hero', variant: 'studio_hero', label: 'Hero 3/4', winkel: 'three-quarter hero view from slightly above' },
+  { key: 'front', variant: 'studio_front', label: 'Frontansicht', winkel: 'straight-on front view at eye level' },
+  { key: 'top', variant: 'studio_top', label: 'Draufsicht', winkel: 'top-down view looking straight down' },
+  { key: 'detail', variant: 'studio_detail', label: 'Detailaufnahme', winkel: 'tight macro close-up' },
+  { key: 'side', variant: 'studio_side', label: 'Seitenansicht', winkel: 'side profile view' },
+  { key: 'back', variant: 'studio_back', label: 'Rückansicht', winkel: 'rear view' },
+]);
+
+const LIFESTYLE_SERIE = Object.freeze([
+  { key: 'inuse', variant: 'lifestyle_inuse', label: 'In Benutzung (nah)', szeneFeld: 'szeneA' },
+  { key: 'scene', variant: 'lifestyle_scene', label: 'In Benutzung (Umgebung)', szeneFeld: 'szeneB' },
+]);
+
+function text(value, max = 300) {
+  if (typeof value !== 'string') return '';
+  const s = value.replace(/\s+/g, ' ').trim();
+  return s.slice(0, max);
+}
+
+/** Normalisiert den Produkt-Block der Vision-Antwort. Wirft nie. */
+function normalisiereProdukt(roh) {
+  if (!roh || typeof roh !== 'object') return null;
+  const p = {
+    wasEsIst: text(roh.was_es_ist),
+    material: text(roh.material, 120),
+    woBenutzt: text(roh.wo_benutzt),
+    wieBenutzt: text(roh.wie_benutzt),
+    werBenutzt: text(roh.wer_benutzt, 120),
+    schluesselbereich: text(roh.schluesselbereich, 200),
+    szeneA: text(roh.szene_a, 400),
+    szeneB: text(roh.szene_b, 400),
+    lifestyleSinnvoll: roh.lifestyle_sinnvoll === true,
+  };
+  // Ohne Benennung ist der Block wertlos — dann lieber gar keiner, als einen
+  // leeren Satz in den Bild-Prompt zu schreiben.
+  return p.wasEsIst ? p : null;
+}
+
+/**
+ * Plant die komplette Angebotsgalerie: mindestens `studioAnzahl` Studio-Ansichten
+ * plus bis zu zwei Anwendungsszenen.
+ *
+ * REIHENFOLGE IST ABSICHT: die Ansichten, für die ein ECHTES Foto vorliegt,
+ * kommen zuerst und bekommen dieses Foto als Vorlage (`quelleIstEcht:true`).
+ * Erst danach wird auf die übrigen Kanon-Ansichten aufgefüllt, die das Modell
+ * aus dem vorhandenen Material ableiten muss. So ist die Serie vollständig, und
+ * gleichzeitig sitzt jede Ansicht so nah wie möglich an einer echten Aufnahme.
+ *
+ * @param {Object} evidence Ergebnis von summarizeEvidence
+ * @param {Object} opts { studioAnzahl = 4, lifestyle = true, produkt }
+ * @returns {{plan: Array, skipped: Array, hauptbildBleibtEcht: boolean}}
+ */
+function planGalleryVariants(evidence, opts = {}) {
+  const studioAnzahl = Number.isInteger(opts.studioAnzahl) && opts.studioAnzahl >= 0 ? opts.studioAnzahl : 4;
+  const lifestyleGewuenscht = opts.lifestyle !== false;
+  const produkt = opts.produkt || null;
+
+  const plan = [];
+  const skipped = [];
+  const belegteQuellen = new Set();
+  const vergebeneKeys = new Set();
+
+  // Welche Kanon-Ansicht deckt welche fotografierte Ansicht ab.
+  const AUS_FOTO = { front: 'front', side: 'side', back: 'back', top: 'top', detail: 'detail' };
+
+  // --- Runde 1: Ansichten MIT echtem Foto -----------------------------------
+  for (const eintrag of STUDIO_SERIE) {
+    if (plan.length >= studioAnzahl) break;
+    const fotoAnsicht = Object.keys(AUS_FOTO).find((k) => AUS_FOTO[k] === eintrag.key);
+    const kandidaten = fotoAnsicht ? evidence?.byViewpoint?.[fotoAnsicht] : null;
+    const quelle = kandidaten?.find((c) => !belegteQuellen.has(c.index));
+    if (!quelle) continue;
+    belegteQuellen.add(quelle.index);
+    vergebeneKeys.add(eintrag.key);
+    plan.push({
+      ...eintrag,
+      art: 'studio',
+      sourceIndex: quelle.index,
+      quelleIstEcht: true,
+      viewpoint: eintrag.key,
+      confidence: quelle.confidence,
+    });
+  }
+
+  // --- Runde 2: restliche Kanon-Ansichten auffüllen --------------------------
+  const besteVorlage = evidence?.referenceIndexes?.[0] ?? 0;
+  for (const eintrag of STUDIO_SERIE) {
+    if (plan.length >= studioAnzahl) break;
+    if (vergebeneKeys.has(eintrag.key)) continue;
+    vergebeneKeys.add(eintrag.key);
+    plan.push({
+      ...eintrag,
+      art: 'studio',
+      sourceIndex: besteVorlage,
+      quelleIstEcht: false,
+      viewpoint: eintrag.key,
+      confidence: 0,
+    });
+  }
+
+  if (plan.length < studioAnzahl) {
+    skipped.push({
+      viewpoint: 'studio',
+      label: `${studioAnzahl - plan.length} weitere Studio-Ansichten`,
+      reason: 'kanon_erschoepft',
+    });
+  }
+
+  // --- Anwendungsszenen ------------------------------------------------------
+  if (!lifestyleGewuenscht) {
+    // Nicht angefragt — kein Hinweis, das wäre Rauschen.
+  } else if (!produkt || !produkt.lifestyleSinnvoll) {
+    skipped.push({
+      viewpoint: 'lifestyle',
+      label: 'Anwendungsszenen',
+      reason: produkt ? 'nicht_sinnvoll_darstellbar' : 'produkt_nicht_erkannt',
+    });
+  } else {
+    for (const eintrag of LIFESTYLE_SERIE) {
+      const szene = produkt[eintrag.szeneFeld];
+      if (!szene) {
+        skipped.push({ viewpoint: eintrag.key, label: eintrag.label, reason: 'keine_szene_beschrieben' });
+        continue;
+      }
+      plan.push({
+        ...eintrag,
+        art: 'lifestyle',
+        szene,
+        sourceIndex: besteVorlage,
+        quelleIstEcht: false,
+        viewpoint: eintrag.key,
+        confidence: 0,
+      });
+    }
+  }
+
+  return { plan, skipped, hauptbildBleibtEcht: true };
+}
+
 module.exports = {
   VIEWPOINTS,
   VIEWPOINT_LABELS_DE,
+  STUDIO_SERIE,
+  LIFESTYLE_SERIE,
+  planGalleryVariants,
+  normalisiereProdukt,
   classifyViewpointParts,
   summarizeEvidence,
   planFaithfulVariants,

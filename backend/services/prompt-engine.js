@@ -234,9 +234,177 @@ async function generateVisualDescriptions(product) {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Galerie-Prompts (Betreiber-Vorgabe 2026-09-10)
+// ---------------------------------------------------------------------------
+
+/**
+ * Der Artikel, wie er in den Bild-Prompt geht.
+ *
+ * Bevorzugt die Beschreibung AUS DEN FOTOS (`produkt.wasEsIst` der Vision-Analyse),
+ * nicht den Datenblatt-Titel: der Titel trägt Marketing-Ballast, Maße und
+ * Kategorie-Krümel, das Foto-Urteil beschreibt den Gegenstand.
+ */
+function artikelBezeichnung(product, produkt) {
+  const ausFoto = typeof produkt?.wasEsIst === 'string' ? produkt.wasEsIst.trim() : '';
+  if (ausFoto) return ausFoto;
+  return buildProductDescriptor(product) || 'the product shown in the reference images';
+}
+
+/**
+ * IDENTITÄTS-BLOCK. Der Blickwinkel DARF sich jetzt ändern — das ist der Zweck
+ * der Serie. Was NICHT verhandelbar ist: es muss derselbe physische Artikel
+ * bleiben. Form, Proportionen, Farbe, Material, Beschriftung.
+ *
+ * Die Erfahrung aus den ~50 Messläufen vom 04.09. steckt hier drin: ein
+ * Bildmodell erfindet Kleindruck, sobald es ihn neu zeichnet. Deshalb steht hier
+ * ausdrücklich, dass Beschriftungen KOPIERT und nicht neu gesetzt werden — und
+ * dass unleserlicher Kleindruck unleserlich bleiben soll, statt zu erfundenen
+ * Wörtern zu werden.
+ */
+const IDENTITAETS_BLOCK = [
+  'The item must stay the SAME physical product as in the reference photos:',
+  'identical shape, proportions, colours, materials, surface texture, and every',
+  'moulded or printed detail. Do not restyle it, do not change its design, do not',
+  'add or remove parts, do not alter its colour.',
+  'Copy any printed text, label, logo or marking as SHAPES — never read them and',
+  'set them again. Where print is too small to copy exactly, keep it that small and',
+  'unreadable rather than inventing legible words.',
+].join(' ');
+
+/**
+ * Studio-Prompt einer Ansicht. Aufbau nach der Betreiber-Vorlage
+ * (Screenshot 10.09.2026), ergänzt um den Identitäts-Block.
+ */
+function buildStudioPrompt({ product, produkt, planEntry, referenceCount = 1 }) {
+  const artikel = artikelBezeichnung(product, produkt);
+  const winkel = planEntry?.winkel || 'three-quarter product view';
+  const zeilen = [];
+
+  if (referenceCount > 1) {
+    zeilen.push(
+      `Images 1 to ${referenceCount} all show the SAME physical item from different angles.`,
+      'Use them together to understand its true shape, colours, materials and markings.'
+    );
+  } else {
+    zeilen.push('The reference image shows the item.');
+  }
+
+  if (planEntry?.key === 'detail') {
+    const bereich = produkt?.schluesselbereich || 'the most important functional area';
+    zeilen.push(
+      `Produce a high-end macro close-up product photo of ${bereich} of the ${artikel}.`,
+      'Fill the frame with that area, keep it razor sharp, show the material structure.'
+    );
+  } else {
+    zeilen.push(`Produce a high-end ${winkel} product photo of the ${artikel}.`);
+  }
+
+  zeilen.push(
+    'Shoot it on a premium light-grey e-commerce gradient background (eBay style), with',
+    'soft directional studio lighting that produces clean, natural shadows and accurate',
+    'colour. Ultra-sharp edges, high resolution, realistic material rendering, no harsh',
+    'reflections, no props, no added text, no watermark, no people.',
+    'Marketplace-ready composition: item centred, fully in frame, generous even margins.',
+    IDENTITAETS_BLOCK
+  );
+
+  const anchors = buildVisualAnchors(product);
+  if (anchors.length) {
+    zeilen.push(
+      `Recorded attributes: ${anchors.join(', ')}. This is context only and may be`,
+      'incomplete or wrong — the PHOTOS always win.'
+    );
+  }
+
+  return zeilen.join(' ');
+}
+
+/**
+ * Anwendungsszene. Die Szene kommt aus der Bildanalyse (`szene_a`/`szene_b`),
+ * nicht aus dem Datenblatt — so passt sie zum tatsächlich abgebildeten Artikel
+ * statt zu einem Kategorie-Krümel.
+ */
+function buildLifestylePrompt({ product, produkt, planEntry, referenceCount = 1 }) {
+  const artikel = artikelBezeichnung(product, produkt);
+  const zeilen = [];
+
+  if (referenceCount > 1) {
+    zeilen.push(
+      `Images 1 to ${referenceCount} all show the SAME physical item from different angles.`
+    );
+  }
+
+  zeilen.push(
+    `Realistic lifestyle photograph showing the ${artikel} being actively used.`,
+    `Scene: ${planEntry?.szene || produkt?.wieBenutzt || 'the item in normal everyday use'}.`
+  );
+
+  if (produkt?.woBenutzt) zeilen.push(`Location: ${produkt.woBenutzt}.`);
+
+  zeilen.push(
+    'True-to-life lighting (daylight or warm indoor ambient), subtle natural shadows,',
+    'photorealistic textures, shallow depth of field. Clean, tidy surroundings with no',
+    'distracting objects, no other branded products, no added text, no watermark, no logos.',
+    'The scene must clearly communicate real usage, benefit and context.',
+    'High resolution, authentic, suitable for an e-commerce marketing gallery.',
+    IDENTITAETS_BLOCK,
+    'The item must remain clearly visible and recognisable as the main subject —',
+    'never hidden, never cropped to an unrecognisable fragment.'
+  );
+
+  return zeilen.join(' ');
+}
+
+/** Wählt nach `planEntry.art` den richtigen Prompt-Bauer. */
+function buildGalleryPrompt(args) {
+  return args?.planEntry?.art === 'lifestyle' ? buildLifestylePrompt(args) : buildStudioPrompt(args);
+}
+
+/**
+ * MASKEN_PROMPT — für den PIXELTREUEN Weg (lib/packshot-composite.js).
+ *
+ * Diese Aufnahme wird NIE gespeichert. Sie dient ausschliesslich dazu, die
+ * Silhouette des Produkts zu bestimmen; ins Endbild gehen danach nur
+ * ORIGINALPIXEL. Deshalb ist es egal, dass auch hier der Kleindruck verfälscht
+ * wird — diese Pixel werden weggeworfen. Genau das ist der Grund, warum dieser
+ * Weg das Kleindruck-Problem bauartbedingt löst statt es zu bekämpfen.
+ *
+ * KEIN SCHATTEN BESTELLEN (teuer gelernt, 3 von 3 Läufen): ein gemalter Schatten
+ * ist nicht weiss, zählt damit als Produkt — und darunter lag im Original die
+ * Hand. Der Schatten entsteht deterministisch aus der Silhouette.
+ *
+ * Liegt hier und nicht mehr im Studio-Dienst, weil ihn seit 2026-09-10 ZWEI
+ * Wege brauchen (Studio-Foto und Angebotsgalerie). Zwei Kopien desselben
+ * Prompts wären eine Quelle für Abweichungen — dieselbe Lehre wie beim
+ * Datenblatt-Kontrakt (CLAUDE.md Punkt 16c).
+ */
+const MASKEN_PROMPT = [
+  'Remove the background and any human hand or fingers from this photo. Place the product',
+  'on a completely plain PURE WHITE background (#FFFFFF, RGB 255,255,255), nothing else.',
+  '',
+  'ABSOLUTELY CRITICAL — the product must not move:',
+  '- Keep the product at the EXACT same position, the EXACT same size and the EXACT same',
+  '  camera perspective and rotation as in the input photo. Do NOT crop, do NOT zoom,',
+  '  do NOT re-center, do NOT rescale, do NOT rotate, do NOT re-compose.',
+  '- The output image must have the same aspect ratio and framing as the input.',
+  '- Where the hand covered part of the product, reconstruct only that small hidden part.',
+  '- No shadow, no reflection, no gradient, no props, no text, no watermark.',
+].join('\n');
+
+function buildMaskPrompt() {
+  return MASKEN_PROMPT;
+}
+
 module.exports = {
   generateVisualDescriptions,
   buildViewPrompt,
+  buildGalleryPrompt,
+  buildStudioPrompt,
+  buildLifestylePrompt,
+  buildMaskPrompt,
+  MASKEN_PROMPT,
+  artikelBezeichnung,
   buildProductDescriptor,
   buildVisualAnchors,
   isPlaceholder,
