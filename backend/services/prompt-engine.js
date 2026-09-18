@@ -27,7 +27,6 @@
  */
 
 const { VIEWPOINT_LABELS_DE } = require('../lib/image-viewpoint');
-const { PROFESSIONAL_RELIGHTING, PRODUCT_PRESERVATION } = require('../lib/product-photo-policy');
 
 // Werte, die nichts aussagen und deshalb NICHT als Produktfakt gelten dürfen.
 const PLACEHOLDER_VALUES = new Set([
@@ -113,15 +112,15 @@ function buildVisualAnchors(product) {
 
 /**
  * Der Erhaltungs-Block. Wortgleich in Haltung zum bewährten STUDIO_PROMPT aus
- * `services/image-studio.js`: Betreiberanforderung 18.09.2026 — professionelles
- * Licht bei unverändertem tatsächlichen Artikel und Zustand.
+ * `services/image-studio.js` (Owner-Anforderung 2026-07-21: ehrliches Foto eines
+ * privaten Verkäufers, KEIN Hochglanz-Render).
  *
  * Der entscheidende Unterschied zum alten Prompt: hier steht ausdrücklich, dass
  * Beschriftungen ERHALTEN bleiben müssen — nicht, dass kein Text im Bild sein darf.
  */
 const PRESERVE_BLOCK = [
   'The product is the single most important element and MUST stay 100% authentic and unchanged:',
-  'do NOT reshape, rotate or re-color it; photographic relighting is explicitly allowed.',
+  'do NOT redraw, regenerate, restyle, retouch, beautify, sharpen, reshape, rotate or re-color it.',
   'Preserve every detail EXACTLY as in the source photo — the exact shape, proportions, viewing angle,',
   'colors, materials and surface texture.',
   'KEEP every piece of printed text, every label, type plate, sticker, model number, logo and marking',
@@ -130,15 +129,16 @@ const PRESERVE_BLOCK = [
   'Keep existing wear, scratches, dents, dust and small imperfections — this is a real, individual item,',
   'not a catalogue rendering.',
   'Never invent, add, remove or "improve" any part of the product.',
-  PRODUCT_PRESERVATION,
-  PROFESSIONAL_RELIGHTING,
+  'If in doubt, leave the product pixel-for-pixel as it is.',
 ].join(' ');
 
 const BACKGROUND_BLOCK = [
   'Replace ONLY the background with a plain PURE WHITE backdrop — flat pure white #FFFFFF (RGB 255,255,255),',
   'no gradient, no off-white, no colored tint.',
   'Add a soft, natural contact shadow directly under the product so it looks grounded on the surface.',
-  'Create honest professional product photography: improve lighting, preserve the actual item and condition.',
+  'Keep the result honest and believable, like a real photo taken by a small private online seller.',
+  'Natural, slightly uneven everyday lighting is fine and even wanted — do NOT turn it into a glossy,',
+  'high-end, hyper-polished or overly perfect commercial studio render.',
   'No props, no people, no added marketing text, no watermark, no borders, no collage, no reflections of',
   'other objects, no added items.',
   'Keep the original camera perspective and framing; show the product fully in frame.',
@@ -263,8 +263,6 @@ function artikelBezeichnung(product, produkt) {
  * Wörtern zu werden.
  */
 const IDENTITAETS_BLOCK = [
-  PROFESSIONAL_RELIGHTING,
-  PRODUCT_PRESERVATION,
   'The item must stay the SAME physical product as in the reference photos:',
   'identical shape, proportions, colours, materials, surface texture, and every',
   'moulded or printed detail. Do not restyle it, do not change its design, do not',
@@ -283,10 +281,6 @@ function buildStudioPrompt({ product, produkt, planEntry, referenceCount = 1 }) 
   const winkel = planEntry?.winkel || 'three-quarter product view';
   const zeilen = [];
 
-  if (planEntry?.quelleIstEcht === true) {
-    zeilen.push('Retouch the FIRST photograph only. Keep exactly its camera angle, shape, pose, straps, hooks and label placement. Do not combine parts from other views. Remove the original wall, table, seams and dirt completely.');
-  }
-
   if (referenceCount > 1) {
     zeilen.push(
       `Images 1 to ${referenceCount} all show the SAME physical item from different angles.`,
@@ -296,9 +290,7 @@ function buildStudioPrompt({ product, produkt, planEntry, referenceCount = 1 }) 
     zeilen.push('The reference image shows the item.');
   }
 
-  if (planEntry?.quelleIstEcht === true) {
-    zeilen.push(`Produce a professionally photographed version of the ${artikel} from exactly the supplied viewpoint. Do not rotate or rearrange the item.`);
-  } else if (planEntry?.key === 'detail') {
+  if (planEntry?.key === 'detail') {
     const bereich = produkt?.schluesselbereich || 'the most important functional area';
     zeilen.push(
       `Produce a high-end macro close-up product photo of ${bereich} of the ${artikel}.`,
@@ -372,8 +364,7 @@ function buildLifestylePrompt({ product, produkt, planEntry, referenceCount = 1 
   if (produkt?.woBenutzt) zeilen.push(`Location: ${produkt.woBenutzt}.`);
 
   zeilen.push(
-    'Use neutral daylight illumination on the product and subtle natural shadows.',
-    'The surroundings may be warm, but do not apply orange, blue or cinematic colour grading to the product itself.',
+    'True-to-life lighting (daylight or warm indoor ambient), subtle natural shadows,',
     'photorealistic textures, shallow depth of field. Clean, tidy surroundings with no',
     'distracting objects, no other branded products, no added text, no watermark, no logos.',
     'The scene must clearly communicate real usage, benefit and context.',

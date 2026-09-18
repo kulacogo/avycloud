@@ -1,7 +1,6 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ProductImage } from '../types';
-import { imageReviewNotice } from '../utils/imageReviewNotice';
 import { DownloadIcon } from './icons/Icons';
 import { Spinner } from './Spinner';
 import { useI18n } from '../i18n';
@@ -748,11 +747,6 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
           </span>
         )}
       </div>
-      {imageReviewNotice(activeImage.notes) && (
-        <p role="status" className="mt-2 rounded-lg border border-warning/30 bg-warning-dim px-3 py-2 text-sm text-warning">
-          {imageReviewNotice(activeImage.notes)}
-        </p>
-      )}
       {improveButtons}
       <div className="grid grid-cols-4 gap-2 mt-2">
         {padded.map((image, index) => {

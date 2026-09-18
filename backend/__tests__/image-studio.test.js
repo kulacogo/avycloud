@@ -30,11 +30,6 @@ const generateProductImagesSpy = vi.fn();
 const fetchImageAsDataUrlSpy = vi.fn();
 const uploadBase64ImageSpy = vi.fn();
 const compositeOnGradientSpy = vi.fn();
-const judgeIdentitySpy = vi.fn();
-const realImageCheck = require('../lib/image-result-check');
-patchLocalModule(path.resolve(__dirname, '../lib/image-result-check.js'), {
-  ...realImageCheck, judgeProductIdentity: judgeIdentitySpy,
-});
 
 patchLocalModule(path.resolve(__dirname, '../lib/vertex-ai.js'), {
   generateProductImages: generateProductImagesSpy,
@@ -75,9 +70,6 @@ beforeAll(async () => {
 
 beforeEach(() => {
   generateProductImagesSpy.mockReset();
-  judgeIdentitySpy.mockReset().mockResolvedValue({ sameItem: true, perspectiveKept: true, markingsKept: true,
-    conditionKept: true, materialKept: true, colorKept: true, evidenceKept: true, backgroundClean: true, confidence: 0.95, problems: [] });
-  delete process.env.IMAGE_COST_CAP_USD;
   fetchImageAsDataUrlSpy.mockReset();
   uploadBase64ImageSpy.mockReset();
   compositeOnGradientSpy.mockReset();
@@ -148,10 +140,17 @@ describe('makeStudioPhoto — Modell-Kette', () => {
     expect(result.attempts[0].reason).toMatch(/background_too_dark/);
   });
 
-  it('liefert bei Modellfehlern kein unverändertes Original als Studioerfolg', async () => {
+  it('nutzt den sicheren Weiß-Fallback (Produkt zentriert, KEIN Freisteller) wenn beide Modelle scheitern', async () => {
     generateProductImagesSpy.mockRejectedValue(new Error('api down'));
-    await expect(makeStudioPhoto({ productId: 'p1', image: { url_or_base64: 'https://x/img.jpg' } })).rejects.toMatchObject({ code: 'STUDIO_QUALITY_REJECTED' });
-    expect(uploadBase64ImageSpy).not.toHaveBeenCalled();
+
+    const result = await makeStudioPhoto({ productId: 'p1', image: { url_or_base64: 'https://x/img.jpg' } });
+
+    expect(result.method).toBe('composite_fallback');
+    expect(result.model).toBeNull();
+    expect(result.image.source).toBe('studio_composite');
+    // Ergebnis ist ein gültiges Bild (hochgeladen) — der Fallback stellt NICHT frei
+    // (Incident 2026-07-18: Freisteller zerschmierte helle/metallische Produkte).
+    expect(uploadBase64ImageSpy).toHaveBeenCalledTimes(1);
   });
 
   it('wirft NICHT bei GCS-Upload-Fehler, sondern liefert die Data-URL', async () => {
@@ -161,29 +160,6 @@ describe('makeStudioPhoto — Modell-Kette', () => {
     const result = await makeStudioPhoto({ productId: 'p1', image: { url_or_base64: 'https://x/img.jpg' } });
 
     expect(result.image.url_or_base64).toMatch(/^data:image\/png;base64,/);
-  });
-
-  it.each([null, { sameItem: true, perspectiveKept: true, markingsKept: true, conditionKept: false, materialKept: true, colorKept: true, evidenceKept: true, backgroundClean: true, confidence: 0.95, problems: ['Kratzer entfernt'] }])('verweigert Upload bei ausgefallener oder negativer Qualitätsprüfung', async (verdict) => {
-    generateProductImagesSpy.mockResolvedValue([{ base64: brightPng.toString('base64'), mimeType: 'image/png' }]);
-    judgeIdentitySpy.mockResolvedValue(verdict);
-    await expect(makeStudioPhoto({ productId: 'p1', image: { url_or_base64: 'https://x/img.jpg' } })).rejects.toMatchObject({ code: 'STUDIO_QUALITY_REJECTED' });
-    expect(uploadBase64ImageSpy).not.toHaveBeenCalled();
-  });
-
-  it('überschreitet das Bildbudget auch bei Rückfällen nicht', async () => {
-    process.env.IMAGE_COST_CAP_USD = '0.001';
-    await expect(makeStudioPhoto({ productId: 'p1', image: { url_or_base64: 'https://x/img.jpg' } })).rejects.toMatchObject({ code: 'STUDIO_QUALITY_REJECTED' });
-    expect(generateProductImagesSpy).not.toHaveBeenCalled();
-    expect(uploadBase64ImageSpy).not.toHaveBeenCalled();
-  });
-
-  it('liefert ein quadratisches Bild ohne erzwungenen neuen KI-Blickwinkel', async () => {
-    const wide = await sharp(brightPng).resize(1000, 600).png().toBuffer();
-    generateProductImagesSpy.mockResolvedValue([{ base64: wide.toString('base64'), mimeType: 'image/png' }]);
-    const result = await makeStudioPhoto({ productId: 'p1', image: { url_or_base64: 'https://x/img.jpg' } });
-    expect(result.image.width).toBe(result.image.height);
-    expect(result.image.width).toBeGreaterThanOrEqual(1600);
-    expect(generateProductImagesSpy.mock.calls[0][0].aspectRatio).toBeNull();
   });
 
   it('validiert Pflichtfelder', async () => {

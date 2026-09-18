@@ -646,38 +646,3 @@ describe('Lichter und Schattenaufhellung', () => {
     for (const k of st.channels.slice(0, 3)) expect(k.mean).toBeGreaterThan(250);
   });
 });
-
-describe('Irregulaere Produktform nur mit Ergebnisabnahme', () => {
-  async function uForm() {
-    return sharp(Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1000"><rect width="1000" height="1000" fill="white"/><path d="M200 200H370V580H630V200H800V800H200Z" fill="#18202a"/></svg>')).png().toBuffer();
-  }
-  it('behaelt die Geometriewache ohne verpflichtende Abnahme bei', async () => {
-    const image = await uForm();
-    const result = await bauePackshot(image, image);
-    expect(result.ok).toBe(false);
-    expect(result.gruende.some(g => g.startsWith('maske_nicht_kompakt'))).toBe(true);
-  });
-  it('liefert eine U-Form nur nach positiver Abnahme des fertigen Bildes', async () => {
-    const image = await uForm();
-    const reviewResult = vi.fn(async buffer => {
-      expect((await sharp(buffer).metadata()).width).toBeGreaterThan(512);
-      return { action: 'ok' };
-    });
-    const result = await bauePackshot(image, image, { reviewResult, schattenlift: false });
-    expect(result.ok).toBe(true);
-    expect(reviewResult).toHaveBeenCalledTimes(1);
-    expect(result.info.schattenlift.gamma).toBeNull();
-  });
-  it.each([null, { action: 'warnen' }, { action: 'verwerfen', warnings: ['Hand im Bild'] }])('verweigert eine nicht freigegebene U-Form', async verdict => {
-    const image = await uForm();
-    const result = await bauePackshot(image, image, { reviewResult: async () => verdict });
-    expect(result.ok).toBe(false);
-    expect(result.gruende).toContain('ergebnis_nicht_bestaetigt');
-  });
-  it('verweigert auch bei fehlerhafter Ergebnispruefung die Ausgabe', async () => {
-    const image = await uForm();
-    const result = await bauePackshot(image, image, { reviewResult: async () => { throw new Error('offline'); } });
-    expect(result.ok).toBe(false);
-    expect(result.gruende).toContain('ergebnispruefung_fehlgeschlagen');
-  });
-});

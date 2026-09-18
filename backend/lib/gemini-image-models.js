@@ -109,17 +109,25 @@ function studioImageModelChain() {
 }
 
 /**
- * Galerie: seit der SAKK-Regression vom 18.09.2026 Qualitaetsmodell zuerst.
- * Masken bleiben beim guenstigen Modell; der bestehende Kostendeckel begrenzt
- * Render und Rueckfaelle. Beide Modelle muessen dieselbe Ergebnispruefung bestehen.
- * Gueltige explizite ENV-Pins bleiben erhalten.
+ * Modellkette für die Angebotsgalerie — BILLIG ZUERST (seit 2026-09-10).
+ *
+ * Umgekehrt zum Studio-Pfad: dort erzeugt EIN Aufruf das eine Ergebnis, hier
+ * sind es sechs Bilder je Knopfdruck. Preisliste je Bild:
+ *   gemini-3-pro-image      0,134 $  ->  6 Bilder = 0,80 $
+ *   gemini-3.1-flash-image  0,101 $ (2K) / 0,067 $ (1K)  ->  Serie ~0,54 $
+ *
+ * Das schnelle Modell steht deshalb VORN, das teure ist der Rückfall. Das ist
+ * auch qualitativ vertretbar: der Rückfall ist das BESSERE Modell, nicht das
+ * schlechtere — scheitert das billige an einer Prüfung, übernimmt das teure.
+ * Am echten Produkt gemessen (10.09.): das Pro-Modell wurde von den Prüfungen
+ * nicht seltener verworfen als Flash.
  */
 function variantImageModelChain() {
   const primary = resolveImageModel(
     process.env.VARIANT_IMAGE_MODEL || process.env.GEMINI_IMAGE_MODEL,
-    DEFAULT_QUALITY_MODEL
+    DEFAULT_FAST_MODEL
   );
-  const fallback = resolveImageModel(process.env.VARIANT_IMAGE_FALLBACK_MODEL, DEFAULT_FAST_MODEL);
+  const fallback = resolveImageModel(process.env.VARIANT_IMAGE_FALLBACK_MODEL, DEFAULT_QUALITY_MODEL);
   return [...new Set([primary, fallback])];
 }
 
