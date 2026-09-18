@@ -78,3 +78,6 @@ Ein Punkt markiert ungespeicherte Änderungen. Tab-Schließen fragt über den vo
 **Bewertung der Varianten:** Interne Tabs sind für parallele Bearbeitung verschiedener Produkte mit der bestehenden Architektur gut umsetzbar und hier implementiert. Jede zusätzliche komplette Browser-Registerkarte dupliziert dagegen App, Polling und Verbindungen; Browser-Tabs besitzen getrennte Entwürfe. Gleichzeitiges Speichern desselben Produkts in mehreren Browserfenstern/Benutzersitzungen ist damit NICHT konfliktgesichert. Dafür wäre ein gesondertes serverseitiges Revisions-/Compare-and-swap-Paket mit 409-Konfliktbehandlung notwendig; eine lokale Tabsperre könnte das nicht zuverlässig garantieren. Keine automatische Speicherung sensibler Entwürfe in localStorage. Entwürfe überleben Tab-Wechsel, aber keinen bestätigten Seiten-Neustart oder Abmelden.
 
 Grundlagen: [React: Preserving and resetting state](https://react.dev/learn/preserving-and-resetting-state), [WAI-ARIA Tabs pattern](https://www.w3.org/WAI/ARIA/apg/patterns/tabs/).
+
+
+Gestaltung 19.09.2026: Produkt-Tabs sind auf 180 px Breite begrenzt, mit 36 px hohen Tab-Schaltflächen und gekürztem Titel. Der vollständige Produktname/SKU bleibt über den Tooltip erreichbar; Änderungsmarkierung, Schließen und Tastatursteuerung bleiben erhalten.
