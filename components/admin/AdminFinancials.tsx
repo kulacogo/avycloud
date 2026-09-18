@@ -4,6 +4,8 @@ import { fetchFinancialReport, saveFinancialCostModel } from "../../api/client";
 import type { FinancialReport, FinancialCostModelInput } from "../../types";
 import { financeMoney, financeSummary, validFinanceDates } from "../../utils/financeDashboard";
 
+import { PageTitle } from "../ui/PageTitle";
+
 const fmtCur = financeMoney;
 const fmtNum = (v: number | null | undefined) => v == null ? "—" : new Intl.NumberFormat("de-DE").format(v);
 const presets = [{ id: "today", label: "Heute" }, { id: "last7", label: "7 Tage" }, { id: "month_to_date", label: "Dieser Monat" }, { id: "last_month", label: "Letzter Monat" }, { id: "year_to_date", label: "Dieses Jahr" }, { id: "all_time", label: "Gesamt" }, { id: "custom", label: "Zeitraum wählen" }];
@@ -130,6 +132,7 @@ export const AdminFinancials: React.FC = () => {
     </div>
   ) : null;
   return <div className="space-y-5 pb-8">
+    <PageTitle>Finanzen</PageTitle>
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div className="flex items-center gap-2"><span className={`h-2 w-2 rounded-full ${incomplete ? "bg-warning" : "bg-success"}`} /><span className="text-sm font-medium text-txt-secondary">{loading ? "Wird aktualisiert …" : report?.range.label || "Finanzübersicht"}</span></div>
       <div className="flex flex-wrap items-center gap-2">
