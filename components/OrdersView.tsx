@@ -17,6 +17,7 @@ import { EmptyState } from "./ui/EmptyState";
 import { exportToCsv } from "../utils/csv-export";
 import { SyncIcon } from "./icons/Icons";
 import { OrderDetail } from "./OrderDetail";
+import { OrderProductButton, type OpenOrderProduct } from "./orders/OrderProductButton";
 import { OMS_STATUS_LABELS } from "../lib/oms-labels";
 import { BULK_TRANSITION_LIMIT, ADDRESS_LABEL_LIMIT, checkBulkLimit } from "../utils/bulkLimits";
 import { useToast } from "../context/ToastContext";
@@ -79,7 +80,7 @@ const PIPELINE_STAGES: { key: string; label: string; color: string; dotColor: st
 ];
 
 /* ─── Main Component ─── */
-const OrdersView: React.FC = () => {
+const OrdersView: React.FC<{ onOpenProduct?: OpenOrderProduct; productSheetOpen?: boolean }> = ({ onOpenProduct, productSheetOpen = false }) => {
   const { t } = useI18n();
   const toast = useToast();
   const queryClient = useQueryClient();
@@ -969,15 +970,21 @@ const OrdersView: React.FC = () => {
                               );
                             })()}
                             <div className="min-w-0">
-                              <div className="text-xs text-txt-primary font-medium truncate max-w-[200px]">
-                                {order.items[0].name || "—"}
-                              </div>
+                              <OrderProductButton item={order.items[0]} onOpen={onOpenProduct} className="text-xs max-w-[240px]" />
                               <div className="text-[11px] text-txt-muted truncate max-w-[200px]">
                                 {order.items[0].sku ? `SKU ${order.items[0].sku}` : ""}
-                                {order.items.length > 1 && (
-                                  <span className="ml-1 text-txt-muted">+{order.items.length - 1} weitere</span>
-                                )}
+
                               </div>
+                              {order.items.length > 1 && (
+                                <details className="text-xs mt-1" onClick={(event) => event.stopPropagation()}>
+                                  <summary className="cursor-pointer text-txt-secondary">+{order.items.length - 1} weitere Artikel</summary>
+                                  {order.items.slice(1).map((item, index) => (
+                                    <div key={`${item.id}-${index}`} className="mt-2 border-t border-app-border pt-2 max-w-[260px]">
+                                      <OrderProductButton item={item} onOpen={onOpenProduct} />
+                                    </div>
+                                  ))}
+                                </details>
+                              )}
                             </div>
                           </div>
                         ) : (
@@ -1091,6 +1098,8 @@ const OrdersView: React.FC = () => {
       {selectedOrderId && (
         <OrderDetail
           orderId={selectedOrderId}
+          onOpenProduct={onOpenProduct}
+          suspended={productSheetOpen}
           onClose={() => setSelectedOrderId(null)}
           onStatusChange={() => {
             void queryClient.invalidateQueries({ queryKey: ["orders"] });

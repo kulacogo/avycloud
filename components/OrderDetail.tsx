@@ -5,6 +5,7 @@ import React, {
   useRef,
   useMemo,
 } from "react";
+import { OrderProductButton } from "./orders/OrderProductButton";
 import {
   fetchOrderDetail,
   transitionOrderStatus,
@@ -113,6 +114,8 @@ interface OrderDetailProps {
   orderId: string;
   onClose: () => void;
   onStatusChange?: () => void;
+  onOpenProduct?: import("./orders/OrderProductButton").OpenOrderProduct;
+  suspended?: boolean;
 }
 
 /* ─── Component ─── */
@@ -120,6 +123,8 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
   orderId,
   onClose,
   onStatusChange,
+  onOpenProduct,
+  suspended = false,
 }) => {
   const toast = useToast();
   const [order, setOrder] = useState<Order | null>(null);
@@ -264,12 +269,13 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
   }, [order?.omsStatus, order?.trackingNumber, loadShippingMethods]);
 
   useEffect(() => {
+    if (suspended) return;
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [onClose]);
+  }, [onClose, suspended]);
 
   const handleBackdropClick = useCallback(
     (e: React.MouseEvent) => {
@@ -647,6 +653,7 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
       {
         key: string;
         name: string;
+        source: Order["items"][number];
         sku?: string;
         ean?: string;
         weight?: number;
@@ -663,11 +670,12 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
       const nameKey = (item.name || "").trim().toLowerCase();
       const binKey = (item.pickHint?.binCode || "").trim().toLowerCase();
       const hasStableIdentity = Boolean(skuKey || eanKey);
-      const identityKey = hasStableIdentity
+      const legacyIdentityKey = hasStableIdentity
         ? `${skuKey || "-"}|${eanKey || "-"}|${binKey}`
         : nameKey
           ? `name|${nameKey}|${binKey}`
           : `fallback-${item.id || idx}|${binKey}`;
+      const identityKey = `${item.productId || ""}|${item.pickHint?.productId || ""}|${legacyIdentityKey}`;
 
       const quantity = Number(item.quantity) || 0;
       const lineAmount =
@@ -686,6 +694,7 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
       groups.set(identityKey, {
         key: identityKey,
         name: item.name || "Unbekanntes Produkt",
+        source: item,
         sku: item.sku ?? undefined,
         ean: item.ean ?? undefined,
         weight: item.weight ?? undefined,
@@ -764,7 +773,7 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
     <div
       ref={backdropRef}
       onClick={handleBackdropClick}
-      className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-sm"
+      className={`${suspended ? "hidden" : "flex"} fixed inset-0 z-50 justify-end bg-black/40 backdrop-blur-sm`}
     >
       <div className="w-full max-w-2xl bg-app-surface border-l border-app-border shadow-2xl flex flex-col h-full animate-slide-in-right">
         {/* Header */}
@@ -1818,9 +1827,7 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
                           {item.quantity}x
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-txt-primary truncate">
-                            {item.name}
-                          </p>
+                          <OrderProductButton item={item.source} onOpen={onOpenProduct} className="text-sm" />
                           <div className="flex items-center gap-3 mt-1 text-xs text-txt-muted">
                             {item.sku && <span>SKU: {item.sku}</span>}
                             {item.ean && <span>EAN: {item.ean}</span>}

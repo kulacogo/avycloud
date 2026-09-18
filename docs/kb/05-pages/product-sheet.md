@@ -68,3 +68,13 @@ Pro-Endpunkt-Doku: `docs/kb/09-api/products.md`, `docs/kb/09-api/ebay.md`, `docs
 - **BUG-087** Chat findet keine Web-Bilder über predefined Prompt (P1, offen) — Symptom im ProductSheet AssistantChat.
 - **BUG-094** Chat-Kategorien werden nach Sekunden wieder überschrieben + veraltete eBay-Kategorien (P1, offen).
 - **CLAUDE.md §7** — alle Schreibpfade über `saveProductV2()`. Nie `tx.update(productRef, ...)` direkt im UI-Pfad anstoßen.
+
+## Mehrere Datenblätter gleichzeitig — lokale Umsetzung 18.09.2026
+
+`App.tsx`, `hooks/useProductWorkspace.ts`, `utils/productWorkspace.ts` und `components/ProductWorkspaceTabs.tsx` halten bis zu acht Produktdatenblätter als interne App-Tabs offen. Die Übersicht bleibt gemountet; Suche, Filter und Bestellkontext bleiben beim Wechsel erhalten. Ein erneut geöffnetes Produkt aktiviert seinen vorhandenen Tab. Verschiedene Produkte besitzen getrennte Editor-Zustände, Bildauswahl und KI-Chat-Zustände.
+
+Ein Punkt markiert ungespeicherte Änderungen. Tab-Schließen fragt über den vorhandenen `ConfirmDialog` nach; „Weiter bearbeiten“ erhält den Entwurf. Browser-Neuladen/Schließen warnt bei offenen Entwürfen. Escape geht zur Übersicht, ohne Entwürfe zu löschen. Pfeiltasten/Home/End wechseln Tabs; Delete fordert das Schließen an. Nach Schließen erhält der aktive Nachbar den Fokus. Formular- und Untertab-IDs sind pro Produkt eindeutig. Nachgeladene Vollprodukte dürfen inzwischen angefangene Bearbeitung nicht überschreiben.
+
+**Bewertung der Varianten:** Interne Tabs sind für parallele Bearbeitung verschiedener Produkte mit der bestehenden Architektur gut umsetzbar und hier implementiert. Jede zusätzliche komplette Browser-Registerkarte dupliziert dagegen App, Polling und Verbindungen; Browser-Tabs besitzen getrennte Entwürfe. Gleichzeitiges Speichern desselben Produkts in mehreren Browserfenstern/Benutzersitzungen ist damit NICHT konfliktgesichert. Dafür wäre ein gesondertes serverseitiges Revisions-/Compare-and-swap-Paket mit 409-Konfliktbehandlung notwendig; eine lokale Tabsperre könnte das nicht zuverlässig garantieren. Keine automatische Speicherung sensibler Entwürfe in localStorage. Entwürfe überleben Tab-Wechsel, aber keinen bestätigten Seiten-Neustart oder Abmelden.
+
+Grundlagen: [React: Preserving and resetting state](https://react.dev/learn/preserving-and-resetting-state), [WAI-ARIA Tabs pattern](https://www.w3.org/WAI/ARIA/apg/patterns/tabs/).
