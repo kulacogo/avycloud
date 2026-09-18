@@ -52,6 +52,7 @@ interface ProductSheetProps {
   isImproving?: boolean;
   onClose?: () => void;
   onDirtyChange?: (dirty: boolean) => void;
+  isActive?: boolean;
 }
 
 /** Resolve image src from either `{url_or_base64: "..."}` or `{url_or_base64: {url: "..."}}` */
@@ -91,7 +92,7 @@ const isTrustedAiImage = (image?: ProductImage) => {
 const filterReferenceCandidates = (images: ProductImage[] = []) =>
   images.filter((image) => !isGeneratedImageMeta(image));
 
-const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprove, isImproving, onClose, onDirtyChange }) => {
+const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprove, isImproving, onClose, onDirtyChange, isActive = true }) => {
   const { t } = useI18n();
   const { user } = useAuth();
   const editorInitials = useMemo(() => deriveInitials(user?.email || ""), [user?.email]);
@@ -163,6 +164,8 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   const [isDirty, setIsDirty] = useState(false);
   // Prevent stale external updates from overwriting recent saves (race condition with improve jobs)
   const lastSaveAtRef = useRef(0);
+  const editingRef = useRef(false);
+  editingRef.current = isDirty || isEditing;
   // Signal dirty state to parent so polling doesn't overwrite unsaved changes
   useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -310,6 +313,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
       return;
     }
 
+    let cancelled = false;
     prevProductIdRef.current = product.id;
     setLocalProduct(normalizeProduct(product));
     // Den VOLLEN Datensatz nachladen.
@@ -322,10 +326,10 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     void (async () => {
       try {
         const voll = await fetchProductById(product.id);
-        if (!voll || voll.id !== product.id) return;
+        if (cancelled || editingRef.current || !voll || voll.id !== product.id) return;
         setLocalProduct((prev) => {
           // Nichts ueberschreiben, was der Mensch inzwischen angefasst hat.
-          if (prev?.id !== product.id) return prev;
+          if (cancelled || editingRef.current || prev?.id !== product.id) return prev;
           return normalizeProduct(voll);
         });
       } catch {
@@ -346,6 +350,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     loadProductBins(product.id);
     setBarcodeInput((product.identification?.barcodes || []).join('\n'));
     setIdFields(classifyBarcodesByLength(product.identification?.barcodes || []));
+    return () => { cancelled = true; };
   }, [product, loadProductBins, normalizeProduct, isDirty, isEditing, isGeneratingImages]);
 
   const gpsr = (localProduct?.details?.gpsr || {}) as any;
@@ -1663,7 +1668,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   const assistantWrapRef = useRef<HTMLDivElement | null>(null);
   const [assistantHeight, setAssistantHeight] = useState<number | null>(null);
   useEffect(() => {
-    if (activeTab !== 'assistent') return;
+    if (!isActive || activeTab !== 'assistent') return;
     const measure = () => {
       const el = assistantWrapRef.current;
       if (!el) return;
@@ -1676,7 +1681,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
       window.cancelAnimationFrame(raf);
       window.removeEventListener('resize', measure);
     };
-  }, [activeTab]);
+  }, [activeTab, isActive]);
 
   // Notiz-Anzahl fürs Tab-Badge (aktualisiert sich, wenn im Tab eine Notiz dazukommt).
   const [notesCount, setNotesCount] = useState<number>(0);
@@ -1701,7 +1706,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   ], [localProduct.details?.images?.length, notesCount]);
 
   return (
-    <section id="product-sheet" className="w-full relative">
+    <section id={`product-sheet-${product.id}`} className="w-full relative">
       {notification && (
         <div
           role="alert"
@@ -1826,7 +1831,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
               )}
             </div>
             <button
-              id="btn-edit"
+              id={`btn-edit-${product.id}`}
               onClick={handleToggleEdit}
               aria-pressed={isEditing}
               className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${isEditing ? 'bg-accent text-white' : 'bg-app-elevated text-txt-primary hover:bg-app-border border border-app-border'}`}
@@ -1835,7 +1840,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
               {isEditing ? t('common.editing') : t('common.edit')}
             </button>
             <button
-              id="btn-save"
+              id={`btn-save-${product.id}`}
               onClick={handleSave}
               disabled={isSaving}
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg bg-success/20 text-success hover:bg-success/30 transition-colors disabled:opacity-40"
@@ -1875,10 +1880,10 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
       </div>
 
       {/* ─── TABS ───────────────────────────────────────────── */}
-      <Tabs tabs={sheetTabs} activeTab={activeTab} onTabChange={setActiveTab} className="mb-4" />
+      <Tabs idPrefix={`sheet-${product.id}-`} tabs={sheetTabs} activeTab={activeTab} onTabChange={setActiveTab} className="mb-4" />
 
       {/* ─── TAB: Stammdaten ────────────────────────────────── */}
-      <TabPanel tabId="stammdaten" activeTab={activeTab} className="space-y-5">
+      <TabPanel idPrefix={`sheet-${product.id}-`} tabId="stammdaten" activeTab={activeTab} className="space-y-5">
         {/* Title editing */}
         <section className="p-5 bg-app-surface border border-app-border rounded-2xl">
           <h3 className="text-sm font-semibold text-txt-muted uppercase tracking-wide mb-3">Produkt</h3>
@@ -1888,7 +1893,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
               {isEditing ? (
                 <div>
                   <textarea
-                    id="p-name"
+                    id={`p-name-${product.id}`}
                     aria-label={t('common.productName') || 'Produktname'}
                     value={localProduct.identification.name}
                     onChange={(e) => handleFieldChange('identification.name', e.target.value)}
@@ -2355,7 +2360,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
       </TabPanel>
 
       {/* ─── TAB: Bilder ────────────────────────────────────── */}
-      <TabPanel tabId="bilder" activeTab={activeTab} className="space-y-5">
+      <TabPanel idPrefix={`sheet-${product.id}-`} tabId="bilder" activeTab={activeTab} className="space-y-5">
         <section className="p-5 bg-app-surface border border-app-border rounded-2xl">
           <ImageGallery
             images={localProduct.details.images}
@@ -2514,7 +2519,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
       </TabPanel>
 
       {/* ─── TAB: Attribute ─────────────────────────────────── */}
-      <TabPanel tabId="attribute" activeTab={activeTab} className="space-y-5">
+      <TabPanel idPrefix={`sheet-${product.id}-`} tabId="attribute" activeTab={activeTab} className="space-y-5">
         <section className="p-5 bg-app-surface border border-app-border rounded-2xl">
           {/* K-Typ */}
           <div className="mb-4 rounded-lg border border-app-border bg-app-bg/60 p-3">
@@ -2560,7 +2565,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
       </TabPanel>
 
       {/* ─── TAB: Marktplätze ───────────────────────────────── */}
-      <TabPanel tabId="marktplaetze" activeTab={activeTab} className="space-y-5">
+      <TabPanel idPrefix={`sheet-${product.id}-`} tabId="marktplaetze" activeTab={activeTab} className="space-y-5">
         {/* Pre-Listing Validation (VAL-001) */}
         <ValidationPanel product={localProduct} />
 
@@ -2611,7 +2616,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
       </TabPanel>
 
       {/* ─── TAB: Notizen (interne Mitarbeiter-Kommentare) ───── */}
-      <TabPanel tabId="notizen" activeTab={activeTab} className="space-y-5">
+      <TabPanel idPrefix={`sheet-${product.id}-`} tabId="notizen" activeTab={activeTab} className="space-y-5">
         <ProductNotes productId={localProduct.id} onCountChange={setNotesCount} />
       </TabPanel>
 
@@ -2620,7 +2625,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
           survive tab switches. Otherwise users lose the "Übernehmen" button on the last
           assistant suggestion (datasheetChanges live only in component state) and the
           last user message can race the async server-side session persistence. */}
-      <TabPanel tabId="assistent" activeTab={activeTab} keepMounted>
+      <TabPanel idPrefix={`sheet-${product.id}-`} tabId="assistent" activeTab={activeTab} keepMounted>
         <div ref={assistantWrapRef} style={assistantHeight ? { height: assistantHeight } : undefined} className="min-h-[480px]">
           <AssistantChat
             product={localProduct}

@@ -1,6 +1,6 @@
 
 import React, { useState, useCallback, useEffect, useMemo, useRef, lazy, Suspense, startTransition } from 'react';
-import { Product, WarehouseBin, View } from './types';
+import { Product, WarehouseBin, View, type OrderItem } from './types';
 import { useIdentification, UploadGroupPayload } from './hooks/useIdentification';
 import { useImproveQueue } from './hooks/useImproveQueue';
 import CookieConsentBanner from './components/CookieConsentBanner';
@@ -14,7 +14,11 @@ import StatusDock from './components/StatusDock';
 import MobileTabBar from './components/MobileTabBar';
 import ProductsPageHeader from './components/ProductsPageHeader';
 
-import { fetchOrders, fetchProducts, refreshPrice } from './api/client';
+import { fetchOrders, fetchProducts, fetchProductById, refreshPrice } from './api/client';
+import { resolveOrderProduct } from './utils/orderProduct';
+import { useProductWorkspace } from './hooks/useProductWorkspace';
+import { ConfirmDialog } from './components/ui/ConfirmDialog';
+import { ProductWorkspaceTabs } from './components/ProductWorkspaceTabs';
 import { isIdentifyRunning, subscribeIdentifyRun } from './utils/identifyRunFlag';
 import { startVisiblePolling } from './utils/visiblePolling';
 import { useI18n } from './i18n';
@@ -480,69 +484,19 @@ const AppInner: React.FC = () => {
   const [productsLoading, setProductsLoading] = useState<boolean>(false);
   const [productsError, setProductsError] = useState<string | null>(null);
   const productsRef = useRef<Product[]>([]);
-  const [currentProduct, setCurrentProduct] = useState<Product | null>(null);
-  const sheetDirtyRef = useRef(false);
-
-  /**
-   * Schließt das Datenblatt — fragt aber nach, wenn ungespeicherte Änderungen
-   * anstehen.
-   *
-   * Vorher wurde `sheetDirtyRef` beim Schließen einfach auf false gesetzt und
-   * alles kommentarlos verworfen. Zusammen mit einem "Übernehmen", das gar
-   * nicht speicherte, hieß das: übernommene KI-Vorschläge verschwanden beim
-   * Schließen spurlos, während die alten (falschen) Daten auf den
-   * Marktplätzen online blieben (Vorfall 2026-08-10, SKU-3154363905).
-   */
+  const { workspace, dispatch: updateWorkspace, currentProduct, setCurrentProduct, sheetDirtyRef, closeTab, closeProductSheet, pendingCloseId, capacityMessage, confirmClose, cancelClose } = useProductWorkspace();
   const currentProductRef = useRef<Product | null>(null);
-
-  const confirmDiscardSheet = () =>
-    window.confirm(
-      'Es gibt ungespeicherte Änderungen an diesem Produkt.\n\n'
-        + 'Wenn du jetzt schließt, gehen sie verloren — das Datenblatt und die '
-        + 'Marktplatz-Angebote behalten die alten Werte.\n\n'
-        + 'Trotzdem schließen?'
-    );
-
-  const closeProductSheet = useCallback(() => {
-    if (sheetDirtyRef.current) {
-      const proceed = window.confirm(
-        'Es gibt ungespeicherte Änderungen an diesem Produkt.\n\n'
-          + 'Wenn du jetzt schließt, gehen sie verloren — das Datenblatt und die '
-          + 'Marktplatz-Angebote behalten die alten Werte.\n\n'
-          + 'Trotzdem schließen?'
-      );
-      if (!proceed) return;
-    }
-    sheetDirtyRef.current = false;
-    setCurrentProduct(null);
-  }, []);
-
-  /**
-   * Escape schliesst das Datenblatt — und der Hintergrund scrollt nicht mit.
-   *
-   * Das Datenblatt liegt fast bildschirmfuellend ueber der Liste, war aber nur
-   * ueber den Schliessen-Knopf oben rechts zu verlassen. Wer mit der Tastatur
-   * arbeitet (Erfassen, Lager), musste dafuer jedes Mal zur Maus greifen.
-   * Ungespeicherte Aenderungen fragen weiterhin nach: closeProductSheet
-   * entscheidet das, hier haengt nur der Ausloeser dran.
-   */
   const sheetOffen = Boolean(currentProduct) && !isProductSheetBlockedView(view);
   useEffect(() => {
     if (!sheetOffen) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (!shouldCloseOnEscape(event as unknown as Parameters<typeof shouldCloseOnEscape>[0])) return;
-      closeProductSheet();
+      // Back to the list keeps every draft mounted and unchanged.
+      setCurrentProduct(null);
     };
-    // Die Liste dahinter darf nicht mitscrollen, solange das Datenblatt offen
-    // ist — sonst verliert man beim Schliessen seine Position in der Liste.
-    const vorher = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
     window.addEventListener('keydown', onKeyDown);
-    return () => {
-      window.removeEventListener('keydown', onKeyDown);
-      document.body.style.overflow = vorher;
-    };
-  }, [sheetOffen, closeProductSheet]);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [sheetOffen, setCurrentProduct]);
 
   /**
    * Seitenwechsel mit Rueckfrage bei ungespeicherten Aenderungen.
@@ -563,8 +517,9 @@ const AppInner: React.FC = () => {
     // bei schnellen Klicks veraltet.
     if (view === next) return;
     if (!confirmLeaveIfUnsaved()) return;
+    setCurrentProduct(null);
     setView(next);
-  }, [view]);
+  }, [view, setCurrentProduct]);
   const [showImportModal, setShowImportModal] = useState(false);
   const {
     enqueueIdentification,
@@ -746,9 +701,7 @@ const AppInner: React.FC = () => {
     setProducts(prevProducts =>
       prevProducts.map(p => (p.id === updatedProduct.id ? updatedProduct : p))
     );
-    if (currentProduct?.id === updatedProduct.id) {
-      setCurrentProduct(updatedProduct);
-    }
+    updateWorkspace({ type: 'updated', product: updatedProduct });
   };
 
   const handleBinStockChanged = (bin: WarehouseBin) => {
@@ -814,6 +767,19 @@ const AppInner: React.FC = () => {
       oeffneDatenblatt(product);
       // Don't setView('sheet') — ProductSheet renders as overlay, keeping current view
     }
+  };
+
+  const orderProductRequest = useRef(0);
+  const handleOpenOrderProduct = async (item: OrderItem) => {
+    if (!hasPermission('products', 'read')) throw new Error('Keine Berechtigung für Produktdaten.');
+    const request = ++orderProductRequest.current;
+    const product = await resolveOrderProduct(item, {
+      products: productsRef.current,
+      loadProducts: fetchProducts,
+      loadProduct: fetchProductById,
+    });
+    if (request !== orderProductRequest.current || viewRef.current !== 'orders') return;
+    oeffneDatenblatt(product);
   };
 
 
@@ -892,18 +858,7 @@ const AppInner: React.FC = () => {
           if (product) setInventoryFocusId(product.id);
         });
       } else {
-        // Die Zurueck-Taste (Handy/Browser) aendert nur den Hash. Hier lief
-        // bisher setCurrentProduct(null) DIREKT — am Warndialog vorbei, den der
-        // Schliessen-Knopf sehr wohl zeigt. Ungespeicherte Aenderungen am
-        // Datenblatt waren damit ohne Nachfrage weg.
-        if (sheetDirtyRef.current && currentProductRef.current) {
-          if (!confirmDiscardSheet()) {
-            // Adresse zurueckdrehen, das Datenblatt bleibt offen.
-            window.location.hash = `#/sheet/${currentProductRef.current.id}`;
-            return;
-          }
-          sheetDirtyRef.current = false;
-        }
+        // Navigation hides the editor; mounted tabs keep their drafts.
         setCurrentProduct(null);
       }
     };
@@ -1194,7 +1149,7 @@ const AppInner: React.FC = () => {
         if (!(hasPermission('orders', 'read') || hasPermission('orders', 'pick') || hasPermission('orders', 'pack'))) {
           return <div className="text-center p-8 text-txt-muted">{t('error.forbidden')}</div>;
         }
-        return <OrdersView />;
+        return <OrdersView onOpenProduct={hasPermission('products', 'read') ? handleOpenOrderProduct : undefined} productSheetOpen={sheetOffen} />;
       case 'warehouse':
         if (!(hasPermission('warehouse', 'read') || hasPermission('warehouse', 'write'))) {
           return <div className="text-center p-8 text-txt-muted">{t('error.forbidden')}</div>;
@@ -1428,43 +1383,32 @@ const AppInner: React.FC = () => {
               </button>
             </div>
           )}
-          {renderLoadState()}
-        </main>
-
-        {/* ProductSheet overlay — slides in from right, independent of route */}
-        {currentProduct && sheetOffen && (
-          <div className="fixed inset-0 z-50 flex justify-end" role="dialog" aria-modal="true">
-            {/* Backdrop */}
-            <div
-              className="absolute inset-0 bg-black/40 transition-opacity"
-              onClick={closeProductSheet}
-              aria-label="Close product sheet"
-            />
-            {/* Sheet panel */}
-            <div className="relative w-full md:w-[66vw] md:max-w-[1080px] bg-app-surface border-l border-app-border overflow-y-auto shadow-2xl animate-slide-in-right">
-              {/* Das Datenblatt wird erst beim Oeffnen geladen und braucht
-                  deshalb eine eigene Wartestelle. Ohne sie stuerzte das Oeffnen
-                  ab (React-Fehler 426): der Klick ist eine sofortige Eingabe,
-                  und React verweigert es, dafuer ohne Wartestelle nachzuladen. */}
-              <Suspense
-                fallback={
-                  <div className="flex items-center justify-center py-24">
-                    <Spinner />
-                  </div>
-                }
-              >
-              <ProductSheet
-                product={currentProduct}
-                onUpdate={handleUpdateProduct}
-                onImprove={handleImproveProduct}
-                isImproving={Boolean(currentProduct && activeProductIds.has(currentProduct.id))}
-                onClose={closeProductSheet}
-                onDirtyChange={(dirty) => { sheetDirtyRef.current = dirty; }}
-              />
-              </Suspense>
-            </div>
+          <ConfirmDialog open={Boolean(pendingCloseId)} title="Datenblatt schließen?"
+            description="Dieses Datenblatt enthält ungespeicherte Änderungen."
+            confirmLabel="Änderungen verwerfen" cancelLabel="Weiter bearbeiten" tone="danger"
+            onConfirm={confirmClose} onCancel={cancelClose} />
+          {workspace.products.length > 0 && !isProductSheetBlockedView(view) && (
+            <ProductWorkspaceTabs workspace={workspace} onActivate={(id) => updateWorkspace({ type: 'activate', id })} onClose={closeTab} />
+          )}
+          {capacityMessage && <p role="status" className="mb-4 rounded-lg bg-warning-dim px-4 py-3 text-sm text-warning">{capacityMessage}</p>}
+          <div id="workspace-panel-overview" role={workspace.products.length ? 'tabpanel' : undefined}
+            aria-labelledby={workspace.products.length ? 'workspace-tab-overview' : undefined} hidden={sheetOffen}>
+            {renderLoadState()}
           </div>
-        )}
+          {workspace.products.map((product) => (
+            <div key={product.id} id={`workspace-panel-${product.id}`} role="tabpanel" aria-labelledby={`workspace-tab-${product.id}`}
+              hidden={!sheetOffen || currentProduct?.id !== product.id}>
+              <ErrorBoundary>
+                <Suspense fallback={<div className="flex justify-center py-24"><Spinner /></div>}>
+                  <ProductSheet product={product} onUpdate={handleUpdateProduct} onImprove={handleImproveProduct}
+                    isImproving={activeProductIds.has(product.id)} onClose={() => closeTab(product.id)}
+                    isActive={sheetOffen && currentProduct?.id === product.id}
+                    onDirtyChange={(dirty) => updateWorkspace({ type: 'dirty', id: product.id, dirty })} />
+                </Suspense>
+              </ErrorBoundary>
+            </div>
+          ))}
+        </main>
 
         {/* Import-Fenster — nur einhaengen, wenn es wirklich geoeffnet wird.
             Vorher stand es bedingungslos hier und AUSSERHALB jeder Wartestelle:

@@ -7,6 +7,8 @@ import { groupImages } from "../../api/client";
 import type { ProductGroupProposal } from "../../api/client";
 import type { ImagePreview, ConfirmedGroup } from "./CaptureView";
 import { compressImageForUpload } from "../../utils/imageCompress";
+import CaptureImagePreview from "./CaptureImagePreview";
+import { previewImages } from "./previewImages";
 
 interface StepGroupingProps {
   images: ImagePreview[];
@@ -63,6 +65,9 @@ const ConfidenceBadge: React.FC<{ value: number }> = ({ value }) => (
 );
 
 const StepGrouping: React.FC<StepGroupingProps> = ({ images, barcodes, onConfirm, onBack, initialGroups }) => {
+  const [previewId, setPreviewId] = useState<string | null>(null);
+  const draggedImage = useRef(false);
+  const closePreview = useCallback(() => setPreviewId(null), []);
   // Bestätigte Gruppen zurückübersetzen. Die File-Objekte sind dieselben
   // Instanzen wie in `images`, deshalb trägt der Identitätsvergleich.
   const restoredGroups = React.useMemo<LocalGroup[] | null>(() => {
@@ -332,6 +337,21 @@ const StepGrouping: React.FC<StepGroupingProps> = ({ images, barcodes, onConfirm
   }, [groups, images, onConfirm]);
 
   const getImage = (id: string) => images.find((img) => img.id === id);
+  const preview = previewId ? (
+    <CaptureImagePreview images={previewImages(images, groups)} selectedId={previewId} onSelect={setPreviewId} onClose={closePreview} />
+  ) : null;
+  const photoButton = (image: ImagePreview, className: string) => (
+    <button
+      type="button"
+      className={className}
+      aria-label={`Foto ${images.indexOf(image) + 1} vergrößern`}
+      title="Foto groß ansehen"
+      onPointerDown={() => { draggedImage.current = false; }}
+      onClick={(event) => { if (event.detail === 0 || !draggedImage.current) setPreviewId(image.id); }}
+    >
+      <img src={image.url} alt="" draggable={false} className="w-full h-full object-contain pointer-events-none select-none" />
+    </button>
+  );
 
   // --- Derived state ---
 
@@ -365,6 +385,7 @@ const StepGrouping: React.FC<StepGroupingProps> = ({ images, barcodes, onConfirm
 
     return (
       <div className="space-y-6">
+        {preview}
         {/* Header */}
         <Card padding="sm">
           <div className="flex items-center justify-between">
@@ -384,11 +405,7 @@ const StepGrouping: React.FC<StepGroupingProps> = ({ images, barcodes, onConfirm
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Left: Large image */}
           <Card padding="sm">
-            <img
-              src={image.url}
-              alt=""
-              className="w-full rounded-lg object-contain max-h-[500px]"
-            />
+            {photoButton(image, "block w-full max-h-[500px] rounded-lg overflow-hidden cursor-zoom-in")}
           </Card>
 
           {/* Right: Product checklist */}
@@ -453,6 +470,7 @@ const StepGrouping: React.FC<StepGroupingProps> = ({ images, barcodes, onConfirm
 
   return (
     <div className="space-y-6">
+      {preview}
       {/* Header */}
       <Card padding="sm">
         <div className="flex items-center justify-between">
@@ -531,14 +549,10 @@ const StepGrouping: React.FC<StepGroupingProps> = ({ images, barcodes, onConfirm
                     <div
                       key={imgId}
                       draggable
-                      onDragStart={(e) => handleImageDragStart(e, group.id, imgId)}
+                      onDragStart={(e) => { draggedImage.current = true; handleImageDragStart(e, group.id, imgId); }}
                       className="relative w-20 h-20 rounded-lg overflow-hidden border border-app-border cursor-grab active:cursor-grabbing hover:ring-2 hover:ring-accent/30 transition-all"
                     >
-                      <img
-                        src={img.url}
-                        alt=""
-                        className="w-full h-full object-cover pointer-events-none select-none"
-                      />
+                      {photoButton(img, "block w-full h-full cursor-zoom-in")}
                       {sharedCount > 1 && (
                         <span
                           className="absolute top-1 left-1 text-[10px] leading-none px-1 py-0.5 rounded bg-app-surface/90 border border-app-border text-txt-muted"
@@ -602,10 +616,10 @@ const StepGrouping: React.FC<StepGroupingProps> = ({ images, barcodes, onConfirm
                 <div
                   key={img.id}
                   draggable
-                  onDragStart={(e) => handleImageDragStart(e, UNASSIGNED_SOURCE, img.id)}
+                  onDragStart={(e) => { draggedImage.current = true; handleImageDragStart(e, UNASSIGNED_SOURCE, img.id); }}
                   className="relative w-20 h-20 rounded-lg overflow-hidden border-2 border-warning/50 cursor-grab active:cursor-grabbing"
                 >
-                  <img src={img.url} alt="" className="w-full h-full object-cover pointer-events-none select-none" />
+                  {photoButton(img, "block w-full h-full cursor-zoom-in")}
                   <button
                     type="button"
                     onClick={() => copyImageToNewGroup(img.id)}

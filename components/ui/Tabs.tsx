@@ -13,9 +13,10 @@ export interface TabsProps {
   activeTab: string;
   onTabChange: (id: string) => void;
   className?: string;
+  idPrefix?: string;
 }
 
-export const Tabs: React.FC<TabsProps> = ({ tabs, activeTab, onTabChange, className }) => {
+export const Tabs: React.FC<TabsProps> = ({ tabs, activeTab, onTabChange, className, idPrefix = "" }) => {
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   const handleKeyDown = useCallback(
@@ -56,7 +57,8 @@ export const Tabs: React.FC<TabsProps> = ({ tabs, activeTab, onTabChange, classN
             type="button"
             role="tab"
             aria-selected={isActive}
-            aria-controls={`tabpanel-${tab.id}`}
+            id={`${idPrefix}tab-${tab.id}`}
+            aria-controls={`${idPrefix}tabpanel-${tab.id}`}
             tabIndex={isActive ? 0 : -1}
             disabled={tab.disabled}
             onClick={() => onTabChange(tab.id)}
@@ -94,6 +96,7 @@ export interface TabPanelProps {
   activeTab: string;
   children: React.ReactNode;
   className?: string;
+  idPrefix?: string;
   /**
    * When true, the panel stays mounted while another tab is active and is
    * only visually hidden via CSS. Use for panels whose internal state must
@@ -103,14 +106,14 @@ export interface TabPanelProps {
   keepMounted?: boolean;
 }
 
-export const TabPanel: React.FC<TabPanelProps> = ({ tabId, activeTab, children, className, keepMounted = false }) => {
+export const TabPanel: React.FC<TabPanelProps> = ({ tabId, activeTab, children, className, keepMounted = false, idPrefix = "" }) => {
   const isActive = tabId === activeTab;
   if (!isActive && !keepMounted) return null;
   return (
     <div
-      id={`tabpanel-${tabId}`}
+      id={`${idPrefix}tabpanel-${tabId}`}
       role="tabpanel"
-      aria-labelledby={tabId}
+      aria-labelledby={`${idPrefix}tab-${tabId}`}
       className={className}
       hidden={!isActive}
       style={!isActive ? { display: "none" } : undefined}

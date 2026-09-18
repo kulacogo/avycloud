@@ -1,7 +1,7 @@
 ---
 title: Orders (Bestellungen)
 for: [user, dev, admin]
-lastReviewed: 2026-05-18
+lastReviewed: 2026-09-18
 ---
 
 ## Zweck
@@ -32,6 +32,8 @@ Pro-Endpunkt-Doku: `docs/kb/09-api/orders.md` (TBD).
 
 ## Wichtige Edge-Cases
 
+- **Produktdatenblatt:** „Produktdatenblatt öffnen“ führt direkt aus der Bestellliste zum jeweiligen Produkt; weitere Positionen lassen sich in derselben Zeile aufklappen. Auch im Tab „Positionen“ der Bestelldetails steht der Einstieg zur Verfügung. Das Datenblatt liegt über der bestehenden Ansicht: Filter, Auswahl, Seite und Detailzustand bleiben erhalten. Escape schließt zuerst das Datenblatt. Produktleserecht ist erforderlich; fehlende oder mehrdeutige Zuordnungen werden gemeldet. Produkt-ID bzw. Pick-Hinweis haben Vorrang vor eindeutigem SKU-/EAN-Abgleich. Geöffnet wird nur ein Produkt aus der berechtigten Produktliste, anschließend wird sein aktueller Datensatz geladen. Keine Intake-Auflösung und keine Bestands-/Ordermutation. [Resolver](../../../utils/orderProduct.ts), [Aktion](../../../components/orders/OrderProductButton.tsx).
+
 - **Empty-State**: `EmptyState`-Component aus [components/ui/EmptyState.tsx](../../../components/ui/EmptyState.tsx) wenn `orders.length === 0`.
 - **Loading**: `loading`-Flag aus `useOrders` blendet Skeleton/Spinner ein.
 - **Error**: `queryError` aus React-Query wird als Banner über der Tabelle gezeigt.
@@ -46,3 +48,7 @@ Pro-Endpunkt-Doku: `docs/kb/09-api/orders.md` (TBD).
 
 - [TASKS.md](../../../TASKS.md) — **BUG-071** Bestellungen Pipeline-Zahlen inkonsistent mit Tab-Zahlen (✅ gefixt durch client-side `categorizeStatus`).
 - Schreibpfade auf `omsStatus` MÜSSEN über `transitionOrder()` laufen ([CLAUDE.md §11](../../../CLAUDE.md)). Wenn ein neuer Bulk-Action auf Order-State gebaut wird → ausschließlich `bulkTransitionOrders` benutzen, nie direkten Firestore-Write.
+
+### UI-Verfeinerung 18.09.2026
+
+Der Artikelname in Liste und Bestelldetail öffnet jetzt das Produktdatenblatt direkt. Der zusätzliche Linktext „Produktdatenblatt öffnen“ entfällt. Bei mehreren Positionen sind weitere Artikel aufklappbar und einzeln wählbar. Artikelklick öffnet nicht gleichzeitig den Bestelldetail-Dialog. Zuordnung/Berechtigungsprüfung bleiben im bestehenden Resolver. Datenblätter öffnen als interne Tabs; „Übersicht“ führt zur erhaltenen Bestellansicht zurück.

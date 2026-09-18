@@ -109,7 +109,7 @@ const PricingInfo: React.FC<PricingInfoProps> = ({ pricing, isEditing = false, o
       {(nonLinkSources.length > 0 || linkSources.length > 0) && (
         <div className="mt-4">
           <h4 className="font-semibold text-txt-secondary mb-2">Quellen:</h4>
-          <ul id="price-sources" className="space-y-2">
+          <ul className="space-y-2">
             {nonLinkSources.map((source, index) => (
               <li key={`nonlink-${index}`} className="flex items-center justify-between p-2 bg-app-elevated/50 rounded-md">
                 <div className="flex items-center">
