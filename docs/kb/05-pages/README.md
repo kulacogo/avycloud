@@ -21,6 +21,7 @@ lastReviewed: 2026-05-18
 | Page-Doc | View-Key (App.tsx) | Haupt-Komponente | Wichtige API-Aufrufe |
 |---|---|---|---|
 | [dashboard.md](dashboard.md) | `dashboard` | [Dashboard.tsx](../../../components/Dashboard.tsx) / [DashboardMobile.tsx](../../../components/DashboardMobile.tsx) | `fetchDashboardMetrics`, `fetchFinanceMetrics`, `fetchSyncStatus`, `fetchReorderAlerts`, `fetchActivityFeed`, `fetchOrders` |
+| [finance.md](finance.md) | `finance` | [admin/AdminFinancials.tsx](../../../components/admin/AdminFinancials.tsx) | `fetchFinancialReport`, `saveFinancialCostModel` |
 | [inventory.md](inventory.md) | `inventory` | [InventoryView.tsx](../../../components/InventoryView.tsx) | `fetchProducts`, `fetchEbaySkuIndex`, `fetchKauflandSkuIndex` |
 | [orders.md](orders.md) | `orders` | [OrdersView.tsx](../../../components/OrdersView.tsx) | `useOrders` (`fetchOrders`), `syncOrders`, `syncMarketplaceOrders`, `bulkTransitionOrders`, `printAddressLabels` |
 | [shipping.md](shipping.md) | `orders-shipping` | [orders/ShippingView.tsx](../../../components/orders/ShippingView.tsx) | `fetchShipments`, `bulkShipOrders`, `syncSendCloudParcels`, `fetchShippingMethods` |
