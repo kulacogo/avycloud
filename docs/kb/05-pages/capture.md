@@ -1,7 +1,7 @@
 ---
 title: Capture (Produkt-Erfassung / Identify)
 for: [user, dev, admin]
-lastReviewed: 2026-05-18
+lastReviewed: 2026-09-18
 ---
 
 ## Zweck
@@ -41,6 +41,8 @@ Pro-Endpunkt-Doku: `docs/kb/09-api/identify.md` (TBD).
 - I18n via `useI18n()`.
 
 ## Wichtige Edge-Cases
+
+- **Foto prüfen und Gruppierung korrigieren:** Klick/Antippen auf ein Foto öffnet die große Originalvorschau, auch bei Fotos ohne Gruppe und bei mehreren Produkten auf einem Foto. Zoom bis 4×, Pfeiltasten/Weiter-Zurück und Escape sind verfügbar. Die aktuelle Gruppenzuordnung steht am Bild. Schließen gibt den Fokus zurück; Gruppen und Eingaben bleiben erhalten, es wird keine neue KI-Gruppierung ausgelöst. Ziehen dient weiterhin dem Umgruppieren. Implementierung: [CaptureImagePreview.tsx](../../../components/capture/CaptureImagePreview.tsx).
 
 - **Sehr viele Bilder**: Gruppierung kann auf Fallback fallen (siehe BUG-090). Workaround: max 30 Bilder pro Batch (UI-seitig nicht hart enforced, Backend-Limit greift).
 - **Multi-Identify hängt**: bei vielen Produkten ohne Timeout-Progress (BUG-091 ✅ gefixt: Concurrency 3, Phase-Progress, Cloud-Run-Timeout 600s).
