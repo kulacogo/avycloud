@@ -418,9 +418,20 @@ describe('Ergebnisse werden geprueft', () => {
     expect(uploadSpy).not.toHaveBeenCalled();
   });
 
-  it('behaelt ein Bild mit Warnung, verwirft es aber nicht', async () => {
+  it('verwirft kosmetisch restaurierte Varianten vor dem Upload', async () => {
+    judgeSpy.mockResolvedValue({ sameItem: true, confidence: 0.95, perspectiveKept: true, markingsKept: true,
+      conditionKept: false, materialKept: true, colorKept: true, evidenceKept: true, problems: ['Kratzer entfernt'] });
+    classifySpy.mockResolvedValue(klassifikation([V(0, 'front')]));
+    const res = await generateImagesForProduct(produkt([{ url_or_base64: 'https://x/1.jpg' }]), {
+      referenceImage: { url_or_base64: 'https://x/1.jpg' },
+    });
+    expect(res.images).toHaveLength(0);
+    expect(uploadSpy).not.toHaveBeenCalled();
+  });
+
+  it('behaelt ein unsicher beurteiltes Bild mit sichtbarer Warnung', async () => {
     judgeSpy.mockResolvedValue({
-      sameItem: true, confidence: 0.9, perspectiveKept: true, markingsKept: false, problems: ['Typenschild unscharf'],
+      sameItem: true, confidence: 0.3, perspectiveKept: true, markingsKept: false, problems: ['Typenschild unscharf'],
     });
     classifySpy.mockResolvedValue(klassifikation([V(0, 'front')]));
 

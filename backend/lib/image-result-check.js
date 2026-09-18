@@ -13,10 +13,9 @@
  * ZWEI STUFEN, bewusst getrennt:
  *   1. DETERMINISTISCH (entscheidet) — dekodierbar, Grösse, Hintergrund, nicht leer.
  *      Reproduzierbar, kostenlos, keine Modellmeinung.
- *   2. VISION-URTEIL (nur Zweitmeinung) — "ist das noch derselbe Artikel?".
- *      Recherchiert und belegt: ein Vision-Modell ist bei der Unterscheidung von
- *      Exemplaren DERSELBEN Produktklasse schwach. Es darf deshalb warnen, aber
- *      nie allein verwerfen.
+ *   2. VISION-URTEIL — Identität, Zustand, Material, Farbe, Text und Bildbelege.
+ *      Sicher erkannte Veränderungen werden verworfen. Unsicherheit/Ausfälle
+ *      bleiben sichtbar als Warnung, niemals als geprüfter Erfolg.
  *
  * EHRLICHE GRENZE, die dem Bediener gesagt werden muss: eine Ähnlichkeitsprüfung
  * vergleicht immer nur mit den EINGABEBILDERN. Sie kann eine erfundene Fläche, die
@@ -144,6 +143,7 @@ async function validateGeneratedImage(buffer, opts = {}) {
   }
 }
 
+const { RELIGHTING_REVIEW } = require('./product-photo-policy');
 const IDENTITY_SCHEMA = {
   type: 'object',
   properties: {
@@ -159,6 +159,10 @@ const IDENTITY_SCHEMA = {
       type: 'boolean',
       description: 'true wenn Beschriftungen, Logos und Typenschilder erhalten und unveraendert sind.',
     },
+    condition_kept: { type: 'boolean', description: 'Tatsaechlicher Zustand und sichtbare Maengel unveraendert.' },
+    material_kept: { type: 'boolean', description: 'Material, Struktur und matt/glaenzend unveraendert.' },
+    color_kept: { type: 'boolean', description: 'Echte Produktfarbe erhalten, Lichtkorrektur ist erlaubt.' },
+    evidence_kept: { type: 'boolean', description: 'Keine Details ohne Bildbeleg erfunden.' },
     confidence: { type: 'number', description: '0..1' },
     problems: {
       type: 'array',
@@ -166,7 +170,7 @@ const IDENTITY_SCHEMA = {
       description: 'Kurze, konkrete Abweichungen auf Deutsch. Leer wenn keine.',
     },
   },
-  required: ['same_item', 'perspective_kept', 'markings_kept', 'confidence'],
+  required: ['same_item', 'perspective_kept', 'markings_kept', 'condition_kept', 'material_kept', 'color_kept', 'evidence_kept', 'confidence'],
 };
 
 /**
@@ -180,6 +184,7 @@ const IDENTITY_SCHEMA = {
  * Hier zaehlt NUR: ist es derselbe physische Artikel, und stimmen die Merkmale.
  */
 const IDENTITY_PROMPT_GALERIE = [
+  RELIGHTING_REVIEW,
   'Die ersten Bilder sind ORIGINALFOTOS eines Artikels.',
   'Das LETZTE Bild wurde daraus erzeugt und zeigt denselben Artikel ABSICHTLICH aus',
   'einem anderen Blickwinkel oder in einer Anwendungssituation.',
@@ -199,6 +204,7 @@ const IDENTITY_PROMPT_GALERIE = [
 ].join('\n');
 
 const IDENTITY_PROMPT = [
+  RELIGHTING_REVIEW,
   'Die ersten Bilder sind ORIGINALFOTOS eines Artikels.',
   'Das LETZTE Bild ist eine bearbeitete Fassung, bei der nur Hintergrund und Beleuchtung',
   'geaendert werden durften.',
@@ -261,6 +267,7 @@ async function judgeProductIdentity(referenceParts, candidate, opts = {}) {
       { inlineData: { data: candidate.data, mimeType: candidate.mimeType || 'image/png' } },
     ];
 
+    let timer;
     const response = await Promise.race([
       ai.models.generateContent({
         model,
@@ -272,9 +279,9 @@ async function judgeProductIdentity(referenceParts, candidate, opts = {}) {
         },
       }),
       new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('identity-check timeout')), timeoutMs)
+        timer = setTimeout(() => reject(new Error('identity-check timeout')), timeoutMs)
       ),
-    ]);
+    ]).finally(() => clearTimeout(timer));
 
     const text = typeof response?.text === 'string' ? response.text : '';
     let parsed;
@@ -291,8 +298,12 @@ async function judgeProductIdentity(referenceParts, candidate, opts = {}) {
 
     return {
       sameItem: parsed.same_item === true,
-      perspectiveKept: parsed.perspective_kept === true,
-      markingsKept: parsed.markings_kept === true,
+      perspectiveKept: typeof parsed.perspective_kept === 'boolean' ? parsed.perspective_kept : undefined,
+      markingsKept: typeof parsed.markings_kept === 'boolean' ? parsed.markings_kept : undefined,
+      conditionKept: typeof parsed.condition_kept === 'boolean' ? parsed.condition_kept : undefined,
+      materialKept: typeof parsed.material_kept === 'boolean' ? parsed.material_kept : undefined,
+      colorKept: typeof parsed.color_kept === 'boolean' ? parsed.color_kept : undefined,
+      evidenceKept: typeof parsed.evidence_kept === 'boolean' ? parsed.evidence_kept : undefined,
       confidence,
       problems: Array.isArray(parsed.problems)
         ? parsed.problems.filter((p) => typeof p === 'string' && p.trim()).slice(0, 6)
@@ -308,25 +319,41 @@ async function judgeProductIdentity(referenceParts, candidate, opts = {}) {
 /**
  * Fasst das Urteil zu einer Handlungsempfehlung zusammen.
  *
- * Verworfen wird NUR bei einem SICHEREN Nein ("anderer Artikel" mit ausreichender
- * Sicherheit). Alles Übrige — kein Urteil, unsicheres Urteil, Nebenbefunde wie ein
- * gedrehter Blickwinkel — wird als WARNUNG durchgereicht und dem Menschen gezeigt.
- * Ein Modell, das im Zweifel löscht, würde brauchbare Bilder vernichten.
+ * Verwirft sicher erkannte Produktveränderungen einschließlich entfernten
+ * Gebrauchsspuren. Fehlende/unsichere Urteile bleiben sichtbar prüfbedürftig.
  */
 function classifyIdentityVerdict(verdict, opts = {}) {
   if (!verdict) return { action: 'ungeprueft', warnings: [] };
 
   const warnings = [];
+  const preserved = [
+    ['conditionKept', 'Zustand oder Gebrauchsspuren verändert'],
+    ['materialKept', 'Material oder Oberflächenwirkung verändert'],
+    ['colorKept', 'Tatsächliche Produktfarbe verändert'],
+    ['evidenceKept', 'Bilddetails ohne Referenzbeleg ergänzt'],
+  ];
+  for (const [field, message] of preserved) {
+    if (verdict[field] === false) warnings.push(message);
+  }
+  if ([...preserved.map(([field]) => field), 'markingsKept', 'perspectiveKept'].some(field => typeof verdict[field] !== 'boolean')) {
+    warnings.push('Produkttreue und Zustand nicht vollständig geprüft');
+  }
   // In der Galerie ist ein anderer Blickwinkel der ZWECK, keine Abweichung.
-  if (!verdict.perspectiveKept && opts.perspektiveDarfAbweichen !== true) {
+  if (verdict.perspectiveKept === false && opts.perspektiveDarfAbweichen !== true) {
     warnings.push('Blickwinkel wurde verändert');
   }
-  if (!verdict.markingsKept) warnings.push('Beschriftungen wurden verändert oder entfernt');
+  if (verdict.markingsKept === false) warnings.push('Beschriftungen wurden verändert oder entfernt');
   for (const problem of verdict.problems || []) warnings.push(problem);
 
   if (!verdict.sameItem && verdict.confidence >= minIdentityConfidence()) {
     return { action: 'verwerfen', warnings, reason: 'anderer_artikel' };
   }
+  if (verdict.confidence >= minIdentityConfidence() && (
+    verdict.markingsKept === false || preserved.some(([field]) => verdict[field] === false)
+  )) {
+    return { action: 'verwerfen', warnings, reason: 'produkt_veraendert' };
+  }
+  if (verdict.confidence < minIdentityConfidence()) warnings.push('Qualitätsurteil unsicher');
   if (!verdict.sameItem) {
     warnings.unshift('Verdacht auf abweichenden Artikel (unsicher)');
     return { action: 'warnen', warnings };

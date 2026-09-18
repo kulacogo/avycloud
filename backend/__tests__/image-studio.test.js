@@ -30,6 +30,11 @@ const generateProductImagesSpy = vi.fn();
 const fetchImageAsDataUrlSpy = vi.fn();
 const uploadBase64ImageSpy = vi.fn();
 const compositeOnGradientSpy = vi.fn();
+const judgeIdentitySpy = vi.fn();
+const realImageCheck = require('../lib/image-result-check');
+patchLocalModule(path.resolve(__dirname, '../lib/image-result-check.js'), {
+  ...realImageCheck, judgeProductIdentity: judgeIdentitySpy,
+});
 
 patchLocalModule(path.resolve(__dirname, '../lib/vertex-ai.js'), {
   generateProductImages: generateProductImagesSpy,
@@ -70,6 +75,9 @@ beforeAll(async () => {
 
 beforeEach(() => {
   generateProductImagesSpy.mockReset();
+  judgeIdentitySpy.mockReset().mockResolvedValue({ sameItem: true, perspectiveKept: true, markingsKept: true,
+    conditionKept: true, materialKept: true, colorKept: true, evidenceKept: true, confidence: 0.95, problems: [] });
+  delete process.env.IMAGE_COST_CAP_USD;
   fetchImageAsDataUrlSpy.mockReset();
   uploadBase64ImageSpy.mockReset();
   compositeOnGradientSpy.mockReset();
@@ -160,6 +168,41 @@ describe('makeStudioPhoto — Modell-Kette', () => {
     const result = await makeStudioPhoto({ productId: 'p1', image: { url_or_base64: 'https://x/img.jpg' } });
 
     expect(result.image.url_or_base64).toMatch(/^data:image\/png;base64,/);
+  });
+
+  it('verwirft restaurierte Kandidaten und bewahrt das Original als Rückfall', async () => {
+    generateProductImagesSpy.mockResolvedValue([{ base64: brightPng.toString('base64'), mimeType: 'image/png' }]);
+    judgeIdentitySpy.mockResolvedValue({ sameItem: true, perspectiveKept: true, markingsKept: true,
+      conditionKept: false, materialKept: true, colorKept: true, evidenceKept: true, confidence: 0.95, problems: ['Kratzer entfernt'] });
+    const result = await makeStudioPhoto({ productId: 'p1', image: { url_or_base64: 'https://x/img.jpg' } });
+    expect(result.method).toBe('composite_fallback');
+    expect(result.attempts.some(a => a.reason.includes('produkt_veraendert'))).toBe(true);
+    expect(uploadBase64ImageSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('kennzeichnet ausgefallene Qualitätsprüfung sichtbar, statt Erfolg zu behaupten', async () => {
+    generateProductImagesSpy.mockResolvedValue([{ base64: brightPng.toString('base64'), mimeType: 'image/png' }]);
+    judgeIdentitySpy.mockResolvedValue(null);
+    const result = await makeStudioPhoto({ productId: 'p1', image: { url_or_base64: 'https://x/img.jpg' } });
+    expect(result.method).toBe('gemini');
+    expect(result.image.notes).toMatch(/nicht geprüft/i);
+  });
+
+  it('überschreitet das Bildbudget auch bei Rückfällen nicht', async () => {
+    process.env.IMAGE_COST_CAP_USD = '0.001';
+    const result = await makeStudioPhoto({ productId: 'p1', image: { url_or_base64: 'https://x/img.jpg' } });
+    expect(generateProductImagesSpy).not.toHaveBeenCalled();
+    expect(result.method).toBe('composite_fallback');
+    expect(result.cost.kostenUsd).toBe(0);
+  });
+
+  it('liefert ein quadratisches Bild ohne erzwungenen neuen KI-Blickwinkel', async () => {
+    const wide = await sharp(brightPng).resize(1000, 600).png().toBuffer();
+    generateProductImagesSpy.mockResolvedValue([{ base64: wide.toString('base64'), mimeType: 'image/png' }]);
+    const result = await makeStudioPhoto({ productId: 'p1', image: { url_or_base64: 'https://x/img.jpg' } });
+    expect(result.image.width).toBe(result.image.height);
+    expect(result.image.width).toBeGreaterThanOrEqual(1600);
+    expect(generateProductImagesSpy.mock.calls[0][0].aspectRatio).toBeNull();
   });
 
   it('validiert Pflichtfelder', async () => {

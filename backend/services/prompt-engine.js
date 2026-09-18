@@ -27,6 +27,7 @@
  */
 
 const { VIEWPOINT_LABELS_DE } = require('../lib/image-viewpoint');
+const { PROFESSIONAL_RELIGHTING, PRODUCT_PRESERVATION } = require('../lib/product-photo-policy');
 
 // Werte, die nichts aussagen und deshalb NICHT als Produktfakt gelten dürfen.
 const PLACEHOLDER_VALUES = new Set([
@@ -112,15 +113,15 @@ function buildVisualAnchors(product) {
 
 /**
  * Der Erhaltungs-Block. Wortgleich in Haltung zum bewährten STUDIO_PROMPT aus
- * `services/image-studio.js` (Owner-Anforderung 2026-07-21: ehrliches Foto eines
- * privaten Verkäufers, KEIN Hochglanz-Render).
+ * `services/image-studio.js`: Betreiberanforderung 18.09.2026 — professionelles
+ * Licht bei unverändertem tatsächlichen Artikel und Zustand.
  *
  * Der entscheidende Unterschied zum alten Prompt: hier steht ausdrücklich, dass
  * Beschriftungen ERHALTEN bleiben müssen — nicht, dass kein Text im Bild sein darf.
  */
 const PRESERVE_BLOCK = [
   'The product is the single most important element and MUST stay 100% authentic and unchanged:',
-  'do NOT redraw, regenerate, restyle, retouch, beautify, sharpen, reshape, rotate or re-color it.',
+  'do NOT reshape, rotate or re-color it; photographic relighting is explicitly allowed.',
   'Preserve every detail EXACTLY as in the source photo — the exact shape, proportions, viewing angle,',
   'colors, materials and surface texture.',
   'KEEP every piece of printed text, every label, type plate, sticker, model number, logo and marking',
@@ -129,16 +130,15 @@ const PRESERVE_BLOCK = [
   'Keep existing wear, scratches, dents, dust and small imperfections — this is a real, individual item,',
   'not a catalogue rendering.',
   'Never invent, add, remove or "improve" any part of the product.',
-  'If in doubt, leave the product pixel-for-pixel as it is.',
+  PRODUCT_PRESERVATION,
+  PROFESSIONAL_RELIGHTING,
 ].join(' ');
 
 const BACKGROUND_BLOCK = [
   'Replace ONLY the background with a plain PURE WHITE backdrop — flat pure white #FFFFFF (RGB 255,255,255),',
   'no gradient, no off-white, no colored tint.',
   'Add a soft, natural contact shadow directly under the product so it looks grounded on the surface.',
-  'Keep the result honest and believable, like a real photo taken by a small private online seller.',
-  'Natural, slightly uneven everyday lighting is fine and even wanted — do NOT turn it into a glossy,',
-  'high-end, hyper-polished or overly perfect commercial studio render.',
+  'Create honest professional product photography: improve lighting, preserve the actual item and condition.',
   'No props, no people, no added marketing text, no watermark, no borders, no collage, no reflections of',
   'other objects, no added items.',
   'Keep the original camera perspective and framing; show the product fully in frame.',
@@ -263,6 +263,8 @@ function artikelBezeichnung(product, produkt) {
  * Wörtern zu werden.
  */
 const IDENTITAETS_BLOCK = [
+  PROFESSIONAL_RELIGHTING,
+  PRODUCT_PRESERVATION,
   'The item must stay the SAME physical product as in the reference photos:',
   'identical shape, proportions, colours, materials, surface texture, and every',
   'moulded or printed detail. Do not restyle it, do not change its design, do not',
