@@ -457,9 +457,9 @@ async function loadReferences(candidates) {
  * Der Betreiber hat diese Ableitung am 2026-09-10 ausdruecklich bestellt.
  *
  * UND ER IST BILLIGER, nicht teurer: die Maske kommt vom guenstigsten Modell
- * in 1K (0,034 $) statt eines 2K-Renders (0,101 $), und die Zweitmeinung
- * "zeigt das noch denselben Artikel?" entfaellt — bei Originalpixeln ist die
- * Frage bauartbedingt beantwortet. Das spart je echter Ansicht rund 66 %.
+ * in 1K statt eines vollen Renders. Die fertige Freistellung wird seit der
+ * SAKK-Regression trotzdem geprueft: eine Maske kann Hintergrund mitnehmen
+ * oder Produktteile abschneiden, auch wenn die restlichen Pixel original sind.
  *
  * FAIL-CLOSED: greift eine der Waechter in packshot-composite.js (Deckung,
  * groesste Flaeche, Seitenverhaeltnis, Randberuehrung, Kompaktheit, Rand), wird
@@ -492,6 +492,7 @@ async function renderPixeltreu({ planEntry, references, sourceIndex, deadline, k
     }
 
     try {
+      if (kosten) kosten.buche(model, MASK_IMAGE_SIZE, `${planEntry?.variant}:maske`);
       const report = await generateProductImagesWithReport({
         prompt: buildMaskPrompt(),
         count: 1,
@@ -508,8 +509,6 @@ async function renderPixeltreu({ planEntry, references, sourceIndex, deadline, k
         maxAttempts: 1,
       });
 
-      if (kosten) kosten.buche(report.model || model, MASK_IMAGE_SIZE, `${planEntry?.variant}:maske`);
-
       const candidate = report.images?.[0];
       if (!candidate?.base64) {
         attempts.push({ model, reason: 'maske_kein_bild' });
@@ -521,6 +520,12 @@ async function renderPixeltreu({ planEntry, references, sourceIndex, deadline, k
         // stuende ein reinweisser Packshot neben grau verlaufenden Bildern und
         // die Galerie saehe zusammengewuerfelt aus.
         hintergrund: 'verlauf',
+        // Keine starke globale Schattenkurve: sie machte dunklen Stoff blau/grau.
+        schattenlift: false,
+        reviewResult: async (buffer) => classifyIdentityVerdict(await judgeProductIdentity(
+          [quelle.part], { data: buffer.toString('base64'), mimeType: 'image/jpeg' },
+          { requireCleanBackground: true },
+        ), { requireApproval: true }),
       });
       if (!packshot.ok) {
         attempts.push({ model, reason: `packshot_verworfen: ${packshot.gruende.join(', ')}` });
@@ -535,11 +540,9 @@ async function renderPixeltreu({ planEntry, references, sourceIndex, deadline, k
         height: packshot.height,
         referenceCount: 1,
         warnings: [],
-        // KEINE Vision-Zweitmeinung, und das ist kein Versaeumnis: das Ergebnis
-        // besteht aus den Pixeln des Referenzfotos. "Zeigt es denselben
-        // Artikel?" ist damit staerker beantwortet, als ein Modellurteil es
-        // je koennte — und ein gesparter Aufruf.
-        identityChecked: false,
+        // Auch Originalpixel werden nach Freistellung auf Vollstaendigkeit,
+        // Farbe und mitgenommene Hintergrundteile geprueft.
+        identityChecked: true,
         pixeltreu: true,
         packshotInfo: packshot.info,
         attempts,
@@ -608,7 +611,7 @@ function einheitlicheLeinwandAktiv() {
  * @returns {Promise<{buffer:Buffer, mimeType:string, width:number, height:number,
  *                    info:Object}|null>} null = unveraendert lassen.
  */
-async function vereinheitlicheLeinwand({ bild, planEntry, deadline, kosten, attempts }) {
+async function vereinheitlicheLeinwand({ bild, planEntry, deadline, kosten, attempts, reviewResult }) {
   const [model] = maskImageModelChain();
   const rest = typeof deadline === 'number' ? deadline - Date.now() : Infinity;
   if (rest < 5000) {
@@ -621,6 +624,7 @@ async function vereinheitlicheLeinwand({ bild, planEntry, deadline, kosten, atte
   }
 
   try {
+    if (kosten) kosten.buche(model, MASK_IMAGE_SIZE, `${planEntry?.variant}:leinwand`);
     const report = await generateProductImagesWithReport({
       prompt: buildMaskPrompt(),
       count: 1,
@@ -631,7 +635,7 @@ async function vereinheitlicheLeinwand({ bild, planEntry, deadline, kosten, atte
       imageSize: MASK_IMAGE_SIZE,
       maxAttempts: 1,
     });
-    if (kosten) kosten.buche(report.model || model, MASK_IMAGE_SIZE, `${planEntry?.variant}:leinwand`);
+
 
     const candidate = report.images?.[0];
     if (!candidate?.base64) {
@@ -647,6 +651,8 @@ async function vereinheitlicheLeinwand({ bild, planEntry, deadline, kosten, atte
       // Uneinheitlichkeit, die hier beseitigt wird. Die Schattenaufhellung
       // bleibt: sie misst am PRODUKT und zielt auf einen festen Wert.
       weissabgleich: false,
+      schattenlift: false,
+      reviewResult,
     });
     if (!packshot.ok) {
       attempts.push({ model, reason: `leinwand_verworfen: ${packshot.gruende.join(', ')}` });
@@ -755,7 +761,7 @@ async function renderOneView({ product, produktInfo, planEntry, references, sour
     // Verhalten — fail-open, sonst faellt der ganze Lauf auf ein Bild zurueck.
     return erlaubteAnker ? erlaubteAnker.has(i) : true;
   });
-  const ordered = ankerAus
+  const ordered = ankerAus || (planEntry?.art === 'studio' && planEntry?.quelleIstEcht === true)
     ? [references[sourceIndex]].filter(Boolean)
     : [references[sourceIndex], ...weitere].filter(Boolean);
 
@@ -795,6 +801,7 @@ async function renderOneView({ product, produktInfo, planEntry, references, sour
     });
 
     try {
+      if (kosten) kosten.buche(model, zielGroesse, planEntry?.variant);
       const report = await generateProductImagesWithReport({
         prompt,
         count: 1,
@@ -811,11 +818,6 @@ async function renderOneView({ product, produktInfo, planEntry, references, sour
         // Ansicht — und dieselbe Vervielfachung im Studio-Pfad.
         maxAttempts: 1,
       });
-
-      // Gebucht wird SOFORT nach dem Aufruf: auch ein Bild, das gleich an einer
-      // Pruefung scheitert, ist bereits bezahlt. Erst nach der Pruefung zu
-      // buchen wuerde den Deckel systematisch unterlaufen.
-      if (kosten) kosten.buche(report.model || model, zielGroesse, planEntry?.variant);
 
       const candidate = report.images?.[0];
       if (!candidate?.base64) {
@@ -840,27 +842,18 @@ async function renderOneView({ product, produktInfo, planEntry, references, sour
       // GALERIE-Modus: der Blickwinkel weicht hier ABSICHTLICH ab. Mit dem
       // Retusche-Prompt verwarf der Richter 5 von 6 guten Bildern, weil ihm
       // gesagt wurde, es haetten nur Hintergrund und Licht wechseln duerfen.
-      // Fuer die Zweitmeinung reichen ZWEI Referenzen (Vorlage + eine weitere
-      // Ansicht). Jedes Eingabebild kostet Token; ein dritter Blickwinkel
-      // aendert am Urteil "derselbe Artikel?" praktisch nichts.
-      const identity = await judgeProductIdentity(
-        used.slice(0, 2).map((r) => r.part),
-        { data: candidate.base64, mimeType: candidate.mimeType || 'image/png' },
-        { modus: 'galerie' }
-      );
-      const identityVerdict = classifyIdentityVerdict(identity, {
-        perspektiveDarfAbweichen: true,
-      });
-      if (identityVerdict.action === 'verwerfen') {
-        attempts.push({
-          model,
-          reason: `identitaet_abweichend: ${identityVerdict.warnings.join('; ') || 'anderer Artikel'}`,
-        });
-        continue;
-      }
+      // Bis zu drei tatsaechlich verwendete Referenzen belegen Produktdetails.
+      // Ein vorhandenes Quellfoto wird ausschliesslich mit sich selbst verglichen.
+      const perspectiveMayChange = istSzene || planEntry?.quelleIstEcht !== true;
+      const reviewResult = async (finalBuffer) => classifyIdentityVerdict(await judgeProductIdentity(
+        used.slice(0, 3).map((r) => r.part),
+        { data: finalBuffer.toString('base64'), mimeType: 'image/jpeg' },
+        { modus: perspectiveMayChange ? 'galerie' : 'retusche', requireCleanBackground: !istSzene },
+      ), { requireApproval: true, perspektiveDarfAbweichen: perspectiveMayChange, requireCleanBackground: !istSzene });
+      let identityVerdict;
 
-      // EINHEITLICHE LEINWAND — erst JETZT, nach allen Pruefungen: fuer ein
-      // Bild, das gleich verworfen wird, soll kein Maskenaufruf bezahlt werden.
+      // EINHEITLICHE LEINWAND nach technischer Pruefung. Die fachliche
+      // Abnahme beurteilt danach das fertige Bild samt Freistellung.
       // Nur Studio-Ansichten; eine Anwendungsszene zeigt eine echte Umgebung,
       // die gerade nicht wegmaskiert werden soll.
       let ausgabe = { buffer, mimeType: candidate.mimeType || 'image/png', width: verdict.width, height: verdict.height };
@@ -872,11 +865,22 @@ async function renderOneView({ product, produktInfo, planEntry, references, sour
           deadline,
           kosten,
           attempts,
+          reviewResult,
         });
         if (einheitlich) {
           ausgabe = einheitlich;
           leinwandVereinheitlicht = true;
+          identityVerdict = { action: 'ok', warnings: [] };
+        } else {
+          // Ein fehlgeschlagener Freisteller darf kein unbearbeitetes Foto
+          // als erfolgreiches Studioergebnis an die Galerie weiterreichen.
+          continue;
         }
+      }
+      identityVerdict ||= await reviewResult(ausgabe.buffer);
+      if (identityVerdict.action !== 'ok') {
+        attempts.push({ model, reason: `qualitaet_nicht_bestaetigt: ${identityVerdict.warnings.join('; ')}` });
+        continue;
       }
 
       return {

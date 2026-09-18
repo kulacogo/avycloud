@@ -250,3 +250,8 @@ Beide **default OFF** → exakt heutiges Verhalten. Rollback = Flag auf `false`.
 - **Production-ENV-Katalog** mit Secret-Manager-Referenzen: [04-deployment/env-vars.md](../04-deployment/env-vars.md).
 - **Identify-V4-Promotion** Runbook: [docs/runbooks/identify-v4-promotion.md](../../runbooks/identify-v4-promotion.md).
 - **GPSR-Consensus-Rollout** Runbook: [docs/runbooks/gpsr-consensus-rollout.md](../../runbooks/gpsr-consensus-rollout.md).
+
+
+### Produktfoto-Qualität (18.09.2026)
+
+`VARIANT_IMAGE_MODEL` / alternativ `GEMINI_IMAGE_MODEL` überschreiben weiterhin das Varianten-Primärmodell; ohne Pin gilt nun `DEFAULT_QUALITY_MODEL` aus `backend/lib/gemini-image-models.js`. `VARIANT_IMAGE_FALLBACK_MODEL` hat ohne Pin `DEFAULT_FAST_MODEL` als Rückfall. Maskenmodell und Kostendeckel bleiben unverändert. `GENERATED_IMAGE_IDENTITY_CHECK=off` umgeht die neue verpflichtende Abnahme nicht: Studio/Galerie liefern bei fehlendem Urteil kein neues Bild aus. Historische/bisherige Prüferaufrufer ohne `requireApproval` behalten ihr Verhalten.

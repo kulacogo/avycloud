@@ -6,6 +6,7 @@ const PROFESSIONAL_RELIGHTING = [
   'Correct exposure and white balance, neutralize lighting color casts, lift recoverable shadows,',
   'control distracting highlights and use soft studio illumination, subtle fill and restrained edge light.',
   'Use physically plausible, material-dependent reflections; improve clarity without inventing texture.',
+  'Keep the perceived product colour unchanged: black must remain black, not grey, navy or brown. Recover local shadows without brightening the entire dark material.',
   'The item may look much better photographed, but not newer, cleaner, less damaged or more expensive.',
 ].join(' ');
 
@@ -21,12 +22,14 @@ const PRODUCT_PRESERVATION = [
 
 const RELIGHTING_REVIEW = [
   'Licht, Belichtung, Weissabgleich, plausible Reflexionen, Hintergrund und Kontaktschatten duerfen sich deutlich verbessern.',
-  'Bewerte reine Helligkeitsunterschiede NICHT als Produktabweichung. Unterscheide Lichtfarbstich von echter Vergilbung.',
+  'Lichtkorrektur ist nur erlaubt, solange die wahrgenommene Produktfarbe erhalten bleibt. Entschuldige eine sichtbar andere Materialfarbe niemals pauschal als bessere Beleuchtung. Unterscheide Lichtfarbstich von echter Vergilbung.',
   'Pruefe condition_kept: Kratzer, Dellen, Flecken, Abrieb, Vergilbung, Verpackungsschaeden, Klebeband und Siegel erhalten und nicht durch Licht versteckt?',
   'Pruefe material_kept: echtes Material, Struktur und matt/glaenzend erhalten?',
   'Pruefe color_kept: tatsaechliche Produktfarbe erhalten, trotz korrigiertem Licht?',
   'Pruefe evidence_kept: keine erfundenen Details in schwarzen, ausgebrannten, unscharfen, verdeckten oder nicht fotografierten Bereichen?',
   'Unlesbare Schrift darf unlesbar bleiben; erfundene lesbare Schrift ist ein Fehler. Eine erkennbare Restaurierung ist ein Fehler, auch beim gleichen Modell.',
+  'FARBABNAHME: Vergleiche die wahrgenommene Produktfarbe, nicht nur die Produktklasse. Schwarz darf nicht zu Grau, Anthrazit, Blau oder Braun werden. Eine deutliche Aufhellung des gesamten dunklen Materials ist KEINE erlaubte Schattenkorrektur. Betrachte mehrere grosse Materialflaechen statt einzelne Glanzlichter.',
+  'Pruefe sichtbare Anordnung und Anzahl von Gurten, Haken, Etiketten und Zubehoer. Bei derselben Ansicht duerfen Teile nicht von anderen Referenzfotos hinzugefuegt oder umgehaengt werden.',
 ].join('\n');
 
 module.exports = { PROFESSIONAL_RELIGHTING, PRODUCT_PRESERVATION, RELIGHTING_REVIEW };

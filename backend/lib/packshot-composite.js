@@ -494,7 +494,13 @@ async function bauePackshot(originalBuffer, maskenQuelle, opts = {}) {
   const wache = pruefeMaske({
     anteilGroesste: komp.anteilGroesste, deckung, seitenAbweichung, raender, solidität,
   });
-  if (!wache.ok) return { ok: false, gruende: wache.gruende };
+  // Eine U-Form (z.B. Kamerasattel) ist kein Maskierungsfehler. Diese Ausnahme
+  // gilt nur mit verpflichtender Abnahme des fertigen Bildes. Alle anderen
+  // Geometriewachen bleiben bestehen; ohne Abnahme bleibt der alte Schutz aktiv.
+  const brauchtFormpruefung = !wache.ok && wache.gruende.every(g => g.startsWith('maske_nicht_kompakt'));
+  if (!wache.ok && !(brauchtFormpruefung && typeof opts.reviewResult === 'function')) {
+    return { ok: false, gruende: wache.gruende };
+  }
 
   const winkel = winkelMinRechteck(maske, roh.w, roh.h);
 
@@ -539,7 +545,9 @@ async function bauePackshot(originalBuffer, maskenQuelle, opts = {}) {
   // Hintergrund faellt ohnehin weg und darf die Messung nicht verfaelschen.
   // Die Kurve laeuft auf dem ganzen Bild; das ist gleichwertig, weil vom
   // Hintergrund nichts uebrig bleibt, und spart einen Maskierungsschritt.
-  const lift = await messeSchattenlift(grundBild, gefuellt, roh.w, roh.h);
+  const lift = opts.schattenlift === false
+    ? { gamma: null, grund: 'nicht_angefordert' }
+    : await messeSchattenlift(grundBild, gefuellt, roh.w, roh.h);
   if (lift.gamma) {
     try {
       grundBild = await wendeGammaAn(grundBild, lift.gamma);
@@ -629,6 +637,15 @@ async function bauePackshot(originalBuffer, maskenQuelle, opts = {}) {
 
   const randOk = await pruefeRand(packshot, verlauf ? VERLAUF_RAND_MIN : WEISS_RAND_MIN);
   if (!randOk.ok) return { ok: false, gruende: [randOk.grund] };
+
+  if (typeof opts.reviewResult === 'function') {
+    try {
+      const review = await opts.reviewResult(packshot);
+      if (review?.action !== 'ok') return { ok: false, gruende: ['ergebnis_nicht_bestaetigt', ...(review?.warnings || [])] };
+    } catch {
+      return { ok: false, gruende: ['ergebnispruefung_fehlgeschlagen'] };
+    }
+  }
 
   return {
     ok: true,

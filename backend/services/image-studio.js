@@ -257,8 +257,9 @@ async function tryGeminiStudio(preBuffer, attempts, siblingDataUrls = [], prompt
         const identity = await judgeProductIdentity(
           [{ inlineData: { data: preBuffer.toString('base64'), mimeType: 'image/jpeg' } }],
           { data: candidate.base64, mimeType: candidate.mimeType || 'image/png' },
+          { requireCleanBackground: true },
         );
-        quality = classifyIdentityVerdict(identity);
+        quality = classifyIdentityVerdict(identity, { requireApproval: true });
         if (quality.action === 'verwerfen') {
           attempts.push({ model, reason: `${quality.reason}: ${quality.warnings.join('; ')}` });
           continue;
@@ -399,7 +400,14 @@ async function makeStudioPhoto({ productId, image, siblingImages = [] }) {
     try {
       const maskenLauf = await tryGeminiStudio(preBuffer, attempts, [], MASKEN_PROMPT, { maske: true, cost });
       if (maskenLauf) {
-        const packshot = await bauePackshot(sourceBuffer, maskenLauf.buffer);
+        const packshot = await bauePackshot(sourceBuffer, maskenLauf.buffer, {
+          schattenlift: false,
+          reviewResult: async (buffer) => classifyIdentityVerdict(await judgeProductIdentity(
+            [{ inlineData: { data: preBuffer.toString('base64'), mimeType: 'image/jpeg' } }],
+            { data: buffer.toString('base64'), mimeType: 'image/jpeg' },
+            { requireCleanBackground: true },
+          ), { requireApproval: true }),
+        });
         if (packshot.ok) {
           result = { buffer: packshot.buffer, mimeType: 'image/jpeg', width: packshot.width, height: packshot.height };
           method = 'composite';
@@ -425,14 +433,10 @@ async function makeStudioPhoto({ productId, image, siblingImages = [] }) {
   }
 
   if (!result) {
-    console.warn(
-      `[image-studio] Gemini chain failed for ${productId} (${attempts
-        .map((a) => `${a.model}: ${a.reason}`)
-        .join(' | ')}), using composite fallback`
-    );
-    result = await fallbackComposite(preBuffer);
-    method = 'composite_fallback';
-    model = null;
+    const error = new Error('Kein Studiofoto hat die Qualitätsprüfung bestanden. Das Original bleibt erhalten. Bitte ein anderes Referenzfoto wählen.');
+    error.code = 'STUDIO_QUALITY_REJECTED';
+    error.attempts = attempts;
+    throw error;
   }
 
   // Quadratisch erst NACH der Bearbeitung: kein generatives Umkomponieren,

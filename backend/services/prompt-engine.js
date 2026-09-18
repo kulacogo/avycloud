@@ -283,6 +283,10 @@ function buildStudioPrompt({ product, produkt, planEntry, referenceCount = 1 }) 
   const winkel = planEntry?.winkel || 'three-quarter product view';
   const zeilen = [];
 
+  if (planEntry?.quelleIstEcht === true) {
+    zeilen.push('Retouch the FIRST photograph only. Keep exactly its camera angle, shape, pose, straps, hooks and label placement. Do not combine parts from other views. Remove the original wall, table, seams and dirt completely.');
+  }
+
   if (referenceCount > 1) {
     zeilen.push(
       `Images 1 to ${referenceCount} all show the SAME physical item from different angles.`,
@@ -292,7 +296,9 @@ function buildStudioPrompt({ product, produkt, planEntry, referenceCount = 1 }) 
     zeilen.push('The reference image shows the item.');
   }
 
-  if (planEntry?.key === 'detail') {
+  if (planEntry?.quelleIstEcht === true) {
+    zeilen.push(`Produce a professionally photographed version of the ${artikel} from exactly the supplied viewpoint. Do not rotate or rearrange the item.`);
+  } else if (planEntry?.key === 'detail') {
     const bereich = produkt?.schluesselbereich || 'the most important functional area';
     zeilen.push(
       `Produce a high-end macro close-up product photo of ${bereich} of the ${artikel}.`,
@@ -366,7 +372,8 @@ function buildLifestylePrompt({ product, produkt, planEntry, referenceCount = 1 
   if (produkt?.woBenutzt) zeilen.push(`Location: ${produkt.woBenutzt}.`);
 
   zeilen.push(
-    'True-to-life lighting (daylight or warm indoor ambient), subtle natural shadows,',
+    'Use neutral daylight illumination on the product and subtle natural shadows.',
+    'The surroundings may be warm, but do not apply orange, blue or cinematic colour grading to the product itself.',
     'photorealistic textures, shallow depth of field. Clean, tidy surroundings with no',
     'distracting objects, no other branded products, no added text, no watermark, no logos.',
     'The scene must clearly communicate real usage, benefit and context.',

@@ -143,10 +143,52 @@ async function validateGeneratedImage(buffer, opts = {}) {
   }
 }
 
+/**
+ * Narrow deterministic guard for globally washed-out dark studio products.
+ * It is not a general colour/identity proof. White studio/background pixels are
+ * excluded; both the lower quartile and median must have shifted substantially.
+ * Matching any supplied view is enough, so a genuinely brighter side is allowed.
+ * Lifestyle surroundings make this measurement unreliable and are excluded.
+ */
+async function validateDarkMaterialColor(referenceBuffers, candidateBuffer) {
+  async function profile(buffer) {
+    const { data, info } = await sharp(buffer).rotate().resize(128, 128, { fit: 'inside' })
+      .toColourspace('srgb').removeAlpha().raw().toBuffer({ resolveWithObject: true });
+    const values = [];
+    for (let i = 0; i < data.length; i += info.channels) {
+      const brightness = (data[i] + data[i + 1] + data[i + 2]) / 3;
+      if (brightness < 170) values.push(brightness);
+    }
+    if (values.length < info.width * info.height * 0.1) return null;
+    values.sort((a, b) => a - b);
+    return { q25: values[Math.floor((values.length - 1) * 0.25)], median: values[Math.floor((values.length - 1) * 0.5)],
+      q75: values[Math.floor((values.length - 1) * 0.75)] };
+  }
+  try {
+    const references = await Promise.all(referenceBuffers.map(profile));
+    if (!references.length || references.some(p => !p || p.median > 45 || p.q75 > 70)) {
+      return { ok: true, checked: false };
+    }
+    const result = await profile(candidateBuffer);
+    if (!result) return { ok: false, checked: true, reason: 'Dunkles Produktmaterial fehlt im Ergebnis' };
+    const drift = references.every(p => result.median - p.median >= 15 &&
+      result.median / Math.max(1, p.median) >= 1.4 && result.q25 - p.q25 >= 12);
+    return { ok: !drift, checked: true,
+      ...(drift ? { reason: 'Dunkles Produktmaterial wurde flächig aufgehellt; Farbeindruck verändert' } : {}),
+      referenceMedians: references.map(p => p.median), resultMedian: result.median };
+  } catch {
+    return { ok: false, checked: false, reason: 'Farbvergleich konnte nicht ausgeführt werden' };
+  }
+}
+
 const { RELIGHTING_REVIEW } = require('./product-photo-policy');
 const IDENTITY_SCHEMA = {
   type: 'object',
   properties: {
+    visual_comparison: { type: 'string', description: 'ZUERST unabhaengig beschreiben: Farbe grosser Materialflaechen, Bauform und Anzahl/Position von Schlaufen, Gurten, Haken und Etiketten in Original UND Ergebnis. Dann konkrete Unterschiede. Nicht vom gleichen Logo auf gleichen Artikel schliessen.' },
+    reference_color: { type: 'string', description: 'Farbeindruck des dominanten Produktmaterials im Original.' },
+    result_color: { type: 'string', description: 'Farbeindruck desselben Materials im Ergebnis, ohne Annahme gleicher Farbe.' },
+    problems: { type: 'array', items: { type: 'string' }, description: 'Sichtbare Abweichungen aus dem Vergleich, VOR der Entscheidung erfassen.' },
     same_item: {
       type: 'boolean',
       description: 'true nur wenn das bearbeitete Bild denselben physischen Artikel zeigt wie die Originalfotos.',
@@ -163,14 +205,10 @@ const IDENTITY_SCHEMA = {
     material_kept: { type: 'boolean', description: 'Material, Struktur und matt/glaenzend unveraendert.' },
     color_kept: { type: 'boolean', description: 'Echte Produktfarbe erhalten, Lichtkorrektur ist erlaubt.' },
     evidence_kept: { type: 'boolean', description: 'Keine Details ohne Bildbeleg erfunden.' },
+    background_clean: { type: 'boolean', description: 'Sauberer neutraler Studiohintergrund ohne urspruengliche Wand, Tisch, Fugen, Horizont, Schmutz, Haende oder fremde Objekte. Bei expliziter Anwendungsszene true.' },
     confidence: { type: 'number', description: '0..1' },
-    problems: {
-      type: 'array',
-      items: { type: 'string' },
-      description: 'Kurze, konkrete Abweichungen auf Deutsch. Leer wenn keine.',
-    },
   },
-  required: ['same_item', 'perspective_kept', 'markings_kept', 'condition_kept', 'material_kept', 'color_kept', 'evidence_kept', 'confidence'],
+  required: ['visual_comparison', 'problems', 'same_item', 'perspective_kept', 'markings_kept', 'condition_kept', 'material_kept', 'color_kept', 'evidence_kept', 'background_clean', 'reference_color', 'result_color', 'confidence'],
 };
 
 /**
@@ -194,7 +232,9 @@ const IDENTITY_PROMPT_GALERIE = [
   'Pruefe nur diese Fragen:',
   '- Ist es derselbe physische Artikel? Achte auf Bauform, Proportionen, Farbe, Material,',
   '  Anordnung der Bauteile. Ein aehnliches Produkt derselben Art ist NICHT derselbe Artikel.',
-  '- Sind Marken- und Modellbeschriftungen sinngemaess erhalten, wo sie sichtbar sind?',
+  '- Vergleiche Anzahl, Position und Verbindung jedes sichtbaren Gurts, Hakens, Etiketts, jeder Schlaufe und Naht. Neue Perspektive erlaubt keine neuen Bauteile oder umgebauten Artikel.',
+  '- Nicht fotografierte Innenflaechen duerfen keine erfundenen Taschen, Verschluesse, Netze oder Zubehoerteile enthalten. Fehlender Beleg bedeutet evidence_kept=false.',
+  '- Sind Marken- und Modellbeschriftungen erhalten, wo sie sichtbar sind?',
   '  Ein neu erfundener Marken- oder Modellname ist ein schwerer Fehler.',
   '  Kleindruck, der im Original schon unlesbar war, darf unlesbar bleiben.',
   '',
@@ -244,12 +284,23 @@ function minIdentityConfidence() {
  */
 async function judgeProductIdentity(referenceParts, candidate, opts = {}) {
   // `modus:'galerie'` fuer absichtlich neue Blickwinkel/Szenen, sonst Retusche.
-  const prompt = opts.modus === 'galerie' ? IDENTITY_PROMPT_GALERIE : IDENTITY_PROMPT;
+  const prompt = (opts.modus === 'galerie' ? IDENTITY_PROMPT_GALERIE : IDENTITY_PROMPT) + '\n' +
+    (opts.requireCleanBackground === false
+      ? 'Dieses Ergebnis ist eine Anwendungsszene; die Umgebung ist erlaubt. Produktfarbe und Zustand muessen trotzdem stimmen.'
+      : 'Dieses Ergebnis MUSS ein freigestelltes Studiofoto sein. Uebernommene Wand-/Tischflaechen, Fugen, Horizontlinien, Haende und Requisiten sind Fehler: background_clean=false. Ein heller Originalhintergrund ist KEINE Freistellung.') +
+    '\nErstelle zuerst visual_comparison: Beschreibe Original und Ergebnis getrennt, dann ihre Unterschiede. Benenne zuerst reference_color und result_color anhand der sichtbaren Flaechen. Wenn das Produkt als andere Farbe angeboten wirken wuerde, setze color_kept=false. Im Zweifel kein positives Qualitaetsurteil.';
   if (!identityCheckEnabled()) return null;
   if (!Array.isArray(referenceParts) || !referenceParts.length) return null;
   if (!candidate?.data) return null;
 
   try {
+    if (opts.requireCleanBackground === true) {
+      const color = await validateDarkMaterialColor(
+        referenceParts.slice(0, 4).map(p => Buffer.from(p.inlineData?.data || '', 'base64')),
+        Buffer.from(candidate.data, 'base64'),
+      );
+      if (!color.ok) return { sameItem: true, colorKept: false, confidence: 1, problems: [color.reason], model: 'deterministic-dark-material' };
+    }
     // Lazy require: hält die Datei in Tests billig und vermeidet einen Zyklus.
     const { getGenAIClient } = require('./gemini3-client');
     const { resolveModel } = require('./model-select');
@@ -297,6 +348,7 @@ async function judgeProductIdentity(referenceParts, candidate, opts = {}) {
       : 0;
 
     return {
+      visualComparison: typeof parsed.visual_comparison === 'string' ? parsed.visual_comparison : undefined,
       sameItem: parsed.same_item === true,
       perspectiveKept: typeof parsed.perspective_kept === 'boolean' ? parsed.perspective_kept : undefined,
       markingsKept: typeof parsed.markings_kept === 'boolean' ? parsed.markings_kept : undefined,
@@ -304,6 +356,9 @@ async function judgeProductIdentity(referenceParts, candidate, opts = {}) {
       materialKept: typeof parsed.material_kept === 'boolean' ? parsed.material_kept : undefined,
       colorKept: typeof parsed.color_kept === 'boolean' ? parsed.color_kept : undefined,
       evidenceKept: typeof parsed.evidence_kept === 'boolean' ? parsed.evidence_kept : undefined,
+      backgroundClean: typeof parsed.background_clean === 'boolean' ? parsed.background_clean : undefined,
+      referenceColor: typeof parsed.reference_color === 'string' ? parsed.reference_color : undefined,
+      resultColor: typeof parsed.result_color === 'string' ? parsed.result_color : undefined,
       confidence,
       problems: Array.isArray(parsed.problems)
         ? parsed.problems.filter((p) => typeof p === 'string' && p.trim()).slice(0, 6)
@@ -323,6 +378,21 @@ async function judgeProductIdentity(referenceParts, candidate, opts = {}) {
  * Gebrauchsspuren. Fehlende/unsichere Urteile bleiben sichtbar prüfbedürftig.
  */
 function classifyIdentityVerdict(verdict, opts = {}) {
+  if (opts.requireApproval) {
+    const required = ['sameItem', 'markingsKept', 'conditionKept', 'materialKept', 'colorKept', 'evidenceKept'];
+    if (!opts.perspektiveDarfAbweichen) required.push('perspectiveKept');
+    if (opts.requireCleanBackground !== false) required.push('backgroundClean');
+    const failed = required.filter(field => verdict?.[field] !== true);
+    if (!verdict || !Number.isFinite(verdict.confidence) || verdict.confidence < minIdentityConfidence() || failed.length || verdict.problems?.length) {
+      return { action: 'verwerfen', reason: 'qualitaet_nicht_bestaetigt', warnings: [
+        ...(failed.includes('backgroundClean') ? ['Hintergrund nicht sauber freigestellt'] : []),
+        ...(failed.includes('colorKept') ? ['Produktfarbe verändert oder unklar'] : []),
+        ...(verdict?.problems || []),
+        ...(!verdict || failed.length ? ['Produkttreue nicht vollständig bestätigt'] : []),
+      ] };
+    }
+    return { action: 'ok', warnings: [] };
+  }
   if (!verdict) return { action: 'ungeprueft', warnings: [] };
 
   const warnings = [];
@@ -366,6 +436,7 @@ module.exports = {
   // hier, statt eine zweite Zahl zu pflegen (Lehre aus CLAUDE.md 16c).
   MIN_EDGE_PX,
   validateGeneratedImage,
+  validateDarkMaterialColor,
   assessBackgroundBrightness,
   judgeProductIdentity,
   classifyIdentityVerdict,
