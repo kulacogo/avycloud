@@ -1,3 +1,5 @@
+import { canAccessView } from "../utils/viewPermissions";
+import { roleDisplayName } from "./admin/roleCatalog";
 import React, { useState, useCallback, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import type { View } from "../types";
@@ -271,7 +273,7 @@ const isGroupActive = (current: View, item: NavItem): boolean => {
 };
 
 export const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
-  const { user, logout, hasPermission, isAdmin } = useAuth();
+  const { user, logout, hasPermission, isAdmin, rbac } = useAuth();
   const [collapsed, setCollapsed] = useState(() => readCollapsed());
   const [sectionsCollapsed, setSectionsCollapsed] = useState<Record<string, boolean>>(() => readSectionsCollapsed());
 
@@ -318,7 +320,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
       collapsible: false,
       items: [
         { view: "dashboard", label: "Dashboard", icon: icons.dashboard },
-        ...(canSeeAdmin
+        ...(canAccessView("shop-health", hasPermission)
           ? [{ view: "shop-health" as View, label: "Shop-Gesundheit", icon: icons.store }]
           : []),
         // Finanzen: eigener Einstieg für alle mit Report-Recht (admin,
@@ -495,7 +497,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto px-2 py-1">
-        {sections.map((section) => {
+        {sections.map(section => ({ ...section, items: section.items.filter(item => canAccessView(item.view, hasPermission)).map(item => ({ ...item, children: item.children?.filter(child => canAccessView(child.view, hasPermission)) })) })).map((section) => {
           if (section.items.length === 0) return null;
           const isSectionCollapsed = sectionsCollapsed[section.id] === true;
           const hasActiveItem = section.items.some((item) => isGroupActive(currentView, item));
@@ -579,7 +581,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
             <>
               <div className="flex-1 min-w-0">
                 <div className="text-xs font-semibold text-txt-primary truncate">{userName}</div>
-                <div className="text-[10px] text-txt-muted truncate">{isAdmin ? "Admin" : "User"}</div>
+                <div className="text-[10px] text-txt-muted truncate">{rbac?.roles?.[0] ? roleDisplayName(rbac.roles[0]) : "Kein Zugriffsprofil"}</div>
               </div>
               <button
                 type="button"

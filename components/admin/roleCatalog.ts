@@ -5,32 +5,17 @@
 
 export type RoleInfo = { id: string; name: string; description: string };
 
-// The 7 job-based roles (mirrors lib/rbac.js). Ordered from least to most powerful.
+// Display labels only. The server owns the permission matrix.
 export const ROLE_CATALOG: RoleInfo[] = [
-  { id: "betrachter", name: "Betrachter", description: "Darf alles ansehen, aber nichts ändern." },
-  { id: "lager-versand", name: "Lager & Versand", description: "Kommissionieren, packen, versenden, Retouren annehmen." },
-  { id: "produktpflege", name: "Produktpflege", description: "Produkte anlegen/bearbeiten, erfassen, Angebote pflegen." },
-  { id: "einkauf-bestand", name: "Einkauf & Bestand", description: "Wareneingang buchen, Bestände korrigieren, Einkaufspreise." },
-  { id: "buchhaltung", name: "Buchhaltung", description: "Rechnungen, Erstattungen freigeben, Finanzzahlen." },
-  { id: "leitung", name: "Leitung", description: "Alles Operative inkl. Marktplätze & Firmendaten." },
-  { id: "admin", name: "Administrator", description: "Vollzugriff inkl. Mitarbeiter & Rechte verwalten." },
+  { id: "admin", name: "Administrator", description: "Inhaber · vollständiger Zugriff einschließlich Finanzen und Verwaltung." },
+  { id: "manager", name: "Manager", description: "Alle operativen Abläufe, Auftragskorrekturen, Regeln und Lagerkonfiguration." },
+  { id: "employee", name: "Mitarbeiter", description: "Erfassen, Produkte pflegen, einlagern, kommissionieren, wiegen, packen, versenden und drucken." },
+  { id: "partner", name: "Gesellschafter / Partner", description: "Operative Daten und Finanzberichte lesen. Keine Änderungen." },
+  { id: "viewer", name: "Nur Lesen", description: "Operative Daten ansehen. Keine Änderungen oder Finanzberichte." },
+  { id: "developer", name: "Entwickler · Lesen", description: "Operative Daten und technische Diagnose. Keine Änderungen, Finanzen, Zugangsdaten oder Personalverwaltung." },
 ];
-
-// Legacy roles kept for backward-compatibility; shown only if a user still holds one.
-const LEGACY_ROLE_NAMES: Record<string, string> = {
-  manager: "Manager (veraltet)",
-  operation: "Operation (veraltet)",
-  catalog: "Catalog (veraltet)",
-};
-
-const ROLE_NAME_BY_ID: Record<string, string> = {
-  ...Object.fromEntries(ROLE_CATALOG.map((r) => [r.id, r.name])),
-  ...LEGACY_ROLE_NAMES,
-};
-
-export const roleDisplayName = (id: string): string => ROLE_NAME_BY_ID[id] || id;
-
-export const isLegacyRole = (id: string): boolean => id in LEGACY_ROLE_NAMES;
+export const roleDisplayName = (id: string): string => ROLE_CATALOG.find(role => role.id === id)?.name || "Nicht zugeordnet";
+export const isLegacyRole = (id: string): boolean => !ROLE_CATALOG.some(role => role.id === id);
 
 // Plain-German labels for the permission matrix, grouped by module.
 export type PermModule = { id: string; label: string; actions: Array<{ action: string; label: string }> };
@@ -61,6 +46,7 @@ export const PERMISSION_MODULES: PermModule[] = [
     actions: [
       { action: "read", label: "Ansehen" },
       { action: "write", label: "Buchen (Ein-/Auslagern)" },
+      { action: "configure", label: "Lager konfigurieren" },
     ],
   },
   {
@@ -69,8 +55,8 @@ export const PERMISSION_MODULES: PermModule[] = [
     actions: [
       { action: "read", label: "Ansehen" },
       { action: "pick", label: "Kommissionieren" },
-      { action: "pack", label: "Packen" },
-      { action: "ship", label: "Versenden" },
+      { action: "pack", label: "Packen & Gewicht erfassen" },
+      { action: "ship", label: "Versenden & Labels drucken" },
       { action: "edit", label: "Bearbeiten" },
     ],
   },

@@ -1,3 +1,4 @@
+const { stripFinancialFields } = require('../lib/financial-access');
 const router = require('express').Router();
 const crypto = require('crypto');
 const path = require('path');
@@ -770,7 +771,7 @@ router.get('/products/:id/notes', requirePermission('products', 'read'), async (
   }
 });
 
-router.post('/products/:id/notes', requirePermission('products', 'read'), async (req, res) => {
+router.post('/products/:id/notes', requirePermission('products', 'write'), async (req, res) => {
   try {
     const tenantId = req.user?.tenantId || 'default';
     const user = { uid: req.user?.uid, email: req.user?.email, name: req.user?.name || req.user?.displayName };
@@ -989,7 +990,7 @@ router.get('/me/permissions', async (req, res) => {
     if (!uid) {
       return res.status(401).json({ ok: false, error: { code: 401, message: 'Unauthorized' } });
     }
-    const { profile, permissions, roles } = await resolvePermissionsForUser(uid);
+    const { profile, permissions, roles } = await resolvePermissionsForUser(uid, req.user);
     return res.json({
       ok: true,
       data: {
@@ -999,8 +1000,8 @@ router.get('/me/permissions', async (req, res) => {
           ? {
               uid: profile.uid || null,
               email: profile.email || null,
-              roles: Array.isArray(profile.roles) ? profile.roles : [],
-              groupIds: Array.isArray(profile.groupIds) ? profile.groupIds : [],
+              roles,
+              accessRole: roles[0] || null,
             }
           : null,
       },
@@ -1008,7 +1009,7 @@ router.get('/me/permissions', async (req, res) => {
   } catch (error) {
     // For UI purposes, don't fail hard; return empty permission set.
     console.warn('Failed to resolve /api/me/permissions:', error?.message || error);
-    return res.json({ ok: true, data: { roles: [], permissions: {}, profile: null } });
+    return res.status(error?.statusCode || 503).json({ ok: false, error: { message: 'Berechtigungen konnten nicht geladen werden.' } });
   }
 });
 
@@ -1853,7 +1854,7 @@ router.get('/products/stream', requirePermission('products', 'read'), (req, res)
     const changes = snapshot.docChanges().map((change) => ({
       type: change.type,
       id: change.doc.id,
-      data: change.type !== 'removed' ? change.doc.data() : undefined,
+      data: change.type !== 'removed' ? (req.rbac?.permissions?.['*']?.['*'] || req.rbac?.permissions?.admin?.['reports.read'] ? change.doc.data() : stripFinancialFields(change.doc.data())) : undefined,
     }));
     if (changes.length > 0) {
       res.write(`event: update\ndata: ${JSON.stringify({ changes, ts: new Date().toISOString() })}\n\n`);
@@ -2590,7 +2591,7 @@ router.get('/improve/jobs/:id', requirePermission('ai', 'improve'), async (req, 
 });
 
 // --- Quality Gate Jobs ---
-router.post('/quality/jobs', requirePermission('jobs', 'read'), async (req, res) => {
+router.post('/quality/jobs', requirePermission('products', 'write'), async (req, res) => {
   try {
     const rawIds = Array.isArray(req.body?.productIds) ? req.body.productIds : [];
     const uniqueIds = [...new Set(rawIds.map((id) => String(id || '').trim()))].filter(Boolean);
@@ -2937,7 +2938,7 @@ router.patch('/v1/products/bulk-update', requirePermission('products', 'write'),
  * Download products as CSV.
  * Query: ?columns=name,brand,sku (optional subset)
  */
-router.get('/products/export/csv', requirePermission('products', 'read'), async (req, res) => {
+router.get('/products/export/csv', requirePermission('products', 'read'), requirePermission('admin', 'reports.read'), async (req, res) => {
   try {
     const { exportProductsCsv } = require('../services/import-export');
     const columns = req.query.columns ? String(req.query.columns).split(',').map((s) => s.trim()) : undefined;

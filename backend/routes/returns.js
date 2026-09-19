@@ -106,7 +106,7 @@ router.post('/returns/sync', requirePermission('returns', 'process'), async (req
  * Body: { returnIds: string[], action: 'refund' | 'close', note?: string }
  * Response: { ok: true, data: { total, success, results: [{returnId, ok, error?}] } }
  */
-router.post('/returns/bulk-action', requirePermission('returns', 'process'), async (req, res) => {
+router.post('/returns/bulk-action', requirePermission('returns', 'process'), (req, res, next) => req.body?.action === 'refund' ? requirePermission('returns', 'refund')(req, res, next) : next(), async (req, res) => {
   try {
     const { returnIds, action, note } = req.body;
 
@@ -160,7 +160,7 @@ router.post('/returns/bulk-action', requirePermission('returns', 'process'), asy
  * PATCH /api/returns/:id
  * Update return fields (reason, notes, etc.)
  */
-router.patch('/returns/:id', requirePermission('returns', 'process'), async (req, res) => {
+router.patch('/returns/:id', requirePermission('returns', 'process'), (req, res, next) => (req.body?.refundAmount !== undefined || ['erstattet', 'teilweise_erstattet'].includes(req.body?.status)) ? requirePermission('returns', 'refund')(req, res, next) : next(), async (req, res) => {
   try {
     const { status, refundAmount, reason, note } = req.body;
     const update = { updatedAt: new Date().toISOString() };
@@ -212,7 +212,7 @@ router.patch('/returns/:id', requirePermission('returns', 'process'), async (req
  * POST /api/returns/:id/process — Inspect item and decide refund.
  * Body: { itemCondition: 'a_ware'|'b_ware'|'c_ware', refundType: 'full'|'partial'|'none', refundAmount?, note? }
  */
-router.post('/returns/:id/process', requirePermission('returns', 'process'), async (req, res) => {
+router.post('/returns/:id/process', requirePermission('returns', 'process'), requirePermission('returns', 'refund'), async (req, res) => {
   try {
     const { itemCondition, refundType, refundAmount, note } = req.body;
     if (!itemCondition) return res.status(400).json({ ok: false, error: { code: 'VALIDATION', message: 'itemCondition required' } });

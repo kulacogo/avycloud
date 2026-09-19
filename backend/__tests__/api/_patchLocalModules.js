@@ -32,10 +32,12 @@ function patchLocalModule(modulePath, mockExports) {
 const spies = {};
 
 // lib/rbac.js
-spies.requirePermission = vi.fn(() => (req, res, next) => next());
+spies.requirePermission = vi.fn(() => (req, res, next) => { req.rbac = { permissions: { '*': { '*': true } } }; next(); });
 spies.resolvePermissionsForUser = vi.fn().mockResolvedValue({});
 patchLocalModule('../../lib/rbac.js', {
   requirePermission: spies.requirePermission,
+  hasPermission: () => true,
+  requireOrderUpdatePermission: (req, res, next) => next(),
   resolvePermissionsForUser: spies.resolvePermissionsForUser,
 });
 

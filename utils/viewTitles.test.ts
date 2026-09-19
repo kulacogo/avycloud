@@ -1,3 +1,4 @@
+import { ALLOWED_VIEWS } from "./viewPermissions.ts";
 import { describe, test } from "node:test";
 import assert from "node:assert";
 import fs from "node:fs";
@@ -37,12 +38,7 @@ function block(src: string, startPattern: RegExp): string {
   throw new Error("Blockende nicht gefunden");
 }
 
-function allowedViews(): Set<string> {
-  const src = fs.readFileSync(path.join(ROOT, "App.tsx"), "utf8");
-  const m = /const ALLOWED_VIEWS[^=]*=\s*\[([\s\S]*?)\]/.exec(src);
-  assert.ok(m, "ALLOWED_VIEWS nicht gefunden");
-  return new Set(Array.from(m![1].matchAll(/'([a-z0-9-]+)'/g)).map((x) => x[1]));
-}
+function allowedViews(): Set<string> { return new Set(ALLOWED_VIEWS); }
 
 function viewTitles(): Set<string> {
   const src = fs.readFileSync(path.join(ROOT, "components/Topbar.tsx"), "utf8");

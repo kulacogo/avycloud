@@ -29,7 +29,6 @@ type AuthContextValue = {
 const AuthContext = React.createContext<AuthContextValue | null>(null);
 
 const ALLOWED_DOMAIN = 'trendocean.de';
-const BOOTSTRAP_ADMIN_EMAIL = 'admin@trendocean.de';
 const AUTH_MIGRATION_KEY = 'avystock:auth:migrated:v1';
 
 const isAllowedEmail = (email?: string | null) => {
@@ -79,6 +78,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   React.useEffect(() => {
     if (!auth) return;
     const unsub = onAuthStateChanged(auth, async (u) => {
+      setRbac(null);
       setUser(u);
       setLoading(false);
     });
@@ -133,6 +133,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       cancelled = true;
     };
   }, [loadPermissions, user?.uid]);
+
+  React.useEffect(() => {
+    const refresh = () => { if (document.visibilityState === 'visible') void loadPermissions(); };
+    document.addEventListener('visibilitychange', refresh);
+    return () => document.removeEventListener('visibilitychange', refresh);
+  }, [loadPermissions]);
 
   const retryPermissions = React.useCallback(() => {
     void loadPermissions();
@@ -191,11 +197,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await signOut(auth);
   }, [auth, endCurrentSession]);
 
-  const isAdmin = Boolean(user?.email && String(user.email).toLowerCase() === BOOTSTRAP_ADMIN_EMAIL);
+  const isAdmin = rbac?.roles?.includes('admin') === true;
 
   const hasPermission = React.useCallback(
     (moduleName: string, action: string) => {
-      if (isAdmin) return true;
       const mod = String(moduleName || '').trim();
       const act = String(action || '').trim();
       if (!mod || !act) return false;

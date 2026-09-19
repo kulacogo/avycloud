@@ -74,3 +74,9 @@ Pro-Endpunkt-Doku: `docs/kb/09-api/admin.md`, `docs/kb/09-api/products.md` (TBD)
 - [TASKS.md](../../../TASKS.md) — **BUG-082** ~1084 Ghost-Produkte in `products_v2` (P0, offen) — sichtbar in AdminTable als nicht-gepublishte Produkte ohne Bestand.
 - **BUG-084**/**BUG-085** Dual-Write-Probleme (✅/Code-Fix) — Auswirkungen sichtbar bei AdminTable-Edits.
 - **CLAUDE.md Admin Bulk-Actions** — bei jeder neuen Bulk-Action: DryRun, Pre-/Post-Count-Guard, MIN_APPLY_CONFIDENCE, manual-skip, UI-skip dokumentieren.
+
+## Mitarbeiter & Rollen — Zugriffsprofile (19.09.2026)
+
+`#/settings/team` enthält Mitarbeiter, Leistung und Rollen & Rechte. Ein Konto erhält genau ein Profil. Die Rollenübersicht erklärt die sechs Profile und zeigt die serverseitige Rechtematrix. Keine Gruppenregisterkarte, keine addierten Altrollen oder Checkbox-Ausnahmen. Das Inhaberprofil ist für andere Konten nicht auswählbar. Deaktivierte Konten sind sichtbar gekennzeichnet.
+
+Der Bereich ist ausschließlich für den Inhaber zugänglich, einschließlich direkter Hash-Aufrufe. Details und noch nicht erfolgter Rollout: [Zugriffsprofile](../../features/access-profiles/spec.md).

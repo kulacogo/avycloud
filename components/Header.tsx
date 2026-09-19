@@ -1,3 +1,4 @@
+import { canAccessView } from "../utils/viewPermissions";
 
 import React from 'react';
 import { useI18n } from '../i18n';
@@ -168,36 +169,7 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
   };
 
   const isNavAllowed = React.useCallback(
-    (view: NavIconConfig['view']) => {
-      if (view === 'dashboard') return true;
-      if (view === 'inventory') return hasPermission('products', 'read');
-      if (view === 'products') return hasPermission('products', 'read');
-      if (view === 'input') return hasPermission('identify', 'run');
-      if (view === 'categories') return hasPermission('categories', 'read') || hasPermission('categories', 'write');
-      if (view === 'warehouse') return hasPermission('warehouse', 'read') || hasPermission('warehouse', 'write');
-      if (view === 'operations') {
-        return (
-          hasPermission('warehouse', 'read') ||
-          hasPermission('warehouse', 'write') ||
-          hasPermission('orders', 'read') ||
-          hasPermission('orders', 'pick') ||
-          hasPermission('orders', 'pack') ||
-          hasPermission('identify', 'run')
-        );
-      }
-      if (view === 'admin') {
-        if (isAdmin) return true;
-        return (
-          hasPermission('admin', 'users.read') ||
-          hasPermission('admin', 'roles.read') ||
-          hasPermission('admin', 'groups.read') ||
-          hasPermission('admin', 'llm.read') ||
-          hasPermission('admin', 'reports.read')
-        );
-      }
-      return true;
-    },
-    [hasPermission, isAdmin]
+    (view: NavIconConfig['view']) => canAccessView(view, hasPermission), [hasPermission]
   );
 
   const navIcons = React.useMemo(() => NAV_ICONS.filter((nav) => isNavAllowed(nav.view)), [isNavAllowed]);

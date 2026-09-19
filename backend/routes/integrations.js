@@ -15,7 +15,7 @@ const integrationStore = require('../services/integration-store');
  * Returns real connection status for all active integrations.
  * Checks: Firestore self-service → eBay OAuth → Secret Manager fallback.
  */
-router.get('/integrations/status', async (req, res) => {
+router.get('/integrations/status', requirePermission('integrations', 'status'), async (req, res) => {
   try {
     const tenantId = req.user?.tenantId || 'default';
     const results = [];
@@ -128,7 +128,7 @@ router.get('/integrations/status', async (req, res) => {
  * GET /api/integrations/providers
  * Returns available provider configurations (for the wizard UI).
  */
-router.get('/integrations/providers', async (req, res) => {
+router.get('/integrations/providers', requirePermission('integrations', 'read'), async (req, res) => {
   try {
     const providers = getAllProviders().map((p) => ({
       id: p.id,

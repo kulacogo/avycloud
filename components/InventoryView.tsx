@@ -1,3 +1,4 @@
+import { useAuth } from "../context/AuthContext";
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Product } from "../types";
 import { fetchProducts, fetchEbaySkuIndex, fetchKauflandSkuIndex } from "../api/client";
@@ -196,6 +197,8 @@ const InventoryView: React.FC<InventoryViewProps> = ({
   products: productsFromApp,
   productsLoading,
 }) => {
+  const { hasPermission } = useAuth();
+  const canReadFinance = hasPermission('admin', 'reports.read');
   const [eigeneProdukte, setEigeneProdukte] = useState<Product[]>([]);
   const [eigenesLaden, setEigenesLaden] = useState(true);
   // Kommen die Produkte von aussen, wird NICHTS nachgeladen.
@@ -541,11 +544,11 @@ const InventoryView: React.FC<InventoryViewProps> = ({
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <KpiCard label="Gesamtartikel" value={kpis.totalProducts.toLocaleString("de-DE")} icon="package" />
         <KpiCard label="Einheiten" value={kpis.totalUnits.toLocaleString("de-DE")} icon="layers" />
-        <KpiCard
+        {canReadFinance && <KpiCard
           label="Bestandswert"
           value={`\u20AC${formatCurrency(kpis.totalValue)}`}
           icon="euro"
-        />
+        />}
         <KpiCard label="Niedrig-Bestand" value={kpis.lowStockCount} icon="alert" tone="warn" />
       </div>
 
@@ -730,6 +733,7 @@ const InventoryView: React.FC<InventoryViewProps> = ({
                     <SortIcon field="available" />
                   </div>
                 </th>
+                {canReadFinance && <>
                 <th
                   className="px-3 py-3 w-20 font-medium text-txt-secondary cursor-pointer group text-right"
                   onClick={() => handleSort("buyPrice")}
@@ -748,6 +752,7 @@ const InventoryView: React.FC<InventoryViewProps> = ({
                     <SortIcon field="value" />
                   </div>
                 </th>
+                </>}
                 <th
                   className="px-3 py-3 w-28 font-medium text-txt-secondary cursor-pointer group text-center"
                   onClick={() => handleSort("marketplace")}
@@ -875,6 +880,7 @@ const InventoryView: React.FC<InventoryViewProps> = ({
                       </div>
                     </td>
 
+                    {canReadFinance && <>
                     {/* EK */}
                     <td className="px-3 py-2 text-right">
                       <span className="text-txt-secondary tabular-nums">
@@ -889,6 +895,7 @@ const InventoryView: React.FC<InventoryViewProps> = ({
                       </span>
                     </td>
 
+                    </>}
                     {/* Marktplatz */}
                     <td className="px-3 py-2">
                       <div className="flex flex-col items-center gap-1">

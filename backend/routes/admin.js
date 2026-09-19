@@ -60,7 +60,7 @@ const GCP_PROJECT = process.env.GOOGLE_CLOUD_PROJECT || 'avycloud';
 router.get('/users', requirePermission('admin', 'users.read'), async (req, res) => {
   try {
     const limit = Math.min(Math.max(parseInt(req.query?.limit, 10) || 500, 1), 1000);
-    const users = await listUsersAdmin({ limit });
+    const users = await listUsersAdmin({ limit, tenantId: req.user?.tenantId || 'default' });
     res.json({ ok: true, data: users });
   } catch (error) {
     console.error('Admin list users failed:', error);
@@ -85,7 +85,7 @@ router.put('/users/:uid/roles', requirePermission('admin', 'users.write'), async
   try {
     const targetUid = req.params?.uid;
     const roles = Array.isArray(req.body?.roles) ? req.body.roles : [];
-    await setUserRolesAdmin({ actorUid: req.user?.uid, targetUid, roles });
+    await setUserRolesAdmin({ actorUid: req.user?.uid, targetUid, roles, tenantId: req.user?.tenantId || 'default' });
     res.json({ ok: true });
   } catch (error) {
     const code = error?.statusCode || 500;
@@ -1120,7 +1120,7 @@ router.get('/email-templates/:name/preview', requirePermission('admin', 'read'),
 });
 
 // --- Pricing Runner Status ---
-router.get('/pricing/runner-status', requirePermission('admin', 'read'), async (req, res) => {
+router.get('/pricing/runner-status', requirePermission('system', 'read'), async (req, res) => {
   try {
     const { getPricingRunnerStatus } = require('../services/pricing-runner');
     res.json({ ok: true, data: getPricingRunnerStatus() });
@@ -1549,7 +1549,7 @@ router.get('/llm-parity', requirePermission('admin', 'read'), async (req, res) =
  *
  * Returns: { ok: true, data: { alerts: [...], total, windowDays } }
  */
-router.get('/alerts/recent', requirePermission('admin', 'read'), async (req, res) => {
+router.get('/alerts/recent', requirePermission('system', 'read'), async (req, res) => {
   try {
     const { firestore } = require('../lib/firestore');
     const tenantId = req.user?.tenantId || 'default';
@@ -1612,7 +1612,7 @@ router.get('/alerts/recent', requirePermission('admin', 'read'), async (req, res
  * NEVER fails — wenn eine Sub-Quelle 503/Index-Fehler wirft, wird das Sub-Objekt
  * mit {error: '...'} markiert und der Rest geliefert.
  */
-router.get('/system-health', requirePermission('admin', 'read'), async (req, res) => {
+router.get('/system-health', requirePermission('system', 'read'), async (req, res) => {
   const tenantId = req.user?.tenantId || 'default';
   const startMs = Date.now();
   const data = {
@@ -1889,7 +1889,7 @@ router.get('/financials', requirePermission('admin', 'reports.read'), async (req
 });
 
 // Save the COGS cost model (pallet economics) for the tenant.
-router.post('/financials/cost-model', requirePermission('admin', 'reports.read'), async (req, res) => {
+router.post('/financials/cost-model', requirePermission('admin', 'reports.write'), async (req, res) => {
   try {
     const { saveCostModelConfig } = require('../lib/cost-model-store');
     const tenantId = req.user?.tenantId || 'default';

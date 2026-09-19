@@ -1,161 +1,20 @@
 const { firestore } = require('./firestore');
 const { FieldValue } = require('@google-cloud/firestore');
+const { stripFinancialFields, containsFinancialWrite } = require('./financial-access');
 
 const USERS_COLLECTION = 'users';
-const ROLES_COLLECTION = 'roles';
-const GROUPS_COLLECTION = 'groups';
 const AUDIT_COLLECTION = 'auditLogs';
 
-const ROLE_IDS = [
-  'admin', 'manager', 'operation', 'catalog',
-  // Job-based roles (2026-07-03 rework) — additive; a user may hold several.
-  'betrachter', 'lager-versand', 'produktpflege', 'einkauf-bestand', 'buchhaltung', 'leitung',
-];
+const { isBootstrapAdmin } = require('./auth');
+const { ACCESS_POLICY_VERSION, ROLE_IDS, defaultRoles, selectAccessRole, validateRoleAssignment } = require('./access-profiles');
 
-function normalizeId(value) {
-  return String(value || '')
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9._-]+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-+|-+$/g, '');
-}
+// Policy lives in code. Kept as a no-op for the existing startup contract.
+async function ensureDefaultRoles() {}
 
-const defaultRoles = () => ({
-  admin: {
-    name: 'Admin',
-    permissions: { '*': { '*': true } },
-  },
-  manager: {
-    name: 'Manager',
-    permissions: {
-      dashboard: { read: true },
-      products: { read: true },
-    },
-  },
-  operation: {
-    name: 'Operation',
-    permissions: {
-      dashboard: { read: true },
-      products: { read: true },
-      inventories: { read: true },
-      warehouse: { read: true, write: true },
-      orders: { read: true, pick: true, pack: true },
-      identify: { run: true },
-      jobs: { read: true },
-    },
-  },
-  catalog: {
-    name: 'Catalog',
-    permissions: {
-      dashboard: { read: true },
-      products: { read: true, write: true, delete: true },
-      categories: { read: true, write: true },
-      identify: { run: true },
-      jobs: { read: true },
-      ai: { chat: true, improve: true },
-    },
-  },
-
-  // ── Job-based roles (2026-07-03) — each grants exactly what its job needs so
-  //    nobody has to be admin to work. A user may hold several (permissions OR).
-
-  betrachter: {
-    name: 'Betrachter',
-    permissions: {
-      dashboard: { read: true },
-      products: { read: true },
-      orders: { read: true },
-    },
-  },
-  'lager-versand': {
-    name: 'Lager & Versand',
-    permissions: {
-      dashboard: { read: true },
-      products: { read: true },
-      inventories: { read: true },
-      warehouse: { read: true, write: true },
-      orders: { read: true, pick: true, pack: true, ship: true, edit: true },
-      invoices: { read: true },
-      returns: { read: true, process: true },
-      jobs: { read: true },
-    },
-  },
-  produktpflege: {
-    name: 'Produktpflege',
-    permissions: {
-      dashboard: { read: true },
-      products: { read: true, write: true },
-      categories: { read: true, write: true },
-      inventories: { read: true },
-      warehouse: { read: true },
-      identify: { run: true },
-      ai: { chat: true, improve: true },
-      jobs: { read: true },
-      integrations: { read: true },
-    },
-  },
-  'einkauf-bestand': {
-    name: 'Einkauf & Bestand',
-    permissions: {
-      dashboard: { read: true },
-      products: { read: true, write: true },
-      inventories: { read: true },
-      warehouse: { read: true, write: true },
-      identify: { run: true },
-      jobs: { read: true },
-    },
-  },
-  buchhaltung: {
-    name: 'Buchhaltung',
-    permissions: {
-      dashboard: { read: true },
-      products: { read: true },
-      orders: { read: true },
-      invoices: { read: true, write: true },
-      returns: { read: true, process: true, refund: true },
-      admin: { 'reports.read': true },
-    },
-  },
-  leitung: {
-    name: 'Leitung',
-    permissions: {
-      dashboard: { read: true },
-      products: { read: true, write: true, delete: true },
-      categories: { read: true, write: true },
-      inventories: { read: true },
-      warehouse: { read: true, write: true },
-      orders: { read: true, pick: true, pack: true, ship: true, edit: true },
-      identify: { run: true },
-      ai: { chat: true, improve: true },
-      jobs: { read: true },
-      invoices: { read: true, write: true },
-      returns: { read: true, process: true, refund: true },
-      integrations: { read: true, write: true },
-      settings: { 'company.read': true, 'company.write': true },
-      admin: { 'reports.read': true },
-    },
-  },
-});
-
-async function ensureDefaultRoles() {
-  const roles = defaultRoles();
-  await Promise.all(
-    ROLE_IDS.map(async (roleId) => {
-      const ref = firestore.collection(ROLES_COLLECTION).doc(roleId);
-      const snap = await ref.get();
-      if (snap.exists) return;
-      await ref.set(
-        {
-          roleId,
-          ...roles[roleId],
-          createdAt: FieldValue.serverTimestamp(),
-          updatedAt: FieldValue.serverTimestamp(),
-        },
-        { merge: true }
-      );
-    })
-  );
+function retiredPermissionEditor() {
+  const error = new Error('Bitte das Zugriffsprofil des Mitarbeiters ändern. Gruppen, Einzel-Ausnahmen und frei veränderbare Rollen werden nicht mehr verwendet.');
+  error.statusCode = 409;
+  throw error;
 }
 
 async function writeAuditLog(entry) {
@@ -183,152 +42,42 @@ async function upsertUserProfile(uid, data) {
   );
 }
 
-async function listUsers({ limit = 500 } = {}) {
+async function listUsers({ limit = 500, tenantId = 'default' } = {}) {
   const capped = Math.min(Math.max(parseInt(String(limit || 0), 10) || 500, 1), 1000);
-  const snap = await firestore.collection(USERS_COLLECTION).limit(capped).get();
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-}
-
-async function listGroups({ limit = 200 } = {}) {
-  const capped = Math.min(Math.max(parseInt(String(limit || 0), 10) || 200, 1), 1000);
-  const snap = await firestore.collection(GROUPS_COLLECTION).limit(capped).get();
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-}
-
-async function createGroup({ actorUid, groupId, name, roleIds = [] }) {
-  const id = groupId ? normalizeId(groupId) : normalizeId(name);
-  if (!id) throw new Error('groupId/name is required');
-  const cleanedRoles = Array.from(new Set((roleIds || []).map((r) => String(r).trim().toLowerCase()))).filter(Boolean);
-  cleanedRoles.forEach((r) => {
-    if (!ROLE_IDS.includes(r)) throw new Error(`Unknown role: ${r}`);
+  const snap = await firestore.collection(USERS_COLLECTION).where('tenantId', '==', tenantId).limit(capped).get();
+  return snap.docs.map((d) => {
+    const profile = d.data();
+    const role = selectAccessRole(profile, { isOwner: isBootstrapAdmin(profile.email) });
+    return { id: d.id, uid: d.id, email: profile.email, firstName: profile.firstName,
+      lastName: profile.lastName, username: profile.username, displayName: profile.displayName,
+      disabled: Boolean(profile.disabled), accessRole: role, roles: role ? [role] : [],
+      policyVersion: ACCESS_POLICY_VERSION };
   });
+}
 
-  const ref = firestore.collection(GROUPS_COLLECTION).doc(id);
-  const snap = await ref.get();
-  if (snap.exists) {
-    const err = new Error('Group already exists');
-    err.statusCode = 409;
-    throw err;
+async function listGroups() { return []; }
+const createGroup = retiredPermissionEditor;
+const updateGroup = retiredPermissionEditor;
+const deleteGroup = retiredPermissionEditor;
+const setUserGroups = retiredPermissionEditor;
+const setUserOverrides = retiredPermissionEditor;
+
+async function setUserRoles({ actorUid, targetUid, roles, tenantId = 'default' }) {
+  const profile = await getUserProfile(targetUid);
+  if (!profile || (profile.tenantId || 'default') !== tenantId) {
+    const error = new Error('Konto nicht gefunden');
+    error.statusCode = 404;
+    throw error;
   }
-  await ref.set({
-    groupId: id,
-    name: String(name || id).trim(),
-    roleIds: cleanedRoles,
-    createdAt: FieldValue.serverTimestamp(),
-    updatedAt: FieldValue.serverTimestamp(),
-  });
-  await writeAuditLog({
-    actorUid: actorUid || null,
-    action: 'group.create',
-    targetUid: id,
-    diff: { name: String(name || id).trim(), roleIds: cleanedRoles },
-  });
-  return { id };
-}
-
-async function updateGroup({ actorUid, groupId, patch }) {
-  const id = normalizeId(groupId);
-  if (!id) throw new Error('groupId is required');
-  const ref = firestore.collection(GROUPS_COLLECTION).doc(id);
-
-  const nextPatch = { ...(patch || {}) };
-  if (Array.isArray(nextPatch.roleIds)) {
-    const cleanedRoles = Array.from(
-      new Set((nextPatch.roleIds || []).map((r) => String(r).trim().toLowerCase()))
-    ).filter(Boolean);
-    cleanedRoles.forEach((r) => {
-      if (!ROLE_IDS.includes(r)) throw new Error(`Unknown role: ${r}`);
-    });
-    nextPatch.roleIds = cleanedRoles;
-  }
-  if (typeof nextPatch.name === 'string') {
-    nextPatch.name = nextPatch.name.trim();
-  }
-
-  await ref.set(
-    {
-      ...nextPatch,
-      updatedAt: FieldValue.serverTimestamp(),
-    },
-    { merge: true }
-  );
-  await writeAuditLog({
-    actorUid: actorUid || null,
-    action: 'group.update',
-    targetUid: id,
-    diff: nextPatch || null,
-  });
-}
-
-async function deleteGroup({ actorUid, groupId }) {
-  const id = normalizeId(groupId);
-  if (!id) throw new Error('groupId is required');
-  await firestore.collection(GROUPS_COLLECTION).doc(id).delete();
-
-  // Best-effort cleanup: remove groupId from users that reference it (limited scan).
-  const snap = await firestore
-    .collection(USERS_COLLECTION)
-    .where('groupIds', 'array-contains', id)
-    .limit(1000)
-    .get();
-  await Promise.all(
-    snap.docs.map(async (d) => {
-      const data = d.data() || {};
-      const groupIds = Array.isArray(data.groupIds) ? data.groupIds : [];
-      const next = groupIds.filter((g) => String(g).toLowerCase() !== id);
-      await d.ref.set({ groupIds: next, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
-    })
-  );
-
-  await writeAuditLog({
-    actorUid: actorUid || null,
-    action: 'group.delete',
-    targetUid: id,
-  });
-}
-
-async function setUserRoles({ actorUid, targetUid, roles }) {
-  const cleaned = Array.from(new Set((roles || []).map((r) => String(r).trim().toLowerCase()))).filter(Boolean);
-  cleaned.forEach((r) => {
-    if (!ROLE_IDS.includes(r)) {
-      throw new Error(`Unknown role: ${r}`);
-    }
-  });
-
-  await upsertUserProfile(String(targetUid), {
-    roles: cleaned,
-  });
-
-  await writeAuditLog({
-    actorUid: actorUid || null,
-    action: 'user.roles.update',
-    targetUid: String(targetUid),
-    diff: { roles: cleaned },
-  });
-}
-
-async function setUserGroups({ actorUid, targetUid, groupIds }) {
-  const cleaned = Array.from(new Set((groupIds || []).map((g) => normalizeId(g)))).filter(Boolean);
-  await upsertUserProfile(String(targetUid), { groupIds: cleaned });
-  await writeAuditLog({
-    actorUid: actorUid || null,
-    action: 'user.groups.update',
-    targetUid: String(targetUid),
-    diff: { groupIds: cleaned },
-  });
-}
-
-async function setUserOverrides({ actorUid, targetUid, overrides }) {
-  const safe = overrides && typeof overrides === 'object' ? overrides : {};
-  const allow = safe.allow && typeof safe.allow === 'object' ? safe.allow : {};
-  const deny = safe.deny && typeof safe.deny === 'object' ? safe.deny : {};
-  await upsertUserProfile(String(targetUid), { overrides: { allow, deny } });
-  await writeAuditLog({
-    actorUid: actorUid || null,
-    action: 'user.overrides.update',
-    targetUid: String(targetUid),
-    diff: { overrides: { allow, deny } },
-  });
+  const accessRole = validateRoleAssignment(roles, isBootstrapAdmin(profile.email));
+  const ref = firestore.collection(USERS_COLLECTION).doc(String(targetUid));
+  const auditRef = firestore.collection(AUDIT_COLLECTION).doc();
+  const batch = firestore.batch();
+  // Legacy arrays remain stored for rollback, but are neither returned nor evaluated.
+  batch.set(ref, { accessRole, accessPolicyVersion: ACCESS_POLICY_VERSION, tenantId, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+  batch.set(auditRef, { tenantId, actorUid: actorUid || null, targetUid: String(targetUid),
+    action: 'user.access-profile.update', diff: { before: profile.accessRole || null, after: accessRole }, at: FieldValue.serverTimestamp() });
+  await batch.commit();
 }
 
 // ── Account management (2026-07-03): set display name + delete account ──
@@ -345,13 +94,7 @@ function canDeleteUserAccount({ actorUid, targetUid, targetIsAdmin, adminCount }
 }
 
 /** Count users that directly hold the admin role (for the last-admin guard). */
-async function countAdmins() {
-  const snap = await firestore.collection(USERS_COLLECTION).limit(1000).get();
-  return snap.docs.reduce((n, d) => {
-    const roles = Array.isArray(d.data()?.roles) ? d.data().roles.map((r) => String(r).toLowerCase()) : [];
-    return roles.includes('admin') ? n + 1 : n;
-  }, 0);
-}
+async function countAdmins() { return 1; }
 
 /** Set the admin-visible name fields on the users doc. */
 async function setUserProfileFields({ actorUid, targetUid, firstName, lastName, username }) {
@@ -377,28 +120,9 @@ async function deleteUserProfile(targetUid) {
 }
 
 async function listRoles() {
-  const snap = await firestore.collection(ROLES_COLLECTION).get();
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  return Object.entries(defaultRoles()).map(([id, role]) => ({ id, ...role, managed: true }));
 }
-
-async function updateRole({ actorUid, roleId, patch }) {
-  const id = String(roleId).trim().toLowerCase();
-  if (!id) throw new Error('roleId is required');
-  const ref = firestore.collection(ROLES_COLLECTION).doc(id);
-  await ref.set(
-    {
-      ...patch,
-      updatedAt: FieldValue.serverTimestamp(),
-    },
-    { merge: true }
-  );
-  await writeAuditLog({
-    actorUid: actorUid || null,
-    action: 'role.update',
-    targetUid: id,
-    diff: patch || null,
-  });
-}
+const updateRole = retiredPermissionEditor;
 
 function hasPermission(permissions, moduleName, action) {
   if (!permissions || typeof permissions !== 'object') return false;
@@ -417,117 +141,60 @@ function hasPermission(permissions, moduleName, action) {
 }
 
 function isAllowedWithOverrides({ rolePermissions, overrides, moduleName, action }) {
-  const deny = overrides?.deny;
-  if (deny && hasPermission(deny, moduleName, action)) return false;
-  const allow = overrides?.allow;
-  if (allow && hasPermission(allow, moduleName, action)) return true;
+  // Compatibility export only; old overrides must never re-introduce grants.
   return hasPermission(rolePermissions, moduleName, action);
 }
 
-async function resolvePermissionsForUser(uid) {
-  const profile = await getUserProfile(uid);
-  if (!profile) {
-    return { profile: null, permissions: null, roles: [] };
+async function resolvePermissionsForUser(uid, identity = {}) {
+  const profile = Object.prototype.hasOwnProperty.call(identity, 'accessProfile') ? identity.accessProfile : await getUserProfile(uid);
+  if (profile?.disabled) {
+    const error = new Error('Account disabled');
+    error.statusCode = 403;
+    throw error;
   }
-
-  if (profile.disabled) {
-    const err = new Error('Account disabled');
-    err.statusCode = 403;
-    throw err;
+  const tenantId = identity.tenantId || 'default';
+  if (profile && (profile.tenantId || 'default') !== tenantId) {
+    const error = new Error('Forbidden: tenant mismatch');
+    error.statusCode = 403;
+    throw error;
   }
-
-  const directRoles = Array.isArray(profile.roles) ? profile.roles.map((r) => String(r).toLowerCase()) : [];
-  const groupIds = Array.isArray(profile.groupIds) ? profile.groupIds.map((g) => normalizeId(g)) : [];
-
-  const groupDocs = await Promise.all(
-    groupIds.map(async (gid) => {
-      const snap = await firestore.collection(GROUPS_COLLECTION).doc(gid).get();
-      return snap.exists ? snap.data() : null;
-    })
-  );
-  const groupRoleIds = groupDocs
-    .flatMap((g) => (Array.isArray(g?.roleIds) ? g.roleIds : []))
-    .map((r) => String(r).toLowerCase());
-
-  const uniqueRoles = Array.from(new Set([...directRoles, ...groupRoleIds])).filter(Boolean);
-
-  if (!uniqueRoles.length) {
-    return { profile, permissions: null, roles: [] };
-  }
-
-  const roleDocs = await Promise.all(
-    uniqueRoles.map(async (roleId) => {
-      const snap = await firestore.collection(ROLES_COLLECTION).doc(roleId).get();
-      return snap.exists ? snap.data() : null;
-    })
-  );
-
-  // Merge permissions: OR across roles.
-  const merged = {};
-  for (const role of roleDocs) {
-    const perms = role?.permissions;
-    if (!perms || typeof perms !== 'object') continue;
-    for (const [mod, actions] of Object.entries(perms)) {
-      if (!merged[mod]) merged[mod] = {};
-      if (actions && typeof actions === 'object') {
-        for (const [act, allowed] of Object.entries(actions)) {
-          if (allowed === true) merged[mod][act] = true;
-        }
-      }
-    }
-  }
-
-  return { profile, permissions: merged, roles: uniqueRoles };
+  // Only the verified request identity can establish ownership, never a stored
+  // role, group, override, custom claim or mutable profile email alone.
+  const isOwner = isBootstrapAdmin(identity.email);
+  const role = selectAccessRole(profile, { isOwner });
+  return { profile, permissions: role ? defaultRoles()[role].permissions : {}, roles: role ? [role] : [] };
 }
 
 function requirePermission(moduleName, action) {
   return (req, res, next) => {
-    // CORS preflight already handled, but keep it safe.
     if (req.method === 'OPTIONS') return next();
-    if (req.user?.isAdmin) return next();
-
-    resolvePermissionsForUser(req.user?.uid)
-      .then(({ profile, permissions, roles }) => {
-        if (!profile) {
-          return res.status(403).json({
-            ok: false,
-            error: { code: 403, message: 'Forbidden: no user profile / roles assigned' },
-          });
-        }
-        if (!permissions) {
-          return res.status(403).json({
-            ok: false,
-            error: { code: 403, message: 'Forbidden: no permissions assigned' },
-          });
-        }
-
-        const allowed = isAllowedWithOverrides({
-          rolePermissions: permissions,
-          overrides: profile.overrides || null,
-          moduleName,
-          action,
-        });
-        if (!allowed) {
-          return res.status(403).json({
-            ok: false,
-            error: {
-              code: 403,
-              message: `Forbidden: missing permission ${String(moduleName)}.${String(action)}`,
-            },
-          });
-        }
-
-        req.rbac = { roles, permissions };
-        return next();
-      })
-      .catch((error) => {
-        const code = error?.statusCode || 500;
-        return res.status(code).json({
-          ok: false,
-          error: { code, message: error?.message || 'RBAC check failed' },
-        });
-      });
+    if (!req.user?.uid) return res.status(401).json({ ok: false, error: { code: 401, message: 'Unauthorized' } });
+    const resolved = req.accessSnapshot ? Promise.resolve(req.accessSnapshot) : resolvePermissionsForUser(req.user.uid, req.user);
+    resolved.then((snapshot) => {
+      req.accessSnapshot = snapshot;
+      req.rbac = { roles: snapshot.roles, permissions: snapshot.permissions };
+      if (!hasPermission(snapshot.permissions, moduleName, action)) {
+        return res.status(403).json({ ok: false, error: { code: 403, message: 'Für diese Aktion fehlt die Berechtigung.' } });
+      }
+      if (!hasPermission(snapshot.permissions, 'admin', 'reports.write') && containsFinancialWrite(req.body)) {
+        return res.status(403).json({ ok: false, error: { code: 403, message: 'Finanz- und Einkaufsdaten dürfen nur vom Administrator geändert werden.' } });
+      }
+      if (!req.financeResponseFiltered && !hasPermission(snapshot.permissions, 'admin', 'reports.read')) {
+        const json = res.json.bind(res);
+        res.json = body => json(stripFinancialFields(body));
+        req.financeResponseFiltered = true;
+      }
+      next();
+    }).catch((error) => res.status(error?.statusCode || 500).json({ ok: false, error: { code: error?.statusCode || 500, message: error?.message || 'Permission check failed' } }));
   };
+}
+
+// The pack workflow persists weight before choosing a shipping service. This
+// narrow allowance must never also authorize customer/address/config writes.
+function requireOrderUpdatePermission(req, res, next) {
+  const keys = Object.keys(req.body || {});
+  const weightOnly = keys.length === 1 && keys[0] === 'weight';
+  return requirePermission('orders', weightOnly ? 'pack' : 'edit')(req, res, next);
 }
 
 module.exports = {
@@ -551,8 +218,8 @@ module.exports = {
   updateRole,
   resolvePermissionsForUser,
   requirePermission,
+  requireOrderUpdatePermission,
   hasPermission,
   isAllowedWithOverrides,
   ROLE_IDS,
 };
-

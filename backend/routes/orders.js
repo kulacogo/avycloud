@@ -1,5 +1,6 @@
+const { operationalDashboardMetrics } = require('../lib/dashboard-access');
 const router = require('express').Router();
-const { requirePermission } = require('../lib/rbac');
+const { requirePermission, requireOrderUpdatePermission, hasPermission } = require('../lib/rbac');
 const { listOrders, getDashboardMetrics, computeOrdersDeliveryTotal, firestore } = require('../lib/firestore');
 const { getOperationalMetrics } = require('../lib/dashboard-ops');
 const { markOrderAsPicked, markOrderAsPacked } = require('../services/order-sync');
@@ -289,7 +290,8 @@ router.get('/dashboard/metrics', requirePermission('dashboard', 'read'), async (
       console.warn('Dashboard payout computation failed:', err?.message || err);
     }
 
-    const metricsBody = { ok: true, data: metrics };
+    const canReadFinance = hasPermission(req.rbac?.permissions, 'admin', 'reports.read');
+    const metricsBody = { ok: true, data: canReadFinance ? metrics : operationalDashboardMetrics(metrics) };
     const metricsEtag = '"' + crypto.createHash('md5').update(JSON.stringify(metricsBody)).digest('hex') + '"';
     if (req.headers['if-none-match'] === metricsEtag) {
       return res.status(304).end();
@@ -373,7 +375,7 @@ router.get('/dashboard/ops', requirePermission('dashboard', 'read'), async (req,
 // ─── Finance Dashboard Endpoint ──────────────────────────────────────────────
 // Returns SevDesk bank balances (Sichteinlagen + Business Card) and
 // SendCloud shipping cost totals for the requested time range + YTD.
-router.get('/dashboard/finance', requirePermission('dashboard', 'read'), async (req, res) => {
+router.get('/dashboard/finance', requirePermission('admin', 'reports.read'), async (req, res) => {
   const errors = [];
 
   // Resolve time range from the same preset logic as /api/dashboard/metrics
@@ -694,7 +696,7 @@ router.get('/dashboard/activity', requirePermission('orders', 'read'), async (re
   }
 });
 
-router.post('/orders/sync', requirePermission('orders', 'read'), async (req, res) => {
+router.post('/orders/sync', requirePermission('orders', 'ship'), async (req, res) => {
   try {
     // Kick off background sync, but respond immediately with cached orders
     _backgroundSyncOrders();
@@ -867,7 +869,7 @@ router.put('/orders/settings', requirePermission('orders', 'write'), async (req,
 
 // ── Shipments ──
 
-router.get('/shipments', async (req, res) => {
+router.get('/shipments', requirePermission('orders', 'read'), async (req, res) => {
   try {
     const tenantId = getOrderSettingsTenantId(req);
     // Try Firestore shipments collection first
@@ -901,7 +903,7 @@ router.get('/shipments', async (req, res) => {
   }
 });
 
-router.post('/shipments', async (req, res) => {
+router.post('/shipments', requirePermission('orders', 'ship'), async (req, res) => {
   try {
     const tenantId = getOrderSettingsTenantId(req);
     const { orderId, customer, carrier, trackingNumber, cost } = req.body;
@@ -1208,7 +1210,7 @@ router.get('/orders/:orderId/timeline', requirePermission('orders', 'read'), asy
  * POST /api/orders/sync/marketplace
  * Sync orders from eBay and/or Kaufland directly.
  */
-router.post('/orders/sync/marketplace', requirePermission('orders', 'read'), async (req, res) => {
+router.post('/orders/sync/marketplace', requirePermission('orders', 'ship'), async (req, res) => {
   try {
     const { marketplace, lookbackDays = 7 } = req.body;
     const tenantId = req.user?.tenantId || 'default';
@@ -1410,7 +1412,7 @@ router.get('/orders/:orderId/shipping-options', requirePermission('orders', 'rea
 /**
  * POST /api/orders/:orderId/ship — Create shipping label via SendCloud.
  */
-router.post('/orders/:orderId/ship', requirePermission('orders', 'write'), async (req, res) => {
+router.post('/orders/:orderId/ship', requirePermission('orders', 'ship'), async (req, res) => {
   try {
     const { orderId } = req.params;
     const { shippingMethodId, shippingOptionCode, weight, labelFormat } = req.body;
@@ -1489,7 +1491,7 @@ router.post('/orders/:orderId/ship', requirePermission('orders', 'write'), async
  *     Wahrheit am Marktplatz; die Zusatz-Sendung liegt additiv am Auftrag
  *     (order.additionalShipments) und in der shipments-Collection.
  */
-router.post('/orders/:orderId/additional-label', requirePermission('orders', 'write'), async (req, res) => {
+router.post('/orders/:orderId/additional-label', requirePermission('orders', 'ship'), async (req, res) => {
   try {
     const { orderId } = req.params;
     const { shippingMethodId, shippingOptionCode, weight, labelFormat } = req.body || {};
@@ -1543,7 +1545,7 @@ router.post('/orders/:orderId/additional-label', requirePermission('orders', 'wr
  * order.additionalShipments stehen — das Primär-Label ist hier nie erreichbar
  * (dafür gibt es /cancel-label). Kein Status-Übergang, kein Tracking-Reset.
  */
-router.post('/orders/:orderId/additional-label/cancel', requirePermission('orders', 'write'), async (req, res) => {
+router.post('/orders/:orderId/additional-label/cancel', requirePermission('orders', 'ship'), async (req, res) => {
   try {
     const { orderId } = req.params;
     const shipmentId = String(req.body?.shipmentId || '').trim();
@@ -1617,7 +1619,7 @@ router.post('/orders/:orderId/additional-label/cancel', requirePermission('order
  * Idempotent — calling repeatedly is safe and re-checks the SendCloud status
  * each time, so this also doubles as a manual delivery-status refresh.
  */
-router.post('/orders/:orderId/refresh-shipment', requirePermission('orders', 'write'), async (req, res) => {
+router.post('/orders/:orderId/refresh-shipment', requirePermission('orders', 'ship'), async (req, res) => {
   try {
     const { orderId } = req.params;
     const tenantId = req.user?.tenantId || 'default';
@@ -1656,7 +1658,7 @@ router.post('/orders/:orderId/refresh-shipment', requirePermission('orders', 'wr
 /**
  * POST /api/orders/:orderId/cancel-label — Cancel shipping label and clear tracking.
  */
-router.post('/orders/:orderId/cancel-label', requirePermission('orders', 'write'), async (req, res) => {
+router.post('/orders/:orderId/cancel-label', requirePermission('orders', 'ship'), async (req, res) => {
   try {
     const { orderId } = req.params;
     const tenantId = req.user?.tenantId || 'default';
@@ -1755,7 +1757,7 @@ router.post('/orders/:orderId/cancel-label', requirePermission('orders', 'write'
  * POST /api/orders/:orderId/tracking — Manually assign tracking number to an order.
  * Body: { trackingNumber: string, carrier?: string, trackingUrl?: string }
  */
-router.post('/orders/:orderId/tracking', requirePermission('orders', 'write'), async (req, res) => {
+router.post('/orders/:orderId/tracking', requirePermission('orders', 'ship'), async (req, res) => {
   try {
     const { orderId } = req.params;
     const { trackingNumber, carrier, trackingUrl } = req.body;
@@ -1878,7 +1880,7 @@ router.post('/orders/:orderId/tracking', requirePermission('orders', 'write'), a
 /**
  * POST /api/orders/:orderId/invoice — Generate invoice PDF.
  */
-router.post('/orders/:orderId/invoice', requirePermission('orders', 'write'), async (req, res) => {
+router.post('/orders/:orderId/invoice', requirePermission('invoices', 'write'), async (req, res) => {
   try {
     const { orderId } = req.params;
     const tenantId = req.user?.tenantId || 'default';
@@ -1914,7 +1916,7 @@ router.post('/orders/:orderId/invoice', requirePermission('orders', 'write'), as
  * Bewusst NICHT durch AUTO_INVOICE gegatet: das ist eine ausdrueckliche
  * Handlung eines Menschen am Auftrag, genau wie "Rechnung erstellen".
  */
-router.post('/orders/:orderId/invoice/correct', requirePermission('orders', 'write'), async (req, res) => {
+router.post('/orders/:orderId/invoice/correct', requirePermission('invoices', 'write'), async (req, res) => {
   try {
     const { orderId } = req.params;
     const tenantId = req.user?.tenantId || 'default';
@@ -1942,7 +1944,7 @@ router.post('/orders/:orderId/invoice/correct', requirePermission('orders', 'wri
 /**
  * POST /api/orders/:orderId/delivery-note — Generate delivery note PDF.
  */
-router.post('/orders/:orderId/delivery-note', requirePermission('orders', 'write'), async (req, res) => {
+router.post('/orders/:orderId/delivery-note', requirePermission('orders', 'ship'), async (req, res) => {
   try {
     const { orderId } = req.params;
     const tenantId = req.user?.tenantId || 'default';
@@ -1974,7 +1976,7 @@ router.get('/shipping/methods', requirePermission('orders', 'read'), async (req,
 /**
  * POST /api/invoices/:invoiceId/export-sevdesk — Export invoice to SevDesk.
  */
-router.post('/invoices/:invoiceId/export-sevdesk', requirePermission('orders', 'write'), async (req, res) => {
+router.post('/invoices/:invoiceId/export-sevdesk', requirePermission('invoices', 'write'), async (req, res) => {
   try {
     const { invoiceId } = req.params;
     const { exportToSevDesk } = require('../services/invoice-engine');
@@ -2025,7 +2027,7 @@ router.post('/orders/sync-sendcloud', requirePermission('orders', 'write'), asyn
  * POST /api/orders/bulk-ship — Create labels for multiple packed orders at once.
  * Body: { orderIds: string[], shippingMethodId?: number }
  */
-router.post('/orders/bulk-ship', requirePermission('orders', 'write'), async (req, res) => {
+router.post('/orders/bulk-ship', requirePermission('orders', 'ship'), async (req, res) => {
   try {
     const { orderIds, shippingMethodId, labelFormat } = req.body;
     if (!Array.isArray(orderIds) || orderIds.length === 0) {
@@ -2183,10 +2185,14 @@ const { logAudit } = require('../services/audit-log');
 
 const ALLOWED_CUSTOMER_FIELDS = ['name', 'street', 'city', 'zip', 'country', 'phone', 'email', 'postNumber'];
 
-router.put('/orders/:orderId', requirePermission('orders', 'write'), async (req, res) => {
+router.put('/orders/:orderId', requireOrderUpdatePermission, async (req, res) => {
   try {
     const { orderId } = req.params;
     const { customer, weight } = req.body;
+    const orderSnap = await firestore.collection('orders').doc(orderId).get();
+    if (!orderSnap.exists || (orderSnap.data().tenantId || 'default') !== (req.user?.tenantId || 'default')) {
+      return res.status(404).json({ ok: false, error: { code: 'NOT_FOUND', message: 'Auftrag nicht gefunden' } });
+    }
 
     const updates = {};
     const auditFields = [];
@@ -2212,8 +2218,8 @@ router.put('/orders/:orderId', requirePermission('orders', 'write'), async (req,
 
     // --- Weight (top-level, in kg) ---
     if (weight !== undefined) {
-      const w = parseFloat(weight);
-      if (isNaN(w) || w < 0) {
+      const w = typeof weight === 'number' ? weight : Number(String(weight).trim().replace(',', '.'));
+      if (!Number.isFinite(w) || w <= 0) {
         return res.status(400).json({ ok: false, error: { code: 'VALIDATION', message: 'weight muss eine positive Zahl in kg sein' } });
       }
       updates.weight = w;

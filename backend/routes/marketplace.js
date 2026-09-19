@@ -610,7 +610,7 @@ router.post('/ebay/listings/sync', requirePermission('products', 'write'), async
 
 // Fast/cheap refresh for "is listed" indicators: Trading API ActiveList only (no GetItem per listing).
 // Uses server-side cooldown/lock to avoid spam and cost.
-router.post('/ebay/listings/light-sync', requirePermission('products', 'read'), async (req, res) => {
+router.post('/ebay/listings/light-sync', requirePermission('products', 'write'), async (req, res) => {
   try {
     const body = req.body && typeof req.body === 'object' ? req.body : {};
     const maxPages = Number.isFinite(Number(body.maxPages)) ? Math.max(1, Math.min(200, Number(body.maxPages))) : 50;
@@ -2448,7 +2448,7 @@ router.get('/ebay/taxonomy/categories/:id/aspects', requirePermission('products'
 // =====================================================================
 
 // Upload K-Type CSV (eBay compatibility export) and update products' details.attributes["K-Typ"]
-router.post('/ktype/upload', ktypeUploadMiddleware, async (req, res) => {
+router.post('/ktype/upload', requirePermission('products', 'write'), ktypeUploadMiddleware, async (req, res) => {
   try {
     const dryRunRaw =
       req.query?.dryRun ?? req.body?.dryRun ?? req.body?.dry_run ?? req.body?.dryrun ?? '';

@@ -17,7 +17,7 @@ describe('HARDEN Wave 9: admin endpoints for system health', () => {
   );
 
   it('defines GET /alerts/recent with permission gate + tenant scope', () => {
-    expect(source).toMatch(/router\.get\(\s*['"]\/alerts\/recent['"][\s\S]{0,200}requirePermission\(['"]admin['"],\s*['"]read['"]\)/);
+    expect(source).toMatch(/router\.get\(\s*['"]\/alerts\/recent['"][\s\S]{0,200}requirePermission\(['"]system['"],\s*['"]read['"]\)/);
     const fnIdx = source.indexOf("'/alerts/recent'");
     const body = source.slice(fnIdx, fnIdx + 2500);
     expect(body).toMatch(/stock_failure_alerts/);
@@ -29,7 +29,7 @@ describe('HARDEN Wave 9: admin endpoints for system health', () => {
   });
 
   it('defines GET /system-health that aggregates drain + llm + externalApis + meta', () => {
-    expect(source).toMatch(/router\.get\(\s*['"]\/system-health['"][\s\S]{0,200}requirePermission\(['"]admin['"],\s*['"]read['"]\)/);
+    expect(source).toMatch(/router\.get\(\s*['"]\/system-health['"][\s\S]{0,200}requirePermission\(['"]system['"],\s*['"]read['"]\)/);
     const fnIdx = source.indexOf("'/system-health'");
     const body = source.slice(fnIdx, fnIdx + 6500);
     // Wires all three data sources

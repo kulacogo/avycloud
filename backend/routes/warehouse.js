@@ -140,7 +140,7 @@ router.get('/zones', requirePermission('warehouse', 'read'), async (req, res) =>
   }
 });
 
-router.post('/layouts', requirePermission('warehouse', 'write'), async (req, res) => {
+router.post('/layouts', requirePermission('warehouse', 'configure'), async (req, res) => {
   try {
     const { zone, etage, gangs, regale, ebenen } = req.body || {};
     if (!zone || !etage || !gangs || !regale || !ebenen) {
@@ -166,7 +166,7 @@ router.post('/layouts', requirePermission('warehouse', 'write'), async (req, res
   }
 });
 
-router.delete('/layouts/:zone/:etage/gangs/:gang', requirePermission('warehouse', 'write'), async (req, res) => {
+router.delete('/layouts/:zone/:etage/gangs/:gang', requirePermission('warehouse', 'configure'), async (req, res) => {
   try {
     const zone = req.params.zone.toUpperCase();
     const etage = req.params.etage.toUpperCase();
@@ -184,7 +184,7 @@ router.delete('/layouts/:zone/:etage/gangs/:gang', requirePermission('warehouse'
   }
 });
 
-router.delete('/layouts/:zone/:etage/gangs/:gang/regale/:regal', requirePermission('warehouse', 'write'), async (req, res) => {
+router.delete('/layouts/:zone/:etage/gangs/:gang/regale/:regal', requirePermission('warehouse', 'configure'), async (req, res) => {
   try {
     const zone = req.params.zone.toUpperCase();
     const etage = req.params.etage.toUpperCase();
@@ -203,7 +203,7 @@ router.delete('/layouts/:zone/:etage/gangs/:gang/regale/:regal', requirePermissi
   }
 });
 
-router.delete('/layouts/:zone/:etage/gangs/:gang/regale/:regal/ebenen/:ebene', requirePermission('warehouse', 'write'), async (req, res) => {
+router.delete('/layouts/:zone/:etage/gangs/:gang/regale/:regal/ebenen/:ebene', requirePermission('warehouse', 'configure'), async (req, res) => {
   try {
     const zone = req.params.zone.toUpperCase();
     const etage = req.params.etage.toUpperCase();
@@ -731,7 +731,7 @@ router.get('/settings', requirePermission('warehouse', 'read'), async (req, res)
 // write-Gate: überschreibt warehouse_settings inkl. Zonen/BINs — ohne Gate
 // konnte jeder eingeloggte Nutzer (auch Betrachter) das Lagerlayout kaputt
 // schreiben, während die Geschwister-Routen längst requirePermission tragen.
-router.put('/settings', requirePermission('warehouse', 'write'), async (req, res) => {
+router.put('/settings', requirePermission('warehouse', 'configure'), async (req, res) => {
   try {
     const tenantId = getWarehouseTenantId(req);
     const { zones, bins, ...rest } = req.body;

@@ -90,9 +90,9 @@ describe('warehouse/orders/products — Settings- und Intake-Schreibpfade sind g
   // Diese drei Schreibrouten hatten NUR requireAuth: ein Betrachter konnte
   // das Lagerlayout (Zonen/BINs), die Versandregeln/Nummernkreise und die
   // Intake-Mengen eines Produkts überschreiben.
-  it('PUT /settings (warehouse) requires warehouse.write', () => {
+  it('PUT /settings (warehouse) requires warehouse.configure', () => {
     const src = read('routes/warehouse.js');
-    expect(gated(src, 'put', '/settings', 'warehouse', 'write')).toBe(true);
+    expect(gated(src, 'put', '/settings', 'warehouse', 'configure')).toBe(true);
   });
   it('GET /settings (warehouse) requires warehouse.read', () => {
     const src = read('routes/warehouse.js');
