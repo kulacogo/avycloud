@@ -1,7 +1,7 @@
 ---
 title: Admin (Produkte-Tabelle & Admin-Panel)
 for: [user, dev, admin]
-lastReviewed: 2026-05-18
+lastReviewed: 2026-09-20
 ---
 
 ## Zweck
@@ -9,7 +9,7 @@ lastReviewed: 2026-05-18
 Zwei verwandte aber separate Admin-Bereiche:
 
 1. **AdminTable** (`view: 'admin'`) — Master-Produkt-Tabelle für Bulk-Bearbeitung: alle Produkte mit konfigurierbaren Spalten-Presets, Inline-Edit (`useGridEdit`), Bulk-Updates (`useBulkUpdate`), eBay-/Kaufland-Publish, Stock-Sync-Force, K-Type-Upload (KFZ-Fahrzeug-Daten).
-2. **AdminPanel** (intern via Tabs in `view: 'admin'` Sub-Route — siehe Routing in App.tsx) — Tenant-Administrations-UI mit Tabs: **Users / Groups / Roles / LLM / Bulk / Integrations / eBay-Taxonomy / Identify-Runs**.
+2. **AdminPanel** (intern via Tabs in `view: 'admin'` Sub-Route — siehe Routing in App.tsx) — Tenant-Administrations-UI mit Tabs: **Users / Roles / LLM / Bulk / Integrations / eBay-Taxonomy / Identify-Runs** (Alt-Gruppenverwaltung aus der Oberfläche entfernt).
 
 ## Komponente(n)
 
@@ -18,7 +18,7 @@ Zwei verwandte aber separate Admin-Bereiche:
   - `AdminTableHeader.tsx`, `AdminTableRow.tsx`, `AdminTableFilters.tsx`, `BulkActions.tsx`, `BulkDiffPreview.tsx`, `BulkUpdateModal.tsx`, `EditableCell.tsx`.
 - [components/admin/AdminPanel.tsx](../../../components/admin/AdminPanel.tsx) — Tab-Container für Admin-Sub-Bereiche.
 - [components/admin/AdminUserManagement.tsx](../../../components/admin/AdminUserManagement.tsx) — User-Liste, Invite, Role-Assign.
-- [components/admin/AdminGroupManagement.tsx](../../../components/admin/AdminGroupManagement.tsx).
+- `AdminGroupManagement.tsx` ist historischer Code, kein aktiver Team-Tab.
 - [components/admin/AdminRoleManagement.tsx](../../../components/admin/AdminRoleManagement.tsx).
 - [components/admin/AdminLlmManagement.tsx](../../../components/admin/AdminLlmManagement.tsx) — LLM-Model-Selection / Feature-Flag-UI.
 - [components/admin/AdminBulkActions.tsx](../../../components/admin/AdminBulkActions.tsx) — `/api/admin/bulk/run` UI mit DryRun-first.
@@ -79,4 +79,17 @@ Pro-Endpunkt-Doku: `docs/kb/09-api/admin.md`, `docs/kb/09-api/products.md` (TBD)
 
 `#/settings/team` enthält Mitarbeiter, Leistung und Rollen & Rechte. Ein Konto erhält genau ein Profil. Die Rollenübersicht erklärt die sechs Profile und zeigt die serverseitige Rechtematrix. Keine Gruppenregisterkarte, keine addierten Altrollen oder Checkbox-Ausnahmen. Das Inhaberprofil ist für andere Konten nicht auswählbar. Deaktivierte Konten sind sichtbar gekennzeichnet.
 
-Der Bereich ist ausschließlich für den Inhaber zugänglich, einschließlich direkter Hash-Aufrufe. Details und noch nicht erfolgter Rollout: [Zugriffsprofile](../../features/access-profiles/spec.md).
+Der Bereich ist ausschließlich für den Inhaber zugänglich, einschließlich direkter Hash-Aufrufe. Die Profile wurden am 20.09.2026 mit PR #9 produktiv ausgeliefert. Fachliche Regeln: [Zugriffsprofile](../../features/access-profiles/spec.md).
+
+
+## Interaktive Teamverwaltung (20.09.2026)
+
+- **Mitarbeiter:** Profilkarten mit tatsächlichem Zugangsstatus, Namens-/E-Mail-Suche (auch ohne türkische Sonderzeichen), Filter für operative Konten, Lesezugriff, deaktivierte Konten und einzelne Profile. Einladen und Bearbeiten in fokussierten Dialogen; Profilwechsel zeigt vorher/nachher. Löschen bleibt bestätigt und ist für Inhaber/eigenes Konto nicht angeboten. Der Status ist keine Online-Anzeige.
+- **Leistung:** auswählbare Kennzahlen mit eigenen Einheiten, Balken oder sortierbare Tabelle, Namenssuche, Tätigkeitsfilter und Kontodetails. Heute, letzte 7/30 Tage oder eigener Zeitraum; Datumsgrenzen in UTC, eigener Zeitraum erst nach vollständiger Eingabe und „Anwenden“. Vom Mitarbeiterprofil direkt zu dessen Details. Keine künstlichen Trends, Arbeitszeitmessung oder Gesamtwertung.
+- **Rollen & Rechte:** Profilkarten mit zugeordneten Konten, Vergleich von zwei Profilen, Filter „Nur Unterschiede“ und Aufgabensuche. Matrix in Tagesgeschäft, Steuerung und sensible Bereiche gegliedert. Zusammengesetzte Aufgaben setzen alle zugehörigen Rechte voraus. Werte kommen aus der bestehenden serverseitigen Policy. „Konten ansehen“ öffnet den passenden Mitarbeiterfilter.
+- Filter/Zeitraum bleiben beim Registerwechsel erhalten. Native Dialoge, Tastaturnavigation der Register und responsive Detailposition. Design-Tokens für Hell/Dunkel.
+- Datenabfragen über bestehende APIs; gemeinsam zwischengespeichertes Kontoverzeichnis, keine zusätzliche Datenquelle. Leistungs-/Rollenabfragen nur bei geöffnetem Register, kein periodisches Polling. Ladefehler zeigen Wiederholungsaktionen und keine erfundenen Nullwerte oder Rechte.
+
+**Datengrenzen:** Erfasst/Produktpflege zählen eindeutige Produkte je Konto; Einlagerung zählt Buchungen, Pick/Pack zählen Vorgänge. Historische gemeinsame Konten werden nicht rückwirkend Personen zugerechnet. Backend-Protokollabfragen sind begrenzt; einzelne Quellen können bereits im bestehenden Backend bei Fehlern leere Ergebnisse liefern. Ein Wert von 0 beweist keine Untätigkeit. Diese Überarbeitung verändert weder Messlogik noch Autorisierung.
+
+Implementierung: [MitarbeiterRollen](../../../components/admin/MitarbeiterRollen.tsx), [Darstellungslogik und Tests](../../../components/admin/teamWorkspaceModel.test.ts). Übergabe/Prüfung: [Teamoberfläche](../../features/team-workspace/spec.md).
