@@ -15,6 +15,8 @@ const ASSIGNMENTS = [
   ['1tpPYAUA4Gd6PfBXMbUZfACTgKC3', 'selahattin.tatma@trendocean.de', 'partner'],
   ['jts1XUNoDvSDkcIZRNDpGO5w24r1', 'operation@trendocean.de', 'developer'],
   ['BTiU8QjGmWUf0mfX8LJsHSYpyGY2', 'support@trendocean.de', 'viewer', true],
+  // Owner will choose the final profile in production (20 September 2026).
+  ['samNcRzSBcdzWHjqHyu0lHaKATU2', 'mahmoud.ali@trendocean.de', 'viewer'],
 ];
 
 function buildPlan(profiles) {

@@ -1,6 +1,6 @@
-# Rollen und Rechte — Stand 19.09.2026
+# Rollen und Rechte — Stand 20.09.2026
 
-Status: implementiert und lokal geprüft auf `codex/roles-permissions-20260919`, Basis `4aa3b0ca` (PR #8). **Commit und kontrollierte Produktivauslieferung durch „ok los“ am 19.09.2026 freigegeben; Rollout wartet auf Mahmouds Zielprofil.** Die Auth-/RBAC-Änderungen wurden durch die ausdrückliche Nutzeranforderung vom 19.09.2026 autorisiert.
+Status: implementiert und lokal geprüft auf `codex/roles-permissions-20260919`, Basis `4aa3b0ca` (PR #8). **Commit und kontrollierte Produktivauslieferung durch „ok los“ am 19.09.2026 freigegeben; erneut am 20.09.2026 beauftragt. Mahmoud wird zunächst „Nur Lesen“; seine endgültige Zuordnung übernimmt der Inhaber anschließend selbst.** Die Auth-/RBAC-Änderungen wurden durch die ausdrückliche Nutzeranforderung vom 19.09.2026 autorisiert.
 
 ## Auftrag und tatsächliche Ursache
 
@@ -20,6 +20,7 @@ Konkreter Arbeitsfehler: Gewicht speichern, Versandlabel und Druckauftrag verlan
 | Fatih, Selahattin | Gesellschafter / Partner | Operative Daten und Finanzberichte/Rechnungen lesen; keine Änderungen |
 | operation@ / Ops Dev | Entwickler · Lesen | Operative Daten, operative Konfiguration und technische Diagnose lesen; keine Änderungen |
 | support@ / Scanner Support | Deaktiviert | Kein Zugang; persönliche Konten nutzen |
+| Mahmoud Ali (vorläufig) | Nur Lesen | Endgültige Zuordnung nimmt der Inhaber nach Auslieferung selbst vor |
 | Neue reine Lesekonten | Nur Lesen | Operative Daten; keine Finanzen oder Änderungen |
 
 Partner behalten den schon bestehenden Finanz-Leseumfang der bisherigen Betrachterrolle. Manager, Mitarbeiter und Entwickler erhalten keine Finanzberichte, Rechnungsänderungen, Erstattungsfreigaben, Unternehmens-/Zugangskonfiguration oder Rechteverwaltung. Verkaufspreise, Auftragsbeträge und Versandtarife sind operative Daten. Einkaufskosten, interne Bewertungen und Marktplatz-Abrechnungsfelder werden für diese Profile aus JSON-Antworten und dem Produktstream entfernt. Finanzexporte erfordern Finanzleserechte. Kostenänderungen werden einschließlich Bulk-/Import-Mappings abgewehrt.
@@ -44,7 +45,7 @@ Retourenannahme/Notizen bleiben operativ. Die bisherige gemeinsame Funktion „P
 - Neuer HTTP-Integrationstest verwendet echte Express-Routen und die echte RBAC-Auflösung; nur Firebase/Firestore und externe Versanddienste sind Test-Doubles. Mitarbeiter: Packen → Gewicht schreiben → Label → Druckauftrag. Mitarbeiter-ID wird an Pack-/OMS-Übergänge weitergereicht.
 - Gegenprüfungen: eingeschmuggelte Adressänderung, ungültiges Gewicht, fremder Tenant, deaktiviertes Konto, Alt-Adminrolle/Override, Verwaltungs-APIs, Finanz-APIs und Refund-Nebenpfade.
 - Browserprüfung mit isolierten lokalen Testidentitäten/-daten: Rollenmatrix, Einzelwahl, direkte Aufrufsperren für Mitarbeiter/Partner/Entwickler, mobile Packansicht. Kein Zugriff auf echte Versanddienste, kein reales Label und kein physischer Druck bei diesen Tests.
-- Produktionsmigration ausschließlich im **Trockenlauf** gegen `avycloud` geprüft; alle neun Identitäten eindeutig. Keine Produktionsschreibzugriffe.
+- Produktionsmigration ausschließlich im **Trockenlauf** gegen `avycloud` geprüft; alle zehn Identitäten eindeutig. Keine Produktionsschreibzugriffe.
 
 ## Sichere Auslieferung — Reihenfolge verbindlich
 
@@ -62,8 +63,12 @@ Rollback: zuerst betroffene Backend- und Hostingrevision nach dem bestehenden Ro
 
 ## Grenzen
 
-Kein Live-Rollout, keine echte Waage/Scanner-Hardware und kein physischer Druck in dieser Änderung geprüft. Multi-Tenant-Generalüberholung, vollständige Feldklassifikation beliebiger Freitexte und separates Dienstkontenmodell sind keine Bestandteile dieser Änderung. Für den dokumentierten Tenant `default` sind die vorhandenen neun Identitäten geprüft. Neue Mitarbeiter bekommen bei Einladung sofort ein kanonisches Profil.
+Kein Live-Rollout, keine echte Waage/Scanner-Hardware und kein physischer Druck in dieser Änderung geprüft. Multi-Tenant-Generalüberholung, vollständige Feldklassifikation beliebiger Freitexte und separates Dienstkontenmodell sind keine Bestandteile dieser Änderung. Für den dokumentierten Tenant `default` sind die vorhandenen zehn Identitäten geprüft. Neue Mitarbeiter bekommen bei Einladung sofort ein kanonisches Profil.
 
 ## Rollout-Fund am 19.09.2026
 
 PR #9 (`9690fefd`) hat Backend, Frontend/TypeScript und KB-Prüfung erfolgreich bestanden. Noch vor jeder Produktionsänderung wurde ein zehntes, heute angelegtes Konto gefunden: Mahmoud Ali. Das bestehende Profil besitzt mehrere Altrollen einschließlich Admin, aber noch keinen tenantId. Seine Zielrolle ist beim Betreiber angefragt. Die Migration prüft deshalb zusätzlich sämtliche Firebase-Anmeldeidentitäten per Dokument-ID und stoppt auch bei unbekannten Alt-Profilen ohne tenantId. Keine Produktivumstellung, bevor alle aktiven Mitarbeiter eindeutig zugeordnet sind.
+
+## Fortsetzung am 20.09.2026
+
+Betreiber: „das stelle ich selber ein nachdem du die sachen auf prod gebracht hast“. Die Auslieferung wird fortgesetzt; Mahmoud bekommt als vorläufige, ausdrücklich mitgeteilte Übergangslösung „Nur Lesen“, ohne Finanzen. Der Inhaber stellt danach in Mitarbeiter & Rollen das endgültige Profil ein. Alt-Adminrechte werden nicht übernommen. PR-CI am Head `60271278` vollständig grün. Vor Migration wird die komplette Anmeldeidentitätsliste erneut abgeglichen.

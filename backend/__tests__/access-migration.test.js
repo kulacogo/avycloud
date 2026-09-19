@@ -1,13 +1,15 @@
 'use strict';
 const { ASSIGNMENTS, buildPlan, migrate } = require('../scripts/migrate-access-profiles');
 const profiles = () => ASSIGNMENTS.map(([id, email]) => ({ id, email, roles: ['admin', 'leitung'] }));
-it('ordnet die sieben Personen und zwei technischen Konten explizit zu', () => {
+it('ordnet alle zehn Konten explizit zu; Mahmoud bleibt bis zur Inhaberzuordnung nur lesend', () => {
   const plan = buildPlan(profiles());
+  expect(plan).toHaveLength(10);
   expect(plan.filter(x => x.patch.accessRole === 'admin')).toHaveLength(1);
   expect(plan.filter(x => x.patch.accessRole === 'manager')).toHaveLength(2);
   expect(plan.filter(x => x.patch.accessRole === 'employee')).toHaveLength(2);
   expect(plan.find(x => x.email === 'support@trendocean.de').patch.disabled).toBe(true);
   expect(plan.find(x => x.email === 'operation@trendocean.de').patch.accessRole).toBe('developer');
+  expect(plan.find(x => x.email === 'mahmoud.ali@trendocean.de').patch.accessRole).toBe('viewer');
   for (const { patch } of plan) { expect(patch.roles).toBeUndefined(); expect(patch.tenantId).toBe('default'); }
 });
 it('rät bei fehlenden, neuen oder falsch zugeordneten Identitäten nicht', () => {
