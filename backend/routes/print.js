@@ -120,7 +120,7 @@ router.get('/print/status', requirePermission('orders', 'read'), async (req, res
  * POST /api/print/jobs — Versandetikett in die Druckwarteschlange legen.
  * Body: { orderId, shipmentId?, copies? }
  */
-router.post('/print/jobs', requirePermission('orders', 'write'), async (req, res) => {
+router.post('/print/jobs', requirePermission('orders', 'ship'), async (req, res) => {
   try {
     if (!printQueueEnabled()) {
       return res.status(503).json({
@@ -203,7 +203,7 @@ router.get('/print/jobs/:jobId', requirePermission('orders', 'read'), async (req
  * POST /api/print/agent/heartbeat — der Agent meldet sich am Leben.
  * Body: { agentId, printers?: { parcel: string, letter: string } }
  */
-router.post('/print/agent/heartbeat', requirePermission('orders', 'write'), async (req, res) => {
+router.post('/print/agent/heartbeat', requirePermission('orders', 'ship'), async (req, res) => {
   try {
     const tenantId = getTenantId(req);
     const { agentId, printers = {} } = req.body || {};
@@ -230,7 +230,7 @@ router.post('/print/agent/heartbeat', requirePermission('orders', 'write'), asyn
  * derselbe Agent zweimal) duerfen denselben Auftrag nicht bekommen, sonst
  * kommt das Etikett doppelt aus dem Drucker.
  */
-router.post('/print/agent/claim', requirePermission('orders', 'write'), async (req, res) => {
+router.post('/print/agent/claim', requirePermission('orders', 'ship'), async (req, res) => {
   try {
     const tenantId = getTenantId(req);
     const agentId = String(req.body?.agentId || '').trim();
@@ -328,7 +328,7 @@ router.get('/print/jobs/:jobId/document', requirePermission('orders', 'read'), a
  * POST /api/print/jobs/:jobId/result — Agent meldet das Ergebnis.
  * Body: { ok: boolean, error?: string }
  */
-router.post('/print/jobs/:jobId/result', requirePermission('orders', 'write'), async (req, res) => {
+router.post('/print/jobs/:jobId/result', requirePermission('orders', 'ship'), async (req, res) => {
   try {
     const tenantId = getTenantId(req);
     const ref = firestore.collection(PRINT_JOBS_COLLECTION).doc(req.params.jobId);

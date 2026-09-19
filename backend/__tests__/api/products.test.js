@@ -202,11 +202,11 @@ describe('GET /api/me/permissions', () => {
     expect(res.body.data).toBeDefined();
   });
 
-  it('returns 200 with fallback when resolvePermissionsForUser throws', async () => {
+  it('returns retryable 503 when permissions cannot be resolved', async () => {
     localMocks.spies.resolvePermissionsForUser?.mockRejectedValue(new Error('RBAC unavailable'));
     const res = await request(app).get('/api/me/permissions');
-    expect(res.status).toBe(200);
-    expect(res.body.ok).toBe(true);
+    expect(res.status).toBe(503);
+    expect(res.body.ok).toBe(false);
   });
 });
 

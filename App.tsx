@@ -1,3 +1,4 @@
+import { ALLOWED_VIEWS, canAccessView } from "./utils/viewPermissions";
 
 import React, { useState, useCallback, useEffect, useMemo, useRef, lazy, Suspense, startTransition } from 'react';
 import { Product, WarehouseBin, View, type OrderItem } from './types';
@@ -91,49 +92,7 @@ const VIEW_STORAGE_KEY = 'avystock:view';
 const VIEW_PRODUCT_KEY = 'avystock:view:productId';
 const THEME_STORAGE_KEY = 'avystock:theme';
 const DASHBOARD_RANGE_PRESET_STORAGE_KEY = 'avystock:dashboard:rangePreset';
-const ALLOWED_VIEWS: View[] = [
-  'dashboard',
-  'home',
-  'search',
-  'admin',
-  'categories',
-  'operations',
-  'operations-identify',
-  'operations-stow',
-  'operations-pick',
-  'operations-pack',
-  'ebay-listings',
-  'input',
-  'sheet',
-  'inventory',
-  'products',
-  'orders',
-  'orders-returns',
-  'orders-shipping',
-  'orders-invoices',
-  'orders-settings',
-  'warehouse',
-  'warehouse-settings',
-  'marketplace-ebay',
-  'marketplace-kaufland',
-  'marketplace-errors',
-  'finance',
-  'integrations',
-  'integrations-ebay',
-  'integrations-kaufland',
-  'integrations-sendcloud',
-  'integrations-sevdesk',
-  'settings',
-  'settings-profile',
-  'settings-team',
-  'settings-api',
-  'settings-billing',
-  'shop-health',
-  'duplicates',
-  'audit-log',
-  'pricing',
-  'rules',
-];
+
 type Theme = 'light' | 'dark';
 
 /**
@@ -1012,6 +971,9 @@ const AppInner: React.FC = () => {
   }, [products, currentProduct?.id]);
 
   const renderView = () => {
+    if (!canAccessView(view, hasPermission)) {
+      return <div className="p-8 text-center text-txt-muted">Für diesen Bereich ist dein Konto nicht freigeschaltet.</div>;
+    }
     switch (view) {
       case 'home':
         return isMobile ? (
@@ -1208,7 +1170,7 @@ const AppInner: React.FC = () => {
         }
         return <MitarbeiterRollen />;
       case 'shop-health':
-        if (!hasPermission('admin', 'reports.read')) {
+        if (!hasPermission('system', 'read')) {
           return <div className="text-center p-8 text-txt-muted">{t('error.forbidden')}</div>;
         }
         return <ShopGesundheit />;

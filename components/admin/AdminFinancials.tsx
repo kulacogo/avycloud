@@ -1,3 +1,4 @@
+import { useAuth } from "../../context/AuthContext";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { fetchFinancialReport, saveFinancialCostModel } from "../../api/client";
@@ -84,6 +85,8 @@ const CostModelEditor: React.FC<{ report: FinancialReport; open: boolean; onTogg
 
 
 export const AdminFinancials: React.FC = () => {
+  const { hasPermission } = useAuth();
+  const canEditCosts = hasPermission('admin', 'reports.write');
   const [preset, setPreset] = useState("month_to_date");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
@@ -195,14 +198,14 @@ export const AdminFinancials: React.FC = () => {
         <div><p className="text-sm text-txt-secondary">Einheiten im Lager</p><p className="mt-2 text-xl font-semibold tabular-nums">{fmtNum(report.inventory.unitCount)}</p></div>
         <div><p className="text-sm text-txt-secondary">eBay-Angebote online</p><p className="mt-2 text-xl font-semibold tabular-nums">{fmtNum(report.listingsOnline.currentActive)}</p></div>
       </section>
-      <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-txt-secondary"><span>Stand {new Date(report.generated_at_iso).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}</span><button type="button" onClick={() => setEditCost(!editCost)} className="hover:text-accent">Gebührensätze</button></div>
+      <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-txt-secondary"><span>Stand {new Date(report.generated_at_iso).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}</span>{canEditCosts && <button type="button" onClick={() => setEditCost(!editCost)} className="hover:text-accent">Gebührensätze</button>}</div>
       <details className={`${panel} px-5 py-4`}><summary className="cursor-pointer text-sm font-medium">Datengrundlage{incomplete ? <span className="ml-3 rounded-full bg-warning-dim px-2 py-1 text-xs text-warning">Vorläufig</span> : null}</summary><div className="mt-4 space-y-3 text-sm text-txt-secondary">
         {summary.notices.length > 0 && <div className="flex flex-wrap gap-2">{summary.notices.map(notice => <span key={notice} className="rounded-md bg-warning-dim px-3 py-1.5 text-warning">{notice}</span>)}</div>}
         <dl className="grid gap-3 sm:grid-cols-2"><div><dt>Warenkosten-Abdeckung</dt><dd className="mt-1 font-medium text-txt-primary">{fmtNum(report.pnl.coveragePct)} %</dd></div><div><dt>Umsatzsteuer-Anteil</dt><dd className="mt-1 font-medium text-txt-primary">{money(report.pnl.umsatzsteuerAnteil)}</dd></div><div><dt>Erstattungen zu stornierten Aufträgen</dt><dd className="mt-1 font-medium text-txt-primary">{money(report.pnl.retourenStorno)} · {fmtNum(report.pnl.retourenStornoAnzahl)} Vorgänge</dd></div></dl>
         <p>Verlauf und Marktplätze: Brutto. Ergebnis: {summary.net ? 'Netto' : 'Brutto'}, ohne betriebliche Fixkosten.</p>
         {report.errors.length > 0 && <ul className="list-disc space-y-1 pl-5">{report.errors.map((message, i) => <li key={i}>{message}</li>)}</ul>}
       </div></details>
-      <CostModelEditor key={report.generated_at_iso} report={report} open={editCost} onToggle={() => setEditCost(false)} onSaved={() => { setEditCost(false); void load(); }} />
+      {canEditCosts && <CostModelEditor key={report.generated_at_iso} report={report} open={editCost} onToggle={() => setEditCost(false)} onSaved={() => { setEditCost(false); void load(); }} />}
     </> : !error && <div className={`${panel} p-8 text-center text-sm text-txt-secondary`}>{preset === 'custom' ? 'Zeitraum auswählen und anwenden.' : 'Keine Finanzdaten verfügbar.'}</div>}
   </div>;
 };

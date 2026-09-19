@@ -5996,7 +5996,7 @@ export const syncInventories = async () => {
 export type RbacSnapshot = {
   roles: string[];
   permissions: Record<string, Record<string, boolean>>;
-  profile: { uid: string | null; email: string | null; roles: string[]; groupIds: string[] } | null;
+  profile: { uid: string | null; email: string | null; roles: string[]; accessRole?: string | null } | null;
 };
 
 export const fetchMyPermissions = async (): Promise<RbacSnapshot> => {

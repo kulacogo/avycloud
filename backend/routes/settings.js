@@ -270,7 +270,7 @@ router.delete('/settings/webhooks/:id', requirePermission('settings', 'delete'),
 
 // ─── BILLING USAGE ───────────────────────────────────────────
 
-router.get('/settings/billing/usage', async (req, res) => {
+router.get('/settings/billing/usage', requirePermission('settings', 'company.read'), async (req, res) => {
   try {
     const tenantId = getTenantId(req);
     // Count products

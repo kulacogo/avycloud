@@ -1362,7 +1362,7 @@ router.get('/jobs/:id/stream', requirePermission('jobs', 'read'), (req, res) => 
 });
 
 // POST /api/jobs/:id/retry — Reset job status + re-enqueue (NOTE: no requirePermission)
-router.post('/jobs/:id/retry', async (req, res) => {
+router.post('/jobs/:id/retry', requirePermission('identify', 'run'), async (req, res) => {
   const jobId = req.params?.id;
   if (!jobId) {
     return res.status(400).json({

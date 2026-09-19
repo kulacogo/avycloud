@@ -9,7 +9,7 @@ import {
 } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
 import { Notice } from "../ui/Notice";
-import { ROLE_CATALOG, roleDisplayName, userDisplayName, isLegacyRole } from "./roleCatalog";
+import { ROLE_CATALOG, roleDisplayName, userDisplayName } from "./roleCatalog";
 
 const normalizeEmail = (value: string) => value.trim().toLowerCase();
 
@@ -25,7 +25,7 @@ export const AdminUserManagement: React.FC = () => {
   const [notice, setNotice] = React.useState<{ tone: "success" | "info" | "warning" | "error"; title: string } | null>(null);
 
   const [inviteEmail, setInviteEmail] = React.useState("");
-  const [inviteRoles, setInviteRoles] = React.useState<string[]>([]);
+  const [inviteRoles, setInviteRoles] = React.useState<string[]>(["employee"]);
   const [inviting, setInviting] = React.useState(false);
 
   const [editingUid, setEditingUid] = React.useState<string | null>(null);
@@ -49,9 +49,6 @@ export const AdminUserManagement: React.FC = () => {
     load();
   }, [load]);
 
-  const toggle = (list: string[], value: string) =>
-    list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
-
   const invite = async () => {
     setInviting(true);
     setError(null);
@@ -59,7 +56,7 @@ export const AdminUserManagement: React.FC = () => {
     try {
       await adminInviteUser(normalizeEmail(inviteEmail), inviteRoles);
       setInviteEmail("");
-      setInviteRoles([]);
+      setInviteRoles(["employee"]);
       await load();
       setNotice({ tone: "success", title: "Einladung wurde versendet" });
     } catch (e: any) {
@@ -81,13 +78,6 @@ export const AdminUserManagement: React.FC = () => {
 
   const saveEdit = async (u: AdminUserRecord) => {
     const uid = (u.uid as string) || u.id;
-    const originalRoles = Array.isArray(u.roles) ? u.roles : [];
-    // Self-lockout guard: warn if you remove your own admin rights.
-    const removingOwnAdmin =
-      uid === currentUid && originalRoles.includes("admin") && !editForm.roles.includes("admin");
-    if (removingOwnAdmin && !window.confirm("Du entfernst dir selbst die Administrator-Rechte. Wirklich fortfahren?")) {
-      return;
-    }
     setSaving(true);
     setError(null);
     try {
@@ -128,7 +118,7 @@ export const AdminUserManagement: React.FC = () => {
     <div className="space-y-5">
       <div>
         <h2 className="text-xl font-bold">Mitarbeiter</h2>
-        <p className="text-sm text-txt-muted">Mitarbeiter einladen, Namen und Rollen pflegen, Konten entfernen.</p>
+        <p className="text-sm text-txt-muted">Jeder Mitarbeiter nutzt sein eigenes Konto. Aktionen und Leistung werden diesem Konto zugeordnet.</p>
       </div>
 
       {error && (
@@ -157,7 +147,7 @@ export const AdminUserManagement: React.FC = () => {
           </button>
         </div>
         <div className="flex flex-wrap gap-2">
-          {ROLE_CATALOG.map((role) => (
+          {ROLE_CATALOG.filter(role => role.id !== "admin").map((role) => (
             <label
               key={role.id}
               title={role.description}
@@ -168,12 +158,13 @@ export const AdminUserManagement: React.FC = () => {
               }`}
             >
               <input
-                type="checkbox"
-                className="sr-only"
+                type="radio"
+                className="accent-accent"
                 checked={inviteRoles.includes(role.id)}
-                onChange={() => setInviteRoles((prev) => toggle(prev, role.id))}
+                name="invite-role"
+                onChange={() => setInviteRoles([role.id])}
               />
-              <span>{role.name}</span>
+              <span>{role.name}<span className="block text-xs font-normal text-txt-muted">{role.description}</span></span>
             </label>
           ))}
         </div>
@@ -210,6 +201,7 @@ export const AdminUserManagement: React.FC = () => {
                     <div className="min-w-0">
                       <div className="font-semibold text-txt-primary truncate">
                         {userDisplayName(u)}
+                        {u.disabled ? <span className="ml-2 rounded bg-app-elevated px-2 py-0.5 text-xs text-txt-muted">Deaktiviert</span> : null}
                         {uid === currentUid ? <span className="ml-2 text-xs text-accent">(Du)</span> : null}
                       </div>
                       <div className="text-xs text-txt-muted truncate">{u.email || uid}</div>
@@ -242,13 +234,13 @@ export const AdminUserManagement: React.FC = () => {
                   {!isEditing && (
                     <div className="mt-2 flex flex-wrap gap-1.5">
                       {roles.length === 0 ? (
-                        <span className="text-xs text-warning">Keine Rolle — kann nicht arbeiten</span>
+                        <span className="text-xs text-warning">Zugriff noch nicht zugeordnet</span>
                       ) : (
                         roles.map((r) => (
                           <span
                             key={r}
                             className={`rounded-md px-2 py-0.5 text-xs ${
-                              isLegacyRole(r) ? "bg-warning-dim text-warning" : "bg-app-elevated text-txt-secondary"
+                              "bg-app-elevated text-txt-secondary"
                             }`}
                           >
                             {roleDisplayName(r)}
@@ -282,9 +274,9 @@ export const AdminUserManagement: React.FC = () => {
                         />
                       </div>
                       <div>
-                        <div className="text-xs text-txt-muted mb-1.5">Rollen — die Rechte mehrerer Rollen addieren sich.</div>
+                        <div className="text-xs text-txt-muted mb-1.5">Zugriffsprofil — genau eine Rolle pro Konto.</div>
                         <div className="flex flex-wrap gap-2">
-                          {ROLE_CATALOG.map((role) => (
+                          {ROLE_CATALOG.filter(role => roles.includes("admin") ? role.id === "admin" : role.id !== "admin").map((role) => (
                             <label
                               key={role.id}
                               title={role.description}
@@ -295,12 +287,14 @@ export const AdminUserManagement: React.FC = () => {
                               }`}
                             >
                               <input
-                                type="checkbox"
-                                className="sr-only"
+                                type="radio"
+                                className="accent-accent"
                                 checked={editForm.roles.includes(role.id)}
-                                onChange={() => setEditForm((f) => ({ ...f, roles: toggle(f.roles, role.id) }))}
+                                name={`role-${uid}`}
+                                disabled={roles.includes("admin")}
+                                onChange={() => setEditForm((f) => ({ ...f, roles: [role.id] }))}
                               />
-                              <span>{role.name}</span>
+                              <span>{role.name}<span className="block text-xs font-normal text-txt-muted">{role.description}</span></span>
                             </label>
                           ))}
                         </div>

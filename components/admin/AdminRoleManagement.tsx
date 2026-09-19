@@ -1,180 +1,36 @@
 import React from "react";
-import { adminListRoles, adminUpdateRole, type AdminRoleRecord } from "../../api/client";
-import { PERMISSION_MODULES, roleDisplayName, isLegacyRole } from "./roleCatalog";
+import { adminListRoles, type AdminRoleRecord } from "../../api/client";
+import { ROLE_CATALOG } from "./roleCatalog";
 
-type PermissionMatrix = Record<string, Record<string, boolean>>;
-
-const getPermission = (matrix: PermissionMatrix | undefined, moduleId: string, action: string) =>
-  Boolean(matrix?.[moduleId]?.[action]);
-
-const setPermission = (matrix: PermissionMatrix, moduleId: string, action: string, allowed: boolean) => {
-  const next: PermissionMatrix = { ...(matrix || {}) };
-  const mod = { ...(next[moduleId] || {}) };
-  mod[action] = allowed;
-  next[moduleId] = mod;
-  return next;
-};
-
-const isFullAccess = (matrix: PermissionMatrix | undefined) => matrix?.["*"]?.["*"] === true;
-
-// Preferred display order: the 7 job roles first, then anything else.
-const ROLE_ORDER = ["betrachter", "lager-versand", "produktpflege", "einkauf-bestand", "buchhaltung", "leitung", "admin"];
-const roleRank = (id: string) => {
-  const i = ROLE_ORDER.indexOf(id);
-  return i === -1 ? ROLE_ORDER.length + 1 : i;
-};
+const capabilities = [
+  ["Produkte, Bestellungen und Lager ansehen", "products", "read"],
+  ["Produkte erfassen und pflegen", "products", "write"],
+  ["Einlagern und Bestand buchen", "warehouse", "write"],
+  ["Kommissionieren", "orders", "pick"],
+  ["Packen und Gewicht erfassen", "orders", "pack"],
+  ["Versenden und Labels drucken", "orders", "ship"],
+  ["Lieferadresse korrigieren", "orders", "edit"],
+  ["Lager und Versand konfigurieren", "warehouse", "configure"],
+  ["Produkte löschen", "products", "delete"],
+  ["Retouren annehmen", "returns", "process"],
+  ["Geld erstatten", "returns", "refund"],
+  ["Finanzberichte und Rechnungen lesen", "admin", "reports.read"],
+  ["Rechnungen und Finanzdaten ändern", "invoices", "write"],
+  ["Technische Diagnose ansehen", "system", "read"],
+  ["Unternehmensdaten und Zugänge verwalten", "settings", "company.write"],
+  ["Konten und Zugriffsprofile verwalten", "admin", "users.write"],
+] as const;
 
 export const AdminRoleManagement: React.FC = () => {
   const [roles, setRoles] = React.useState<AdminRoleRecord[]>([]);
-  const [loading, setLoading] = React.useState(false);
-  const [savingRoleId, setSavingRoleId] = React.useState<string | null>(null);
-  // Rollen mit ungespeicherten Haken. Ohne das ueberschrieb jedes Speichern
-  // (und jedes "Aktualisieren") die offenen Aenderungen ALLER anderen Karten
-  // kommentarlos mit dem Serverstand.
-  const [dirtyRoleIds, setDirtyRoleIds] = React.useState<Set<string>>(new Set());
   const [error, setError] = React.useState<string | null>(null);
-
-  const load = React.useCallback(async () => {
-    setError(null);
-    setLoading(true);
-    try {
-      const list = await adminListRoles();
-      const sorted = [...list].sort((a, b) => roleRank(String(a.id)) - roleRank(String(b.id)));
-      setRoles(sorted);
-    } catch (e: any) {
-      setError(e?.message || "Rollen konnten nicht geladen werden");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  React.useEffect(() => {
-    load();
-  }, [load]);
-
-  const updateLocalPermission = (roleId: string, moduleId: string, action: string, allowed: boolean) => {
-    setRoles((prev) =>
-      prev.map((r) => {
-        if (r.id !== roleId) return r;
-        const current = (r.permissions || {}) as PermissionMatrix;
-        return { ...r, permissions: setPermission(current, moduleId, action, allowed) };
-      })
-    );
-    setDirtyRoleIds((prev) => new Set(prev).add(roleId));
-  };
-
-  const saveRole = async (role: AdminRoleRecord) => {
-    setSavingRoleId(role.id);
-    setError(null);
-    try {
-      await adminUpdateRole(role.id, { permissions: role.permissions || {} });
-      // KEIN load(): das ersetzte das komplette Array durch den Serverstand und
-      // warf damit die offenen Haken aller anderen Rollenkarten weg. Der lokale
-      // Stand IST der gerade gespeicherte.
-      setDirtyRoleIds((prev) => {
-        const next = new Set(prev);
-        next.delete(role.id);
-        return next;
-      });
-    } catch (e: any) {
-      setError(e?.message || "Speichern fehlgeschlagen");
-    } finally {
-      setSavingRoleId(null);
-    }
-  };
-
-  return (
-    <div className="space-y-5">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-bold">Rollen & Rechte</h2>
-          <p className="text-sm text-txt-muted">Was jede Rolle darf. Ein Mitarbeiter kann mehrere Rollen haben — die Rechte addieren sich.</p>
-        </div>
-        <button
-          type="button"
-          onClick={() => {
-            // Nicht kommentarlos ueberschreiben, wenn Haken offen sind.
-            if (dirtyRoleIds.size > 0 && !window.confirm(
-              `${dirtyRoleIds.size} Rolle(n) haben ungespeicherte Änderungen. Neu laden verwirft sie. Fortfahren?`
-            )) return;
-            setDirtyRoleIds(new Set());
-            void load();
-          }}
-          disabled={loading}
-          className="rounded-xl bg-app-elevated border border-white/[0.08] hover:bg-white/10 disabled:opacity-60 px-4 py-2 text-sm font-semibold text-txt-primary"
-        >
-          Aktualisieren
-        </button>
-      </div>
-
-      {error && (
-        <div className="rounded-xl border border-danger/20 bg-danger-dim px-4 py-3 text-sm text-danger">{error}</div>
-      )}
-
-      {loading ? (
-        <div className="text-sm text-txt-muted">Lade…</div>
-      ) : (
-        <div className="space-y-5">
-          {roles.map((role) => {
-            const matrix = (role.permissions || {}) as PermissionMatrix;
-            const fullAccess = isFullAccess(matrix);
-            return (
-              <div key={role.id} className="rounded-2xl border border-app-border bg-app-surface p-5 space-y-4">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <h3 className="font-semibold">
-                      {roleDisplayName(String(role.id))}
-                      {isLegacyRole(String(role.id)) ? (
-                        <span className="ml-2 text-xs text-warning">wird nicht mehr verwendet</span>
-                      ) : null}
-                    </h3>
-                    <p className="text-xs text-txt-muted">Rollen-Kennung: {role.id}</p>
-                  </div>
-                  {!fullAccess && (
-                    <button
-                      type="button"
-                      onClick={() => saveRole(role)}
-                      disabled={savingRoleId === role.id}
-                      className="rounded-xl bg-accent hover:bg-accent/80 disabled:opacity-60 px-4 py-2 text-sm font-semibold text-txt-primary"
-                    >
-                      {savingRoleId === role.id
-                        ? "Speichere…"
-                        : dirtyRoleIds.has(role.id)
-                          ? "Speichern •"
-                          : "Speichern"}
-                    </button>
-                  )}
-                </div>
-
-                {fullAccess ? (
-                  <p className="text-sm text-txt-secondary">Vollzugriff auf alles. Diese Rolle lässt sich nicht einschränken.</p>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
-                    {PERMISSION_MODULES.map((mod) => (
-                      <div key={mod.id} className="border-t border-white/5 pt-2">
-                        <div className="text-sm font-medium text-txt-secondary mb-1.5">{mod.label}</div>
-                        <div className="flex flex-wrap gap-x-4 gap-y-1.5">
-                          {mod.actions.map((a) => (
-                            <label key={a.action} className="flex items-center gap-2 text-sm text-txt-primary cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={getPermission(matrix, mod.id, a.action)}
-                                onChange={(e) => updateLocalPermission(String(role.id), mod.id, a.action, e.target.checked)}
-                              />
-                              <span>{a.label}</span>
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-          {roles.length === 0 && <div className="text-sm text-txt-muted">Keine Rollen gefunden.</div>}
-        </div>
-      )}
-    </div>
-  );
+  React.useEffect(() => { let active = true; adminListRoles().then(r => { if (active) setRoles(r); }).catch(e => { if (active) setError(e.message); }); return () => { active = false; }; }, []);
+  return <div className="space-y-5">
+    <div><h2 className="text-xl font-bold">Zugriffsprofile</h2><p className="mt-1 text-sm text-txt-secondary">Ein Konto, ein Profil. Der Administrator verwaltet die Zuordnung unter „Mitarbeiter“.</p></div>
+    <div className="rounded-xl border border-accent/25 bg-accent-dim p-4 text-sm text-txt-primary">Vollzugriff ist dem Inhaber vorbehalten. Operative Arbeit benötigt kein Administratorprofil. Finanz- und Verwaltungsrechte sind davon getrennt.</div>
+    {error ? <p role="alert" className="text-danger">{error}</p> : roles.length === 0 ? <p className="text-txt-muted">Profile werden geladen …</p> : <>
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{ROLE_CATALOG.map(role => <div key={role.id} className="rounded-xl border border-app-border bg-app-surface p-4"><h3 className="font-semibold">{role.name}</h3><p className="mt-2 text-sm text-txt-secondary">{role.description}</p></div>)}</div>
+      <div className="overflow-x-auto rounded-xl border border-app-border bg-app-surface"><table className="w-full text-sm"><caption className="p-4 text-left font-semibold">Was jedes Profil darf</caption><thead><tr><th scope="col" className="p-3 text-left">Aufgabe</th>{ROLE_CATALOG.map(role => <th key={role.id} scope="col" className="min-w-28 p-3 text-center font-medium">{role.name}</th>)}</tr></thead><tbody>{capabilities.map(([label, mod, action]) => <tr key={label} className="border-t border-app-border"><th scope="row" className="p-3 text-left font-normal">{label}</th>{ROLE_CATALOG.map(role => { const p = roles.find(r => r.id === role.id)?.permissions; const allowed = p?.['*']?.['*'] === true || p?.[mod]?.[action] === true; return <td key={role.id} className={`p-3 text-center ${allowed ? 'text-success' : 'text-txt-muted'}`}><span aria-label={allowed ? 'Erlaubt' : 'Gesperrt'}>{allowed ? '✓' : '—'}</span></td>; })}</tr>)}</tbody></table></div>
+    </>}
+  </div>;
 };

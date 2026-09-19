@@ -13,6 +13,8 @@
 6. Bei Feature-Arbeit: `docs/kb/06-features/<feature>.md` und ggf. `docs/features/<ID>/spec.md`.
 7. **Bei Reliability-/Sync-/Bestand-Arbeit (aktueller Fokus „Track 1"):** [docs/superpowers/avycloud-master-plan.md](docs/superpowers/avycloud-master-plan.md) (Teil K) **und** [docs/superpowers/avycloud-execution-guide.md](docs/superpowers/avycloud-execution-guide.md) — **Pflicht** für Übergabe- und Abnahme-Logik (ein Branch/PR pro Arbeitspaket, Tests zuerst, Commit nur auf OK).
 
+8. **Für Codex:** [CODEX_MEMORY.md](CODEX_MEMORY.md) und den darin verlinkten aktuellen Übergabestand lesen. Datierte Erkenntnisse ersetzen keine Regel aus CLAUDE.md; Produktionszustand vor Eingriffen erneut prüfen.
+
 ## Die 13 Nicht-Verhandelbaren (Kurzform — Volltext in [CLAUDE.md](CLAUDE.md))
 
 1. Keine bestehende Route ändern ohne explizite Anweisung.

@@ -404,3 +404,15 @@ Aus [backend/lib/rbac.js#L20-L75](../../../backend/lib/rbac.js#L20-L75):
 - `catalog` — `dashboard.read, products.read+write+delete, categories.read+write, identify.run, jobs.read, ai.chat+improve`
 
 ⚠️ Admin-Module-Permissions wie `admin.users.read`, `admin.groups.write`, `admin.llm.write` etc. sind in keinem Default-Role — sie sind ausschließlich `admin`-Role (Wildcard) zugänglich. Manueller Override via `setUserOverrides` möglich.
+
+## Zugriffsprofile (Implementierungsstand 19.09.2026)
+
+Rolloutstatus: [Feature-Dokument](../../features/access-profiles/spec.md).
+
+- `GET /api/admin/users`: tenantbezogene Teamliste; `roles` enthält ausschließlich das wirksame Einzelprofil, zusätzlich `accessRole` und `policyVersion`. Keine alten Rollen-/Gruppen-/Override-Details in der Antwort.
+- `PUT /api/admin/users/:uid/roles`: bestehender Request `{ roles: [profileId] }`, genau eine gültige Rolle. Speichert additive Profilfelder mit Audit. Zweiter Admin und Herabstufung des Inhabers verboten.
+- `GET /api/admin/roles`: sechs verbindliche Profile aus der Policy, mit tatsächlichen Permissions und `managed: true`.
+- Gruppenliste ist leer; Gruppen-/Override-/Rollenmatrix-Mutationen antworten 409 mit Hinweis auf Profilzuordnung. Bestehende Pfade bleiben erhalten.
+- Einladung validiert vor Firebase-Erstellung und weist bestehende Konten mit 409 ab. Keine versehentliche Reaktivierung durch erneute Einladung.
+- `GET /api/me/permissions` bleibt außerhalb `/admin`; Berechtigungsfehler liefern 403/503 statt scheinbar erfolgreicher leerer Rechte.
+- Finanzkostenmodell: Lesen berechtigt nicht zum Schreiben; POST benötigt `admin.reports.write`.

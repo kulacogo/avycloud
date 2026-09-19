@@ -1,7 +1,8 @@
+const { validateRoleAssignment, ACCESS_POLICY_VERSION } = require('../lib/access-profiles');
 const { getAdminAuth } = require('../lib/firebaseAdmin');
 const { sendMail } = require('../lib/mailer');
 const { renderEmail } = require('../lib/email-templates');
-const { isAllowedEmail } = require('../lib/auth');
+const { isAllowedEmail, isBootstrapAdmin } = require('../lib/auth');
 const { rewriteActionLinkApiKey } = require('../lib/firebase-web-api-key');
 const {
   listUsers,
@@ -59,6 +60,7 @@ async function inviteUser({ actorUid, email, roles }) {
     throw err;
   }
 
+  const accessRole = validateRoleAssignment(roles, isBootstrapAdmin(normalizedEmail));
   const auth = getAdminAuth();
 
   // Create (or fetch) firebase user
@@ -67,6 +69,11 @@ async function inviteUser({ actorUid, email, roles }) {
     userRecord = await auth.getUserByEmail(normalizedEmail);
   } catch (e) {
     userRecord = null;
+  }
+  if (userRecord) {
+    const error = new Error('Dieses Konto existiert bereits. Bitte die bestehende Zuordnung bearbeiten.');
+    error.statusCode = 409;
+    throw error;
   }
   if (!userRecord) {
     userRecord = await auth.createUser({
@@ -81,7 +88,10 @@ async function inviteUser({ actorUid, email, roles }) {
     uid: userRecord.uid,
     email: normalizedEmail,
     disabled: false,
-    roles: Array.isArray(roles) && roles.length ? roles : [],
+    accessRole,
+    accessPolicyVersion: ACCESS_POLICY_VERSION,
+    tenantId: 'default',
+    roles: [],
     createdAt: FieldValue.serverTimestamp(),
     lastLoginAt: null,
   });
@@ -123,8 +133,7 @@ async function setUserProfile({ actorUid, targetUid, firstName, lastName, userna
  */
 async function deleteUserAccount({ actorUid, targetUid }) {
   const target = await getUserProfile(String(targetUid));
-  const targetIsAdmin = Array.isArray(target?.roles)
-    && target.roles.map((r) => String(r).toLowerCase()).includes('admin');
+  const targetIsAdmin = isBootstrapAdmin(target?.email);
   const adminCount = await countAdmins();
 
   const check = canDeleteUserAccount({ actorUid, targetUid, targetIsAdmin, adminCount });

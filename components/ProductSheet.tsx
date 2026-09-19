@@ -94,7 +94,7 @@ const filterReferenceCandidates = (images: ProductImage[] = []) =>
 
 const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprove, isImproving, onClose, onDirtyChange, isActive = true }) => {
   const { t } = useI18n();
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const editorInitials = useMemo(() => deriveInitials(user?.email || ""), [user?.email]);
   const {
     inventories,
@@ -103,6 +103,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     setActiveInventoryId,
     resolveInventory,
   } = useInventoryContext();
+  const canWriteProduct = hasPermission('products', 'write');
   const [isEditing, setIsEditing] = useState(false);
   const normalizeProduct = useCallback(
     (input: Product): Product => {
@@ -1400,6 +1401,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   // + the editor's initials, persisted immediately (not only on save). A sheet
   // already marked "Bereit" is left untouched (no accidental downgrade).
   const handleToggleEdit = useCallback(async () => {
+    if (!canWriteProduct) return;
     const entering = !isEditing;
     setIsEditing(entering);
     if (!entering) return;
@@ -1816,6 +1818,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
             {/* Readiness status + editor initials */}
             <div className="flex items-center gap-1.5 mr-2">
               <select
+                disabled={!canWriteProduct}
                 value={normalizeReadiness(localProduct.ops?.readiness)}
                 onChange={(e) => handleReadinessChange(e.target.value as Readiness)}
                 className="px-2 py-1.5 text-sm rounded-lg bg-app-elevated text-txt-primary border border-app-border"
@@ -1831,6 +1834,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
               )}
             </div>
             <button
+              disabled={!canWriteProduct}
               id={`btn-edit-${product.id}`}
               onClick={handleToggleEdit}
               aria-pressed={isEditing}
@@ -1842,7 +1846,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
             <button
               id={`btn-save-${product.id}`}
               onClick={handleSave}
-              disabled={isSaving}
+              disabled={!canWriteProduct || isSaving}
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg bg-success/20 text-success hover:bg-success/30 transition-colors disabled:opacity-40"
             >
               <SaveIcon className="w-3.5 h-3.5" />

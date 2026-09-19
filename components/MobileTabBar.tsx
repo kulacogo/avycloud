@@ -1,3 +1,4 @@
+import { canAccessView } from "../utils/viewPermissions";
 import React from 'react';
 import { useI18n } from '../i18n';
 import { useAuth } from '../context/AuthContext';
@@ -57,14 +58,7 @@ const MobileTabBar: React.FC<MobileTabBarProps> = ({ currentView, onNavigate }) 
   const { t } = useI18n();
   const { hasPermission } = useAuth();
   const visibleTabs = React.useMemo(() => {
-    const canOps =
-      hasPermission('warehouse', 'read') ||
-      hasPermission('warehouse', 'write') ||
-      hasPermission('orders', 'read') ||
-      hasPermission('orders', 'pick') ||
-      hasPermission('orders', 'pack') ||
-      hasPermission('identify', 'run');
-    return tabs.filter((tab) => (tab.id === 'operations' ? canOps : true));
+    return tabs.filter((tab) => canAccessView(tab.id, hasPermission));
   }, [hasPermission]);
   return (
     <nav

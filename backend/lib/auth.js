@@ -51,12 +51,23 @@ async function verifyRequestUser(req) {
     throw err;
   }
 
+  // Disabled shared accounts must also be blocked on endpoints that only use
+  // requireAuth (e.g. personal settings/session tracking).
+  const { getUserProfile } = require('./rbac');
+  const accessProfile = await getUserProfile(decoded.uid);
+  if (accessProfile?.disabled) {
+    const err = new Error('Account disabled');
+    err.statusCode = 403;
+    throw err;
+  }
+
   return {
     uid: decoded.uid,
     email,
     isAdmin: admin,
     emailVerified,
     claims: decoded,
+    accessProfile,
   };
 }
 
@@ -87,4 +98,3 @@ module.exports = {
   isAllowedEmail,
   isBootstrapAdmin,
 };
-

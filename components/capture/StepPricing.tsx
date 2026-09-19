@@ -1,3 +1,4 @@
+import { useAuth } from "../../context/AuthContext";
 import React, { useState, useMemo } from "react";
 import { Product } from "../../types";
 import { Card } from "../ui/Card";
@@ -14,6 +15,8 @@ interface StepPricingProps {
 const StepPricing: React.FC<StepPricingProps> = ({ product, onComplete, onBack }) => {
   const pricing = product.details?.pricing;
 
+  const { hasPermission } = useAuth();
+  const canSetCost = hasPermission('admin', 'reports.write');
   const [sellPrice, setSellPrice] = useState<string>(
     pricing?.sellPrice?.toString() || pricing?.suggestedPrice?.toString() || ""
   );
@@ -78,7 +81,7 @@ const StepPricing: React.FC<StepPricingProps> = ({ product, onComplete, onBack }
       <div>
         <h2 className="text-lg font-semibold text-txt-primary">Preis & Lager</h2>
         <p className="text-sm text-txt-muted mt-0.5">
-          Lege Verkaufspreis, Einkaufspreis und Lagerplatz fest.
+          Lege Verkaufspreis und Lagerplatz fest.
         </p>
       </div>
 
@@ -119,17 +122,17 @@ const StepPricing: React.FC<StepPricingProps> = ({ product, onComplete, onBack }
               placeholder="0.00"
               inputSize="lg"
             />
-            <Input
+            {canSetCost && <Input
               label="Einkaufspreis (€)"
               type="number"
               value={buyPrice}
               onChange={(e) => setBuyPrice(e.target.value)}
               placeholder="0.00"
               helpText="Optional — wird für die Margenberechnung verwendet"
-            />
+            />}
 
             {/* Margin display */}
-            {margin && (
+            {canSetCost && margin && (
               <div className={`flex items-center gap-2 px-3 py-2 rounded-lg ${margin.positive ? "bg-success/10" : "bg-danger/10"}`}>
                 <span className={`text-sm font-medium ${margin.positive ? "text-success" : "text-danger"}`}>
                   Marge: {margin.abs} € ({margin.pct}%)
