@@ -27,3 +27,7 @@ Scanner-/Waage-/Druck-Hardware und tatsächlich eingesetzte Druck-/Foto-Agent-Id
 Verifizierter Endstand: 5.213 Backend-Tests (448 Dateien), 461 Frontend-Tests, TypeScript und Build grün. Browserprüfung mit vier lokalen Testprofilen ohne JavaScript-Laufzeitfehler; mobile Packansicht sichtbar. Produktivkonten weiterhin unverändert.
 
 Rollout-Vorprüfung 19.09.2026: origin/main unverändert `4aa3b0ca`; Web `01802-rhb`, Worker `00257-cpb`, jeweils 100 %. Frischer Migrations-Trockenlauf bestätigt dieselben neun Konten. Keine registrierten Druck-/Foto-Agenten für Tenant default und keine entsprechende lokale LaunchAgent-Konfiguration gefunden; reale Büro-Hardware bleibt vor Ort zu prüfen.
+
+**Rollout angehalten vor Produktionsschreibzugriff:** Zusätzliches aktives Konto Mahmoud Ali (heute angelegt, Alt-Adminrollen, kein tenantId). Betreiber nach Zielprofil gefragt; Antwort noch offen. Migration zusätzlich gegen vollständige Firebase-Identitätsliste prüfen. Erster Commit `9690fefd`, PR #9, CI vollständig grün; Migrationshärtung in Arbeit.
+
+Migrationshärtung geprüft: 5.214 Backendtests/448 Dateien grün (Node 20); frischer Produktions-Trockenlauf bricht beim noch nicht zugeordneten Mahmoud-Profil wie vorgesehen vor jedem Schreibzugriff ab.

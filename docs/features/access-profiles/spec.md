@@ -1,6 +1,6 @@
 # Rollen und Rechte — Stand 19.09.2026
 
-Status: implementiert und lokal geprüft auf `codex/roles-permissions-20260919`, Basis `4aa3b0ca` (PR #8). **Commit und kontrollierte Produktivauslieferung durch „ok los“ am 19.09.2026 freigegeben; Rollout läuft.** Die Auth-/RBAC-Änderungen wurden durch die ausdrückliche Nutzeranforderung vom 19.09.2026 autorisiert.
+Status: implementiert und lokal geprüft auf `codex/roles-permissions-20260919`, Basis `4aa3b0ca` (PR #8). **Commit und kontrollierte Produktivauslieferung durch „ok los“ am 19.09.2026 freigegeben; Rollout wartet auf Mahmouds Zielprofil.** Die Auth-/RBAC-Änderungen wurden durch die ausdrückliche Nutzeranforderung vom 19.09.2026 autorisiert.
 
 ## Auftrag und tatsächliche Ursache
 
@@ -39,7 +39,7 @@ Retourenannahme/Notizen bleiben operativ. Die bisherige gemeinsame Funktion „P
 
 ## Prüfungen
 
-- Backend unter Node 20.19.5: **5.213 Tests / 448 Dateien grün**.
+- Backend unter Node 20.19.5: **5.214 Tests / 448 Dateien grün**.
 - Frontend: **461 Tests grün**; `tsc --noEmit` und `npm run build` grün.
 - Neuer HTTP-Integrationstest verwendet echte Express-Routen und die echte RBAC-Auflösung; nur Firebase/Firestore und externe Versanddienste sind Test-Doubles. Mitarbeiter: Packen → Gewicht schreiben → Label → Druckauftrag. Mitarbeiter-ID wird an Pack-/OMS-Übergänge weitergereicht.
 - Gegenprüfungen: eingeschmuggelte Adressänderung, ungültiges Gewicht, fremder Tenant, deaktiviertes Konto, Alt-Adminrolle/Override, Verwaltungs-APIs, Finanz-APIs und Refund-Nebenpfade.
@@ -63,3 +63,7 @@ Rollback: zuerst betroffene Backend- und Hostingrevision nach dem bestehenden Ro
 ## Grenzen
 
 Kein Live-Rollout, keine echte Waage/Scanner-Hardware und kein physischer Druck in dieser Änderung geprüft. Multi-Tenant-Generalüberholung, vollständige Feldklassifikation beliebiger Freitexte und separates Dienstkontenmodell sind keine Bestandteile dieser Änderung. Für den dokumentierten Tenant `default` sind die vorhandenen neun Identitäten geprüft. Neue Mitarbeiter bekommen bei Einladung sofort ein kanonisches Profil.
+
+## Rollout-Fund am 19.09.2026
+
+PR #9 (`9690fefd`) hat Backend, Frontend/TypeScript und KB-Prüfung erfolgreich bestanden. Noch vor jeder Produktionsänderung wurde ein zehntes, heute angelegtes Konto gefunden: Mahmoud Ali. Das bestehende Profil besitzt mehrere Altrollen einschließlich Admin, aber noch keinen tenantId. Seine Zielrolle ist beim Betreiber angefragt. Die Migration prüft deshalb zusätzlich sämtliche Firebase-Anmeldeidentitäten per Dokument-ID und stoppt auch bei unbekannten Alt-Profilen ohne tenantId. Keine Produktivumstellung, bevor alle aktiven Mitarbeiter eindeutig zugeordnet sind.

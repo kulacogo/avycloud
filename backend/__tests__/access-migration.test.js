@@ -43,3 +43,9 @@ it('unbekannte Tenantkonten stoppen die Umstellung vor jeder Transaktion', async
   await expect(migrate({ db, apply: true })).rejects.toThrow('Neues Konto');
   expect(db.runTransaction).not.toHaveBeenCalled();
 });
+it('erkennt auch neue Alt-Profile ohne tenantId über die Anmeldeidentitäten', async () => {
+  const db = { collection: () => ({ doc: id => ({ id }), where: () => ({ get: async () => ({ docs: [] }) }) }),
+    getAll: async () => [{ id: 'new-legacy-user', exists: true, data: () => ({ email: 'new@trendocean.de', roles: ['admin'] }) }], runTransaction: vi.fn() };
+  await expect(migrate({ db, apply: true, identityIds: ['new-legacy-user'] })).rejects.toThrow('Neues Konto ohne Zuordnung');
+  expect(db.runTransaction).not.toHaveBeenCalled();
+});

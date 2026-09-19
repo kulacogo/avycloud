@@ -33,12 +33,21 @@ function buildPlan(profiles) {
   });
 }
 
-async function migrate({ db, apply = false }) {
+async function migrate({ db, apply = false, identityIds = [] }) {
   // Known legacy records are read by verified IDs; no unscoped collection scan.
   const refs = ASSIGNMENTS.map(([id]) => db.collection('users').doc(id));
   const scoped = await db.collection('users').where('tenantId', '==', 'default').get();
   const known = new Set(ASSIGNMENTS.map(([id]) => id));
   if (scoped.docs.some(doc => !known.has(doc.id))) throw new Error('Neues Konto im Tenant: Migrationsplan zuerst ergänzen.');
+  // Old invitations did not write tenantId. Discover those profiles through
+  // Firebase Auth IDs as well, without an unscoped Firestore collection scan.
+  const additionalIds = [...new Set(identityIds)].filter(id => !known.has(id));
+  if (additionalIds.length) {
+    const additional = await db.getAll(...additionalIds.map(id => db.collection('users').doc(id)));
+    if (additional.some(doc => doc.exists && (doc.data().tenantId || 'default') === 'default')) {
+      throw new Error('Neues Konto ohne Zuordnung: Migrationsplan zuerst ergänzen.');
+    }
+  }
   const docs = await db.getAll(...refs);
   const profiles = docs.map(doc => ({ ...doc.data(), id: doc.id }));
   const plan = buildPlan(profiles);
@@ -67,7 +76,18 @@ if (require.main === module) {
     process.exitCode = 1;
   } else {
     const { Firestore } = require('@google-cloud/firestore');
-    migrate({ db: new Firestore({ projectId }), apply }).then(result => console.log(JSON.stringify(result, null, 2))).catch(error => { console.error(error.message); process.exitCode = 1; });
+    const admin = require('firebase-admin');
+    const app = admin.initializeApp({ projectId, credential: admin.credential.applicationDefault() });
+    (async () => {
+      const identityIds = [];
+      let pageToken;
+      do {
+        const page = await admin.auth(app).listUsers(1000, pageToken);
+        identityIds.push(...page.users.map(user => user.uid));
+        pageToken = page.pageToken;
+      } while (pageToken);
+      return migrate({ db: new Firestore({ projectId }), apply, identityIds });
+    })().then(result => console.log(JSON.stringify(result, null, 2))).catch(error => { console.error(error.message); process.exitCode = 1; });
   }
 }
 module.exports = { ASSIGNMENTS, buildPlan, migrate };
