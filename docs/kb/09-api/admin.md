@@ -51,6 +51,19 @@ Tenant-Source: `req.user?.tenantId || 'default'`. Bulk-Jobs erlauben `tenantId` 
 
 ---
 
+## Mitarbeiterleistung
+
+### `GET /api/admin/performance`
+- **Auth:** `requirePermission('admin', 'users.read')`; Tenant ausschließlich aus dem authentifizierten Nutzer.
+- **Request:** `range=today|week|month` (Standard week), optional `from/to=YYYY-MM-DD`, Endtag inklusive; UTC-Grenzen.
+- **Response:** `{ok:true,data:{range,rows,dataQuality}}`. Bestehende fünf Rohzahlen pro Konto unverändert. Additives `rows[].productCareOverlap`: Anzahl gleicher Produkte, die derselbe Nutzer im Zeitraum erfasst UND gepflegt hat; für doppelte Punkte abziehen, nicht von Rohzahlen.
+- **Abdeckung:** `dataQuality={complete:boolean,sources:{audit,orders,warehouse}}`. Quellenstatus `complete`, `limited` (Abfragegrenze erreicht ohne gesicherte Abdeckung bis vor Beginn oder ungültiger Zeitstempel), `unavailable` (Abruffehler). Fehlendes Metadatum älterer Server erlaubt keine Gesamtbewertung im neuen Client.
+- **Bestehende Grenzen:** höchstens 10.000 Audit-/8.000 Order-/8.000 Lagerereignisse, danach Zeitraumfilter; keine zusätzliche Abfrage oder Schreiboperation. Legacy-Ereignisse ohne Tenant gehören nur zu `default`.
+- **Fachlich:** Die Oberfläche gewichtet dokumentierten Arbeitsumfang als offengelegtes Startmodell; keine gemessene Arbeitszeit/Qualität. Die API berechnet keinen verbindlichen Personal-Leistungsgrad.
+- **Source:** [performance-scoreboard](../../../backend/services/performance-scoreboard.js), [Abdeckungstests](../../../backend/__tests__/performance-coverage.test.js).
+
+---
+
 ## Groups & Roles
 
 ### `GET /api/admin/groups`

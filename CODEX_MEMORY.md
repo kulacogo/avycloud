@@ -14,20 +14,18 @@ PR [#9](https://github.com/kulacogo/avycloud/pull/9), Main `1fe401cd3339d045c40c
 - Migration `default_access_profiles_v1` am 20.09.2026 00:56:41 MESZ atomar für zehn Profile plus Backup angewandt. **Nicht erneut migrieren.**
 - Vorbestehender Druckagent-Ausfall ist separate Hardware-/Diensteinrichtung, nicht durch Rollen/UI zu lösen. Keine physische Hardwareprüfung behaupten.
 
-## Aktueller Nachtrag: interaktive Teamoberfläche
+## Teamoberfläche: produktiv abgeschlossen
 
-Auftrag: Mitarbeiter, Leistung, Rollen & Rechte wirken zu statisch; Ansicht und Bedienung verbessern. Isolierter Worktree `/Users/oguz/Dev/avycloud-team-ui`, Branch `codex/team-workspace-20260920`, Basis `1fe401cd`. Keine fremden Änderungen aus dem Hauptcheckout oder Foto-Branches übernehmen.
+PR [#10](https://github.com/kulacogo/avycloud/pull/10), Main `eb4b850cca484557b8f35fd0ea1a59f884ede65c`. Web `01804-xjr`, Worker `00259-xx7`, Hosting `e5accd956232d706` nach Abschluss ready/100 %. Benutzer hat zusätzlich „los rüber auf prod wenns fertig ist“ angewiesen. Nachweis im Hauptcheckout `CODEX_RELEASE_TEAM_UI_20260920.md`. Rollen, Mitarbeiterkarten und Profilvergleich bleiben maßgeblich; die damalige Ansicht einzelner Leistungskennzahlen wird vom folgenden Auftrag ersetzt.
 
-Mitarbeiterkarten mit Suche/Filtern und Dialogen; Leistungskennzahlen mit Balken, sortierbarer Tabelle und Kontodetails; Rollenvergleich mit Differenzen-/Aufgabensuche und verknüpften Konten. Filter bleiben beim Registerwechsel erhalten. Bestehende APIs und serverseitige Policy unverändert. Keine neuen Dependencies, Migrationen oder produktiven Kontozuordnungen. Der bestehende Rollen-Rollout ist freigegeben; dieser UI-Nachtrag wird im gleichen autorisierten Bereich kontrolliert ausgeliefert.
+## Aktueller Auftrag: Gesamtbeitrag statt Packzahlen
 
-Details/Abnahme: [Teamoberfläche](docs/features/team-workspace/spec.md). UI-Regeln: [Admin-KB](docs/kb/05-pages/admin.md).
+20.09.2026: Der Betreiber fordert eine plausible Bewertung neben Namen; einzelne Vorgangszahlen erst nach Auswahl. Isolierter Worktree `/Users/oguz/Dev/avycloud-team-performance`, Branch `codex/team-performance-assessment-20260920`, Basis `eb4b850c`. Fremde Änderungen im Hauptcheckout nicht übernehmen.
 
-Leistungs-API liefert Zeitraum-Summen, keine Tagesreihe/Arbeitszeit/Qualität. Produkte, Buchungen und Vorgänge nicht zu einem Produktivitätswert addieren. Historische gemeinsame Konten bleiben bei ihren Ereignissen. Quellenabruf begrenzt und teilweise fail-open im bestehenden Backend; 0 ist kein Nachweis für Untätigkeit. Kennzahlen erklären diese Grenze.
+Umgesetzt: Beitragspunkte aus allen fünf Tätigkeiten, Teamanteil, nachvollziehbare Detailrechnung; Team-KPI sind keine Filter mehr. Startmodell Erfassen5/Pflege2/Einlagern2/Pick1/Pack3. Gewichtung ist offengelegte, bisher nicht vom Betreiber bestätigte Startannahme; keine gemessene Zeit, Qualität, Anwesenheit oder Zielerfüllung. Persönliche Punkte sind keine objektive Personal-Leistungsnote. Browser-Sitzungszeiten sind keine Arbeitszeiten und werden nicht dafür benutzt.
 
-Prüfungen laufen abschließend. Lokale Vorschau `http://127.0.0.1:3002/.local-preview/index.html` mit Testadaptern, ohne Produktionszugriffe; `.local-preview/` und Node-Module-Symlinks niemals committen. Alle eigentlichen Komponenten liegen im normalen Produktionspfad.
+Gleicher Nutzer/gleiches Produkt/Zeitraum: Erfassung und Pflege erhalten nur Erfassungspunkte; Rohzahlen bleiben erhalten. Spätere echte Pflege desselben Produkts kann dadurch ebenfalls ohne zusätzliche Punkte bleiben. Historische/deaktivierte Konten ohne persönliche Bewertung; keine rückwirkende Umdeutung gemeinsamer Scanneraktionen. Kein Ereignis bedeutet keine negative Leistungsnote. Kontozuordnungen stellt weiterhin der Inhaber selbst ein.
 
-## Abschlussprüfung vor PR
+Backend ergänzt ausschließlich lesende Abdeckungsmetadaten und Überschneidungszahlen auf bestehender Route. Querygrenzen unverändert. Bei Abruffehler, ungesicherter Abdeckung, altem Server oder fehlendem Kontoverzeichnis keine Gesamtpunkte/Rangfolge. Untagged Legacy-Events nur Tenant default. Keine Auth-, Stock-, OMS-, Infrastruktur- oder Kontomutation.
 
-467 Frontendtests, TypeScript und Produktions-Build grün. 5.214 Backendtests / 448 Dateien unter Node 20.19.5 im vollständigen Wiederholungslauf grün. Im ersten Gesamtlauf brach ausschließlich ein unveränderter lokaler `/health`-Supertest mit `socket hang up` ab; ohne Codeänderung im vollständigen zweiten Lauf bestanden. Kein Produktiv-Health-Fehler.
-
-Vor Auslieferung frisch bestätigt: Main unverändert `1fe401cd`; Web `01803-9k2`, Worker `00258-zps`, jeweils ready/100 %; Hosting `sites/avycloud/versions/b015fc975fab2d48`, Release `1789858770424000`. Rückweg dieses Nachtrags ist ausschließlich UI-Revert/Hosting-Rollback, keine Profil-Rückmigration.
+Lokal: 474 Frontendtests, 5.223 Backendtests/449 Dateien unter Node20, TypeScript, Build grün. Browser mit lokalen Beispieldaten, Responsive/Hell/Dunkel und Fehlerzustand geprüft. `.local-preview/` und Node-Symlinks nicht committen. Doku/Abnahme: [Teamoberfläche](docs/features/team-workspace/spec.md), [Admin](docs/kb/05-pages/admin.md), [API](docs/kb/09-api/admin.md). Produktion vor Auslieferung erneut prüfen und Abschluss nachtragen.

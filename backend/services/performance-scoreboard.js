@@ -72,6 +72,22 @@ function aggregatePerformance({ auditLogs = [], orderEvents = [], warehouseEvent
   return counts;
 }
 
+/** Products already credited as captured are not credited a second time as care
+ * in the same window for the same person. Raw activity counts remain unchanged. */
+function productCareOverlaps(auditLogs = []) {
+  const byUser = new Map();
+  for (const event of auditLogs) {
+    const uid = event?.userId;
+    const id = event?.resourceId || event?.details?.productId;
+    if (!uid || uid === SYSTEM_UID || !id) continue;
+    if (!byUser.has(uid)) byUser.set(uid, { captured: new Set(), cared: new Set() });
+    const entry = byUser.get(uid);
+    if (event.action === 'product.identified') entry.captured.add(String(id));
+    else if (event.action === 'product.created' || event.action === 'product.updated') entry.cared.add(String(id));
+  }
+  return Object.fromEntries([...byUser].map(([uid, entry]) => [uid, [...entry.cared].filter((id) => entry.captured.has(id)).length]));
+}
+
 /** Start of the requested window. */
 function computeCutoff(range, now = new Date()) {
   if (range === 'today') {
@@ -106,8 +122,22 @@ function toMillis(v) {
   if (typeof v === 'string') return Date.parse(v) || 0;
   if (typeof v.toMillis === 'function') return v.toMillis();
   if (typeof v._seconds === 'number') return v._seconds * 1000;
+  if (typeof v.seconds === 'number') return v.seconds * 1000;
   if (v instanceof Date) return v.getTime();
   return 0;
+}
+
+/** Coverage is independent of the selected user; missing data must not become a low score. */
+function sourceCoverage(rows, limit, timeField, fromMs) {
+  const times = rows.map((row) => toMillis(row?.[timeField]));
+  if (times.some((time) => !Number.isFinite(time) || time <= 0)) return 'limited';
+  if (rows.length >= limit && Math.min(...times) >= fromMs) return 'limited';
+  return 'complete';
+}
+
+// Legacy untagged events belong only to the original tenant, never every tenant.
+function belongsToTenant(event, tenantId) {
+  return (event?.tenantId || event?.meta?.tenantId || 'default') === tenantId;
 }
 
 /**
@@ -117,8 +147,8 @@ function toMillis(v) {
  * have single-field index exemptions on their time fields, so a `where(time>=x)`
  * range query fails. We therefore mirror the known-working pattern: fetch recent
  * docs via the indexed path (queryAuditLog for audit; orderBy(time desc) for the
- * others) and filter the window in-memory. Each source is defensive — a failure
- * degrades that one metric to 0 rather than breaking the scoreboard.
+ * others) and filter the window in-memory. Available detail counts remain visible if one source fails, but dataQuality
+ * then explicitly prevents any combined assessment from incomplete counts.
  */
 async function getPerformance({ tenantId = 'default', range = 'week', from, to } = {}) {
   const { firestore } = require('../lib/firestore');
@@ -126,10 +156,14 @@ async function getPerformance({ tenantId = 'default', range = 'week', from, to }
   const { fromMs, toMs, label } = computeWindow({ range, from, to });
   const inWindow = (t) => t >= fromMs && t < toMs;
 
-  const safe = async (fn) => {
+  const sources = {};
+  const safe = async (name, limit, timeField, fn) => {
     try {
-      return await fn();
+      const rows = await fn();
+      if (name) sources[name] = sourceCoverage(rows, limit, timeField, fromMs);
+      return rows;
     } catch (e) {
+      if (name) sources[name] = 'unavailable';
       console.warn(`[performance] source fetch failed: ${e.message}`);
       return [];
     }
@@ -138,7 +172,7 @@ async function getPerformance({ tenantId = 'default', range = 'week', from, to }
   // Audit sources (erfasst + angereichert) — direkte Query (tenant-Equality +
   // orderBy timestamp, gleicher Index-Pfad wie queryAuditLog, aber OHNE dessen
   // 500er-Kappung: die reichte für eine Monats-Sicht nicht → Untererfassung).
-  const auditLogs = (await safe(async () => {
+  const auditLogs = (await safe('audit', 10000, 'timestamp', async () => {
     const snap = await firestore.collection('audit_log')
       .where('tenantId', '==', tenantId)
       .orderBy('timestamp', 'desc')
@@ -148,22 +182,22 @@ async function getPerformance({ tenantId = 'default', range = 'week', from, to }
   })).filter((a) => inWindow(toMillis(a.timestamp)));
 
   // Order events (kommissioniert/verpackt) — single-field orderBy, window in-memory.
-  const orderEvents = (await safe(async () => {
+  const orderEvents = (await safe('orders', 8000, 'timestamp', async () => {
     const snap = await firestore.collection('order_events').orderBy('timestamp', 'desc').limit(8000).get();
     return snap.docs.map((d) => d.data());
-  })).filter((e) => (!e.tenantId || e.tenantId === tenantId) && inWindow(toMillis(e.timestamp)));
+  })).filter((e) => belongsToTenant(e, tenantId) && inWindow(toMillis(e.timestamp)));
 
   // Warehouse events (eingelagert) — single-field orderBy, window in-memory.
-  const warehouseEvents = (await safe(async () => {
+  const warehouseEvents = (await safe('warehouse', 8000, 'createdAt', async () => {
     const snap = await firestore.collection('warehouseEvents').orderBy('createdAt', 'desc').limit(8000).get();
     return snap.docs.map((d) => d.data());
-  })).filter((w) => inWindow(toMillis(w.createdAt)));
+  })).filter((w) => belongsToTenant(w, tenantId) && inWindow(toMillis(w.createdAt)));
 
   const counts = aggregatePerformance({ auditLogs, orderEvents, warehouseEvents });
   console.log(`[performance] window=${label} audit=${auditLogs.length} orders=${orderEvents.length} warehouse=${warehouseEvents.length} people=${Object.keys(counts).length}`);
 
   // Join names from the user list (uid → Vorname Nachname / E-Mail).
-  const users = await safe(() => listUsers({ limit: 1000 }));
+  const users = await safe(null, 1000, null, () => listUsers({ limit: 1000 }));
   const nameByUid = new Map(
     users.map((u) => {
       const uid = u.uid || u.id;
@@ -172,15 +206,17 @@ async function getPerformance({ tenantId = 'default', range = 'week', from, to }
     })
   );
 
+  const careOverlaps = productCareOverlaps(auditLogs);
   const rows = Object.entries(counts).map(([uid, c]) => ({
     uid,
     name: nameByUid.get(uid)?.name || uid,
     email: nameByUid.get(uid)?.email || null,
     ...c,
+    productCareOverlap: careOverlaps[uid] || 0,
   }));
   rows.sort((a, b) => String(a.name).localeCompare(String(b.name)));
 
-  return { range: label, rows };
+  return { range: label, rows, dataQuality: { complete: Object.values(sources).every((status) => status === 'complete'), sources } };
 }
 
-module.exports = { aggregatePerformance, computeCutoff, computeWindow, getPerformance };
+module.exports = { aggregatePerformance, computeCutoff, computeWindow, getPerformance, sourceCoverage, belongsToTenant, productCareOverlaps };

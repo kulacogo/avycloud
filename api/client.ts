@@ -2254,15 +2254,22 @@ export type PerformanceRow = {
   email?: string | null;
   erfasst: number;
   angereichert: number;
+  productCareOverlap?: number;
   eingelagert: number;
   kommissioniert: number;
   verpackt: number;
 };
 
+export type PerformanceDataQuality = {
+  complete: boolean;
+  sources: Record<"audit" | "orders" | "warehouse", "complete" | "limited" | "unavailable">;
+};
+export type PerformanceResult = { range: string; rows: PerformanceRow[]; dataQuality?: PerformanceDataQuality };
+
 export const adminGetPerformance = async (
   range: "today" | "week" | "month" = "week",
   custom?: { from: string; to: string }
-): Promise<{ range: string; rows: PerformanceRow[] }> => {
+): Promise<PerformanceResult> => {
   const params = new URLSearchParams({ range });
   if (custom?.from && custom?.to) {
     params.set("from", custom.from);
@@ -2273,7 +2280,7 @@ export const adminGetPerformance = async (
   if (!res.ok || result?.ok === false) {
     throw new Error(result?.error?.message || "Leistung konnte nicht geladen werden");
   }
-  return (result?.data as { range: string; rows: PerformanceRow[] }) || { range, rows: [] };
+  return (result?.data as PerformanceResult) || { range, rows: [] };
 };
 
 // ── Interne Produkt-Notizen (Mitarbeiter-Kommentare, nie in Marktplatz-Angeboten) ──
