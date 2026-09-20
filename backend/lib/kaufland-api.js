@@ -232,12 +232,13 @@ async function getConfig() {
   };
 }
 
-async function kauflandRequest(method, requestPath, { query = null, body = null, timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
+async function kauflandRequest(method, requestPath, { query = null, body = null, timeoutMs = DEFAULT_TIMEOUT_MS, maxRetries = MAX_RETRIES } = {}) {
   const cfg = await getConfig();
   const absoluteUrl = buildAbsoluteUrl(cfg.baseUrl, requestPath, query);
   const rawBody = body == null ? '' : JSON.stringify(body);
 
-  for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
+  const retryLimit = Number.isInteger(maxRetries) ? Math.max(0, Math.min(MAX_RETRIES, maxRetries)) : MAX_RETRIES;
+  for (let attempt = 0; attempt <= retryLimit; attempt += 1) {
     const timestamp = Math.floor(Date.now() / 1000);
     const signature = signRequest({
       method,
@@ -277,7 +278,7 @@ async function kauflandRequest(method, requestPath, { query = null, body = null,
         }
       })() : null;
 
-      if ((response.status === 429 || response.status >= 500) && attempt < MAX_RETRIES) {
+      if ((response.status === 429 || response.status >= 500) && attempt < retryLimit) {
         await sleep(backoffDelay(attempt));
         continue;
       }
@@ -297,7 +298,7 @@ async function kauflandRequest(method, requestPath, { query = null, body = null,
       return { status: response.status, data: json, headers: response.headers };
     } catch (error) {
       clearTimeout(timeout);
-      if (attempt < MAX_RETRIES && (error?.name === 'AbortError' || String(error?.code || '').includes('ECONN'))) {
+      if (attempt < retryLimit && (error?.name === 'AbortError' || String(error?.code || '').includes('ECONN'))) {
         await sleep(backoffDelay(attempt));
         continue;
       }

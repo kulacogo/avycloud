@@ -287,11 +287,15 @@ function normalizeMarketplaceEan(value) {
 
 router.get('/ebay/oauth/start', requirePermission('integrations', 'write'), async (req, res) => {
   try {
-    const { createOAuthState, buildConsentUrl } = require('../lib/ebay-oauth');
+    const { createOAuthState, buildConsentUrl, getEbayConsentScopes } = require('../lib/ebay-oauth');
     const locale = typeof req.query?.locale === 'string' ? req.query.locale : 'de-DE';
     const prompt = req.query?.prompt === 'login' ? 'login' : null;
-    const state = await createOAuthState({ provider: 'ebay', actor: req.user || null });
-    const url = await buildConsentUrl({ state, locale, prompt });
+    const includeMessages = req.query?.messages === '1';
+    const tenantId = req.accessSnapshot?.tenantId || req.user?.tenantId || 'default';
+    if (includeMessages && tenantId !== 'default') return res.status(400).json({ ok: false, error: { message: 'Nachrichtenverbindung für diesen Mandanten noch nicht eingerichtet.' } });
+    const scopes = await getEbayConsentScopes({ includeMessages });
+    const state = await createOAuthState({ provider: 'ebay', actor: req.user || null, scopes, tenantId });
+    const url = await buildConsentUrl({ state, locale, prompt, scopes });
     return res.status(200).json({ ok: true, data: { url } });
   } catch (error) {
     console.error('Failed to start eBay OAuth:', error);
@@ -322,7 +326,8 @@ router.get('/ebay/oauth/callback', async (req, res) => {
     }
 
     const tokenSet = await exchangeAuthorizationCodeForToken({ code });
-    await upsertEbayTokenSet(tokenSet, { actor: consumed?.actor || null });
+    await upsertEbayTokenSet(tokenSet, { actor: consumed?.actor || null, scopes: consumed?.scopes || null });
+    require('../services/support-performance').invalidateSupportCache();
 
     const html = `<!doctype html>
 <html>

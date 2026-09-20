@@ -563,10 +563,11 @@ export type EbayTradingStatus = {
   tokenConfigured?: boolean;
 };
 
-export async function startEbayOAuth(opts?: { locale?: string; promptLogin?: boolean }): Promise<string> {
+export async function startEbayOAuth(opts?: { locale?: string; promptLogin?: boolean; includeMessages?: boolean }): Promise<string> {
   const url = new URL(`${BACKEND_URL}/api/ebay/oauth/start`);
   url.searchParams.set('locale', opts?.locale || 'de-DE');
   if (opts?.promptLogin) url.searchParams.set('prompt', 'login');
+  if (opts?.includeMessages) url.searchParams.set('messages', '1');
   const res = await fetchApi(url.toString(), { method: 'GET' });
   const data = await parseResponse(res);
   if (!res.ok || data?.ok === false) {
@@ -2249,6 +2250,8 @@ export const adminDeleteUser = async (uid: string) => {
 };
 
 export type PerformanceRow = {
+  supportCases?: number;
+  supportPartial?: boolean;
   uid: string;
   name: string;
   email?: string | null;
@@ -2267,6 +2270,28 @@ export type PerformanceDataQuality = {
   sources: Record<"audit" | "orders" | "warehouse", "complete" | "limited" | "unavailable">;
 };
 export type PerformanceResult = { range: string; rows: PerformanceRow[]; dataQuality?: PerformanceDataQuality; contributionDataVersion?: number };
+
+export type SupportSource = {
+  status: "complete" | "limited" | "unavailable" | "connection_required";
+  cases: number | null;
+  replies: number | null;
+};
+export type SupportPerformance = {
+  range: string;
+  ownerUid: string | null;
+  attribution: "exclusive_responsibility";
+  complete: boolean;
+  channels: { kaufland: SupportSource; ebay: SupportSource };
+  updatedAt: string;
+};
+export async function adminGetSupportPerformance(range = "week", dates?: { from: string; to: string }): Promise<SupportPerformance> {
+  const params = new URLSearchParams({ range });
+  if (dates) { params.set("from", dates.from); params.set("to", dates.to); }
+  const res = await fetchApi(`${BACKEND_URL}/api/admin/support-performance?${params}`, { method: "GET" });
+  const result = await parseResponse(res);
+  if (!res.ok || !result?.ok || !result.data) throw new Error(result?.error?.message || "Supportdaten konnten nicht geladen werden.");
+  return result.data;
+}
 
 export const adminGetPerformance = async (
   range: "today" | "week" | "month" = "week",

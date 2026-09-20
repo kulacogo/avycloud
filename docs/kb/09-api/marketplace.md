@@ -473,3 +473,7 @@ Setzt Unit-Status auf `AVAILABLE` oder `ONHOLD`.
 - **Response**: `{ "ok": true, "report": { "dryRun": <bool>, "parsed": {...}, "processed": <int>, "updated": <int>, "unchanged": <int>, "notFound": [...], "errors": [...], "samples": { "updated": [...], "notFound": [...] } } }`
 - **Side-Effects**: pro CSV-Zeile `SKU → KTyp` lookup + Update auf `products` (legacy collection!) `details.attributes["K-Typ"]` + `ops.revision++`, `ops.last_saved_source: 'ktype-upload'`. Concurrency 10.
 - **Source**: [backend/routes/marketplace.js#L2085-L2221](../../../backend/routes/marketplace.js#L2085-L2221)
+
+## eBay-Nachrichtenfreigabe (20.09.2026)
+
+Bestehendes `GET /api/ebay/oauth/start?messages=1` verlangt weiterhin integrations.write und ergänzt commerce.message nur auf diese ausdrückliche Option. Für Nachrichten aktuell nur Tenant default. Consent enthält die Vereinigung vorhandener und konfigurierter Scopes, additive Snapshot-/tenantId-Felder im OAuth-State. Callback speichert bestätigte Scopes; fehlt ein angeforderter Grant in einer expliziten Tokenantwort, bleibt die bisherige Verbindung unangetastet. Tokenrefresh weiterhin mit gespeicherten Grants. Ein erfolgreicher Callback leert den Supportcache. Keine Nachrichten werden versandt.

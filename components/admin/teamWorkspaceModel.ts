@@ -106,7 +106,7 @@ export type MetricKey = (typeof METRICS)[number]["key"];
 export const metricValue = (row: PerformanceRow, key: MetricKey) =>
   Number.isFinite(Number(row[key])) ? Math.max(0, Number(row[key])) : 0;
 export const hasActivity = (row: PerformanceRow) =>
-  METRICS.some((m) => metricValue(row, m.key) > 0);
+  METRICS.some((m) => metricValue(row, m.key) > 0) || (Number.isFinite(row.supportCases) && row.supportCases! > 0);
 export function performanceRows(
   rows: PerformanceRow[],
   users: AdminUserRecord[],

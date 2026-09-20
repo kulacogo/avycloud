@@ -155,3 +155,7 @@ Es existieren **keine** Referenzen mehr auf:
 ---
 
 **Vollstaendigkeits-Hinweis.** Diese Liste basiert auf einer Grep-Inventur (Stand 2026-05-18). Wenn ein Caller eine Collection via Variable adressiert (z. B. `firestore.collection(varName)`), kann sie hier fehlen. Bei Unsicherheit: in `backend/` mit `rg "\.collection\(['\\\"]<name>['\\\"]\)"` verifizieren.
+
+## `support_assignments/{tenantId}`
+
+Neue additive Konfiguration der vom Inhaber bestätigten Alleinzuständigkeit für Kundensupport. Pflichtfelder: tenantId, responsibleUid, exclusive=true, channels=[kaufland,ebay], confirmation=explicit_owner_instruction, confirmedAt (ISO). Verantwortliche UID muss einem aktiven Benutzer desselben Tenants gehören. Nur Backend-Dokumentabruf, keine Client-Schreibroute, kein neuer Index. Einrichtung durch `backend/scripts/configure-support-assignment.js`, trocken ohne --apply, bestehende abweichende Zuordnung wird nie überschrieben. Kein Ersatz für Rollen/Rechte und keine Nachrichtenspeicherung. Bei künftiger Aufgabenteilung muss die Zuordnungsregel vor weiterer persönlicher Bewertung angepasst werden.

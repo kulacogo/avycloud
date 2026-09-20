@@ -4,6 +4,8 @@ import {
   contributionPoints,
   buildContributions,
   CONTRIBUTION_WEIGHTS,
+  SUPPORT_WEIGHT,
+  attachSupport,
 } from "./workContribution.ts";
 import type { PerformanceRow, AdminUserRecord } from "../../api/client";
 const row = (
@@ -19,6 +21,30 @@ const row = (
   angereichert: 0,
   productCareEdited: 0,
   ...changes,
+});
+
+test("Supportfälle zählen zusätzlich bei der bestätigten Alleinzuständigen", () => {
+  const raw = [row("u1"), row("u2", { erfasst: 1 })];
+  const support = { ownerUid: "u2", attribution: "exclusive_responsibility" as const, complete: true, range: "week", updatedAt: "now", channels: { kaufland: { status: "complete" as const, cases: 2, replies: 10 }, ebay: { status: "complete" as const, cases: 3, replies: 15 } } };
+  const result = attachSupport(raw, support);
+  assert.equal(contributionPoints(result[1]), CONTRIBUTION_WEIGHTS.erfasst + 5 * SUPPORT_WEIGHT);
+  assert.equal(result[0].supportCases, 0);
+  assert.equal(raw[1].supportCases, undefined);
+});
+test("fehlende Supportquelle erzeugt eine belegte Teilmenge, keinen scheinbar vollständigen Teamvergleich", () => {
+  const result = attachSupport([row("u1", { verpackt: 3 }), row("u2")], { ownerUid: "u2", attribution: "exclusive_responsibility", complete: false, range: "week", updatedAt: "now", channels: { kaufland: { status: "complete", cases: 2, replies: 10 }, ebay: { status: "connection_required", cases: null, replies: null } } });
+  const scores = buildContributions(result, users, true, false);
+  assert.equal(scores.find(x => x.uid === "u2")?.supportPartial, true);
+  assert.equal(scores.find(x => x.uid === "u2")?.points, 2 * SUPPORT_WEIGHT);
+  assert.equal(scores.find(x => x.uid === "u1")?.supportPartial, false);
+  assert.ok(scores.every(x => x.share === null));
+  assert.deepEqual(scores.map(x => x.uid), ["u1", "u2"]);
+});
+test("noch nicht geladener Support wird nicht als keine Tätigkeit bezeichnet", () => {
+  const [score] = buildContributions(attachSupport([row("u1")]), users, true, false);
+  assert.equal(score.status, "rated");
+  assert.equal(score.supportPartial, true);
+  assert.equal(score.share, null);
 });
 const users: AdminUserRecord[] = [
   { id: "u1", roles: ["employee"] },

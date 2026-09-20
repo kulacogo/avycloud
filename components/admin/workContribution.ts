@@ -1,4 +1,4 @@
-import type { AdminUserRecord, PerformanceRow } from "../../api/client";
+import type { AdminUserRecord, PerformanceRow, SupportPerformance } from "../../api/client";
 import {
   METRICS,
   metricValue,
@@ -9,6 +9,21 @@ import {
 // Owner's effort order: enrichment/readiness > photos/capture > packing > pick.
 // These are effort tiers, not measured time ratios or quality/attendance grades.
 export const CONTRIBUTION_MODEL_VERSION = "Aufwandsstufen";
+// Provisional tier: read the case, check the context, formulate an answer.
+// Count each handled case once per window, never multiply points by replies.
+export const SUPPORT_WEIGHT = 3;
+export function attachSupport(rows: PerformanceRow[], support?: SupportPerformance): PerformanceRow[] {
+  const channels = support ? Object.values(support.channels) : [];
+  const count = channels.reduce((total, source) => total + (
+    ["complete", "limited"].includes(source.status) && Number.isFinite(source.cases)
+      ? Math.max(0, Math.floor(source.cases!)) : 0
+  ), 0);
+  return rows.map((row) => ({
+    ...row,
+    supportCases: row.uid === support?.ownerUid ? count : 0,
+    supportPartial: !support?.ownerUid || (row.uid === support.ownerUid && !support.complete),
+  }));
+}
 export const CONTRIBUTION_WEIGHTS = {
   erfasst: 3,
   eingelagert: 1,
@@ -30,7 +45,7 @@ export function contributionPoints(row: PerformanceRow) {
   return METRICS.reduce(
     (total, metric) =>
       total + creditedCount(row, metric.key) * CONTRIBUTION_WEIGHTS[metric.key],
-    0,
+    Number.isFinite(row.supportCases) ? Math.max(0, row.supportCases!) * SUPPORT_WEIGHT : 0,
   );
 }
 export type ContributionRow = PerformanceRow & {
@@ -43,6 +58,7 @@ export function buildContributions(
   rows: PerformanceRow[],
   users: AdminUserRecord[],
   complete?: boolean,
+  supportComplete = true,
 ): ContributionRow[] {
   const directory = new Map(users.map((user) => [userId(user), user]));
   const scores: ContributionRow[] = rows.map((row) => {
@@ -53,7 +69,7 @@ export function buildContributions(
         ? "incomplete"
         : !account || account.disabled
           ? "historical"
-          : points > 0
+          : points > 0 || row.supportPartial
             ? "rated"
             : hasActivity(row)
               ? "unverified"
@@ -71,13 +87,13 @@ export function buildContributions(
     .map((row) => ({
       ...row,
       share:
-        row.status === "rated" && total > 0
+        supportComplete && row.status === "rated" && total > 0
           ? (row.points! / total) * 100
           : null,
     }))
     .sort(
       (a, b) =>
-        (b.points ?? -1) - (a.points ?? -1) ||
+        (supportComplete ? (b.points ?? -1) - (a.points ?? -1) : 0) ||
         a.name.localeCompare(b.name, "de"),
     );
 }

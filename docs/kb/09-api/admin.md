@@ -429,3 +429,7 @@ Rolloutstatus: [Feature-Dokument](../../features/access-profiles/spec.md).
 - Einladung validiert vor Firebase-Erstellung und weist bestehende Konten mit 409 ab. Keine versehentliche Reaktivierung durch erneute Einladung.
 - `GET /api/me/permissions` bleibt außerhalb `/admin`; Berechtigungsfehler liefern 403/503 statt scheinbar erfolgreicher leerer Rechte.
 - Finanzkostenmodell: Lesen berechtigt nicht zum Schreiben; POST benötigt `admin.reports.write`.
+
+## `GET /api/admin/support-performance`
+
+Auth: `admin.users.read`. Tenant aus accessSnapshot, kein Query-Override. Query `range=today|week|month`, alternativ `from`/`to` wie bestehende Performance-API (UTC). Antwort `{ok:true,data:{ownerUid,attribution:"exclusive_responsibility",complete,channels:{kaufland,ebay},range,updatedAt}}`. Kanalwerte `{status,cases,replies}`; Status complete/limited/unavailable/connection_required. Nicht verfügbare Zahlen null, nie0. Unerwartete Fehler503 mit allgemeinem Hinweis. Nur Tenant default nutzt vorhandene Shopzugänge; andere Tenants oder fehlende Zuordnung erhalten unavailable ohne Marktplatzabruf. Kein Nachrichtentext/keine Kundenkennungen. Einminütiger Prozesscache, lesender begrenzter Abruf. Bestehendes `/performance` bleibt separat. Quelle: `backend/services/support-performance.js`.

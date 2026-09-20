@@ -147,6 +147,23 @@ router.delete('/users/:uid', requirePermission('admin', 'users.write'), async (r
   }
 });
 
+// Independent read-only source; slow marketplaces never hold up product/warehouse counts.
+router.get('/support-performance', requirePermission('admin', 'users.read'), async (req, res) => {
+  try {
+    const { getSupportPerformance } = require('../services/support-performance');
+    const data = await getSupportPerformance({
+      tenantId: req.accessSnapshot?.tenantId || req.user?.tenantId || 'default',
+      range: ['today', 'week', 'month'].includes(req.query?.range) ? req.query.range : 'week',
+      from: typeof req.query?.from === 'string' ? req.query.from : undefined,
+      to: typeof req.query?.to === 'string' ? req.query.to : undefined,
+    });
+    res.json({ ok: true, data });
+  } catch (error) {
+    console.warn('Support performance unavailable:', error.code || 'SOURCE_ERROR');
+    res.status(503).json({ ok: false, error: { message: 'Supportdaten konnten nicht geladen werden.' } });
+  }
+});
+
 // Per-employee performance scoreboard (erfasst/angereichert/eingelagert/kommissioniert/verpackt).
 router.get('/performance', requirePermission('admin', 'users.read'), async (req, res) => {
   try {
