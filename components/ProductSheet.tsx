@@ -44,6 +44,7 @@ import {
 import { useInventoryContext } from '../context/InventoryContext';
 import { useAuth } from '../context/AuthContext';
 import { rejectedConditionNotice, catalogAgeNotice } from "../utils/conditionNotice";
+import { describeImageReferenceIssue, imageReferenceNextStep } from "../utils/imageReferenceNotice";
 
 interface ProductSheetProps {
   product: Product;
@@ -695,6 +696,8 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   /** Grund-Codes des Backends in einen Satz uebersetzen, den ein Mensch versteht. */
   const describeSkipReason = (entry: ImageViewSkipEntry): string => {
     const reason = entry.reason || '';
+    const referenceIssue = describeImageReferenceIssue(reason);
+    if (referenceIssue) return referenceIssue;
     if (reason === 'kein_foto') return 'kein echtes Foto dieser Seite vorhanden';
     if (reason === 'kontingent_erschoepft') return 'Kontingent dieses Laufs erschoepft';
     if (reason === 'keine_ansichtserkennung') return 'Ansichten liessen sich nicht bestimmen';
@@ -708,8 +711,6 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
       return 'ein echtes Foto war da, liess sich aber nicht sauber freistellen — das Bild wurde stattdessen gezeichnet, der Kleindruck darauf ist nur angenähert. Ein Foto vor neutralem Grund hilft';
     if (reason === 'leinwand_nicht_vereinheitlicht')
       return 'Hintergrund konnte nicht angeglichen werden — dieses Bild hat einen anderen Grund als die übrigen';
-    if (reason === 'keine_brauchbare_vorlage')
-      return 'kein brauchbares Foto des AUSGEPACKTEN Artikels vor neutralem Grund — vorhanden sind nur Karton-, Folien- oder Anwendungsfotos. Aus einem Karton lässt sich keine Produktansicht ableiten, nur erfinden. Artikel auspacken, abfotografieren, erneut starten';
     if (reason === 'kein_foto_makro_wird_nicht_erfunden')
       return 'kein Nahfoto vorhanden — eine Makroaufnahme wird nicht erfunden (dort fällt jedes erfundene Detail auf). Nahaufnahme des Bedienfelds/Typenschilds machen und erneut starten';
     if (reason.startsWith('bereits_vorhanden')) {
@@ -2509,8 +2510,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                           ))}
                         </ul>
                         <p className="mt-2 text-txt-muted">
-                          Fehlende Ansichten bitte <strong>abfotografieren</strong> und hochladen —
-                          danach koennen sie aufbereitet werden.
+                          {imageReferenceNextStep(generationReport.skipped)}
                         </p>
                       </>
                     )}

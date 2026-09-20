@@ -52,6 +52,7 @@
  */
 
 const sharp = require('sharp');
+const { photographicStudioEnabled, finishStudioCanvas } = require('../lib/studio-photography');
 const { generateProductImagesWithReport, GeminiImageError } = require('../lib/vertex-ai');
 const { uploadBase64Image } = require('../lib/storage');
 const { buildGalleryPrompt, buildMaskPrompt, generateVisualDescriptions } = require('./prompt-engine');
@@ -270,6 +271,9 @@ async function preprocessReference(buffer) {
         fit: 'inside',
         withoutEnlargement: true,
       })
+      // Freigestellte Web-PNGs verlieren in JPEG ihren Alphakanal. Ohne
+      // expliziten Grund wird er schwarz — schwarze Produkte verschwinden.
+      .flatten({ background: '#ffffff' })
       .jpeg({ quality: 92, mozjpeg: true })
       .toBuffer();
   } catch (err) {
@@ -398,13 +402,13 @@ function dataUrlToParts(dataUrl) {
  * Lädt alle Kandidaten und bereitet sie auf.
  * @returns {Promise<Array<{image:Object, dataUrl:string, part:Object}>>}
  */
-async function loadReferences(candidates) {
+async function loadReferences(candidates, downloadFailures = []) {
   // PARALLEL: sequenziell konnten acht Downloads (jeder mit bis zu 20 s Timeout
   // und Web-Unlocker-Rueckfall) das Gesamtbudget aufbrauchen, bevor die erste
   // Ansicht ueberhaupt startete. Die Reihenfolge bleibt erhalten — von ihr
   // haengen alle spaeteren Indizes ab.
   const ergebnisse = await Promise.all(
-    candidates.map(async (img) => {
+    candidates.map(async (img, index) => {
       try {
         const raw = await fetchImageAsDataUrl(img);
         const parsed = dataUrlToParts(raw);
@@ -421,6 +425,11 @@ async function loadReferences(candidates) {
           buffer: pre,
         };
       } catch (err) {
+        downloadFailures.push({
+          viewpoint: 'reference',
+          label: `${img.source === 'web_search' ? 'Webbild' : 'Referenzbild'} ${index + 1}`,
+          reason: 'referenz_laden_fehlgeschlagen',
+        });
         // Best-effort, aber die Ursache muss sichtbar bleiben (Incident 2026-07-09:
         // ein still verschluckter Web-Unlocker-Fehler kostete Tage).
         console.warn(`Reference download failed for ${img?.url_or_base64 || 'unknown'}: ${err.message}`);
@@ -457,9 +466,9 @@ async function loadReferences(candidates) {
  * Der Betreiber hat diese Ableitung am 2026-09-10 ausdruecklich bestellt.
  *
  * UND ER IST BILLIGER, nicht teurer: die Maske kommt vom guenstigsten Modell
- * in 1K (0,034 $) statt eines 2K-Renders (0,101 $), und die Zweitmeinung
- * "zeigt das noch denselben Artikel?" entfaellt — bei Originalpixeln ist die
- * Frage bauartbedingt beantwortet. Das spart je echter Ansicht rund 66 %.
+ * in 1K statt eines vollen Renders. Die fertige Freistellung wird seit der
+ * SAKK-Regression trotzdem geprueft: eine Maske kann Hintergrund mitnehmen
+ * oder Produktteile abschneiden, auch wenn die restlichen Pixel original sind.
  *
  * FAIL-CLOSED: greift eine der Waechter in packshot-composite.js (Deckung,
  * groesste Flaeche, Seitenverhaeltnis, Randberuehrung, Kompaktheit, Rand), wird
@@ -492,6 +501,7 @@ async function renderPixeltreu({ planEntry, references, sourceIndex, deadline, k
     }
 
     try {
+      if (kosten) kosten.buche(model, MASK_IMAGE_SIZE, `${planEntry?.variant}:maske`);
       const report = await generateProductImagesWithReport({
         prompt: buildMaskPrompt(),
         count: 1,
@@ -508,8 +518,6 @@ async function renderPixeltreu({ planEntry, references, sourceIndex, deadline, k
         maxAttempts: 1,
       });
 
-      if (kosten) kosten.buche(report.model || model, MASK_IMAGE_SIZE, `${planEntry?.variant}:maske`);
-
       const candidate = report.images?.[0];
       if (!candidate?.base64) {
         attempts.push({ model, reason: 'maske_kein_bild' });
@@ -521,6 +529,12 @@ async function renderPixeltreu({ planEntry, references, sourceIndex, deadline, k
         // stuende ein reinweisser Packshot neben grau verlaufenden Bildern und
         // die Galerie saehe zusammengewuerfelt aus.
         hintergrund: 'verlauf',
+        // Keine starke globale Schattenkurve: sie machte dunklen Stoff blau/grau.
+        schattenlift: false,
+        reviewResult: async (buffer) => classifyIdentityVerdict(await judgeProductIdentity(
+          [quelle.part], { data: buffer.toString('base64'), mimeType: 'image/jpeg' },
+          { requireCleanBackground: true },
+        ), { requireApproval: true }),
       });
       if (!packshot.ok) {
         attempts.push({ model, reason: `packshot_verworfen: ${packshot.gruende.join(', ')}` });
@@ -535,11 +549,9 @@ async function renderPixeltreu({ planEntry, references, sourceIndex, deadline, k
         height: packshot.height,
         referenceCount: 1,
         warnings: [],
-        // KEINE Vision-Zweitmeinung, und das ist kein Versaeumnis: das Ergebnis
-        // besteht aus den Pixeln des Referenzfotos. "Zeigt es denselben
-        // Artikel?" ist damit staerker beantwortet, als ein Modellurteil es
-        // je koennte — und ein gesparter Aufruf.
-        identityChecked: false,
+        // Auch Originalpixel werden nach Freistellung auf Vollstaendigkeit,
+        // Farbe und mitgenommene Hintergrundteile geprueft.
+        identityChecked: true,
         pixeltreu: true,
         packshotInfo: packshot.info,
         attempts,
@@ -608,7 +620,7 @@ function einheitlicheLeinwandAktiv() {
  * @returns {Promise<{buffer:Buffer, mimeType:string, width:number, height:number,
  *                    info:Object}|null>} null = unveraendert lassen.
  */
-async function vereinheitlicheLeinwand({ bild, planEntry, deadline, kosten, attempts }) {
+async function vereinheitlicheLeinwand({ bild, planEntry, deadline, kosten, attempts, reviewResult }) {
   const [model] = maskImageModelChain();
   const rest = typeof deadline === 'number' ? deadline - Date.now() : Infinity;
   if (rest < 5000) {
@@ -621,6 +633,7 @@ async function vereinheitlicheLeinwand({ bild, planEntry, deadline, kosten, atte
   }
 
   try {
+    if (kosten) kosten.buche(model, MASK_IMAGE_SIZE, `${planEntry?.variant}:leinwand`);
     const report = await generateProductImagesWithReport({
       prompt: buildMaskPrompt(),
       count: 1,
@@ -631,7 +644,7 @@ async function vereinheitlicheLeinwand({ bild, planEntry, deadline, kosten, atte
       imageSize: MASK_IMAGE_SIZE,
       maxAttempts: 1,
     });
-    if (kosten) kosten.buche(report.model || model, MASK_IMAGE_SIZE, `${planEntry?.variant}:leinwand`);
+
 
     const candidate = report.images?.[0];
     if (!candidate?.base64) {
@@ -641,12 +654,17 @@ async function vereinheitlicheLeinwand({ bild, planEntry, deadline, kosten, atte
 
     const packshot = await bauePackshot(bild, Buffer.from(candidate.base64, 'base64'), {
       hintergrund: 'verlauf',
+      // Die neue Perspektive ist bereits komponiert. Eine erneute Drehung an
+      // ihrem Umriss kann z.B. einen offenen Koffer nachtraeglich schiefstellen.
+      ausrichten: false,
       // KEIN Weissabgleich: der Hintergrund eines Renders ist keine Graukarte,
       // sondern ein frei gewaehlter Ton. Ein daraus abgeleiteter Faktor haette
       // die Produkthelligkeit von Bild zu Bild verschoben — genau die
-      // Uneinheitlichkeit, die hier beseitigt wird. Die Schattenaufhellung
-      // bleibt: sie misst am PRODUKT und zielt auf einen festen Wert.
+      // Uneinheitlichkeit, die hier beseitigt wird. Auch kein globaler Lift:
+      // dunkles Material darf durch die Leinwandstufe nicht heller werden.
       weissabgleich: false,
+      schattenlift: false,
+      reviewResult,
     });
     if (!packshot.ok) {
       attempts.push({ model, reason: `leinwand_verworfen: ${packshot.gruende.join(', ')}` });
@@ -688,13 +706,14 @@ async function renderOneView({ product, produktInfo, planEntry, references, sour
   const chain = variantImageModelChain();
   const attempts = [];
 
-  // --- PIXELTREU ZUERST, wo es ein echtes Foto gibt -------------------------
+  // Originalpixel for explicit batch cleanup, sensitive details, or rollback.
   // Nur Studio-Ansichten mit echter Vorlage: eine Anwendungsszene MUSS gemalt
   // werden (sie zeigt eine Umgebung, die es auf keinem Foto gibt), und eine
   // abgeleitete Ansicht hat definitionsgemaess kein Foto, dessen Pixel man
   // uebernehmen koennte.
   const kommtInFrage =
-    pixeltreuAktiv() && planEntry?.art === 'studio' && planEntry?.quelleIstEcht === true;
+    pixeltreuAktiv() && planEntry?.art === 'studio' && planEntry?.quelleIstEcht === true &&
+    (nurPixeltreu || !photographicStudioEnabled() || planEntry?.key === 'detail');
   if (kommtInFrage) {
     const treu = await renderPixeltreu({ planEntry, references, sourceIndex, deadline, kosten });
     if (treu && !treu.failed) return treu;
@@ -755,7 +774,7 @@ async function renderOneView({ product, produktInfo, planEntry, references, sour
     // Verhalten — fail-open, sonst faellt der ganze Lauf auf ein Bild zurueck.
     return erlaubteAnker ? erlaubteAnker.has(i) : true;
   });
-  const ordered = ankerAus
+  const ordered = ankerAus || (planEntry?.art === 'studio' && planEntry?.quelleIstEcht === true)
     ? [references[sourceIndex]].filter(Boolean)
     : [references[sourceIndex], ...weitere].filter(Boolean);
 
@@ -795,13 +814,14 @@ async function renderOneView({ product, produktInfo, planEntry, references, sour
     });
 
     try {
+      if (kosten) kosten.buche(model, zielGroesse, planEntry?.variant);
       const report = await generateProductImagesWithReport({
         prompt,
         count: 1,
         // KEIN erzwungenes Seitenverhaeltnis — siehe image-studio.js: '1:1'
         // zwang das Modell zur Neukomposition und damit zum Neuzeichnen des
         // Kleindrucks (gemessen 2026-09-04).
-        aspectRatio: null,
+        aspectRatio: photographicStudioEnabled() && planEntry?.art === 'studio' ? '1:1' : null,
         referenceImages: used.map((r) => r.dataUrl),
         model,
         timeoutMs: callTimeout,
@@ -811,11 +831,6 @@ async function renderOneView({ product, produktInfo, planEntry, references, sour
         // Ansicht — und dieselbe Vervielfachung im Studio-Pfad.
         maxAttempts: 1,
       });
-
-      // Gebucht wird SOFORT nach dem Aufruf: auch ein Bild, das gleich an einer
-      // Pruefung scheitert, ist bereits bezahlt. Erst nach der Pruefung zu
-      // buchen wuerde den Deckel systematisch unterlaufen.
-      if (kosten) kosten.buche(report.model || model, zielGroesse, planEntry?.variant);
 
       const candidate = report.images?.[0];
       if (!candidate?.base64) {
@@ -840,43 +855,49 @@ async function renderOneView({ product, produktInfo, planEntry, references, sour
       // GALERIE-Modus: der Blickwinkel weicht hier ABSICHTLICH ab. Mit dem
       // Retusche-Prompt verwarf der Richter 5 von 6 guten Bildern, weil ihm
       // gesagt wurde, es haetten nur Hintergrund und Licht wechseln duerfen.
-      // Fuer die Zweitmeinung reichen ZWEI Referenzen (Vorlage + eine weitere
-      // Ansicht). Jedes Eingabebild kostet Token; ein dritter Blickwinkel
-      // aendert am Urteil "derselbe Artikel?" praktisch nichts.
-      const identity = await judgeProductIdentity(
-        used.slice(0, 2).map((r) => r.part),
-        { data: candidate.base64, mimeType: candidate.mimeType || 'image/png' },
-        { modus: 'galerie' }
-      );
-      const identityVerdict = classifyIdentityVerdict(identity, {
-        perspektiveDarfAbweichen: true,
-      });
-      if (identityVerdict.action === 'verwerfen') {
-        attempts.push({
-          model,
-          reason: `identitaet_abweichend: ${identityVerdict.warnings.join('; ') || 'anderer Artikel'}`,
-        });
-        continue;
-      }
+      // Bis zu drei tatsaechlich verwendete Referenzen belegen Produktdetails.
+      // Ein vorhandenes Quellfoto wird ausschliesslich mit sich selbst verglichen.
+      const perspectiveMayChange = istSzene || planEntry?.quelleIstEcht !== true;
+      const requireStudioPresentation = !istSzene && photographicStudioEnabled();
+      const reviewResult = async (finalBuffer) => classifyIdentityVerdict(await judgeProductIdentity(
+        used.slice(0, 3).map((r) => r.part),
+        { data: finalBuffer.toString('base64'), mimeType: `image/${(await sharp(finalBuffer).metadata()).format}` },
+        { modus: perspectiveMayChange ? 'galerie' : 'retusche', requireCleanBackground: !istSzene, requireStudioPresentation },
+      ), { requireApproval: true, perspektiveDarfAbweichen: perspectiveMayChange, requireCleanBackground: !istSzene, requireStudioPresentation });
+      let identityVerdict;
 
-      // EINHEITLICHE LEINWAND — erst JETZT, nach allen Pruefungen: fuer ein
-      // Bild, das gleich verworfen wird, soll kein Maskenaufruf bezahlt werden.
+      // EINHEITLICHE LEINWAND nach technischer Pruefung. Die fachliche
+      // Abnahme beurteilt danach das fertige Bild samt Freistellung.
       // Nur Studio-Ansichten; eine Anwendungsszene zeigt eine echte Umgebung,
       // die gerade nicht wegmaskiert werden soll.
       let ausgabe = { buffer, mimeType: candidate.mimeType || 'image/png', width: verdict.width, height: verdict.height };
       let leinwandVereinheitlicht = false;
-      if (!istSzene && einheitlicheLeinwandAktiv()) {
+      if (requireStudioPresentation) {
+        ausgabe = await finishStudioCanvas(buffer);
+        leinwandVereinheitlicht = true;
+      } else if (!istSzene && einheitlicheLeinwandAktiv()) {
         const einheitlich = await vereinheitlicheLeinwand({
           bild: buffer,
           planEntry,
           deadline,
           kosten,
           attempts,
+          reviewResult,
         });
         if (einheitlich) {
           ausgabe = einheitlich;
           leinwandVereinheitlicht = true;
+          identityVerdict = { action: 'ok', warnings: [] };
+        } else {
+          // Ein fehlgeschlagener Freisteller darf kein unbearbeitetes Foto
+          // als erfolgreiches Studioergebnis an die Galerie weiterreichen.
+          continue;
         }
+      }
+      identityVerdict ||= await reviewResult(ausgabe.buffer);
+      if (identityVerdict.action !== 'ok') {
+        attempts.push({ model, reason: `qualitaet_nicht_bestaetigt: ${identityVerdict.warnings.join('; ')}` });
+        continue;
       }
 
       return {
@@ -889,6 +910,7 @@ async function renderOneView({ product, produktInfo, planEntry, references, sour
         warnings: identityVerdict.warnings,
         identityChecked: identityVerdict.action !== 'ungeprueft',
         leinwandVereinheitlicht,
+        ...(requireStudioPresentation ? { studioPipeline: 'photographic-v1' } : {}),
         attempts,
       };
     } catch (err) {
@@ -916,9 +938,10 @@ async function generateImagesForProduct(product, options = {}) {
     throw new Error('At least one real reference image is required');
   }
 
-  const references = await loadReferences(candidates);
+  const downloadFailures = [];
+  const references = await loadReferences(candidates, downloadFailures);
   if (!references.length) {
-    throw new Error('Reference images could not be downloaded');
+    throw new Error('Keines der Referenzbilder konnte geladen werden. Bitte Bildzugriff prüfen und erneut starten.');
   }
 
   // --- ALLE Bilder analysieren: Ansichten UND was der Artikel ist -----------
@@ -940,7 +963,10 @@ async function generateImagesForProduct(product, options = {}) {
     nurPixeltreu,
   });
   const plan = planned.plan;
-  const skipped = planned.skipped;
+  // Die Erkennung kennt nur erfolgreich geladene Bilder. Fehlende Downloads
+  // sind kein Beleg dafuer, dass ALLE vorhandenen Bilder ungeeignet sind.
+  const skipped = planned.skipped.map(entry => downloadFailures.length && entry.reason === 'keine_brauchbare_vorlage'
+    ? { ...entry, reason: 'vorlagen_nicht_vollstaendig_geladen' } : entry);
 
   // --- Ansichten rendern (parallel, mit Gesamt-Zeitbudget) ------------------
   const images = [];
@@ -954,7 +980,7 @@ async function generateImagesForProduct(product, options = {}) {
   const [erstesModell] = variantImageModelChain();
   const [erstesMaskenModell] = maskImageModelChain();
   const posten = plan.flatMap((entry) => {
-    if (nurPixeltreu || (pixeltreuAktiv() && entry.art === 'studio' && entry.quelleIstEcht === true)) {
+    if (nurPixeltreu || (pixeltreuAktiv() && entry.art === 'studio' && entry.quelleIstEcht === true && (!photographicStudioEnabled() || entry.key === 'detail'))) {
       return [{ model: erstesMaskenModell, imageSize: MASK_IMAGE_SIZE }];
     }
     const render = {
@@ -965,7 +991,7 @@ async function generateImagesForProduct(product, options = {}) {
     // zweite Posten fehlte hier, obwohl er real gebucht wird — die Schaetzung
     // lag dadurch systematisch unter dem eigenen Schlimmstfall (gemessen:
     // geschaetzt 0,471-0,572, abgerechnet 0,573).
-    if (entry.art === 'studio' && einheitlicheLeinwandAktiv()) {
+    if (entry.art === 'studio' && !photographicStudioEnabled() && einheitlicheLeinwandAktiv()) {
       return [render, { model: erstesMaskenModell, imageSize: MASK_IMAGE_SIZE }];
     }
     return [render];
@@ -1055,6 +1081,7 @@ async function generateImagesForProduct(product, options = {}) {
         // EINDEUTIGE Kennzeichnung: hält das Bild aus der Referenzliste künftiger
         // Läufe heraus und macht es für den Publish-Pfad erkennbar.
         generatedByAi: true,
+        ...(result.studioPipeline ? { studioPipeline: result.studioPipeline } : {}),
         derivedFrom: references[sourceIndex]?.image?.url_or_base64 || null,
         // Die Notiz muss sagen, WAS das Bild ist. Bis 2026-09-10 stand auf JEDER
         // gerenderten Ansicht "aus einem echten Foto" — auch auf den
@@ -1149,11 +1176,13 @@ async function generateImagesForProduct(product, options = {}) {
   return {
     images,
     plan,
-    skipped: [...skipped, ...failures],
+    skipped: [...downloadFailures, ...skipped, ...failures],
     evidence: {
       belegt: evidence.belegt,
       belegtLabels: evidence.belegt.map((v) => VIEWPOINT_LABELS_DE[v] || v),
       referenceCount: references.length,
+      candidateCount: candidates.length,
+      failedReferenceCount: downloadFailures.length,
       classified: Boolean(classification),
       sameProductThroughout: classification?.sameProductThroughout !== false,
       // Was die Bildanalyse im Artikel erkannt hat — steuert die Szenen und

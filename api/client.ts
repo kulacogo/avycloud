@@ -3829,6 +3829,8 @@ export interface ImageGenerationEvidence {
   belegt: string[];
   belegtLabels: string[];
   referenceCount: number;
+  candidateCount?: number;
+  failedReferenceCount?: number;
   classified: boolean;
   sameProductThroughout: boolean;
   /** Was die Bildanalyse im Artikel erkannt hat — steuert die Anwendungsszenen. */

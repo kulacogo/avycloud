@@ -30,6 +30,11 @@ const generateProductImagesSpy = vi.fn();
 const fetchImageAsDataUrlSpy = vi.fn();
 const uploadBase64ImageSpy = vi.fn();
 const compositeOnGradientSpy = vi.fn();
+const judgeIdentitySpy = vi.fn();
+const realImageCheck = require('../lib/image-result-check');
+patchLocalModule(path.resolve(__dirname, '../lib/image-result-check.js'), {
+  ...realImageCheck, judgeProductIdentity: judgeIdentitySpy,
+});
 
 patchLocalModule(path.resolve(__dirname, '../lib/vertex-ai.js'), {
   generateProductImages: generateProductImagesSpy,
@@ -69,7 +74,11 @@ beforeAll(async () => {
 });
 
 beforeEach(() => {
+  process.env.STUDIO_PHOTOGRAPHIC = 'off';
   generateProductImagesSpy.mockReset();
+  judgeIdentitySpy.mockReset().mockResolvedValue({ sameItem: true, perspectiveKept: true, markingsKept: true,
+    conditionKept: true, materialKept: true, colorKept: true, evidenceKept: true, backgroundClean: true, confidence: 0.95, problems: [] });
+  delete process.env.IMAGE_COST_CAP_USD;
   fetchImageAsDataUrlSpy.mockReset();
   uploadBase64ImageSpy.mockReset();
   compositeOnGradientSpy.mockReset();
@@ -79,6 +88,19 @@ beforeEach(() => {
   delete process.env.STUDIO_IMAGE_MODEL;
   delete process.env.STUDIO_IMAGE_FALLBACK_MODEL;
   delete process.env.GEMINI_IMAGE_MODEL;
+});
+
+it('bereitet transparente Webbilder auf weissem Grund fuer Studio-Fotos vor', async () => {
+  const input = await sharp({ create: { width: 80, height: 80, channels: 4, background: '#00000000' } })
+    .composite([{ input: Buffer.from('<svg width="40" height="40"><rect width="40" height="40" fill="#141414"/></svg>'), left: 20, top: 20 }])
+    .png().toBuffer();
+  const output = await _internal.preprocessInput(input);
+  const { data, info } = await sharp(output).raw().toBuffer({ resolveWithObject: true });
+  expect(data[0]).toBeGreaterThan(250);
+  expect(data[1]).toBeGreaterThan(250);
+  expect(data[2]).toBeGreaterThan(250);
+  const center = (40 * info.width + 40) * info.channels;
+  expect(data[center]).toBeLessThan(30);
 });
 
 describe('makeStudioPhoto — Modell-Kette', () => {
@@ -140,17 +162,10 @@ describe('makeStudioPhoto — Modell-Kette', () => {
     expect(result.attempts[0].reason).toMatch(/background_too_dark/);
   });
 
-  it('nutzt den sicheren Weiß-Fallback (Produkt zentriert, KEIN Freisteller) wenn beide Modelle scheitern', async () => {
+  it('liefert bei Modellfehlern kein unverändertes Original als Studioerfolg', async () => {
     generateProductImagesSpy.mockRejectedValue(new Error('api down'));
-
-    const result = await makeStudioPhoto({ productId: 'p1', image: { url_or_base64: 'https://x/img.jpg' } });
-
-    expect(result.method).toBe('composite_fallback');
-    expect(result.model).toBeNull();
-    expect(result.image.source).toBe('studio_composite');
-    // Ergebnis ist ein gültiges Bild (hochgeladen) — der Fallback stellt NICHT frei
-    // (Incident 2026-07-18: Freisteller zerschmierte helle/metallische Produkte).
-    expect(uploadBase64ImageSpy).toHaveBeenCalledTimes(1);
+    await expect(makeStudioPhoto({ productId: 'p1', image: { url_or_base64: 'https://x/img.jpg' } })).rejects.toMatchObject({ code: 'STUDIO_QUALITY_REJECTED' });
+    expect(uploadBase64ImageSpy).not.toHaveBeenCalled();
   });
 
   it('wirft NICHT bei GCS-Upload-Fehler, sondern liefert die Data-URL', async () => {
@@ -160,6 +175,29 @@ describe('makeStudioPhoto — Modell-Kette', () => {
     const result = await makeStudioPhoto({ productId: 'p1', image: { url_or_base64: 'https://x/img.jpg' } });
 
     expect(result.image.url_or_base64).toMatch(/^data:image\/png;base64,/);
+  });
+
+  it.each([null, { sameItem: true, perspectiveKept: true, markingsKept: true, conditionKept: false, materialKept: true, colorKept: true, evidenceKept: true, backgroundClean: true, confidence: 0.95, problems: ['Kratzer entfernt'] }])('verweigert Upload bei ausgefallener oder negativer Qualitätsprüfung', async (verdict) => {
+    generateProductImagesSpy.mockResolvedValue([{ base64: brightPng.toString('base64'), mimeType: 'image/png' }]);
+    judgeIdentitySpy.mockResolvedValue(verdict);
+    await expect(makeStudioPhoto({ productId: 'p1', image: { url_or_base64: 'https://x/img.jpg' } })).rejects.toMatchObject({ code: 'STUDIO_QUALITY_REJECTED' });
+    expect(uploadBase64ImageSpy).not.toHaveBeenCalled();
+  });
+
+  it('überschreitet das Bildbudget auch bei Rückfällen nicht', async () => {
+    process.env.IMAGE_COST_CAP_USD = '0.001';
+    await expect(makeStudioPhoto({ productId: 'p1', image: { url_or_base64: 'https://x/img.jpg' } })).rejects.toMatchObject({ code: 'STUDIO_QUALITY_REJECTED' });
+    expect(generateProductImagesSpy).not.toHaveBeenCalled();
+    expect(uploadBase64ImageSpy).not.toHaveBeenCalled();
+  });
+
+  it('liefert ein quadratisches Bild ohne erzwungenen neuen KI-Blickwinkel', async () => {
+    const wide = await sharp(brightPng).resize(1000, 600).png().toBuffer();
+    generateProductImagesSpy.mockResolvedValue([{ base64: wide.toString('base64'), mimeType: 'image/png' }]);
+    const result = await makeStudioPhoto({ productId: 'p1', image: { url_or_base64: 'https://x/img.jpg' } });
+    expect(result.image.width).toBe(result.image.height);
+    expect(result.image.width).toBeGreaterThanOrEqual(1600);
+    expect(generateProductImagesSpy.mock.calls[0][0].aspectRatio).toBeNull();
   });
 
   it('validiert Pflichtfelder', async () => {
@@ -266,5 +304,30 @@ describe('padOnWhiteSquare — sicherer Weiß-Fallback (kein Freisteller)', () =
     // Produkt überlebt: die Bildmitte ist NICHT weiß (das helle Produkt ist da)
     const [cr, cg, cb] = px(Math.round(info.width / 2), Math.round(info.height / 2));
     expect(cr < 245 || cg < 245 || cb < 245).toBe(true);
+  });
+});
+
+afterEach(() => { delete process.env.STUDIO_PHOTOGRAPHIC; });
+
+describe('photographic Studio-Foto default', () => {
+  beforeEach(() => { delete process.env.STUDIO_PHOTOGRAPHIC; delete process.env.STUDIO_COMPOSITE; });
+  it('uses the renderer first and checks lighting, shadow and composition', async () => {
+    generateProductImagesSpy.mockResolvedValue([{ base64: brightPng.toString('base64'), mimeType: 'image/png' }]);
+    judgeIdentitySpy.mockResolvedValue({ sameItem: true, perspectiveKept: true, markingsKept: true,
+      conditionKept: true, materialKept: true, colorKept: true, evidenceKept: true, backgroundClean: true,
+      studioLighting: true, grounded: true, compositionGood: true, confidence: 0.95, problems: [] });
+    const result = await makeStudioPhoto({ productId: 'p1', image: { url_or_base64: 'https://x/img.jpg' } });
+    expect(result.method).toBe('gemini');
+    expect(result.image.studioPipeline).toBe('photographic-v1');
+    expect(generateProductImagesSpy).toHaveBeenCalledTimes(1);
+    expect(generateProductImagesSpy.mock.calls[0][0]).toMatchObject({ imageSize: '2K', aspectRatio: '1:1' });
+    expect(judgeIdentitySpy.mock.calls[0][2].requireStudioPresentation).toBe(true);
+  });
+  it('does not publish a flat image when presentation is not confirmed', async () => {
+    generateProductImagesSpy.mockResolvedValue([{ base64: brightPng.toString('base64'), mimeType: 'image/png' }]);
+    await expect(makeStudioPhoto({ productId: 'p1', image: { url_or_base64: 'https://x/img.jpg' } }))
+      .rejects.toMatchObject({ code: 'STUDIO_QUALITY_REJECTED' });
+    expect(uploadBase64ImageSpy).not.toHaveBeenCalled();
+    expect(generateProductImagesSpy.mock.calls.every(([a]) => a.imageSize === '2K')).toBe(true);
   });
 });
