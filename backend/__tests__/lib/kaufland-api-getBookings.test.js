@@ -198,3 +198,14 @@ describe('getBookings — happy path (queue → poll → download → aggregate)
     expect(result.total_payout_cents).toBe(100 + 200 + 300 + 400 + 500);
   });
 });
+
+describe('kauflandRequest — begrenzter Supportabruf', () => {
+  it('verzichtet mit maxRetries:0 auch bei 503 auf weitere Versuche', async () => {
+    responseQueue.length = 0;
+    fetchCalls.length = 0;
+    responseQueue.push(mockJsonResponse(503, { message: 'temporarily unavailable' }));
+    const { kauflandRequest } = require('../../lib/kaufland-api');
+    await expect(kauflandRequest('GET', '/tickets/messages', { maxRetries: 0 })).rejects.toMatchObject({ code: 'KAUFLAND_HTTP_503' });
+    expect(fetchCalls).toHaveLength(1);
+  });
+});

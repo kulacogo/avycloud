@@ -1,6 +1,6 @@
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
-import { adminGetPerformance } from "../../api/client";
+import { adminGetPerformance, adminGetSupportPerformance } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
 import { RefreshIcon, SearchIcon } from "../icons/Icons";
 import { useTeamDirectory } from "./useTeamDirectory";
@@ -9,6 +9,8 @@ import {
   normalizeSearch,
   hasActivity,
   performanceRows,
+  displayName,
+  userId,
 } from "./teamWorkspaceModel";
 import {
   buildContributions,
@@ -16,8 +18,10 @@ import {
   CONTRIBUTION_WEIGHTS,
   CONTRIBUTION_MODEL_VERSION,
   CONTRIBUTION_STATUS,
+  attachSupport,
 } from "./workContribution";
 import { roleDisplayName } from "./roleCatalog";
+import { SupportPerformancePanel } from "./SupportPerformancePanel";
 import {
   TeamAvatar,
   TeamEmpty,
@@ -66,9 +70,20 @@ export const MitarbeiterLeistung: React.FC<{
     refetchOnWindowFocus: false,
     retry: false,
   });
+  const support = useQuery({
+    queryKey: ["team-support-performance", user?.uid, range, custom?.from, custom?.to],
+    queryFn: () => adminGetSupportPerformance(range, custom),
+    enabled: active && Boolean(user?.uid),
+    staleTime: 60000,
+    refetchOnWindowFocus: false,
+    retry: false,
+  });
+  const supportData = support.error ? undefined : support.data;
+  const supportOwner = directory.data?.find((account) => userId(account) === supportData?.ownerUid);
+  const supportComplete = supportData?.complete === true && Boolean(supportOwner);
   const rows = React.useMemo(
-    () => performanceRows(result.data?.rows || [], directory.data || []),
-    [result.data, directory.data],
+    () => attachSupport(performanceRows(result.data?.rows || [], directory.data || []), supportData),
+    [result.data, directory.data, supportData],
   );
   const complete =
     result.data?.dataQuality?.complete === true &&
@@ -77,13 +92,13 @@ export const MitarbeiterLeistung: React.FC<{
     !directory.error &&
     !directory.isPending;
   const contributions = React.useMemo(
-    () => buildContributions(rows, directory.data || [], complete),
-    [rows, directory.data, complete],
+    () => buildContributions(rows, directory.data || [], complete, supportComplete),
+    [rows, directory.data, complete, supportComplete],
   );
   const needle = normalizeSearch(query.trim());
   const filtered = contributions.filter(
     (row) =>
-      (!onlyActive || hasActivity(row)) &&
+      (!onlyActive || hasActivity(row) || row.supportPartial) &&
       normalizeSearch(`${row.name} ${row.email || ""}`).includes(needle),
   );
   const ordered =
@@ -124,7 +139,7 @@ export const MitarbeiterLeistung: React.FC<{
             Leistungsbeitrag im Überblick
           </h2>
           <p className="mt-1 text-sm text-txt-secondary">
-            Gesamten Arbeitsbeitrag vergleichen. Mitarbeiter auswählen, um die
+            Erfassten Arbeitsbeitrag ansehen. Mitarbeiter auswählen, um die
             einzelnen Tätigkeiten zu sehen.
           </p>
         </div>
@@ -157,9 +172,9 @@ export const MitarbeiterLeistung: React.FC<{
           <button
             type="button"
             aria-label="Leistung aktualisieren"
-            disabled={result.isFetching}
+            disabled={result.isFetching || support.isFetching}
             className={secondaryButton}
-            onClick={() => result.refetch()}
+            onClick={() => { result.refetch(); support.refetch(); }}
           >
             <RefreshIcon
               className={`h-4 w-4 ${result.isFetching ? "motion-safe:animate-spin" : ""}`}
@@ -213,6 +228,7 @@ export const MitarbeiterLeistung: React.FC<{
           </p>
         </form>
       )}
+      <SupportPerformancePanel data={supportData} ownerName={supportOwner ? displayName(supportOwner) : undefined} loading={support.isFetching} error={Boolean(support.error)} onReload={() => { support.refetch(); }} />
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-txt-muted">
         <span className="font-medium text-txt-secondary">{periodLabel}</span>
         <span aria-live="polite">
@@ -309,9 +325,9 @@ export const MitarbeiterLeistung: React.FC<{
               <section className="min-w-0 overflow-hidden rounded-2xl border border-app-border bg-app-surface">
                 <div className="flex flex-wrap items-start justify-between gap-3 border-b border-app-border p-5">
                   <div>
-                    <h3 className="font-semibold">Gesamtbeitrag im Team</h3>
+                    <h3 className="font-semibold">Erfasster Arbeitsbeitrag</h3>
                     <p className="mt-1 max-w-lg text-xs leading-relaxed text-txt-muted">
-                      Produktpflege 4 · Erfassen 3 · Packen 2 · Picken und
+                      Produktpflege 4 · Erfassen und Support 3 · Packen 2 · Picken und
                       Einlagern 1. Die Stufen berücksichtigen Datenprüfung,
                       Fotos und Packaufwand.
                     </p>
@@ -337,7 +353,7 @@ export const MitarbeiterLeistung: React.FC<{
                     onChange={(event) => setSort(event.target.value)}
                     className={`${fieldClass} sm:!w-44`}
                   >
-                    <option value="contribution">Nach Arbeitsbeitrag</option>
+                    <option value="contribution" disabled={!supportComplete}>{supportComplete ? "Nach Arbeitsbeitrag" : "Name · Support unvollständig"}</option>
                     <option value="name">Nach Name</option>
                   </select>
                   <label className="flex items-center gap-2 text-xs text-txt-secondary">
@@ -386,14 +402,12 @@ export const MitarbeiterLeistung: React.FC<{
                               {row.status === "rated" ? (
                                 <>
                                   <span className="block text-base font-semibold tabular-nums">
-                                    {number(row.points!)}{" "}
+                                    {row.supportPartial ? "≥ " : ""}{number(row.points!)}{" "}
                                     <span className="text-xs font-medium">
                                       Punkte
                                     </span>
                                   </span>
-                                  <span className="mt-0.5 block text-[11px] text-txt-muted">
-                                    {formatShare(row.share!)} % Teamanteil
-                                  </span>
+                                  {row.share !== null ? <span className="mt-0.5 block text-[11px] text-txt-muted">{formatShare(row.share)} % Teamanteil</span> : row.supportPartial && <span className="mt-0.5 block text-[11px] text-warning">Support unvollständig</span>}
                                 </>
                               ) : (
                                 <span className="text-xs">
@@ -402,7 +416,7 @@ export const MitarbeiterLeistung: React.FC<{
                               )}
                             </span>
                           </span>
-                          {row.status === "rated" && (
+                          {row.status === "rated" && supportComplete && (
                             <span className="mt-3 block h-2 overflow-hidden rounded-full bg-app-elevated">
                               <span
                                 className="block h-full rounded-full bg-accent motion-safe:transition-[width] motion-safe:duration-300"
@@ -418,9 +432,7 @@ export const MitarbeiterLeistung: React.FC<{
                   </div>
                 )}
                 <p className="border-t border-app-border px-5 py-3 text-xs leading-relaxed text-txt-muted">
-                  {filtered.length} von {rows.length} Konten · Der Teamanteil
-                  bezieht sich auf alle bewertbaren Konten im Zeitraum und
-                  bleibt beim Filtern unverändert.
+                  {filtered.length} von {rows.length} Konten · {supportComplete ? "Der Teamanteil bezieht sich auf alle bewertbaren Konten und bleibt beim Filtern unverändert." : "Support ist noch nicht vollständig erfasst. Angezeigt werden die bereits belegten Punkte; noch keine Rangfolge oder Teamanteile."}
                 </p>
               </section>
               {selectedRow ? (
@@ -457,7 +469,7 @@ export const MitarbeiterLeistung: React.FC<{
                     <p className="mt-2 text-2xl font-semibold text-accent">
                       {selectedRow.status === "rated" ? (
                         <>
-                          {number(selectedRow.points!)}{" "}
+                          {selectedRow.supportPartial ? "≥ " : ""}{number(selectedRow.points!)}{" "}
                           <span className="text-sm">Punkte</span>
                         </>
                       ) : (
@@ -554,6 +566,7 @@ export const MitarbeiterLeistung: React.FC<{
                       );
                     })}
                   </dl>
+                  {selectedRow.uid === supportData?.ownerUid && <div className="mt-4"><SupportPerformancePanel data={supportData} ownerName={selectedRow.name} details loading={support.isFetching} error={Boolean(support.error)} onReload={() => { support.refetch(); }} /></div>}
                   {selectedRow.status === "no_activity" && (
                     <p className="mt-3 rounded-xl bg-app-elevated p-3 text-xs text-txt-secondary">
                       Keine zugeordneten Tätigkeiten im Zeitraum. Das ist keine
@@ -588,7 +601,7 @@ export const MitarbeiterLeistung: React.FC<{
                   <strong className="text-txt-primary">
                     {CONTRIBUTION_MODEL_VERSION}:
                   </strong>{" "}
-                  Produktpflege × 4, Erfassen × 3, Verpacken × 2,
+                  Produktpflege × 4, Erfassen × 3, Supportanliegen × 3, Verpacken × 2,
                   Kommissionieren × 1 und Einlagern × 1. Die Summe ergibt den
                   Arbeitsbeitrag in Punkten. Teamanteil = persönliche Punkte ÷
                   Punkte aller bewertbaren Konten.
@@ -626,7 +639,9 @@ export const MitarbeiterLeistung: React.FC<{
                   Bewertung gezeigt. Ohne dokumentierte Tätigkeiten wird keine
                   negative Note vergeben. Nicht erfasste Arbeit bleibt
                   unsichtbar. Bei fehlenden oder abgeschnittenen Datenquellen
-                  wird die Gesamtbewertung ausgesetzt.
+                  wird kein vollständiger Teamvergleich angezeigt. Fehlende
+                  Supportdaten werden als Teilmenge mit „≥“ kenntlich gemacht;
+                  Rangfolge und Teamanteile bleiben dann ausgesetzt.
                 </p>
               </div>
             </details>

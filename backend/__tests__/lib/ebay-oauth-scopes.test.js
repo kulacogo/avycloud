@@ -53,6 +53,35 @@ global.fetch = async (url, init) => {
 
 const { buildConsentUrl, getValidEbayAccessToken } = require('../../lib/ebay-oauth');
 
+describe('Support: zusätzliche Nachrichtenfreigabe ohne Verlust bestehender Rechte', () => {
+  it('erweitert nur den ausdrücklichen Nachrichten-Consent und erhält bestehende Sonderrechte', async () => {
+    integrationDoc = { scopes: ['https://api.ebay.com/oauth/api_scope/sell.analytics.readonly'] };
+    const { getEbayConsentScopes } = require('../../lib/ebay-oauth');
+    const standard = await getEbayConsentScopes();
+    expect(standard).toContain('https://api.ebay.com/oauth/api_scope/sell.analytics.readonly');
+    expect(standard).not.toContain('https://api.ebay.com/oauth/api_scope/commerce.message');
+    const scopes = await getEbayConsentScopes({ includeMessages: true });
+    const url = new URL(await buildConsentUrl({ state: 'test', scopes }));
+    expect(url.searchParams.get('scope')).toContain('commerce.message');
+    expect(url.searchParams.get('scope')).toContain('sell.analytics.readonly');
+  });
+  it('bewahrt die beim Consent tatsächlich angefragten Rechte im State und Token', async () => {
+    const { createOAuthState, upsertEbayTokenSet } = require('../../lib/ebay-oauth');
+    const scopes = ['https://api.ebay.com/oauth/api_scope/commerce.message'];
+    patches.length = 0;
+    await createOAuthState({ scopes, tenantId: 'default' });
+    expect(patches[0]).toMatchObject({ scopes, tenantId: 'default' });
+    await upsertEbayTokenSet({ access_token: 'new', refresh_token: 'refresh', expires_in: 7200 }, { scopes });
+    expect(patches[1].scopes).toEqual(scopes);
+  });
+  it('ersetzt die gültige Verbindung nicht durch eine unvollständig gewährte Verbindung', async () => {
+    const { upsertEbayTokenSet } = require('../../lib/ebay-oauth');
+    patches.length = 0;
+    await expect(upsertEbayTokenSet({ access_token: 'new', scope: 'read' }, { scopes: ['read', 'write'] })).rejects.toThrow();
+    expect(patches).toHaveLength(0);
+  });
+});
+
 describe('eBay OAuth Scopes — Verbinden-Flow fragt Schreibrecht an', () => {
   it('Default-Consent-URL enthält sell.inventory (write) UND die bisherigen Scopes', async () => {
     const url = new URL(await buildConsentUrl({ state: 's1' }));

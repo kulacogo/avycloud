@@ -25,6 +25,10 @@ const gated = (src, verb, routePath, mod, action) => {
   return re.test(src);
 };
 
+it('personenbezogene Supportauswertung bleibt der geschützten Teamverwaltung vorbehalten', () => {
+  expect(gated(read('routes/admin.js'), 'get', '/support-performance', 'admin', 'users.read')).toBe(true);
+});
+
 describe('returns.js — the money endpoints are gated', () => {
   const src = read('routes/returns.js');
   it('imports requirePermission', () => expect(src).toMatch(/requirePermission/));

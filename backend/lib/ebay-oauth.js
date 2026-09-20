@@ -232,11 +232,21 @@ async function refreshUserAccessToken({ refreshToken, grantedScopes = null }) {
   return json;
 }
 
-async function createOAuthState({ provider = 'ebay', actor = null } = {}) {
+async function getEbayConsentScopes({ includeMessages = false } = {}) {
+  const cfg = await getEbayOAuthConfig();
+  const current = await getEbayIntegration();
+  const scopes = [...(cfg.scopes || []), ...(Array.isArray(current?.scopes) ? current.scopes : [])];
+  if (includeMessages) scopes.push('https://api.ebay.com/oauth/api_scope/commerce.message');
+  return [...new Set(scopes.filter(Boolean))];
+}
+
+async function createOAuthState({ provider = 'ebay', actor = null, scopes = null, tenantId = 'default' } = {}) {
   const state = crypto.randomUUID();
   const ref = firestore.collection(OAUTH_STATES_COLLECTION).doc(state);
   await ref.set({
     provider: String(provider || 'ebay'),
+    tenantId,
+    ...(Array.isArray(scopes) ? { scopes } : {}),
     createdAt: FieldValue.serverTimestamp(),
     actor: actor
       ? {
@@ -267,13 +277,13 @@ async function consumeOAuthState(state, provider = 'ebay') {
   return data;
 }
 
-async function buildConsentUrl({ state, locale = 'de-DE', prompt = null } = {}) {
+async function buildConsentUrl({ state, locale = 'de-DE', prompt = null, scopes = null } = {}) {
   const cfg = await getEbayOAuthConfig();
   const url = new URL('/oauth2/authorize', cfg.authBaseUrl);
   url.searchParams.set('client_id', cfg.clientId);
   url.searchParams.set('redirect_uri', cfg.ruName);
   url.searchParams.set('response_type', 'code');
-  url.searchParams.set('scope', (cfg.scopes || []).join(' '));
+  url.searchParams.set('scope', (Array.isArray(scopes) ? scopes : cfg.scopes || []).join(' '));
   if (state) url.searchParams.set('state', String(state));
   if (locale) url.searchParams.set('locale', String(locale));
   if (prompt) url.searchParams.set('prompt', String(prompt));
@@ -292,8 +302,13 @@ function toMillis(tsOrIso) {
   return Number.isFinite(ms) ? ms : 0;
 }
 
-async function upsertEbayTokenSet(tokenSet, { actor = null } = {}) {
+async function upsertEbayTokenSet(tokenSet, { actor = null, scopes = null } = {}) {
   const cfg = await getEbayOAuthConfig();
+  const requested = Array.isArray(scopes) ? scopes : cfg.scopes || [];
+  const granted = parseScopes(tokenSet?.scope) || requested;
+  if (requested.some((scope) => !granted.includes(scope))) {
+    throw Object.assign(new Error('eBay hat nicht alle benötigten Berechtigungen gewährt. Die bestehende Verbindung bleibt erhalten.'), { code: 'EBAY_CONSENT_INCOMPLETE' });
+  }
   const nowMs = Date.now();
   const expiresInSec = Number(tokenSet?.expires_in || 0);
   const refreshExpiresInSec = Number(tokenSet?.refresh_token_expires_in || 0);
@@ -305,7 +320,7 @@ async function upsertEbayTokenSet(tokenSet, { actor = null } = {}) {
   const payload = {
     provider: 'ebay',
     env: cfg.env,
-    scopes: cfg.scopes || [],
+    scopes: granted,
     tokenType: tokenSet?.token_type || 'User Access Token',
     accessToken: tokenSet?.access_token || null,
     accessTokenExpiresAt: accessExpiresAtMs ? Timestamp.fromMillis(accessExpiresAtMs) : null,
@@ -398,6 +413,7 @@ function publicStatus(doc) {
 }
 
 module.exports = {
+  getEbayConsentScopes,
   getEbayOAuthConfig,
   getEbayEnvironment,
   getAuthBaseUrl,
@@ -411,4 +427,3 @@ module.exports = {
   getValidEbayAccessToken,
   publicStatus,
 };
-
