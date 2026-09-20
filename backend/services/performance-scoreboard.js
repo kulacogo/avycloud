@@ -5,7 +5,8 @@
  *
  * Sources (who-did-it must be recorded at the source):
  *   erfasst        ← audit_log action=product.identified  (userId)
- *   angereichert   ← audit_log action=product.updated|product.created (userId)
+ *   angereichert   ← legacy raw save count; NOT proof of enrichment
+ *   productCareEdited ← meaningful data changes/readiness, see classifyCareEvent
  *   eingelagert    ← warehouseEvents type=stock_in         (meta.actor.uid)
  *   kommissioniert ← order_events toStatus=picked          (actor.uid)
  *   verpackt       ← order_events toStatus=packed          (actor.uid)
@@ -16,13 +17,14 @@
  */
 
 const SYSTEM_UID = 'system';
+const { classifyCareEvent } = require('../lib/product-care-evidence');
 
 /**
  * Pure aggregation over already-fetched event arrays.
  *
  * erfasst/angereichert zählen EINDEUTIGE PRODUKTE pro Nutzer (dedupliziert über
  * resourceId/details.productId) — nicht Speichervorgänge. Wer dasselbe Produkt
- * fünfmal speichert, hat EIN Produkt angereichert. Massen-Aktionen
+ * fünfmal speichert, hat EIN gespeichertes Produkt (keinen Pflegebeleg). Massen-Aktionen
  * (bulk_update/bulk_import = 1 Audit-Eintrag pro Lauf ohne Produkt-ID) zählen
  * bewusst nicht — sie sind keine Einzel-Anreicherung.
  * Kommissioniert/verpackt/eingelagert bleiben Vorgangs-Zählungen (jeder Pick
@@ -81,16 +83,14 @@ function productCareEvidence(auditLogs = []) {
     const uid = event?.userId;
     const id = event?.resourceId || event?.details?.productId;
     if (!uid || uid === SYSTEM_UID || !id || !['product.updated', 'product.created'].includes(event.action)) continue;
-    if (!byUser.has(uid)) byUser.set(uid, { edited: new Set(), ready: new Set() });
+    if (!byUser.has(uid)) byUser.set(uid, { edited: new Set(), content: new Set(), ready: new Set() });
     const entry = byUser.get(uid);
-    const changes = Array.isArray(event.details?.changes) ? event.details.changes : [];
-    const fields = Array.isArray(event.details?.changedFields) ? event.details.changedFields : changes.map((change) => change?.field);
-    const ready = changes.some((change) => change?.field === 'ops.readiness' && change.to === 'ready' && change.from !== 'ready');
-    const edited = fields.some((field) => typeof field === 'string' && /^(details|identification)\./.test(field));
+    const { edited, ready } = classifyCareEvent(event);
     if (edited || ready) entry.edited.add(String(id));
+    if (edited) entry.content.add(String(id));
     if (ready) entry.ready.add(String(id));
   }
-  return Object.fromEntries([...byUser].map(([uid, entry]) => [uid, { productCareEdited: entry.edited.size, productReady: entry.ready.size }]));
+  return Object.fromEntries([...byUser].map(([uid, entry]) => [uid, { productCareEdited: entry.edited.size, productContentEdited: entry.content.size, productReady: entry.ready.size }]));
 }
 
 /** Legacy overlap metadata retained for API compatibility; no longer deducted
@@ -235,11 +235,11 @@ async function getPerformance({ tenantId = 'default', range = 'week', from, to }
     email: nameByUid.get(uid)?.email || null,
     ...c,
     productCareOverlap: careOverlaps[uid] || 0,
-    ...(careEvidence[uid] || { productCareEdited: 0, productReady: 0 }),
+    ...(careEvidence[uid] || { productCareEdited: 0, productContentEdited: 0, productReady: 0 }),
   }));
   rows.sort((a, b) => String(a.name).localeCompare(String(b.name)));
 
-  return { range: label, rows, contributionDataVersion: 2, dataQuality: { complete: Object.values(sources).every((status) => status === 'complete'), sources } };
+  return { range: label, rows, contributionDataVersion: 3, dataQuality: { complete: Object.values(sources).every((status) => status === 'complete'), sources } };
 }
 
 module.exports = { aggregatePerformance, computeCutoff, computeWindow, getPerformance, sourceCoverage, belongsToTenant, productCareOverlaps, productCareEvidence };

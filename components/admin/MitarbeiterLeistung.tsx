@@ -87,7 +87,7 @@ export const MitarbeiterLeistung: React.FC<{
   );
   const complete =
     result.data?.dataQuality?.complete === true &&
-    result.data?.contributionDataVersion === 2 &&
+    result.data?.contributionDataVersion === 3 &&
     !result.error &&
     !directory.error &&
     !directory.isPending;
@@ -301,7 +301,7 @@ export const MitarbeiterLeistung: React.FC<{
                             : "orders"
                       ] === "unavailable" ||
                       (item.key === "angereichert" &&
-                        result.data?.contributionDataVersion !== 2)
+                        result.data?.contributionDataVersion !== 3)
                         ? "—"
                         : number(
                             rows.reduce(
@@ -327,7 +327,7 @@ export const MitarbeiterLeistung: React.FC<{
                   <div>
                     <h3 className="font-semibold">Erfasster Arbeitsbeitrag</h3>
                     <p className="mt-1 max-w-lg text-xs leading-relaxed text-txt-muted">
-                      Produktpflege 4 · Erfassen und Support 3 · Packen 2 · Picken und
+                      Datenaufbereitung 4 · Erfassen und Support 3 · Packen 2 · Picken und
                       Einlagern 1. Die Stufen berücksichtigen Datenprüfung,
                       Fotos und Packaufwand.
                     </p>
@@ -485,20 +485,25 @@ export const MitarbeiterLeistung: React.FC<{
                       </p>
                     )}
                   </div>
-                  {selectedRow.productCareEdited !== undefined && (
+                  {result.data?.contributionDataVersion === 3 && selectedRow.productCareEdited !== undefined && (
                     <div className="mb-4 rounded-xl bg-app-elevated p-3 text-xs leading-relaxed text-txt-secondary">
                       <p>
-                        {number(selectedRow.angereichert)} Produkte gespeichert,
-                        davon{" "}
-                        {number(creditedCount(selectedRow, "angereichert"))} mit
-                        dokumentierter Datenänderung oder Bereit-Abschluss.
+                        {number(selectedRow.productContentEdited || 0)} Produkte
+                        mit belegter inhaltlicher Datenänderung.
                       </p>
                       <p className="mt-2">
                         {number(selectedRow.productReady || 0)}{" "}
-                        Bereit-Abschlüsse neu protokolliert. Diese sind bereits
-                        in der Produktpflege enthalten. Frühere Freigaben und
-                        Prüfungen ohne Änderung sind nicht vollständig
-                        nachweisbar.
+                        Produkte nachweislich auf „Bereit“ gesetzt. Statuswechsel
+                        werden seit dem 20.09.2026 protokolliert; frühere
+                        Freigaben sind nicht vollständig nachweisbar.
+                      </p>
+                      <p className="mt-2">
+                        Datenänderung und Freigabe sind getrennte Nachweise.
+                        Zusammen zählt jedes Produkt einmal für die Datenaufbereitung.
+                        {" "}{number(selectedRow.angereichert)} Produkte wurden
+                        insgesamt gespeichert, auch beim Erfassen. Automatische
+                        Ergänzungen und reine Foto-, Barcode-, Preis- oder
+                        Gewichtsänderungen sind keine Anreicherung.
                       </p>
                     </div>
                   )}
@@ -517,7 +522,7 @@ export const MitarbeiterLeistung: React.FC<{
                         result.data?.dataQuality?.sources?.[source] !==
                           "unavailable" &&
                         (item.key !== "angereichert" ||
-                          result.data?.contributionDataVersion === 2);
+                          result.data?.contributionDataVersion === 3);
                       return (
                         <div
                           key={item.key}
@@ -601,13 +606,13 @@ export const MitarbeiterLeistung: React.FC<{
                   <strong className="text-txt-primary">
                     {CONTRIBUTION_MODEL_VERSION}:
                   </strong>{" "}
-                  Produktpflege × 4, Erfassen × 3, Supportanliegen × 3, Verpacken × 2,
+                  Datenaufbereitung × 4, Erfassen × 3, Supportanliegen × 3, Verpacken × 2,
                   Kommissionieren × 1 und Einlagern × 1. Die Summe ergibt den
                   Arbeitsbeitrag in Punkten. Teamanteil = persönliche Punkte ÷
                   Punkte aller bewertbaren Konten.
                 </p>
                 <p>
-                  Produktpflege umfasst Recherche, Gegenprüfung und Korrektur
+                  Datenaufbereitung umfasst die Arbeit an Produktinhalten
                   bis zur Freigabe „Bereit“ und erhält die höchste Stufe. Danach
                   folgen Erfassen mit Fotografieren und Packen mit
                   Kartonvorbereitung und Wiegen. Pick und einfache
@@ -616,17 +621,19 @@ export const MitarbeiterLeistung: React.FC<{
                   gemessenen Zeitverhältnisse oder Qualitätsnoten.
                 </p>
                 <p>
-                  Für Produktpflege zählen dokumentierte Datenänderungen oder
+                  Für Datenaufbereitung zählen belegte inhaltliche Datenänderungen oder
                   der Wechsel zu „Bereit“, einmal je Produkt und Konto im
                   Zeitraum. Fotografieren/Erfassen und spätere Datenarbeit sind
-                  eigenständige Tätigkeiten; die Pflegepunkte werden nicht mehr
-                  abgezogen. Bearbeitungsmodus öffnen oder ohne Änderung
-                  speichern zählt allein nicht als Anreicherung. Bereits korrekt
+                  eigenständige Tätigkeiten. Abschluss der Erfassung,
+                  Bearbeitungsmodus öffnen, automatische Ergänzungen und reine
+                  Foto-, Barcode-, Preis- oder Gewichtsänderungen zählen nicht als
+                  Anreicherung. Inhaltlich geändert bedeutet nicht automatisch
+                  vollständig kontrolliert oder freigegeben. Bereits korrekt
                   vorliegende Daten können durch einen Bereit-Abschluss als
                   geprüft bestätigt werden.
                 </p>
                 <p>
-                  Bereit-Abschlüsse werden seit dieser Überarbeitung
+                  Bereit-Abschlüsse werden seit dem 20.09.2026
                   protokolliert. Frühere reine Prüfungen können nicht
                   rückwirkend zugeordnet werden. Die Original-Speicherzahlen
                   bleiben in den Details sichtbar. Die Balken vergleichen den

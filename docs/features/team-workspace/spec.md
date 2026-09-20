@@ -1,6 +1,6 @@
 # Interaktive Teamverwaltung — 20.09.2026
 
-Status: ursprüngliche Teamoberfläche mit PR #10/Main `eb4b850c` produktiv. Nachtrag Gesamtbeitrag lokal geprüft, Auslieferung vorbereitet. Basis `1fe401cd` (Rollenbereinigung PR #9), isolierter Branch `codex/team-workspace-20260920` in `/Users/oguz/Dev/avycloud-team-ui`.
+Status: Rollen/Teamoberfläche sowie Aufwands- und Supportnachträge bis PR #13/Main `4b6e0c26` produktiv. Aktuell: Korrektur falscher Datenpflegezuordnung im isolierten Branch `codex/team-care-attribution-20260920`, Basis dieses Main-Stands. Auslieferungsnachweis im Projektgedächtnis.
 
 ## Auftrag und Grenzen
 
@@ -18,9 +18,9 @@ Der Betreiber empfindet Mitarbeiter, Leistung und Rollen & Rechte als mau und st
 
 Betreiberkorrektur vom 20.09.2026: Anreicherung mit Recherche/Gegenprüfung/Korrektur bis „Bereit“ dauert am längsten; danach Erfassen mit Fotos; danach Packen mit Karton und Wiegen; am schnellsten Pick. Umsetzung als ordinale Aufwandsstufen Pflege4/Erfassen3/Pack2/Pick1. Einfache Einlagerungsbuchungen vorläufig ebenfalls Basis1 (Implementierungsannahme, nicht ausdrücklich vom Betreiber zeitlich eingeordnet). Keine gemessenen Zeitverhältnisse, Anwesenheit oder Qualitätsgrade.
 
-API-Rohzahlen bleiben erhalten. Bewertete Produktpflege basiert jetzt auf `productCareEdited`: eindeutige Produkte je Konto mit dokumentierter Änderung in Datenblattfeldern oder Statuswechsel zu Bereit. Erfassung ist separate Arbeit und zieht keine Pflegepunkte mehr ab. Bearbeiten-Öffnen, leere Saves, unklare historische Logs und technische Metadaten zählen nicht als Datenpflege. Bereit-Abschlüsse sind eine Teilmenge der Pflege und werden nicht doppelt gewertet. Das bestehende Audit-Diff erfasst künftig `ops.readiness`, nicht Bearbeiter-/Zeitstempel. Historische Prüfungen ohne Änderung sind damit weiterhin nicht rekonstruierbar. Keine aktuellen Produktzustände/Initialen rückwirkend als personenbezogenen Abschluss umdeuten.
+API-Rohzahlen bleiben erhalten. Bewertete Produktpflege basiert jetzt auf `productCareEdited`: eindeutige Produkte je Konto mit belegter inhaltlicher Vorher/Nachher-Änderung oder Statuswechsel zu Bereit. Erfassung ist separate Arbeit und zieht keine Pflegepunkte mehr ab. Bearbeiten-Öffnen, leere Saves, unklare historische Logs und technische Metadaten zählen nicht als Datenpflege. Bereit-Abschlüsse sind eine Teilmenge der Pflege und werden nicht doppelt gewertet. Das bestehende Audit-Diff erfasst künftig `ops.readiness`, nicht Bearbeiter-/Zeitstempel. Historische Prüfungen ohne Änderung sind damit weiterhin nicht rekonstruierbar. Keine aktuellen Produktzustände/Initialen rückwirkend als personenbezogenen Abschluss umdeuten.
 
-Team-KPI und Pflege-Detailwert zeigen belegte Pflege; ursprüngliche Speicherzahlen bleiben im Detailtext. API-Version `contributionDataVersion:2` verhindert Fehlwertung während gemischtem Rollout. Datenabdeckung/Quellenfehler, fehlendes Kontoverzeichnis und historische/deaktivierte Konten bleiben wie vorher abgesichert. Suchfilter verändern den Team-Nenner nicht. Kein Ereignis bedeutet keine negative Leistungsnote; nur unklare Speicherungen werden ausdrücklich so bezeichnet.
+Team-KPI und Pflege-Detailwert zeigen belegte Pflege; ursprüngliche Speicherzahlen bleiben im Detailtext. API-Version `contributionDataVersion:3` verhindert Fehlwertung während gemischtem Rollout. Datenabdeckung/Quellenfehler, fehlendes Kontoverzeichnis und historische/deaktivierte Konten bleiben wie vorher abgesichert. Suchfilter verändern den Team-Nenner nicht. Kein Ereignis bedeutet keine negative Leistungsnote; nur unklare Speicherungen werden ausdrücklich so bezeichnet.
 
 ## Prüfung
 
@@ -57,3 +57,15 @@ Konfiguration `support_assignments/{tenantId}` enthält tenantId, responsibleUid
 Datensparsam: Nachrichten nur während des lesenden Abrufs im Speicher; zur Oberfläche ausschließlich Fall-/Antwortzahlen, Abdeckung und zuständige UID. Kein Kundentext, keine Kundenkennungen, keine Markierung als gelesen, keine Antworten, kein Hintergrundjob. Cache maximal60Sekunden/30Fenster, Kaufland maximal20Seiten à30, eBay maximal45Abrufe à50 plus Identität; Zeitbudget25Sekunden vor neuem Abruf, einzelne Requests5/7Sekunden. Abbruch, unbekannte Datenformate und überlappende Seiten führen zu Teilabdeckung.
 
 Primärquellen: [Kaufland OpenAPI](https://sellerapi.kaufland.com/swagger.json), [eBay Message OpenAPI](https://developer.ebay.com/api-docs/master/commerce/message/openapi/3/commerce_message_v1_oas3.json), [eBay Identity OpenAPI](https://developer.ebay.com/api-docs/master/commerce/identity/openapi/3/commerce_identity_v1_oas3.json). Identity unter apiz.ebay.com/commerce/identity/v1/user/ live lesend mit HTTP200 und vorhandenem username geprüft.
+
+## Datenaufbereitung: falsche Erfassungszuordnung korrigiert — 20.09.2026
+
+Betreiber meldet zu Recht, dass die Anzeige Erfassen bei Efe/Hüseyin wie aufwendige Aufbereitung durch Yasemin wertet. Ursache war die zu breite Regel „irgendein identification/details-Feld geändert“. Erfassung ergänzt condition=new, null→leere Kennnummern und beim Lesen automatisch hydratisierte GPSR-Registry-Daten; das ist keine belegte persönliche Datenrecherche.
+
+`product-care-evidence` klassifiziert tatsächliche Audit-Vorher/Nachher-Werte. Titel/Beschreibung/Marke/Kategorie/MPN, fachliche Merkmale und manuelle GPSR-Inhalte zählen; Schlüsselreihenfolge, Leerraum/leere Defaults, Registry-Metadaten/-Hydration und reine Foto-, Barcode-, Preis-, Gewichts-/Lageränderungen nicht. Unlesbare oder fehlende Belege erhalten keine Pflegepunkte. Keine Namens-/Rollen-Sonderregeln.
+
+Bestehendes `/api/save` nimmt optional den Auditkontext `activity=capture|datasheet|ownership|pricing` entgegen. Erfassung, Bearbeitungsübernahme und Preisarbeit erhalten darüber keine Pflegepunkte; unbekannte/alte Clients nutzen die konservative Inhaltsprüfung. Kontext verändert weder Produktbody noch Speicherung/Autorisierung, ist keine Sicherheitsgrenze und kommt nicht in das Produkt. Nutzer/Tenant stammen weiter aus Auth.
+
+`productCareEdited` ist die deduplizierte Vereinigung aus Inhaltsänderung und Freigabe; neues additives `productContentEdited` zählt nur Inhaltsänderungen, `productReady` nur explizite Übergänge zu ready. Die UI bezeichnet die Arbeit als „Datenaufbereitung“ und trennt beide Nachweise. Inhaltlich geändert bedeutet weder umfassend kontrolliert noch freigegeben. Historische Freigaben vor Beginn der Statusprotokollierung am 20.09.2026 bleiben unbekannt; keine Rückrechnung über heutige Initialen/Statuswerte. Version3 verhindert Fehlbewertung alter Serverantworten beim gemischten Rollout.
+
+Lesender Replay des geprüften Siebentagefensters: Efe 61→1, Hüseyin 61→1, Yasemin166→148 Produkte mit belegter Inhaltsänderung. Dies sind Auditbelege, keine Qualitäts- oder vollständigen Freigabezahlen. Keine Produktionsdatenkorrektur/Migration, Gewichte und Logistik-/Supportzählung unverändert. Regressionen decken reale Default-/Registry-Ursachen, späteren echten Editor, Übergänge, Dedup und audit-only Kontext der tatsächlichen Save-Route ab.

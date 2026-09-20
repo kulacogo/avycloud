@@ -106,7 +106,7 @@ const StepSummary: React.FC<StepSummaryProps> = ({ products, onSave, onBack, onR
 
     for (const product of products) {
       try {
-        const result = await saveProduct(product);
+        const result = await saveProduct(product, { activity: "capture" });
         if (!result.ok) {
           throw new Error(result.error?.message || "Speichern fehlgeschlagen.");
         }

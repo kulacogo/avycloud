@@ -26,6 +26,8 @@ require('./_patchGcp');
 const localMocks = require('./_patchLocalModules');
 const { spies: firebaseSpies, firestoreModule } = require('./_setupMocks');
 const { createTestApp } = require('./_createApp');
+const careAudit = require('../../services/audit-log');
+const careAuditSpy = vi.spyOn(careAudit, 'logAudit').mockResolvedValue(undefined);
 const { router: productsRouter } = require('../../routes/products');
 
 // ─── Test App ─────────────────────────────────────────────────────────────────
@@ -150,6 +152,20 @@ describe('POST /api/save', () => {
     const res = await request(app).post('/api/save').send(thin);
     expect(res.status).toBe(200);
     expect(localMocks.spies.saveProductV2).toHaveBeenCalled();
+  });
+
+  it('kennzeichnet Erfassungsabschluss im Audit, ohne Produktnutzlast oder Bearbeiter zu verändern', async () => {
+    const product = { id: 'care-context', identification: { name: 'Beispiel', sku: 'care-context' }, details: { attributes: {}, images: [] } };
+    firebaseSpies.getProduct?.mockResolvedValue(product);
+    localMocks.spies.saveProductV2?.mockResolvedValue(product);
+    careAuditSpy.mockClear();
+    const res = await request(app).post('/api/save?activity=capture').send(product);
+    expect(res.status).toBe(200);
+    expect(localMocks.spies.saveProductV2.mock.calls[0][0].activity).toBeUndefined();
+    expect(careAuditSpy).toHaveBeenCalledWith(expect.objectContaining({
+      resourceId: 'care-context', userId: 'test-uid-001',
+      details: expect.objectContaining({ source: 'ui', activity: 'capture' }),
+    }));
   });
 
   it('blockt die NEUANLAGE eines dünnen Produkts weiterhin mit 400', async () => {

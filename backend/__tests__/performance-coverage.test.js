@@ -59,11 +59,11 @@ describe('getPerformance: tatsächliche Quellenzustände', () => {
   });
   it('liefert neue Pflegebelege und Versionskennung neben unveränderten Rohzahlen', async () => {
     mockSources({ extraAudit: [
-      { action: 'product.updated', userId: 'u1', resourceId: 'p1', details: { changedFields: ['details.description'] } },
+      { action: 'product.updated', userId: 'u1', resourceId: 'p1', details: { changes: [{ field: 'details.description', from: 'Alt', to: 'Neu' }] } },
       { action: 'product.updated', userId: 'u1', resourceId: 'p2', details: { changedFields: [] } },
     ] });
     const result = await require('../services/performance-scoreboard').getPerformance();
-    expect(result.contributionDataVersion).toBe(2);
+    expect(result.contributionDataVersion).toBe(3);
     expect(result.rows[0]).toMatchObject({ erfasst: 1, angereichert: 2, productCareEdited: 1, productCareOverlap: 1, productReady: 0 });
   });
   it('zählt im Lager weder explizit fremde Mandanten noch deren Meta-Zuordnung', async () => {

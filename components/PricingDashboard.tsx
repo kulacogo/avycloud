@@ -23,7 +23,7 @@ const PricingDashboard: React.FC = () => {
             sellPrice: suggestedPrice,
           },
         },
-      } as any);
+      } as any, { activity: "pricing" });
     },
     []
   );

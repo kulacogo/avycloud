@@ -96,9 +96,9 @@ export const METRICS = [
   },
   {
     key: "angereichert",
-    label: "Produktpflege",
+    label: "Datenaufbereitung",
     unit: "Produkte",
-    detail: "Eindeutige bearbeitete Produkte je Konto",
+    detail: "Inhaltlich bearbeitet oder nachweislich auf Bereit gesetzt",
     color: "var(--text-secondary)",
   },
 ] as const;
