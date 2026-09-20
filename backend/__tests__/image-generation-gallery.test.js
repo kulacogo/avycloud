@@ -36,6 +36,12 @@ const generateSpy = vi.fn();
 const uploadSpy = vi.fn();
 const classifySpy = vi.fn();
 const judgeSpy = vi.fn();
+const researchSpy = vi.fn();
+const realResearch = require('../services/packaging-image-research');
+patchLocalModule(path.resolve(__dirname, '../services/packaging-image-research.js'), {
+  ...realResearch,
+  researchPackagingReferences: researchSpy,
+});
 
 // Echte Planungs-Logik behalten, nur den Modell-Aufruf ersetzen.
 const echtesViewpoint = require('../lib/image-viewpoint');
@@ -113,6 +119,8 @@ const V = (index, viewpoint, extra = {}) => ({
 beforeEach(async () => {
   process.env.STUDIO_PHOTOGRAPHIC = 'off';
   vi.clearAllMocks();
+  delete process.env.PACKAGING_IMAGE_RESEARCH;
+  researchSpy.mockResolvedValue({ references: [], report: { status: 'identity_missing', queries: [], sources: [] } });
   delete process.env.IMAGE_VARIANTS_MODE;
 
   const echtesFoto = await sharp({
@@ -236,15 +244,44 @@ describe('Serie: mindestens 4 Studio + 2 Szenen', () => {
 });
 
 describe('alle echten Fotos gehen als Referenz mit', () => {
-  it('nutzt ladbare Web-Produktbilder auch wenn die Uploads nur Kartons zeigen', async () => {
+  it('startet bei einem vorhandenen eigenen Produktfoto keine Web-Recherche', async () => {
+    classifySpy.mockResolvedValue(klassifikation([V(0, 'front')]));
+    await generateImagesForProduct(produkt([{ url_or_base64: 'https://x/front.jpg', source: 'upload' }]), { lifestyle: false });
+    expect(researchSpy).not.toHaveBeenCalled();
+  });
+
+  it('zeichnet bei unbestaetigter Recherche weder den Karton noch ein vorhandenes unbestaetigtes Webbild', async () => {
+    classifySpy.mockResolvedValue(klassifikation([V(0, 'packaging', { showsProduct: false }), V(1, 'front')]));
+    researchSpy.mockResolvedValue({ references: [], report: { status: 'no_verified_match', sources: [] } });
+    const result = await generateImagesForProduct(produkt([
+      { url_or_base64: 'https://x/box.jpg', source: 'upload' },
+      { url_or_base64: 'https://x/unverified.jpg', source: 'web' },
+    ]), { lifestyle: false });
+    expect(result.images).toEqual([]);
+    expect(result.plan).toEqual([]);
+    expect(generateSpy).not.toHaveBeenCalled();
+    expect(result.skipped.some(s => s.reason === 'recherche_no_verified_match')).toBe(true);
+  });
+
+  it('recherchiert und verwendet bestaetigte Webbilder statt Kartons oder ungepruefter Katalogbilder', async () => {
     const bilder = [
       { url_or_base64: 'https://x/karton.jpg', source: 'upload' },
       { url_or_base64: 'https://catalog.example/product.png', source: 'web_search' },
     ];
-    classifySpy.mockResolvedValue(klassifikation([V(0, 'packaging', { showsProduct: false }), V(1, 'front')]));
+    const loaded = await _internal.loadReferences([bilder[1]]);
+    researchSpy.mockResolvedValue({ references: loaded, report: { status: 'verified', queries: ['Bosch GSR 12V'], sources: [{ pageUrl: 'https://catalog.example/product', imageUrl: bilder[1].url_or_base64 }] } });
+    classifySpy.mockResolvedValueOnce(klassifikation([V(0, 'packaging', { showsProduct: false }), V(1, 'front')]))
+      .mockResolvedValue(klassifikation([V(0, 'front')]));
     const res = await generateImagesForProduct(produkt(bilder), { referenceImage: bilder[0], lifestyle: false });
-    expect(res.evidence.referenceCount).toBe(2);
-    expect(res.plan.find(p => p.viewpoint === 'front').sourceIndex).toBe(1);
+    expect(res.evidence.referenceCount).toBe(1);
+    expect(res.plan.find(p => p.viewpoint === 'front').sourceIndex).toBe(0);
+    expect(res.evidence.research.status).toBe('verified');
+    expect(res.plan.every(entry => entry.quelleIstEcht === true && entry.art === 'studio')).toBe(true);
+    expect(res.plan).toHaveLength(1);
+    expect(res.skipped.some(entry => entry.reason === 'recherche_missing_views')).toBe(true);
+    expect(researchSpy).toHaveBeenCalledTimes(1);
+    expect(res.images[0].referenceProvenance.kind).toBe('verified_catalogue');
+    expect(generateSpy.mock.calls.every(([args]) => !args.referenceImages.some(url => url.includes('karton')))).toBe(true);
     expect(res.images.length).toBeGreaterThan(0);
   });
 
@@ -259,7 +296,7 @@ describe('alle echten Fotos gehen als Referenz mit', () => {
     ]), { lifestyle: false });
     expect(res.images).toHaveLength(0);
     expect(res.skipped).toContainEqual({ viewpoint: 'reference', label: 'Webbild 2', reason: 'referenz_laden_fehlgeschlagen' });
-    expect(res.skipped.some(e => e.reason === 'vorlagen_nicht_vollstaendig_geladen')).toBe(true);
+    expect(res.skipped.some(e => e.reason === 'recherche_identity_missing')).toBe(true);
     expect(JSON.stringify(res.skipped)).not.toContain('private');
     expect(res.evidence.failedReferenceCount).toBe(1);
     expect(generateSpy).not.toHaveBeenCalled();
@@ -912,7 +949,7 @@ describe('nurPixeltreu', () => {
     });
     expect(res.images).toHaveLength(0);
     expect(res.report.kosten.bildaufrufe).toBe(0);
-    expect(res.skipped.some((x) => x.reason === 'keine_brauchbare_vorlage')).toBe(true);
+    expect(res.skipped.some((x) => x.reason === 'recherche_identity_missing')).toBe(true);
   });
 
   it('aendert den Galerie-Knopf NICHT — ohne die Option bleibt alles wie bisher', async () => {

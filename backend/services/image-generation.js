@@ -57,6 +57,7 @@ const { generateProductImagesWithReport, GeminiImageError } = require('../lib/ve
 const { uploadBase64Image } = require('../lib/storage');
 const { buildGalleryPrompt, buildMaskPrompt, generateVisualDescriptions } = require('./prompt-engine');
 const { fetchWithUnlocker } = require('../lib/web-unlocker');
+const { needsPackagingResearch, researchPackagingReferences } = require('./packaging-image-research');
 const {
   classifyViewpointParts,
   summarizeEvidence,
@@ -932,6 +933,7 @@ async function generateImagesForProduct(product, options = {}) {
   if (!product?.id) throw new Error('Product ID is required');
 
   const startedAt = Date.now();
+  const deadline = startedAt + totalBudgetMs();
   const { referenceImage, maxVariants } = options;
   const candidates = collectReferenceCandidates(product, referenceImage);
   if (!candidates.length) {
@@ -939,7 +941,7 @@ async function generateImagesForProduct(product, options = {}) {
   }
 
   const downloadFailures = [];
-  const references = await loadReferences(candidates, downloadFailures);
+  let references = await loadReferences(candidates, downloadFailures);
   if (!references.length) {
     throw new Error('Keines der Referenzbilder konnte geladen werden. Bitte Bildzugriff prüfen und erneut starten.');
   }
@@ -948,7 +950,21 @@ async function generateImagesForProduct(product, options = {}) {
   // Ein Vision-Call, zwei Antworten: welche Seite zeigt jedes Foto, und was ist
   // das ueberhaupt fuer ein Gegenstand / wie wird er benutzt. Letzteres traegt
   // die Anwendungsszenen — ohne es waeren sie geraten.
-  const classification = await classifyViewpointParts(references.map((r) => r.part));
+  let classification = await classifyViewpointParts(references.map((r) => r.part));
+  let research = null;
+  if (process.env.PACKAGING_IMAGE_RESEARCH !== 'off' && needsPackagingResearch(classification, references)) {
+    const researched = await researchPackagingReferences({ product, references, classification, deadline: Math.min(deadline - 60000, Date.now() + 90000) });
+    research = researched.report;
+    // Once packaging triggered research, unverified catalogue pictures/boxes
+    // cannot silently become a fallback if exact-variant verification failed.
+    references = researched.references;
+    classification = references.length ? await classifyViewpointParts(references.map(r => r.part)) : null;
+    if (research.status === 'verified' && (!classification || classification.sameProductThroughout === false)) {
+      research = { ...research, status: 'no_verified_match' };
+      references = [];
+      classification = null;
+    }
+  }
   const evidence = summarizeEvidence(classification);
   const produkt = classification?.produkt || null;
 
@@ -962,16 +978,25 @@ async function generateImagesForProduct(product, options = {}) {
     produkt,
     nurPixeltreu,
   });
-  const plan = planned.plan;
+  // A catalogue match identifies the item, not its unseen sides. In particular
+  // boxed furniture must not acquire invented feet/back panels in a novel view.
+  const plan = research
+    ? research.status === 'verified' ? planned.plan.filter(entry => entry.quelleIstEcht === true && entry.art === 'studio') : []
+    : planned.plan;
   // Die Erkennung kennt nur erfolgreich geladene Bilder. Fehlende Downloads
   // sind kein Beleg dafuer, dass ALLE vorhandenen Bilder ungeeignet sind.
   const skipped = planned.skipped.map(entry => downloadFailures.length && entry.reason === 'keine_brauchbare_vorlage'
     ? { ...entry, reason: 'vorlagen_nicht_vollstaendig_geladen' } : entry);
+  if (research && research.status !== 'verified') {
+    skipped.length = 0;
+    skipped.push({ viewpoint: 'reference', label: 'Web-Recherche', reason: `recherche_${research.status}` });
+  } else if (research?.status === 'verified' && plan.length < planned.plan.length) {
+    skipped.push({ viewpoint: 'reference', label: 'Weitere Ansichten und Szenen', reason: 'recherche_missing_views' });
+  }
 
   // --- Ansichten rendern (parallel, mit Gesamt-Zeitbudget) ------------------
   const images = [];
   const failures = [];
-  const deadline = startedAt + totalBudgetMs();
   const kosten = neuerZaehler({ deckel: options.kostendeckelUsd });
 
   // Jeder Posten wird so bepreist, wie er tatsaechlich laufen wird: billige
@@ -1114,6 +1139,10 @@ async function generateImagesForProduct(product, options = {}) {
       // Firestore, und der Client läuft OHNE ignoreUndefinedProperties — ein
       // undefined-Feld lässt den gesamten Produkt-Schreibvorgang scheitern.
       if (result.warnings?.length) eintrag.warnings = result.warnings;
+      if (research?.status === 'verified') {
+        eintrag.referenceProvenance = { kind: 'verified_catalogue', sources: research.sources };
+        eintrag.notes += ' · Nach recherchierter Modellreferenz; kein Foto des tatsächlichen Artikelzustands.';
+      }
       images.push(eintrag);
 
       // Ein Bild, das ENTSTANDEN ist, dessen Leinwand aber nicht vereinheitlicht
@@ -1183,6 +1212,7 @@ async function generateImagesForProduct(product, options = {}) {
       referenceCount: references.length,
       candidateCount: candidates.length,
       failedReferenceCount: downloadFailures.length,
+      ...(research ? { research } : {}),
       classified: Boolean(classification),
       sameProductThroughout: classification?.sameProductThroughout !== false,
       // Was die Bildanalyse im Artikel erkannt hat — steuert die Szenen und
