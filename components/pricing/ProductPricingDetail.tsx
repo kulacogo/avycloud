@@ -81,7 +81,7 @@ const ProductPricingDetail: React.FC<ProductPricingDetailProps> = ({
             sellPrice: displaySuggested,
           },
         },
-      } as any);
+      } as any, { activity: "pricing" });
       onPriceUpdated?.();
     } catch {
       // error handled upstream

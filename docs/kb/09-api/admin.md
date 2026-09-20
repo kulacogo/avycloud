@@ -1,7 +1,7 @@
 ---
 title: API — Admin
 for: [dev, agent, admin]
-lastReviewed: 2026-05-18
+lastReviewed: 2026-09-20
 ---
 
 # API — Admin
@@ -56,8 +56,8 @@ Tenant-Source: `req.user?.tenantId || 'default'`. Bulk-Jobs erlauben `tenantId` 
 ### `GET /api/admin/performance`
 - **Auth:** `requirePermission('admin', 'users.read')`; Tenant ausschließlich aus dem authentifizierten Nutzer.
 - **Request:** `range=today|week|month` (Standard week), optional `from/to=YYYY-MM-DD`, Endtag inklusive; UTC-Grenzen.
-- **Response:** `{ok:true,data:{range,rows,dataQuality,contributionDataVersion:2}}`. Bestehende fünf Rohzahlen pro Konto unverändert. `rows[].productCareEdited`: eindeutige Produkte mit dokumentierter Änderung in identification/details oder Wechsel zu `ops.readiness=ready`. `rows[].productReady`: Teilmenge mit protokolliertem Bereit-Abschluss. Wiederholungen je Produkt/Konto dedupliziert. `productCareOverlap` bleibt aus Kompatibilitätsgründen, wird fachlich **nicht mehr abgezogen**: Erfassen und Anreichern sind separate Arbeit.
-- **Abdeckung:** `dataQuality={complete:boolean,sources:{audit,orders,warehouse}}`. Quellenstatus `complete`, `limited` (Abfragegrenze erreicht ohne gesicherte Abdeckung bis vor Beginn oder ungültiger Zeitstempel), `unavailable` (Abruffehler). Fehlende Abdeckungsmetadaten oder Beitragsschema <2 erlauben keine Gesamtbewertung im neuen Client. Historische reine Prüfungen ohne Änderung lassen sich nicht rückwirkend ergänzen.
+- **Response:** `{ok:true,data:{range,rows,dataQuality,contributionDataVersion:3}}`. Bestehende fünf Rohzahlen pro Konto unverändert. `rows[].productCareEdited`: deduplizierte Vereinigung aus belegter inhaltlicher Vorher/Nachher-Änderung oder Wechsel zu `ops.readiness=ready`. `rows[].productContentEdited`: Teilmenge mit tatsächlicher Inhaltsänderung. Klassifikation in `product-care-evidence`: keine Erfassungs-/Übernahme-/Preis-Saves, automatischen Defaults/Registry-Ergänzungen oder bloßen Foto-/Barcode-/Gewichtsänderungen; fehlende Belege zählen nicht. Datenänderung belegt keine abgeschlossene Kontrolle. `rows[].productReady`: Teilmenge mit protokolliertem Bereit-Abschluss. Wiederholungen je Produkt/Konto dedupliziert. `productCareOverlap` bleibt aus Kompatibilitätsgründen, wird fachlich **nicht mehr abgezogen**: Erfassen und Anreichern sind separate Arbeit.
+- **Abdeckung:** `dataQuality={complete:boolean,sources:{audit,orders,warehouse}}`. Quellenstatus `complete`, `limited` (Abfragegrenze erreicht ohne gesicherte Abdeckung bis vor Beginn oder ungültiger Zeitstempel), `unavailable` (Abruffehler). Fehlende Abdeckungsmetadaten oder Beitragsschema ungleich 3 erlauben keine Gesamtbewertung im neuen Client. Historische reine Prüfungen ohne Änderung lassen sich nicht rückwirkend ergänzen.
 - **Bestehende Grenzen:** höchstens 10.000 Audit-/8.000 Order-/8.000 Lagerereignisse, danach Zeitraumfilter; keine zusätzliche Abfrage oder Schreiboperation im Leistungsabruf. Der bestehende Produkt-Audit-Diff protokolliert künftig auch `ops.readiness`; keine Änderung am Produktspeicherpfad. Legacy-Ereignisse ohne Tenant gehören nur zu `default`.
 - **Fachlich:** Die Oberfläche folgt Aufwandsstufen des Betriebs (Pflege4, Erfassen3, Pack2, Pick/Einlagern1); keine gemessene Arbeitszeit/Qualität. Die API berechnet keinen verbindlichen Personal-Leistungsgrad.
 - **Source:** [performance-scoreboard](../../../backend/services/performance-scoreboard.js), [Abdeckungstests](../../../backend/__tests__/performance-coverage.test.js).

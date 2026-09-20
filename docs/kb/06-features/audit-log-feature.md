@@ -1,7 +1,7 @@
 ---
 title: Audit Log
 for: [dev, agent, admin, manager]
-lastReviewed: 2026-05-18
+lastReviewed: 2026-09-20
 ---
 
 # Audit Log
@@ -51,6 +51,10 @@ Filter:
 `diffProduct(before, after)` aus `services/audit-log.js` wird in `backend/routes/products.js` genutzt, um Vorher/Nachher-Werte für Produkt-Updates zu berechnen — Output landet in `details`.
 
 Seit 20.09.2026 gehört `ops.readiness` als einzelnes fachliches Statusfeld dazu, damit der Wechsel zu „Bereit“ einer Person zugeordnet werden kann. Bearbeiterkürzel und Zeitstempel bleiben ausgeschlossen. Das zusätzliche Audit-Feld verändert den eigentlichen Speicherpfad nicht; alte Freigaben werden nicht rückwirkend erfunden. Die Leistungsansicht zählt dokumentierte Datenänderungen oder einen Bereit-Abschluss dedupliziert je Produkt und Konto, ohne Abzug für eine vorangegangene Erfassung.
+
+### Arbeitskontext und persönliche Datenaufbereitung
+
+Seit 20.09.2026 ergänzt die bestehende Save-Route `details.activity` (capture/datasheet/ownership/pricing, sonst unspecified), ohne es in Produktdaten zu speichern. Authentifizierte Nutzer-/Tenantzuordnung bleibt unverändert. Der vom Client gemeldete Kontext ist keine Sicherheitsgrenze. Die Auswertung in `lib/product-care-evidence.js` braucht tatsächliche Inhaltsdifferenzen oder einen expliziten Bereit-Wechsel; rohe Speichervorgänge, technische Defaults und Registry-Hydration beweisen keine Anreicherung. Originalaudits werden nicht geändert. Schema3 ergänzt `productContentEdited` und trennt Inhaltsarbeit von `productReady`; `productCareEdited` bleibt die einmalig bewertete Vereinigung pro Produkt/Konto/Fenster.
 
 ### Aufrufer (Auswahl)
 

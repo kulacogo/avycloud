@@ -2271,6 +2271,7 @@ router.post('/save', requirePermission('products', 'write'), async (req, res) =>
           productName: product.identification?.name || product.details?.title || '',
           sku: product.identification?.sku || '',
           source: 'ui',
+          activity: require('../lib/product-care-evidence').normalizeSaveActivity(req.query?.activity),
           changedFields: changes.map(c => c.field),
           changes: changes.slice(0, 50),
         },

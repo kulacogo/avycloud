@@ -1,7 +1,7 @@
 ---
 title: API — Products
 for: [dev, agent, admin]
-lastReviewed: 2026-05-18
+lastReviewed: 2026-09-20
 ---
 
 # API — Products
@@ -86,6 +86,8 @@ Batch-Labels.
 ### `POST /api/save`
 
 **Primary save endpoint** für UI-Saves. Validiert vor `saveProductV2`.
+
+Optionales Query `activity=capture|datasheet|ownership|pricing` seit 20.09.2026: wird ausschließlich allowlisted als `audit_log.details.activity` abgelegt, sonst `unspecified`. Kein Feld im Produktbody, keine Änderung am Speicherpfad oder den Rechten. Dient der Leistungszuordnung: Erfassungsabschluss, Übernahme und Preisarbeit sind keine Datenaufbereitung. Akteur/Tenant weiter aus Auth; clientseitiger Arbeitskontext ist kein Autorisierungsnachweis.
 
 - **Auth**: `requirePermission('products', 'write')`
 - **Tenant Source**: JWT

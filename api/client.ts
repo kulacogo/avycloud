@@ -2259,6 +2259,7 @@ export type PerformanceRow = {
   angereichert: number;
   productCareOverlap?: number;
   productCareEdited?: number;
+  productContentEdited?: number;
   productReady?: number;
   eingelagert: number;
   kommissioniert: number;
@@ -3699,7 +3700,7 @@ export interface WriteReceipt {
   checked?: number;
 }
 
-export const saveProduct = async (product: Product): Promise<{ ok: boolean; data?: { id: string; revision: number; sku?: string | null; receipt?: WriteReceipt }; error?: { code: number; message: string } }> => {
+export const saveProduct = async (product: Product, context?: { activity: "capture" | "datasheet" | "ownership" | "pricing" }): Promise<{ ok: boolean; data?: { id: string; revision: number; sku?: string | null; receipt?: WriteReceipt }; error?: { code: number; message: string } }> => {
   let response: Response | undefined;
 
   try {
@@ -3707,7 +3708,7 @@ export const saveProduct = async (product: Product): Promise<{ ok: boolean; data
       console.log('API CALL: /api/save', { id: product.id, name: product.identification.name });
     }
 
-    response = await fetchApi(`${BACKEND_URL}/api/save`, {
+    response = await fetchApi(`${BACKEND_URL}/api/save${context ? `?activity=${encodeURIComponent(context.activity)}` : ""}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

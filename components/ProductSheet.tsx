@@ -813,7 +813,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
       };
 
       setLocalProduct(productToSave);
-      const result = await saveProduct(productToSave);
+      const result = await saveProduct(productToSave, { activity: "datasheet" });
       if (result.ok && result.data) {
         // Fetch the server-side version of the product to see exactly what was persisted.
         // This prevents "phantom reverts" where the UI shows local data but the server
@@ -1419,7 +1419,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     };
     setLocalProduct(next);
     try {
-      const r = await saveProduct(next);
+      const r = await saveProduct(next, { activity: "ownership" });
       if (r.ok && r.data) {
         const merged: Product = { ...next, ops: { ...next.ops, revision: r.data.revision } };
         setLocalProduct(merged);
