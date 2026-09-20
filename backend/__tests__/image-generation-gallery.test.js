@@ -250,8 +250,27 @@ describe('alle echten Fotos gehen als Referenz mit', () => {
     expect(researchSpy).not.toHaveBeenCalled();
   });
 
+  it.each(['web', 'web_search'])('erzeugt bei Kartonauswahl Bilder aus vorhandener passender %s Vorlage ohne Suchabhaengigkeit', async source => {
+    const bilder = [
+      { url_or_base64: 'https://x/karton.jpg', source: 'upload' },
+      { url_or_base64: 'https://catalog.example/chair.jpg', source },
+      { url_or_base64: 'https://x/old-generated.png', source: 'generated', generatedByAi: true },
+    ];
+    classifySpy.mockResolvedValue(klassifikation([
+      V(0, 'packaging', { showsProduct: false, usableAsReference: false }),
+      V(1, 'front', { subjectRole: 'complete', fullyVisible: true }),
+    ]));
+    researchSpy.mockRejectedValue(new Error('search unavailable'));
+    const result = await generateImagesForProduct(produkt(bilder), { referenceImage: bilder[0], lifestyle: true });
+    expect(researchSpy).not.toHaveBeenCalled();
+    expect(result.images.length).toBeGreaterThan(0);
+    expect(result.plan.find(p => p.viewpoint === 'front').sourceIndex).toBe(1);
+    expect(result.evidence.referenceCount).toBe(2);
+    expect(generateSpy.mock.calls.every(([args]) => !args.referenceImages.some(url => /karton|old-generated/.test(url)))).toBe(true);
+  });
+
   it('zeichnet bei unbestaetigter Recherche weder den Karton noch ein vorhandenes unbestaetigtes Webbild', async () => {
-    classifySpy.mockResolvedValue(klassifikation([V(0, 'packaging', { showsProduct: false }), V(1, 'front')]));
+    classifySpy.mockResolvedValue({ ...klassifikation([V(0, 'packaging', { showsProduct: false }), V(1, 'front')]), sameProductThroughout: false });
     researchSpy.mockResolvedValue({ references: [], report: { status: 'no_verified_match', sources: [] } });
     const result = await generateImagesForProduct(produkt([
       { url_or_base64: 'https://x/box.jpg', source: 'upload' },
@@ -270,7 +289,7 @@ describe('alle echten Fotos gehen als Referenz mit', () => {
     ];
     const loaded = await _internal.loadReferences([bilder[1]]);
     researchSpy.mockResolvedValue({ references: loaded, report: { status: 'verified', queries: ['Bosch GSR 12V'], sources: [{ pageUrl: 'https://catalog.example/product', imageUrl: bilder[1].url_or_base64 }] } });
-    classifySpy.mockResolvedValueOnce(klassifikation([V(0, 'packaging', { showsProduct: false }), V(1, 'front')]))
+    classifySpy.mockResolvedValueOnce({ ...klassifikation([V(0, 'packaging', { showsProduct: false }), V(1, 'front')]), sameProductThroughout: false })
       .mockResolvedValue(klassifikation([V(0, 'front')]));
     const res = await generateImagesForProduct(produkt(bilder), { referenceImage: bilder[0], lifestyle: false });
     expect(res.evidence.referenceCount).toBe(1);
