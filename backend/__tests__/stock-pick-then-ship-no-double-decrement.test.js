@@ -309,7 +309,7 @@ describe('processShippedOrder skips Phase A when Pick-Flow already claimed (CLAU
 
     await processShippedOrder({ orderId: 'order-normal', tenantId: 'default' });
 
-    expect(mockDecrement).toHaveBeenCalledWith('SKU-NORMAL', 1);
+    expect(mockDecrement).toHaveBeenCalledWith('SKU-NORMAL', 1, { orderId: 'order-normal' });
     // Setzt stockDecrementedBy='ship'
     expect(mockOrderUpdate).toHaveBeenCalledWith(
       expect.objectContaining({

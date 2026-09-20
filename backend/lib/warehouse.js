@@ -584,6 +584,15 @@ async function removeProductFromBin(binCode, productId, options = {}) {
       productCount,
       lastStoredAt: Timestamp.now(),
     });
+    // delta NUR wenn der Produktbestand wirklich sinkt (Incident 2026-08-28):
+    // ohne delta ist der Abgang fuer den Ledger (Σ warehouseEvents.delta)
+    // unsichtbar und der Refresh unten stellt die Menge wieder her.
+    // skipProductUpdate ist Layout-only (z. B. Umzug) — dort darf KEIN delta
+    // in die Ledger-Summe einfliessen. Geclampt auf die ANGEWANDTE Menge
+    // (gleiches Prinzip wie order_decrement): der rohe Bin-Eintrag kann
+    // groesser sein als der Bestand und triebe die Ledger-Summe unter 0.
+    const invQtyForLedger = Math.max(0, Number(productData?.inventory?.quantity) || 0);
+    const appliedLedgerQty = Math.min(Number(removedQty) || 0, invQtyForLedger);
     writeWarehouseEventTx(tx, {
       type: 'bin_remove_product',
       binCode,
@@ -591,6 +600,7 @@ async function removeProductFromBin(binCode, productId, options = {}) {
       removedQty,
       remainingBinProductCount: productCount,
       skipProductUpdate: Boolean(options.skipProductUpdate),
+      ...(options.skipProductUpdate ? {} : { delta: -appliedLedgerQty || 0 }),
     });
     if (!options.skipProductUpdate) {
       const shouldClearStorage = productData?.storage?.binCode === binCode;
@@ -622,60 +632,62 @@ async function removeProductFromBin(binCode, productId, options = {}) {
  *  - Remove empty bin entries; clear storage if primary bin disappears.
  *  - Keep warehouseBins collection consistent for touched bins.
  */
-async function decrementProductByIdOrSku(productIdOrSku, quantity) {
+async function decrementProductByIdOrSku(productIdOrSku, quantity, meta = null) {
   if (!quantity || quantity <= 0) return;
   const id = String(productIdOrSku).trim();
   let productRef = productsCollection.doc(id);
-  let productSnap = await productRef.get();
-  if (!productSnap.exists) {
+  const probeSnap = await productRef.get();
+  if (!probeSnap.exists) {
     try {
       const { ref } = await findProductDocument({ productId: null, sku: id, barcode: id });
       productRef = ref;
-      productSnap = await ref.get();
     } catch (e) {
       const msg = `[decrementProductByIdOrSku] CRITICAL: product not found for '${id}' — stock NOT decremented`;
       console.error(msg);
       throw new Error(msg);
     }
   }
-  const productData = productSnap.data() || {};
-  let remaining = Number(quantity) || 0;
-  const bins = Array.isArray(productData.storageBins) ? [...productData.storageBins] : [];
-  const binDeltas = [];
 
-  for (const b of bins) {
-    if (!b?.code || remaining <= 0) continue;
-    const current = Number(b.quantity || 0);
-    if (current <= 0) continue;
-    const take = Math.min(current, remaining);
-    b.quantity = current - take;
-    remaining -= take;
-    binDeltas.push({ code: String(b.code).trim(), delta: -take });
-  }
+  // ALLE Mengen werden IN der Tx aus dem tx-Read berechnet (Review 2026-08-28):
+  // ein Read ausserhalb der Tx ist bei Konkurrenz oder Tx-Retry stale, und das
+  // Ledger-delta unten wuerde aus veralteten Zahlen berechnet.
+  const txResult = await firestore.runTransaction(async (tx) => {
+    const productSnap = await tx.get(productRef);
+    if (!productSnap.exists) {
+      throw new Error(`[decrementProductByIdOrSku] product '${productRef.id}' disappeared during tx`);
+    }
+    const productData = productSnap.data() || {};
+    let remaining = Number(quantity) || 0;
+    const bins = Array.isArray(productData.storageBins) ? productData.storageBins.map((b) => ({ ...b })) : [];
+    const binDeltas = [];
 
-  const cleanedBins = bins.filter((b) => Number(b.quantity || 0) > 0);
-  const invQty = Number(productData.inventory?.quantity || 0);
-  const newInv = Math.max(0, invQty - (Number(quantity) || 0));
+    for (const b of bins) {
+      if (!b?.code || remaining <= 0) continue;
+      const current = Number(b.quantity || 0);
+      if (current <= 0) continue;
+      const take = Math.min(current, remaining);
+      b.quantity = current - take;
+      remaining -= take;
+      binDeltas.push({ code: String(b.code).trim(), delta: -take });
+    }
 
-  // Defensive no-op (CLAUDE.md Punkt 13): wenn bereits inventar=0 und keine Bins,
-  // dann ist hier nichts mehr zu decrementieren. Wir schreiben trotzdem ein
-  // warehouseEvent, damit der Aufruf nicht spurlos verschwindet, aber wir mutieren
-  // weder Produkt noch Bins. Dies kann legitim auftreten, wenn `bookStockOut`
-  // mit `meta.orderId` bereits per Pick-Pfad alles dekrementiert hat und
-  // `_onOrderShipped` faelschlicherweise erneut Phase A ausfuehrt (defense in depth).
-  if (invQty <= 0 && bins.length === 0) {
-    console.warn(
-      `[decrementProductByIdOrSku] no-op for productId=${productRef.id} — inventory.quantity already 0 and no bins. Possible duplicate decrement attempt; no mutation performed.`
-    );
-    return;
-  }
+    const cleanedBins = bins.filter((b) => Number(b.quantity || 0) > 0);
+    const invQty = Number(productData.inventory?.quantity || 0);
+    const newInv = Math.max(0, invQty - (Number(quantity) || 0));
 
-  let newStorage = productData.storage || null;
-  if (newStorage?.binCode && !cleanedBins.find((b) => String(b.code).trim() === String(newStorage.binCode).trim())) {
-    newStorage = null;
-  }
+    // Defensive no-op (CLAUDE.md Punkt 13): wenn bereits inventar=0 und keine
+    // Bins, ist hier nichts mehr zu decrementieren — kein Write, kein Event.
+    // Kann legitim auftreten, wenn der Pick-Pfad bereits alles dekrementiert
+    // hat und `_onOrderShipped` faelschlicherweise erneut Phase A ausfuehrt.
+    if (invQty <= 0 && bins.length === 0) {
+      return { noop: true, invQty, newInv: invQty, productData };
+    }
 
-  await firestore.runTransaction(async (tx) => {
+    let newStorage = productData.storage || null;
+    if (newStorage?.binCode && !cleanedBins.find((b) => String(b.code).trim() === String(newStorage.binCode).trim())) {
+      newStorage = null;
+    }
+
     // Alle Reads vor Writes: hole Bin-Snapshots vor Updates
     const binSnapshots = [];
     for (const delta of binDeltas) {
@@ -692,14 +704,25 @@ async function decrementProductByIdOrSku(productIdOrSku, quantity) {
         quantity: newInv,
       },
     });
+    // delta ist PFLICHT (Incident 2026-08-28, SKU-3190474725): der Ledger
+    // (Σ warehouseEvents.delta, STOCK_LEDGER) sieht nur delta-tragende Events.
+    // Ohne delta machte der refreshProductInventory-Aufruf unten den Decrement
+    // sofort rueckgaengig (Phantom-Bestand → Marker-Relist → Oversell).
+    // Geclampt auf die angewandte Menge (invQty − newInv), nie auf requestedQty —
+    // sonst triebe ein Ueber-Decrement die Ledger-Summe unter 0. Das aeussere
+    // Math.max(0, …) verhindert, dass ein bereits korrupter negativer invQty
+    // in ein POSITIVES Versand-delta umkippt (Bestand wuerde STEIGEN).
     writeWarehouseEventTx(tx, {
       type: 'order_decrement',
       productId: productRef.id,
       productKey: id,
+      sku: productData.identification?.sku || productData.details?.identifiers?.sku || null,
       requestedQty: Number(quantity) || 0,
+      delta: -Math.max(0, invQty - newInv) || 0,
       appliedBinDeltas: binDeltas,
       inventoryAfter: newInv,
       binCountAfter: cleanedBins.length,
+      meta: meta || null,
     });
 
     for (const { binRef, binSnap, delta } of binSnapshots) {
@@ -725,11 +748,21 @@ async function decrementProductByIdOrSku(productIdOrSku, quantity) {
       const productCount = updated.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
       tx.update(binRef, { products: updated, productCount, lastStoredAt: Timestamp.now() });
     }
+
+    return { noop: false, invQty, newInv, productData };
   });
 
-  await refreshProductInventory(productRef.id);
+  if (txResult.noop) {
+    console.warn(
+      `[decrementProductByIdOrSku] no-op for productId=${productRef.id} — inventory.quantity already 0 and no bins. Possible duplicate decrement attempt; no mutation performed.`
+    );
+    return;
+  }
+  const { invQty, newInv, productData } = txResult;
 
-  // Telemetrie: inventory_ledger-Eintrag (CLAUDE.md Punkt 10/13).
+  // Telemetrie VOR dem Refresh: der inventory_ledger liest sich sonst zeitlich
+  // verdreht (Refresh-Eintrag vor dem Decrement-Eintrag — hat die Ermittlung
+  // des Incidents 2026-08-28 verschleiert).
   if (Number(invQty) !== Number(newInv)) {
     try {
       const { notifyStockChange } = require('./stock-change-events');
@@ -751,6 +784,18 @@ async function decrementProductByIdOrSku(productIdOrSku, quantity) {
         `[decrementProductByIdOrSku] notifyStockChange failed productId=${productRef.id}: ${err.message}`
       );
     }
+  }
+
+  // Post-Commit best-effort: die Tx oben IST der Decrement. Wirft der Refresh,
+  // darf der Aufrufer das nicht als Fehlschlag werten — _onOrderShipped wuerde
+  // sonst den Claim releasen und der Retry ein ZWEITES delta-Event schreiben
+  // (permanenter Doppelabzug im Ledger).
+  try {
+    await refreshProductInventory(productRef.id);
+  } catch (err) {
+    console.warn(
+      `[decrementProductByIdOrSku] post-commit refresh failed productId=${productRef.id}: ${err.message} — Reconcile-Cron gleicht nach`
+    );
   }
 }
 
@@ -1157,6 +1202,7 @@ async function bookStockOut({ productId, sku, barcode, binCode, quantity, meta }
   let preInventoryQty = null;
   let postInventoryQty = null;
   let claimResult = null;
+  let shipDuplicateSkip = false;
 
   await firestore.runTransaction(async (tx) => {
     // ─── Phase READS ─────────────────────────────────────────────────────
@@ -1186,6 +1232,26 @@ async function bookStockOut({ productId, sku, barcode, binCode, quantity, meta }
       null;
     preInventoryQty = Number(productData?.inventory?.quantity);
     if (!Number.isFinite(preInventoryQty)) preInventoryQty = null;
+
+    // MUTUAL EXCLUSIVITY (CLAUDE.md Punkt 13, Review 2026-08-28): hat der
+    // Ship-Pfad die Order bereits dekrementiert (by='ship'), sind Produkt-
+    // Menge UND Bin-Eintrag fuer diese Einheit schon ausgebucht
+    // (decrementProductByIdOrSku raeumt beide). Ein zweiter Pick-Write wuerde
+    // seit dem delta-Fix die Ledger-Summe PERMANENT doppelt senken (vorher
+    // trug order_decrement kein delta — Σ zaehlte nur den Pick, zufaellig
+    // korrekt). Deshalb: kompletter No-op VOR den Bin-Checks — der Bin kann
+    // durch den Ship-Decrement bereits leer sein.
+    if (orderRef && orderClaimState && orderClaimState.exists && orderClaimState.alreadyClaimed && orderClaimState.by === 'ship') {
+      claimResult = {
+        claimed: false,
+        alreadyClaimed: true,
+        at: orderClaimState.at,
+        by: orderClaimState.by,
+      };
+      shipDuplicateSkip = true;
+      return;
+    }
+
     let entry = products.find((p) => p.productId === resolvedProductId);
     if (!entry) {
       // Fallback: match per SKU aus Produktdaten
@@ -1363,6 +1429,23 @@ async function bookStockOut({ productId, sku, barcode, binCode, quantity, meta }
       lastStoredAt: now.toDate().toISOString(),
     };
   });
+
+  // Ship-Duplikat: Tx hat NICHTS geschrieben — Einheit wurde beim Versand
+  // bereits ausgebucht. Kein Reservierungs-Consume (der Ship-Pfad hat die
+  // Reservierung schon bestaetigt), kein Refresh, kein Ledger-Eintrag.
+  if (shipDuplicateSkip) {
+    console.warn(
+      `[bookStockOut] order=${orderIdMeta} sku=${resolvedSkuValue} SKIP: stockDecrementedAt by='ship' at=${claimResult?.at} — Einheit beim Versand bereits ausgebucht (Punkt 13 mutual exclusivity), kein zweiter Ledger-Abzug.`
+    );
+    const freshProduct = await getProduct(productRef.id);
+    return {
+      product: freshProduct,
+      bin: await getBinByCode(binCode),
+      skipped: true,
+      reason: 'already-decremented-by-ship',
+      claim: claimResult,
+    };
+  }
 
   // Logging des Claim-Resultats fuer Operator-Sichtbarkeit.
   if (orderIdMeta) {

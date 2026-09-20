@@ -200,7 +200,7 @@ describe('processShippedOrder idempotency', () => {
     await processShippedOrder({ orderId: 'order-1', tenantId: 'default' });
 
     // Should decrement
-    expect(mockDecrement).toHaveBeenCalledWith('SKU-123', 1);
+    expect(mockDecrement).toHaveBeenCalledWith('SKU-123', 1, { orderId: 'order-1' });
     // Should set stockDecrementedAt
     expect(mockOrderUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
