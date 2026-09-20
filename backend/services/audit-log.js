@@ -147,6 +147,9 @@ function diffProduct(before, after) {
     'details.identifiers.ean', 'details.identifiers.gtin',
     'details.identifiers.mpn', 'details.identifiers.upc',
     'details.gpsr',
+    // Completing a human review is work even when the data already was correct.
+    // Do not include editor/timestamp metadata: reopening a sheet is not completion.
+    'ops.readiness',
   ];
 
   const get = (obj, path) => {

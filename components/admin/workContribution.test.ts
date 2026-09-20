@@ -17,6 +17,7 @@ const row = (
   kommissioniert: 0,
   verpackt: 0,
   angereichert: 0,
+  productCareEdited: 0,
   ...changes,
 });
 const users: AdminUserRecord[] = [
@@ -26,7 +27,15 @@ const users: AdminUserRecord[] = [
 ];
 test("Gesamtbeitrag berücksichtigt alle Tätigkeiten und nicht nur Verpacken", () => {
   for (const [key, weight] of Object.entries(CONTRIBUTION_WEIGHTS)) {
-    assert.equal(contributionPoints(row("u1", { [key]: 3 })), 3 * weight);
+    assert.equal(
+      contributionPoints(
+        row("u1", {
+          [key]: 3,
+          ...(key === "angereichert" ? { productCareEdited: 3 } : {}),
+        }),
+      ),
+      3 * weight,
+    );
   }
   assert.equal(
     contributionPoints(row("u1", { erfasst: 2, verpackt: 1 })),
@@ -35,7 +44,7 @@ test("Gesamtbeitrag berücksichtigt alle Tätigkeiten und nicht nur Verpacken", 
 });
 test("mehrfaches Speichern wird nicht erneut bewertet: es gelten die deduplizierten API-Zahlen", () => {
   assert.equal(
-    contributionPoints(row("u1", { angereichert: 1 })),
+    contributionPoints(row("u1", { angereichert: 1, productCareEdited: 1 })),
     CONTRIBUTION_WEIGHTS.angereichert,
   );
   for (const value of [-1, NaN, Infinity])
@@ -82,16 +91,39 @@ test("Nullzeilen erhalten keine negative Leistungsnote", () => {
   assert.equal(scores[0].status, "no_activity");
   assert.equal(scores[0].share, null);
 });
-test("Erfassung und Pflege desselben Produkts werden nicht doppelt bepunktet", () => {
-  const points = contributionPoints(
-    row("u1", { erfasst: 2, angereichert: 3, productCareOverlap: 2 }),
-  );
+test("aufwendige Produktpflege wird zusätzlich zum Fotografieren und Erfassen bewertet", () => {
   assert.equal(
-    points,
-    2 * CONTRIBUTION_WEIGHTS.erfasst + CONTRIBUTION_WEIGHTS.angereichert,
+    contributionPoints(
+      row("u1", {
+        erfasst: 2,
+        angereichert: 3,
+        productCareEdited: 3,
+        productCareOverlap: 2,
+      }),
+    ),
+    2 * CONTRIBUTION_WEIGHTS.erfasst + 3 * CONTRIBUTION_WEIGHTS.angereichert,
   );
+});
+test("vom Betreiber beschriebene Reihenfolge bleibt bei gleichen Mengen erhalten", () => {
+  const care = contributionPoints(
+    row("u1", { angereichert: 1, productCareEdited: 1 }),
+  );
+  const capture = contributionPoints(row("u1", { erfasst: 1 }));
+  const pack = contributionPoints(row("u1", { verpackt: 1 }));
+  const pick = contributionPoints(row("u1", { kommissioniert: 1 }));
+  assert.ok(care > capture && capture > pack && pack > pick);
+});
+test("Speicherungen ohne belegte Datenarbeit erhalten keine Pflegepunkte", () => {
+  assert.equal(contributionPoints(row("u1", { angereichert: 99 })), 0);
   assert.equal(
-    contributionPoints(row("u1", { angereichert: 1, productCareOverlap: 100 })),
-    0,
+    contributionPoints(row("u1", { angereichert: 2, productCareEdited: 100 })),
+    2 * CONTRIBUTION_WEIGHTS.angereichert,
   );
+  const [entry] = buildContributions(
+    [row("u1", { angereichert: 3 })],
+    users,
+    true,
+  );
+  assert.equal(entry.status, "unverified");
+  assert.equal(entry.share, null);
 });

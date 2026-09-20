@@ -1,25 +1,30 @@
 import type { AdminUserRecord, PerformanceRow } from "../../api/client";
-import { METRICS, metricValue, userId } from "./teamWorkspaceModel.ts";
+import {
+  METRICS,
+  metricValue,
+  userId,
+  hasActivity,
+} from "./teamWorkspaceModel.ts";
 
-// Explicit initial model, not measured minutes or a quality/attendance grade.
-// The model is versioned so its assumptions stay reviewable.
-export const CONTRIBUTION_MODEL_VERSION = "Startmodell 1";
+// Owner's effort order: enrichment/readiness > photos/capture > packing > pick.
+// These are effort tiers, not measured time ratios or quality/attendance grades.
+export const CONTRIBUTION_MODEL_VERSION = "Aufwandsstufen";
 export const CONTRIBUTION_WEIGHTS = {
-  erfasst: 5,
-  eingelagert: 2,
+  erfasst: 3,
+  eingelagert: 1,
   kommissioniert: 1,
-  verpackt: 3,
-  angereichert: 2,
+  verpackt: 2,
+  angereichert: 4,
 } as const;
 export function creditedCount(
   row: PerformanceRow,
   key: keyof typeof CONTRIBUTION_WEIGHTS,
 ) {
   const count = metricValue(row, key);
-  const overlap = Number.isFinite(row.productCareOverlap)
-    ? Math.max(0, row.productCareOverlap!)
+  const edited = Number.isFinite(row.productCareEdited)
+    ? Math.max(0, row.productCareEdited!)
     : 0;
-  return key === "angereichert" ? Math.max(0, count - overlap) : count;
+  return key === "angereichert" ? Math.min(count, edited) : count;
 }
 export function contributionPoints(row: PerformanceRow) {
   return METRICS.reduce(
@@ -31,7 +36,7 @@ export function contributionPoints(row: PerformanceRow) {
 export type ContributionRow = PerformanceRow & {
   points: number | null;
   share: number | null;
-  status: "rated" | "no_activity" | "historical" | "incomplete";
+  status: "rated" | "no_activity" | "historical" | "incomplete" | "unverified";
   role: string;
 };
 export function buildContributions(
@@ -50,7 +55,9 @@ export function buildContributions(
           ? "historical"
           : points > 0
             ? "rated"
-            : "no_activity";
+            : hasActivity(row)
+              ? "unverified"
+              : "no_activity";
     return {
       ...row,
       role: account?.roles?.[0] || "unassigned",
@@ -79,4 +86,5 @@ export const CONTRIBUTION_STATUS = {
   no_activity: "Keine Tätigkeit erfasst",
   historical: "Historisches Konto · ohne Bewertung",
   incomplete: "Daten nicht vollständig",
+  unverified: "Nur Speicherungen dokumentiert",
 } as const;

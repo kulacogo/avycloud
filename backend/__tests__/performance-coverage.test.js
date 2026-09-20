@@ -31,10 +31,10 @@ describe('getPerformance: tatsächliche Quellenzustände', () => {
   let previous;
   beforeEach(() => { previous = paths.map((path) => require.cache[path]); });
   afterEach(() => paths.forEach((path, i) => { if (previous[i]) require.cache[path] = previous[i]; else delete require.cache[path]; }));
-  function mockSources({ broken = null, warehouse = [] } = {}) {
+  function mockSources({ broken = null, warehouse = [], extraAudit = [] } = {}) {
     const now = new Date().toISOString();
     const values = {
-      audit_log: [{ action: 'product.identified', userId: 'u1', resourceId: 'p1', timestamp: now, tenantId: 'default' }],
+      audit_log: [{ action: 'product.identified', userId: 'u1', resourceId: 'p1', timestamp: now, tenantId: 'default' }, ...extraAudit.map((row) => ({ timestamp: now, tenantId: 'default', ...row }))],
       order_events: [{ toStatus: 'packed', actor: { uid: 'u1' }, timestamp: now }],
       warehouseEvents: warehouse.map((row) => ({ type: 'stock_in', createdAt: now, ...row })),
     };
@@ -56,6 +56,15 @@ describe('getPerformance: tatsächliche Quellenzustände', () => {
     expect(result.dataQuality.complete).toBe(false);
     expect(result.dataQuality.sources.audit).toBe('unavailable');
     expect(result.rows[0]).toMatchObject({ erfasst: 0, verpackt: 1 });
+  });
+  it('liefert neue Pflegebelege und Versionskennung neben unveränderten Rohzahlen', async () => {
+    mockSources({ extraAudit: [
+      { action: 'product.updated', userId: 'u1', resourceId: 'p1', details: { changedFields: ['details.description'] } },
+      { action: 'product.updated', userId: 'u1', resourceId: 'p2', details: { changedFields: [] } },
+    ] });
+    const result = await require('../services/performance-scoreboard').getPerformance();
+    expect(result.contributionDataVersion).toBe(2);
+    expect(result.rows[0]).toMatchObject({ erfasst: 1, angereichert: 2, productCareEdited: 1, productCareOverlap: 1, productReady: 0 });
   });
   it('zählt im Lager weder explizit fremde Mandanten noch deren Meta-Zuordnung', async () => {
     mockSources({ warehouse: [

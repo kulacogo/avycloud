@@ -2255,6 +2255,8 @@ export type PerformanceRow = {
   erfasst: number;
   angereichert: number;
   productCareOverlap?: number;
+  productCareEdited?: number;
+  productReady?: number;
   eingelagert: number;
   kommissioniert: number;
   verpackt: number;
@@ -2264,7 +2266,7 @@ export type PerformanceDataQuality = {
   complete: boolean;
   sources: Record<"audit" | "orders" | "warehouse", "complete" | "limited" | "unavailable">;
 };
-export type PerformanceResult = { range: string; rows: PerformanceRow[]; dataQuality?: PerformanceDataQuality };
+export type PerformanceResult = { range: string; rows: PerformanceRow[]; dataQuality?: PerformanceDataQuality; contributionDataVersion?: number };
 
 export const adminGetPerformance = async (
   range: "today" | "week" | "month" = "week",
