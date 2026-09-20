@@ -192,6 +192,11 @@ export interface ProductImage {
   /** Hinweise der Identitätsprüfung (z. B. „Beschriftungen verändert"). */
   warnings?: string[];
   identityChecked?: boolean;
+  /** Recherchierte Modellbilder belegen nicht den Zustand des einzelnen Artikels. */
+  referenceProvenance?: {
+    kind: 'verified_catalogue';
+    sources: Array<{ pageUrl: string; imageUrl: string; matchedBy?: string; verifiedAt?: string }>;
+  };
 }
 
 export interface Identifiers {

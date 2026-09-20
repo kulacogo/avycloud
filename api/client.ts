@@ -3825,6 +3825,12 @@ export interface ImageViewSkipEntry {
 }
 
 export interface ImageGenerationEvidence {
+  research?: {
+    status: 'verified' | 'identity_missing' | 'identity_conflict' | 'no_verified_match' | 'unavailable' | 'timeout';
+    pagesChecked?: number;
+    imagesChecked?: number;
+    sources: Array<{ pageUrl: string; imageUrl: string; matchedBy?: string }>;
+  };
   /** Ansichten, für die ein echtes Foto vorliegt. */
   belegt: string[];
   belegtLabels: string[];

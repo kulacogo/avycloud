@@ -259,3 +259,7 @@ Beide **default OFF** → exakt heutiges Verhalten. Rollback = Flag auf `false`.
 ### Fotografische Studioausgabe (20.09.2026)
 
 - `STUDIO_PHOTOGRAPHIC`: Standard **an**, nur exakter Wert `off` aktiviert wieder Composite-first/Leinwandmaske. Gilt für interaktives Studio und reguläre Galerie. `nurPixeltreu` und sensible Details bleiben Originalpixel-Verarbeitung. Bei aktiviertem Standard sind Studio-Licht, Bodenschatten und Bildgestaltung zusätzliche verpflichtende Prüfungen. Keine Produktions-ENV muss geändert werden.
+
+### Kartonbasierte Bildrecherche (20.09.2026)
+
+- `PACKAGING_IMAGE_RESEARCH`: standardmäßig aktiv; ausschließlich `off` deaktiviert die automatische Web-Recherche vor KI-Galerievarianten bei ausschließlich verpackten Artikeln. Bestehende Studio-/Identitätsprüfungen bleiben unverändert. Maximal sechs Suchaufrufe, acht Seiten, acht Vision-Bildprüfungen und 90 s pro Recherche; kein neuer Hintergrundlauf. [Feature und Grenzen](../06-features/product-images.md#automatische-kartonrecherche--20092026).

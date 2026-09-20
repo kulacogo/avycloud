@@ -2464,6 +2464,22 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                       </p>
                     ) : null}
 
+                    {generationReport.evidence?.research?.status === 'verified' && (
+                      <details className="mt-2 text-txt-secondary">
+                        <summary className="cursor-pointer">
+                          {generationReport.evidence.research.sources.length} passende Web-Referenzen · Quellen
+                        </summary>
+                        <p className="mt-1 text-txt-muted">Modellabbildung; der tatsächliche Artikelzustand ist nicht fotografiert.</p>
+                        <ul className="mt-1 space-y-1">
+                          {[...new Set(generationReport.evidence.research.sources.map(source => source.pageUrl))]
+                            .filter(url => /^https?:\/\//i.test(url))
+                            .map(url => (
+                              <li key={url}><a href={url} target="_blank" rel="noopener noreferrer" className="text-accent hover:underline break-all">{url}</a></li>
+                            ))}
+                        </ul>
+                      </details>
+                    )}
+
                     {typeof generationReport.pixeltreu === 'number' && generationReport.pixeltreu > 0 ? (
                       <p className="mt-1 text-txt-secondary">
                         {generationReport.pixeltreu} Bild
@@ -2487,7 +2503,8 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
 
                     {typeof generationReport.kostenUsd === 'number' ? (
                       <p className="mt-1 text-txt-muted">
-                        Modellkosten dieses Laufs: {generationReport.kostenUsd.toFixed(2)} USD
+                        Bildmodellkosten: {generationReport.kostenUsd.toFixed(2)} USD
+                        {generationReport.evidence?.research ? ' · Recherche und Bildprüfung zusätzlich' : ''}
                       </p>
                     ) : null}
 
