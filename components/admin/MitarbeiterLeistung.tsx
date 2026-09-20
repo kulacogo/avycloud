@@ -9,19 +9,19 @@ import {
   normalizeSearch,
   hasActivity,
   performanceRows,
-  displayName,
   userId,
 } from "./teamWorkspaceModel";
 import {
   buildContributions,
   creditedCount,
   CONTRIBUTION_WEIGHTS,
-  CONTRIBUTION_MODEL_VERSION,
+  SUPPORT_WEIGHT,
   CONTRIBUTION_STATUS,
   attachSupport,
 } from "./workContribution";
 import { roleDisplayName } from "./roleCatalog";
 import { SupportPerformancePanel } from "./SupportPerformancePanel";
+import { activityDetails } from "./performancePresentation";
 import {
   TeamAvatar,
   TeamEmpty,
@@ -132,16 +132,12 @@ export const MitarbeiterLeistung: React.FC<{
         : "Letzte 30 Tage";
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h2 className="text-xl font-semibold tracking-tight">
-            Leistungsbeitrag im Überblick
+            Teamleistung
           </h2>
-          <p className="mt-1 text-sm text-txt-secondary">
-            Erfassten Arbeitsbeitrag ansehen. Mitarbeiter auswählen, um die
-            einzelnen Tätigkeiten zu sehen.
-          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex rounded-xl border border-app-border bg-app-surface p-1">
@@ -228,16 +224,18 @@ export const MitarbeiterLeistung: React.FC<{
           </p>
         </form>
       )}
-      <SupportPerformancePanel data={supportData} ownerName={supportOwner ? displayName(supportOwner) : undefined} loading={support.isFetching} error={Boolean(support.error)} onReload={() => { support.refetch(); }} />
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-txt-muted">
-        <span className="font-medium text-txt-secondary">{periodLabel}</span>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <span className="font-medium text-txt-secondary">{periodLabel}</span>
+          <SupportPerformancePanel data={supportData} loading={support.isFetching} error={Boolean(support.error)} onReload={() => { support.refetch(); }} />
+        </div>
         <span aria-live="polite">
           {result.isFetching
-            ? "Daten werden geladen …"
+            ? "Aktualisiert …"
             : result.error
               ? "Aktualisierung fehlgeschlagen"
               : result.dataUpdatedAt
-                ? `Geladen um ${new Date(result.dataUpdatedAt).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}`
+                ? `Stand ${new Date(result.dataUpdatedAt).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}`
                 : ""}
         </span>
       </div>
@@ -249,7 +247,7 @@ export const MitarbeiterLeistung: React.FC<{
       )}
       {directory.error && (
         <TeamError
-          message="Kontonamen konnten nicht aktualisiert werden. Vorhandene Tätigkeiten werden weiterhin angezeigt."
+          message="Mitarbeiterdaten nicht verfügbar."
           onRetry={() => directory.refetch()}
         />
       )}
@@ -261,11 +259,9 @@ export const MitarbeiterLeistung: React.FC<{
             {!complete && (
               <div
                 role="status"
-                className="rounded-xl border border-warning/30 bg-warning-dim p-4 text-sm text-warning"
+                className="rounded-lg bg-warning-dim px-3 py-2 text-xs text-warning"
               >
-                Die Datenabdeckung ist nicht vollständig bestätigt.
-                Gesamtbewertung und Rangfolge bleiben ausgesetzt; verfügbare
-                Einzelzahlen sind in den Mitarbeiterdetails sichtbar.
+                Daten unvollständig · Bewertung pausiert.
                 <button
                   type="button"
                   className="ml-2 font-semibold underline"
@@ -279,20 +275,16 @@ export const MitarbeiterLeistung: React.FC<{
               </div>
             )}
             <div className="space-y-2">
-              <p className="text-xs font-medium text-txt-muted">
-                Erfasste Tätigkeiten im gesamten Team
-                {!complete ? " · unvollständig" : ""}
-              </p>
-              <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5" aria-label="Teamaktivität">
                 {METRICS.map((item) => (
                   <div
                     key={item.key}
-                    className="relative overflow-hidden rounded-2xl border border-app-border bg-app-surface p-4"
+                    className="relative overflow-hidden rounded-xl border border-app-border bg-app-surface px-4 py-3"
                   >
-                    <span className="text-xs font-medium text-txt-secondary">
+                    <span className="block text-xs font-medium text-txt-secondary">
                       {item.label}
                     </span>
-                    <span className="mt-3 block text-3xl font-semibold tracking-tight tabular-nums">
+                    <span className="mt-1.5 inline-block text-2xl font-semibold tracking-tight tabular-nums">
                       {result.data?.dataQuality?.sources?.[
                         item.key === "erfasst" || item.key === "angereichert"
                           ? "audit"
@@ -310,33 +302,24 @@ export const MitarbeiterLeistung: React.FC<{
                             ),
                           )}
                     </span>
-                    <span className="mt-1 block text-xs text-txt-muted">
+                    <span className="ml-2 text-[11px] text-txt-muted">
                       {item.unit}
                     </span>
                     <span
-                      className="absolute bottom-0 left-0 h-1 w-full opacity-30"
+                      className="absolute bottom-0 left-0 h-0.5 w-full opacity-40"
                       style={{ background: item.color }}
                     />
                   </div>
                 ))}
               </div>
             </div>
-            <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+            <div className={`grid items-start gap-4 ${selectedRow ? "xl:grid-cols-[minmax(0,1fr)_350px]" : ""}`}>
               <section className="min-w-0 overflow-hidden rounded-2xl border border-app-border bg-app-surface">
-                <div className="flex flex-wrap items-start justify-between gap-3 border-b border-app-border p-5">
-                  <div>
-                    <h3 className="font-semibold">Erfasster Arbeitsbeitrag</h3>
-                    <p className="mt-1 max-w-lg text-xs leading-relaxed text-txt-muted">
-                      Datenaufbereitung 4 · Erfassen und Support 3 · Packen 2 · Picken und
-                      Einlagern 1. Die Stufen berücksichtigen Datenprüfung,
-                      Fotos und Packaufwand.
-                    </p>
-                  </div>
-                  <span className="rounded-lg bg-accent-dim px-2.5 py-1.5 text-xs font-medium text-accent">
-                    {CONTRIBUTION_MODEL_VERSION}
-                  </span>
+                <div className="flex items-center justify-between border-b border-app-border px-4 py-3">
+                  <h3 className="text-sm font-semibold">Team</h3>
+                  <span className="text-xs text-txt-muted">{filtered.length} / {rows.length} Konten</span>
                 </div>
-                <div className="flex flex-wrap items-center gap-3 px-5 pt-4">
+                <div className="flex flex-wrap items-center gap-2 px-4 pt-3">
                   <label className="relative min-w-[160px] flex-1">
                     <SearchIcon className="absolute left-3 top-3 h-4 w-4 text-txt-muted" />
                     <input
@@ -353,7 +336,7 @@ export const MitarbeiterLeistung: React.FC<{
                     onChange={(event) => setSort(event.target.value)}
                     className={`${fieldClass} sm:!w-44`}
                   >
-                    <option value="contribution" disabled={!supportComplete}>{supportComplete ? "Nach Arbeitsbeitrag" : "Name · Support unvollständig"}</option>
+                    <option value="contribution" disabled={!supportComplete}>{supportComplete ? "Nach Arbeitsbeitrag" : "Nach Name"}</option>
                     <option value="name">Nach Name</option>
                   </select>
                   <label className="flex items-center gap-2 text-xs text-txt-secondary">
@@ -373,7 +356,7 @@ export const MitarbeiterLeistung: React.FC<{
                     </TeamEmpty>
                   </div>
                 ) : (
-                  <div className="space-y-1 p-3">
+                  <div className="space-y-0.5 p-2">
                     {ordered.map((row) => (
                       <button
                         type="button"
@@ -417,7 +400,7 @@ export const MitarbeiterLeistung: React.FC<{
                             </span>
                           </span>
                           {row.status === "rated" && supportComplete && (
-                            <span className="mt-3 block h-2 overflow-hidden rounded-full bg-app-elevated">
+                            <span className="mt-2 block h-1 overflow-hidden rounded-full bg-app-elevated">
                               <span
                                 className="block h-full rounded-full bg-accent motion-safe:transition-[width] motion-safe:duration-300"
                                 style={{
@@ -431,225 +414,59 @@ export const MitarbeiterLeistung: React.FC<{
                     ))}
                   </div>
                 )}
-                <p className="border-t border-app-border px-5 py-3 text-xs leading-relaxed text-txt-muted">
-                  {filtered.length} von {rows.length} Konten · {supportComplete ? "Der Teamanteil bezieht sich auf alle bewertbaren Konten und bleibt beim Filtern unverändert." : "Support ist noch nicht vollständig erfasst. Angezeigt werden die bereits belegten Punkte; noch keine Rangfolge oder Teamanteile."}
-                </p>
+                {!supportComplete && <p className="border-t border-app-border px-4 py-2 text-xs text-warning">Support unvollständig · Teamvergleich pausiert</p>}
               </section>
               {selectedRow ? (
                 <aside
                   ref={detailRef}
                   tabIndex={-1}
                   aria-label={`Leistungsdetails ${selectedRow.name}`}
-                  className="order-first min-w-0 rounded-2xl border border-accent bg-app-surface p-5 outline-none xl:sticky xl:top-4 xl:order-last"
+                  className="order-first min-w-0 rounded-2xl border border-accent bg-app-surface p-4 outline-none xl:sticky xl:top-4 xl:order-last"
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <TeamAvatar
-                      name={selectedRow.name}
-                      role={selectedRow.role}
-                    />
-                    <button
-                      type="button"
-                      aria-label="Leistungsdetails schließen"
-                      onClick={() => select(null)}
-                      className="rounded-lg px-2 py-1 text-txt-muted hover:bg-app-elevated"
-                    >
-                      ×
-                    </button>
+                  <div className="flex items-center gap-3">
+                    <TeamAvatar name={selectedRow.name} role={selectedRow.role} small />
+                    <h3 className="min-w-0 flex-1 break-words text-sm font-semibold">{selectedRow.name}</h3>
+                    <button type="button" aria-label="Leistungsdetails schließen" onClick={() => select(null)} className="rounded-lg px-2 py-1 text-txt-muted hover:bg-app-elevated">×</button>
                   </div>
-                  <h3 className="mt-4 break-words font-semibold">
-                    {selectedRow.name}
-                  </h3>
-                  <p className="mt-1 break-all text-xs text-txt-muted">
-                    {selectedRow.email}
-                  </p>
-                  <div className="my-4 rounded-xl bg-accent-dim p-4">
-                    <p className="text-xs text-txt-secondary">
-                      Arbeitsbeitrag · {periodLabel}
+                  <div className="my-4 flex flex-wrap items-baseline justify-between gap-2 rounded-lg bg-accent-dim px-3 py-2.5">
+                    <p className="text-2xl font-semibold text-accent">
+                      {selectedRow.status === "rated" ? <>{selectedRow.supportPartial ? "≥ " : ""}{number(selectedRow.points!)} <span className="text-xs font-medium">Punkte</span></> : <span className="text-sm">{CONTRIBUTION_STATUS[selectedRow.status]}</span>}
                     </p>
-                    <p className="mt-2 text-2xl font-semibold text-accent">
-                      {selectedRow.status === "rated" ? (
-                        <>
-                          {selectedRow.supportPartial ? "≥ " : ""}{number(selectedRow.points!)}{" "}
-                          <span className="text-sm">Punkte</span>
-                        </>
-                      ) : (
-                        <span className="text-sm">
-                          {CONTRIBUTION_STATUS[selectedRow.status]}
-                        </span>
-                      )}
-                    </p>
-                    {selectedRow.share !== null && (
-                      <p className="mt-1 text-xs text-txt-muted">
-                        {formatShare(selectedRow.share)} % des erfassten
-                        Teambeitrags
-                      </p>
-                    )}
+                    {selectedRow.share !== null && <span className="text-xs text-txt-secondary">{formatShare(selectedRow.share)} % Teamanteil</span>}
                   </div>
-                  {result.data?.contributionDataVersion === 3 && selectedRow.productCareEdited !== undefined && (
-                    <div className="mb-4 rounded-xl bg-app-elevated p-3 text-xs leading-relaxed text-txt-secondary">
-                      <p>
-                        {number(selectedRow.productContentEdited || 0)} Produkte
-                        mit belegter inhaltlicher Datenänderung.
-                      </p>
-                      <p className="mt-2">
-                        {number(selectedRow.productReady || 0)}{" "}
-                        Produkte nachweislich auf „Bereit“ gesetzt. Statuswechsel
-                        werden seit dem 20.09.2026 protokolliert; frühere
-                        Freigaben sind nicht vollständig nachweisbar.
-                      </p>
-                      <p className="mt-2">
-                        Datenänderung und Freigabe sind getrennte Nachweise.
-                        Zusammen zählt jedes Produkt einmal für die Datenaufbereitung.
-                        {" "}{number(selectedRow.angereichert)} Produkte wurden
-                        insgesamt gespeichert, auch beim Erfassen. Automatische
-                        Ergänzungen und reine Foto-, Barcode-, Preis- oder
-                        Gewichtsänderungen sind keine Anreicherung.
-                      </p>
-                    </div>
-                  )}
-                  <h4 className="text-sm font-semibold">
-                    So setzt sich der Beitrag zusammen
-                  </h4>
-                  <dl className="mt-2 divide-y divide-app-border">
-                    {METRICS.map((item) => {
-                      const source =
-                        item.key === "erfasst" || item.key === "angereichert"
-                          ? "audit"
-                          : item.key === "eingelagert"
-                            ? "warehouse"
-                            : "orders";
-                      const available =
-                        result.data?.dataQuality?.sources?.[source] !==
-                          "unavailable" &&
-                        (item.key !== "angereichert" ||
-                          result.data?.contributionDataVersion === 3);
-                      return (
-                        <div
-                          key={item.key}
-                          className="flex items-baseline justify-between gap-3 py-3"
-                        >
-                          <dt className="text-sm text-txt-secondary">
-                            {item.label}
-                            <span className="mt-1 block text-[11px] text-txt-muted">
-                              {CONTRIBUTION_WEIGHTS[item.key]}{" "}
-                              {CONTRIBUTION_WEIGHTS[item.key] === 1
-                                ? "Punkt"
-                                : "Punkte"}{" "}
-                              je{" "}
-                              {item.unit === "Produkte"
-                                ? "Produkt"
-                                : item.unit === "Buchungen"
-                                  ? "Buchung"
-                                  : "Vorgang"}
-                            </span>
-                          </dt>
-                          <dd className="text-right">
-                            <span className="font-semibold tabular-nums">
-                              {available
-                                ? number(creditedCount(selectedRow, item.key))
-                                : "—"}
-                            </span>
-                            <span className="ml-1 text-[11px] text-txt-muted">
-                              {item.unit}
-                            </span>
-                            {selectedRow.status === "rated" && (
-                              <span className="mt-1 block text-xs text-accent">
-                                {number(
-                                  creditedCount(selectedRow, item.key) *
-                                    CONTRIBUTION_WEIGHTS[item.key],
-                                )}{" "}
-                                Punkte
-                              </span>
-                            )}
-                            {!available && (
-                              <span className="mt-1 block text-[11px] text-warning">
-                                Quelle nicht verfügbar
-                              </span>
-                            )}
-                          </dd>
-                        </div>
-                      );
-                    })}
-                  </dl>
-                  {selectedRow.uid === supportData?.ownerUid && <div className="mt-4"><SupportPerformancePanel data={supportData} ownerName={selectedRow.name} details loading={support.isFetching} error={Boolean(support.error)} onReload={() => { support.refetch(); }} /></div>}
-                  {selectedRow.status === "no_activity" && (
-                    <p className="mt-3 rounded-xl bg-app-elevated p-3 text-xs text-txt-secondary">
-                      Keine zugeordneten Tätigkeiten im Zeitraum. Das ist keine
-                      Aussage über Anwesenheit oder die Qualität der Arbeit.
-                    </p>
-                  )}
-                  {selectedRow.status === "historical" && (
-                    <p className="mt-3 text-xs text-txt-muted">
-                      Historische oder deaktivierte Konten fließen nicht in die
-                      persönliche Bewertung ein. Ihre dokumentierten Tätigkeiten
-                      bleiben hier sichtbar.
-                    </p>
-                  )}
+                  <table className="w-full text-sm">
+                    <thead><tr className="text-[11px] text-txt-muted"><th className="pb-2 text-left font-medium">Tätigkeit</th><th className="pb-2 text-right font-medium">Anzahl</th><th className="pb-2 pl-3 text-right font-medium">Punkte</th></tr></thead>
+                    <tbody className="divide-y divide-app-border">
+                      {activityDetails(selectedRow, result.data?.dataQuality, result.data?.contributionDataVersion, selectedRow.status === "rated").map((item) => <tr key={item.key}>
+                        <th scope="row" className="py-2.5 pr-2 text-left font-normal text-txt-secondary">{item.label}</th>
+                        <td className="py-2.5 text-right tabular-nums" aria-label={item.count === null ? "Nicht verfügbar" : `${number(item.count)} ${item.unit}`}>{item.count === null ? "—" : number(item.count)}</td>
+                        <td className="py-2.5 pl-3 text-right font-medium tabular-nums text-accent">{item.points === null ? "—" : number(item.points)}</td>
+                      </tr>)}
+                    </tbody>
+                  </table>
+                  {selectedRow.uid === supportData?.ownerUid && <SupportPerformancePanel data={supportData} details loading={support.isFetching} error={Boolean(support.error)} onReload={() => { support.refetch(); }} />}
+                  {result.data?.contributionDataVersion === 3 && selectedRow.productCareEdited !== undefined && <details className="mt-3 border-t border-app-border pt-3 text-xs text-txt-muted">
+                    <summary className="cursor-pointer text-txt-secondary">Datenaufbereitung · Details</summary>
+                    <dl className="mt-3 space-y-2">
+                      <div className="flex justify-between gap-3"><dt>Inhaltlich geändert</dt><dd className="font-medium tabular-nums">{number(selectedRow.productContentEdited || 0)}</dd></div>
+                      <div className="flex justify-between gap-3"><dt>Auf Bereit gesetzt*</dt><dd className="font-medium tabular-nums">{number(selectedRow.productReady || 0)}</dd></div>
+                      <div className="flex justify-between gap-3"><dt>Gespeichert gesamt</dt><dd className="font-medium tabular-nums">{number(selectedRow.angereichert)}</dd></div>
+                    </dl>
+                    <p className="mt-3 leading-relaxed">* Freigaben seit 20.09.2026 erfasst. Frühere Freigaben sind unvollständig belegt. Änderungen und Freigaben zählen zusammen einmal je Produkt; eine Änderung allein ist keine vollständige Prüfung.</p>
+                  </details>}
                 </aside>
-              ) : (
-                <aside className="hidden rounded-2xl border border-dashed border-app-border bg-app-surface p-7 text-center xl:block">
-                  <span className="text-3xl text-accent">↗</span>
-                  <h3 className="mt-3 font-semibold">Mitarbeiter auswählen</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-txt-muted">
-                    Hier siehst du die einzelnen Tätigkeiten und wie sich der
-                    Gesamtbeitrag berechnet.
-                  </p>
-                </aside>
-              )}
+              ) : null}
             </div>
-            <details className="rounded-xl border border-app-border px-4 py-3 text-xs text-txt-muted">
-              <summary className="cursor-pointer font-medium text-txt-secondary">
-                Bewertungsmodell und Datengrundlage
-              </summary>
-              <div className="mt-4 max-w-4xl space-y-3 leading-relaxed">
-                <p>
-                  <strong className="text-txt-primary">
-                    {CONTRIBUTION_MODEL_VERSION}:
-                  </strong>{" "}
-                  Datenaufbereitung × 4, Erfassen × 3, Supportanliegen × 3, Verpacken × 2,
-                  Kommissionieren × 1 und Einlagern × 1. Die Summe ergibt den
-                  Arbeitsbeitrag in Punkten. Teamanteil = persönliche Punkte ÷
-                  Punkte aller bewertbaren Konten.
-                </p>
-                <p>
-                  Datenaufbereitung umfasst die Arbeit an Produktinhalten
-                  bis zur Freigabe „Bereit“ und erhält die höchste Stufe. Danach
-                  folgen Erfassen mit Fotografieren und Packen mit
-                  Kartonvorbereitung und Wiegen. Pick und einfache
-                  Einlagerungsbuchungen erhalten die Basisstufe. Die Stufen
-                  bilden die betriebliche Aufwandsreihenfolge ab; sie sind keine
-                  gemessenen Zeitverhältnisse oder Qualitätsnoten.
-                </p>
-                <p>
-                  Für Datenaufbereitung zählen belegte inhaltliche Datenänderungen oder
-                  der Wechsel zu „Bereit“, einmal je Produkt und Konto im
-                  Zeitraum. Fotografieren/Erfassen und spätere Datenarbeit sind
-                  eigenständige Tätigkeiten. Abschluss der Erfassung,
-                  Bearbeitungsmodus öffnen, automatische Ergänzungen und reine
-                  Foto-, Barcode-, Preis- oder Gewichtsänderungen zählen nicht als
-                  Anreicherung. Inhaltlich geändert bedeutet nicht automatisch
-                  vollständig kontrolliert oder freigegeben. Bereits korrekt
-                  vorliegende Daten können durch einen Bereit-Abschluss als
-                  geprüft bestätigt werden.
-                </p>
-                <p>
-                  Bereit-Abschlüsse werden seit dem 20.09.2026
-                  protokolliert. Frühere reine Prüfungen können nicht
-                  rückwirkend zugeordnet werden. Die Original-Speicherzahlen
-                  bleiben in den Details sichtbar. Die Balken vergleichen den
-                  dokumentierten Beitrag im Zeitraum; Arbeitszeit, Anwesenheit,
-                  individuelle Schwierigkeit und tatsächliche Qualität sind
-                  nicht gemessen.
-                </p>
-                <p>
-                  Historische oder deaktivierte Konten werden separat ohne
-                  Bewertung gezeigt. Ohne dokumentierte Tätigkeiten wird keine
-                  negative Note vergeben. Nicht erfasste Arbeit bleibt
-                  unsichtbar. Bei fehlenden oder abgeschnittenen Datenquellen
-                  wird kein vollständiger Teamvergleich angezeigt. Fehlende
-                  Supportdaten werden als Teilmenge mit „≥“ kenntlich gemacht;
-                  Rangfolge und Teamanteile bleiben dann ausgesetzt.
-                </p>
+            <details className="px-1 text-xs text-txt-muted">
+              <summary className="w-fit cursor-pointer font-medium text-txt-secondary">Berechnung</summary>
+              <div className="mt-3 max-w-2xl rounded-xl border border-app-border bg-app-surface p-4 leading-relaxed">
+                <dl className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-6 gap-y-1.5">
+                  {METRICS.map((item) => <React.Fragment key={item.key}><dt>{item.label}</dt><dd>× {CONTRIBUTION_WEIGHTS[item.key]}</dd></React.Fragment>)}
+                  <dt>Support je Anliegen</dt><dd>× {SUPPORT_WEIGHT}</dd>
+                </dl>
+                <p className="mt-3">Punkte = Anzahl × Aufwandsstufe. Teamanteil = eigene Punkte ÷ alle bewertbaren Punkte, unabhängig vom Suchfilter. Aufwandsstufen sind keine gemessenen Arbeitszeiten oder Qualitätsnoten.</p>
+                <p className="mt-2">Datenaufbereitung zählt belegte Inhaltsänderungen oder Freigaben einmal je Produkt und Konto. Erfassungsdefaults, Fotos, Barcodes, Preise und Gewicht allein zählen nicht dazu. Support zählt je beantwortetem Anliegen, unabhängig von der Zahl der Antworten.</p>
+                <p className="mt-2">Fehlende Quellen: „—“. Unvollständiger Support: „≥“, ohne Teamvergleich. Historische und deaktivierte Konten bleiben ohne Bewertung.</p>
               </div>
             </details>
           </>

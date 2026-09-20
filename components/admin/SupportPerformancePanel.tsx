@@ -2,10 +2,10 @@ import React from "react";
 import { startEbayOAuth, type SupportPerformance } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
 import { secondaryButton } from "./TeamPrimitives";
-import { SUPPORT_WEIGHT } from "./workContribution";
+import { supportChannelView } from "./performancePresentation";
 
-export function SupportPerformancePanel({ data, ownerName, loading, error, onReload, details = false }: {
-  data?: SupportPerformance; ownerName?: string; loading?: boolean; error?: boolean;
+export function SupportPerformancePanel({ data, loading, error, onReload, details = false }: {
+  data?: SupportPerformance; loading?: boolean; error?: boolean;
   onReload: () => void; details?: boolean;
 }) {
   const { hasPermission } = useAuth();
@@ -26,36 +26,24 @@ export function SupportPerformancePanel({ data, ownerName, loading, error, onRel
       setConnectionError(err instanceof Error ? err.message : "Verbindung konnte nicht gestartet werden.");
     } finally { setConnecting(false); }
   };
-  return <section aria-label={details ? "Supportdetails" : "Kundensupport"} className="rounded-2xl border border-app-border bg-app-surface p-4">
-    <div className="flex flex-wrap items-start justify-between gap-3">
-      <div>
-        <h3 className="text-sm font-semibold">Kundensupport {ownerName && <span className="font-normal text-txt-secondary">· {ownerName}</span>}</h3>
-        <p className="mt-1 text-xs leading-relaxed text-txt-muted">
-          Alleinige Zuständigkeit laut Inhaber. Antworten weiterhin direkt bei Kaufland und eBay.
-        </p>
-      </div>
-      {!details && <button className={secondaryButton} onClick={onReload} disabled={loading}>Support aktualisieren</button>}
-    </div>
-    {loading && !data ? <p className="mt-3 text-xs text-txt-muted" role="status">Supportdaten werden geladen …</p> : error || !data?.ownerUid ? <p className="mt-3 text-xs text-warning">Supportdaten oder Zuständigkeit fehlen. Der angezeigte Beitrag ist unvollständig.</p> : <>
-      <div className={`mt-3 grid gap-3 ${details ? "" : "sm:grid-cols-2"}`}>
-        {(["kaufland", "ebay"] as const).map((key) => {
-          const source = data.channels[key];
-          const available = source.status === "complete" || source.status === "limited";
-          return <div key={key} className="rounded-xl bg-app-elevated p-3">
-            <p className="text-xs font-semibold">{key === "kaufland" ? "Kaufland-Tickets" : "eBay-Nachrichten"}</p>
-            {available && !details ? <p className={`mt-2 text-xs ${source.status === "limited" ? "text-warning" : "text-success"}`}>{source.status === "limited" ? "Teilweise im Beitrag erfasst" : "Im Beitrag enthalten"} · Einzelzahlen nach Mitarbeiterauswahl</p> : available ? <>
-              <p className="mt-2 text-sm"><strong className="text-lg tabular-nums">{source.status === "limited" ? "≥ " : ""}{source.cases?.toLocaleString("de-DE")}</strong> bearbeitete Anliegen</p>
-              <p className="mt-1 text-xs text-txt-muted">{source.replies?.toLocaleString("de-DE")} Antworten · {((source.cases || 0) * SUPPORT_WEIGHT).toLocaleString("de-DE")} Punkte</p>
-              {source.status === "limited" && <p className="mt-2 text-xs text-warning">Nur teilweise geladen; weitere Arbeit kann fehlen.</p>}
-            </> : <p className="mt-2 text-xs text-warning">{source.status === "connection_required" ? "Nachrichtenfreigabe fehlt. Noch nicht im Beitrag enthalten." : "Quelle nicht verfügbar. Keine Nullwertung."}</p>}
-            {key === "ebay" && source.status === "connection_required" && hasPermission("integrations", "write") && <><button disabled={connecting} className={`${secondaryButton} mt-3`} onClick={connect}>{connecting ? "Wird geöffnet …" : "eBay-Nachrichten verbinden"}</button><p className="mt-2 text-xs text-txt-muted">Nach der Freigabe hier „Support aktualisieren“ wählen.</p></>}
-          </div>;
-        })}
-      </div>
-      {details && <p className="mt-3 text-[11px] leading-relaxed text-txt-muted">
-        {SUPPORT_WEIGHT} Punkte je Anliegen mit Händlerantwort im Zeitraum, unabhängig von der Anzahl der Antworten. Vorläufige Aufwandsstufe für Lesen, Prüfen und Beantworten; keine gemessene Bearbeitungszeit. Daten werden bis zu einer Minute zwischengespeichert.
-      </p>}
-    </>}
-    {connectionError && <p role="alert" className="mt-3 text-xs text-danger">{connectionError}</p>}
+  const missing = Boolean(error || (!loading && !data?.ownerUid));
+  return <section aria-label={details ? "Supportdetails" : "Supportstatus"} className={details ? "mt-3 border-t border-app-border pt-3" : "flex flex-wrap items-center gap-x-3 gap-y-1 text-xs"}>
+    {details && <div className="mb-1 flex items-center justify-between text-xs"><h4 className="font-semibold">Support</h4><span className="text-txt-muted">Anliegen / Punkte</span></div>}
+    {loading && !data ? <span className="text-xs text-txt-muted" role="status">Support lädt …</span> : missing ? <div className="flex items-center gap-2 text-xs text-warning" role="status">Support nicht verfügbar <button type="button" onClick={onReload} className="underline">Erneut laden</button></div> : data && (["kaufland", "ebay"] as const).map((key) => {
+      const source = data.channels[key];
+      const view = supportChannelView(source);
+      const label = key === "kaufland" ? "Kaufland" : "eBay";
+      const needsConnection = key === "ebay" && source.status === "connection_required" && hasPermission("integrations", "write");
+      return <div key={key} className={details ? "py-2" : "flex items-center gap-1.5"}>
+        {details ? <div className="grid grid-cols-[minmax(0,1fr)_auto_3rem] items-start gap-3 text-sm">
+          <div><span>{label}</span>{view.replies !== null && <span className="mt-0.5 block text-[11px] text-txt-muted">{view.replies.toLocaleString("de-DE")} Antworten</span>}</div>
+          <span className="tabular-nums">{view.count === null ? "—" : `${view.partial ? "≥ " : ""}${view.count.toLocaleString("de-DE")}`}</span>
+          <span className="text-right font-medium tabular-nums text-accent">{view.points === null ? "—" : `${view.partial ? "≥ " : ""}${view.points.toLocaleString("de-DE")}`}</span>
+        </div> : <span className={`inline-flex items-center gap-1.5 ${source.status === "complete" ? "text-txt-muted" : "text-warning"}`} aria-label={`${label}: ${view.label}`} title={`${label}: ${view.label}`}><span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${source.status === "complete" ? "bg-success" : "bg-warning"}`} />{label}{source.status !== "complete" && <span>· {view.label}</span>}</span>}
+        {details && source.status !== "complete" && <span className="text-[11px] text-warning">{view.label}</span>}
+        {needsConnection && <button type="button" disabled={connecting} className={details ? `${secondaryButton} mt-2` : "font-medium text-accent hover:underline"} onClick={connect}>{connecting ? "Öffnet …" : "Verbinden"}</button>}
+      </div>;
+    })}
+    {connectionError && <p role="alert" className="text-xs text-danger">{connectionError}</p>}
   </section>;
 }
