@@ -97,3 +97,7 @@ Implementierung: [MitarbeiterRollen](../../../components/admin/MitarbeiterRollen
 ## Support im Leistungsbereich
 
 Seit dem Support-Nachtrag zeigt Leistung zusätzlich die Quellenabdeckung von Kaufland-Tickets/eBay-Nachrichten und ordnet Händlerantworten der bestätigten Alleinzuständigkeit zu. Einzelzahlen erst nach Auswahl; fehlende Quellen führen zu Teilbeitrag ohne Rangfolge. Admin kann eBay-Nachrichten freigeben und anschließend Support aktualisieren. Bewertungsregel, Grenzen und Einrichtung: [Team-Spezifikation](../../features/team-workspace/spec.md#kundensupport--nachtrag-20092026).
+
+### Kompakte Leistung (20.09.2026)
+
+Die Leistungsansicht zeigt Kennzahlen und eine Tätigkeitstabelle statt permanenter Erklärungstexte. Supportquellen stehen als kleine Statusanzeigen neben dem Zeitraum; Einzelwerte nur bei der ausgewählten Person. „Datenaufbereitung · Details“ und „Berechnung“ öffnen Nachweise/Methodik bei Bedarf. Fehler/Teilabdeckung bleiben direkt erkennbar. Rechenregeln und Quellen unverändert.
