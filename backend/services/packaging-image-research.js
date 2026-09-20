@@ -27,6 +27,16 @@ const web = image => ['web', 'web_search'].includes(image?.source) || Boolean(im
 
 function needsPackagingResearch(classification, references) {
   if (!classification?.views?.length) return false;
+  // Existing catalogue photos are already part of this product's gallery. Do
+  // not throw a usable matching photo away merely because the own photos show
+  // the carton. Search is for missing references, not a gate on supplied ones.
+  const usableWebPhoto = classification.sameProductThroughout === true
+    && classification.views.some(v => web(references[v.index]?.image)
+      && v.subjectRole === 'complete' && v.fullyVisible === true
+      && v.showsProduct && v.usableAsReference && v.confidence >= 0.7
+      && ['front', 'back', 'side', 'top', 'bottom'].includes(v.viewpoint)
+      && v.verpackungsreste !== 'folie');
+  if (usableWebPhoto) return false;
   const own = classification.views.filter(v => !web(references[v.index]?.image));
   const packaged = own.some(v => ['packaging', 'label'].includes(v.viewpoint) && v.confidence >= 0.7);
   const complete = own.some(v => v.showsProduct && v.usableAsReference && v.confidence >= 0.7

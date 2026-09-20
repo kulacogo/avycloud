@@ -22,10 +22,10 @@ function deps(overrides = {}) {
   };
 }
 
-test('researches packaging and labels, including when unverified web pictures already exist', () => {
+test('researches packaging and labels when no usable matching complete product photo exists', () => {
   expect(needsPackagingResearch(packaging, references)).toBe(true);
   expect(needsPackagingResearch({ ...packaging, sameProductThroughout: false }, references)).toBe(true);
-  expect(needsPackagingResearch({ ...packaging, views: [...packaging.views, { index: 1, viewpoint: 'front', subjectRole: 'complete', showsProduct: true, usableAsReference: true, confidence: 0.99 }] }, [...references, { image: { source: 'web_search' } }])).toBe(true);
+  expect(needsPackagingResearch({ ...packaging, sameProductThroughout: false, views: [...packaging.views, { index: 1, viewpoint: 'front', subjectRole: 'complete', showsProduct: true, usableAsReference: true, fullyVisible: true, confidence: 0.99 }] }, [...references, { image: { source: 'web_search' } }])).toBe(true);
   expect(needsPackagingResearch({ views: [{ index: 0, viewpoint: 'front', subjectRole: 'complete', showsProduct: true, usableAsReference: true, confidence: 0.99 }] }, references)).toBe(false);
   expect(needsPackagingResearch(null, references)).toBe(false);
 });
@@ -145,4 +145,19 @@ test('at most four references leave research, including a partially accepted par
   expect(r.references).toHaveLength(4);
   expect(r.report.sources).toHaveLength(4);
   expect(r.report.imagesChecked).toBeLessThanOrEqual(8);
+});
+
+// Regression: Nimara Carlo 76601 had a usable manually added manufacturer image,
+// but packaging research discarded it and a missing search hit blocked every render.
+test.each(['web', 'web_search'])('uses an existing matching %s photo without making generation depend on a new search hit', source => {
+  const view = { index: 1, viewpoint: 'front', subjectRole: 'complete', showsProduct: true, fullyVisible: true, usableAsReference: true, verpackungsreste: 'keine', confidence: 0.99 };
+  const refs = [...references, { image: { source } }];
+  expect(needsPackagingResearch({ ...packaging, views: [...packaging.views, view] }, refs)).toBe(false);
+  for (const invalid of [
+    { subjectRole: 'component' }, { subjectRole: 'detail' }, { viewpoint: 'packaging' },
+    { viewpoint: 'anwendung' }, { usableAsReference: false }, { fullyVisible: false },
+    { confidence: 0.3 }, { verpackungsreste: 'folie' }, { showsProduct: false },
+  ]) expect(needsPackagingResearch({ ...packaging, views: [...packaging.views, { ...view, ...invalid }] }, refs)).toBe(true);
+  expect(needsPackagingResearch({ ...packaging, sameProductThroughout: false, views: [...packaging.views, view] }, refs)).toBe(true);
+  expect(needsPackagingResearch({ ...packaging, sameProductThroughout: undefined, views: [...packaging.views, view] }, refs)).toBe(true);
 });
