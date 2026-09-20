@@ -1,6 +1,6 @@
 # Interaktive Teamverwaltung — 20.09.2026
 
-Status: implementiert, lokal geprüft; Auslieferung wird vorbereitet. Basis `1fe401cd` (Rollenbereinigung PR #9), isolierter Branch `codex/team-workspace-20260920` in `/Users/oguz/Dev/avycloud-team-ui`.
+Status: ursprüngliche Teamoberfläche mit PR #10/Main `eb4b850c` produktiv. Nachtrag Gesamtbeitrag lokal geprüft, Auslieferung vorbereitet. Basis `1fe401cd` (Rollenbereinigung PR #9), isolierter Branch `codex/team-workspace-20260920` in `/Users/oguz/Dev/avycloud-team-ui`.
 
 ## Auftrag und Grenzen
 
@@ -10,13 +10,13 @@ Der Betreiber empfindet Mitarbeiter, Leistung und Rollen & Rechte als mau und st
 
 1. Zusammenhängende Register mit Tastaturnavigation und erhaltenen Filtern.
 2. Mitarbeiterkarten, Suche, Status-/Profilfilter, fokussierte Einladung/Bearbeitung mit genau einem Profil, sichtbar angekündigter Profilwechsel, bestätigtes Löschen. Administratorprofil weiterhin nur für den Inhaber und nicht neu auswählbar.
-3. Kennzahlen mit eigenen Einheiten, wählbare Balken, sortierbare Tabelle, Datumsbereich mit expliziter Anwendung, Kontodetails, Aktivitätsfilter. Auf schmalen Bildschirmen erscheinen ausgewählte Details direkt im Sichtfeld.
+3. Gesamtbeitrag je Person aus allen fünf Tätigkeiten; Einzelzahlen und Berechnung nach Auswahl. Sortierung nach Beitrag/Name, Datumsbereich mit expliziter Anwendung, Aktivitätsfilter. Auf schmalen Bildschirmen erscheinen ausgewählte Details direkt im Sichtfeld.
 4. Profilvergleich mit serverseitigen Werten, nur Unterschiede, Aufgabensuche, Kategorien und Verbindung zu zugeordneten Konten. Kein bearbeitbarer Schein-Schalter für serverseitig feste Rechte.
 5. Gemeinsames Kontoverzeichnis via React Query. Keine wiederkehrenden Leistungsabfragen; Backend-Abfrage nur bei aktiver Ansicht, Zeitraumwechsel oder Aktualisieren. Fehler, Leerzustand und Laden getrennt.
 
 ## Messung und Datenqualität
 
-Die API liefert Zeitraum-Summen, keine Tagesreihe, Anwesenheit oder Qualitätsmessung. Erfasst/Produktpflege: eindeutige Produkte pro Konto. Eingelagert: Buchungen; Pick/Pack: Vorgänge. Keine Summe unterschiedlicher Einheiten. Konten ohne Ereignis erhalten eine Nullzeile; historische oder deaktivierte Konten mit Ereignissen bleiben erhalten. Quellen sind durch die bestehende Backend-Abfragelogik begrenzt und können dort teilweise ohne explizites Fehlersignal ausfallen. Die Oberfläche erklärt diese Grenze.
+Die API liefert Zeitraum-Summen, keine Tagesreihe, Anwesenheit oder Qualitätsmessung. Erfasst/Produktpflege: eindeutige Produkte pro Konto. Eingelagert: Buchungen; Pick/Pack: Vorgänge. Die Rohzahlen werden über offengelegte Gewichte in Beitragspunkte übersetzt: Erfassen 5, Pflege 2, Einlagern 2, Pick 1, Pack 3. Das ist eine unkalibrierte Startannahme, keine gemessene Produktivität oder Qualitätsnote. Erfassen und Pflege desselben Produkts/Kontos im Fenster werden nicht doppelt bepunktet; das kann auch spätere echte Pflege desselben Produkts im Zeitraum ausschließen und wird in den Details erklärt. Konten ohne Ereignis erhalten eine Nullzeile; historische oder deaktivierte Konten mit Ereignissen bleiben erhalten. Historische/deaktivierte Konten werden nicht bewertet. Teamanteil bezieht sich auf alle bewertbaren Konten und bleibt beim Filtern stabil. Additive API-Metadaten melden Fehler und Abfragekappung; bei unsicherer Abdeckung oder fehlendem Kontoverzeichnis keine Gesamtbewertung. Fehlende Quellen erscheinen als Strich, vorhandene Details bleiben lesbar.
 
 ## Prüfung
 
@@ -29,3 +29,9 @@ Die API liefert Zeitraum-Summen, keine Tagesreihe, Anwesenheit oder Qualitätsme
 ## Auslieferung / Rückweg
 
 Nur geprüfte Komponenten, Tests und Dokumentation in den UI-PR aufnehmen. Der Hauptcheckout enthält andere Änderungen und bleibt unangetastet. Keine Migration nötig. Deployment über normalen PR/Main-Prozess. Bei Rücknahme dieses UI-Nachtrags bleibt die bereits ausgelieferte Rollenpolicy PR #9 erhalten; niemals die ursprüngliche Rollenmigration zurücksetzen.
+
+## Nachtrag Gesamtbeitrag (20.09.2026)
+
+Auslöser: Der Betreiber erwartet neben Namen eine plausible Gesamtbewertung statt der jeweils ausgewählten Packzahl. Die erste Umsetzung hatte Verpacken als aktive Kennzahl vorbelegt. Neues Modell wie oben; Kontozuordnungen unverändert. Der Betreiber hat die Gewichtungsfrage noch nicht beantwortet; keine Bestätigung behaupten. Gewichtung ist ausdrücklich als offengelegte Startannahme erkennbar und kann später an tatsächliche Richtzeiten angepasst werden.
+
+Isolierter Branch `codex/team-performance-assessment-20260920`, Basis `eb4b850c`. 7 zusätzliche Frontendtests und 9 zusätzliche Backendtests prüfen alle Tätigkeiten, Überschneidung, Filter-Nenner, fehlende Daten, Kontostatus sowie tatsächliche Abruf-/Tenantfehler. Vollständig 474 Frontend- und 5.223 Backendtests/449 Dateien grün; TypeScript und Build grün. Browserprüfung mit Beispieldaten: Auswahl, Rechenweg, unveränderter Anteil bei Suche, Sortierung, historische Konten, 390px/Hell/Dunkel und Datenlücken. Keine Kontoänderung für diesen Nachtrag; keine Migration. Rückweg nur diesen Nachtrag revertieren, Profile und vorige UI bleiben erhalten.
