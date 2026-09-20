@@ -443,12 +443,69 @@ function pruefeMaske({ anteilGroesste, deckung, seitenAbweichung, raender, solid
 // ---------------------------------------------------------------------------
 
 /**
+ * Kamerarollwinkel aus einer langen, geraden UNTERKANTE. Der kleinste Rahmen
+ * um die ganze Silhouette kippt auch korrekt stehende offene Koffer, Taschen
+ * und asymmetrische Produkte. Griff/Fuesse duerfen die robuste Linie unterbrechen.
+ * Zwei verschieden geneigte Bodenkanten deuten auf Perspektive: nicht drehen.
+ * Ohne hinreichend breite Gerade bleibt die belegte Orientierung erhalten.
+ */
+function winkelStandflaeche(maske, w, h) {
+  const box = bereichAusMaske(maske, w, h);
+  if (!box || box.breite < 30) return 0;
+  const punkte = [];
+  const minY = box.maxY - box.hoehe * 0.35;
+  for (let x = box.minX; x <= box.maxX; x++) {
+    for (let y = box.maxY; y >= minY; y--) {
+      if (maske[y * w + x]) { punkte.push({ x, y }); break; }
+    }
+  }
+  const toleranz = Math.max(1.2, box.breite * 0.0015);
+  const findeLinie = (punkte, maxWinkel) => {
+    let best = { punkte: [], winkel: 0 };
+    for (let grad = -maxWinkel; grad <= maxWinkel; grad += 0.25) {
+      const m = Math.tan(grad * Math.PI / 180);
+      const bins = new Map();
+      for (const p of punkte) {
+        const bin = Math.round((p.y - m * p.x) / toleranz);
+        bins.set(bin, (bins.get(bin) || 0) + 1);
+      }
+      for (const [bin, n] of bins) {
+        const count = n + (bins.get(bin - 1) || 0) + (bins.get(bin + 1) || 0);
+        if (count < best.punkte.length) continue;
+        const inliers = punkte.filter(p => Math.abs(p.y - m * p.x - bin * toleranz) <= toleranz * 1.5);
+        if (inliers.length > best.punkte.length || (inliers.length === best.punkte.length && Math.abs(grad) < Math.abs(best.winkel))) {
+          best = { punkte: inliers, winkel: grad };
+        }
+      }
+    }
+    return best;
+  };
+  const linie = findeLinie(punkte, MAX_DREHUNG_GRAD);
+  if (linie.punkte.length < box.breite * 0.6) return 0;
+  const gesetzt = new Set(linie.punkte);
+  const rest = punkte.filter(p => !gesetzt.has(p));
+  if (rest.length > box.breite * 0.2) {
+    const zweite = findeLinie(rest, 30);
+    if (zweite.punkte.length > box.breite * 0.2 && Math.abs(zweite.winkel - linie.winkel) > 4) return 0;
+  }
+  const n = linie.punkte.length;
+  const cx = linie.punkte.reduce((sum, p) => sum + p.x, 0) / n;
+  const cy = linie.punkte.reduce((sum, p) => sum + p.y, 0) / n;
+  let xy = 0; let xx = 0;
+  for (const p of linie.punkte) { xy += (p.x - cx) * (p.y - cy); xx += (p.x - cx) ** 2; }
+  const winkel = Math.atan2(xy, xx) * 180 / Math.PI;
+  return Math.abs(winkel) >= 0.5 && Math.abs(winkel) <= MAX_DREHUNG_GRAD ? winkel : 0;
+}
+
+/**
  * Baut den Packshot: ORIGINALPIXEL durch die Maske, gerade gerückt, mittig, mit
  * deterministischem Kontaktschatten.
  *
  * @param {Buffer} originalBuffer Das ECHTE Foto in voller Auflösung
  * @param {Buffer} maskenQuelle   Die Weissgrund-Aufnahme des Bildmodells
  * @param {Object} [opts]
+ * @param {boolean} [opts.ausrichten=true] Kamerarolle an belegter Standkante korrigieren.
+ *   Bei bereits komponierten KI-Ansichten false: deren Perspektive erhalten.
  * @param {boolean} [opts.weissabgleich=true] Weissabgleich aus dem Hintergrund.
  *   Fuer ein GERENDERTES Bild abschalten: dessen Hintergrund ist keine Graukarte,
  *   sondern ein vom Modell frei gewaehlter Ton (gemessen 196 bis 221 ueber
@@ -494,9 +551,15 @@ async function bauePackshot(originalBuffer, maskenQuelle, opts = {}) {
   const wache = pruefeMaske({
     anteilGroesste: komp.anteilGroesste, deckung, seitenAbweichung, raender, solidität,
   });
-  if (!wache.ok) return { ok: false, gruende: wache.gruende };
+  // Eine U-Form (z.B. Kamerasattel) ist kein Maskierungsfehler. Diese Ausnahme
+  // gilt nur mit verpflichtender Abnahme des fertigen Bildes. Alle anderen
+  // Geometriewachen bleiben bestehen; ohne Abnahme bleibt der alte Schutz aktiv.
+  const brauchtFormpruefung = !wache.ok && wache.gruende.every(g => g.startsWith('maske_nicht_kompakt'));
+  if (!wache.ok && !(brauchtFormpruefung && typeof opts.reviewResult === 'function')) {
+    return { ok: false, gruende: wache.gruende };
+  }
 
-  const winkel = winkelMinRechteck(maske, roh.w, roh.h);
+  const winkel = opts.ausrichten === false ? 0 : winkelStandflaeche(maske, roh.w, roh.h);
 
   // Maske als Graustufenbild, auf die ORIGINALGRÖSSE hochskaliert. Die Maske ist
   // niederfrequent — hochskalieren kostet nichts. Umgekehrt (Produkt auf
@@ -539,7 +602,9 @@ async function bauePackshot(originalBuffer, maskenQuelle, opts = {}) {
   // Hintergrund faellt ohnehin weg und darf die Messung nicht verfaelschen.
   // Die Kurve laeuft auf dem ganzen Bild; das ist gleichwertig, weil vom
   // Hintergrund nichts uebrig bleibt, und spart einen Maskierungsschritt.
-  const lift = await messeSchattenlift(grundBild, gefuellt, roh.w, roh.h);
+  const lift = opts.schattenlift === false
+    ? { gamma: null, grund: 'nicht_angefordert' }
+    : await messeSchattenlift(grundBild, gefuellt, roh.w, roh.h);
   if (lift.gamma) {
     try {
       grundBild = await wendeGammaAn(grundBild, lift.gamma);
@@ -619,9 +684,21 @@ async function bauePackshot(originalBuffer, maskenQuelle, opts = {}) {
         create: { width: leinwand, height: leinwand, channels: 3, background: { r: 255, g: 255, b: 255 } },
       };
 
+  // Bei benutzerdefiniertem hohem Fuellgrad nur den Schatten an der Leinwand
+  // beschneiden, niemals das Produkt. Der Standard hat ausreichend Rand.
+  const schattenMeta = await sharp(schatten.buffer).metadata();
+  const schattenX = px + schatten.dx;
+  const schattenY = py + ph + schatten.dy;
+  const cropLeft = Math.max(0, -schattenX);
+  const cropTop = Math.max(0, -schattenY);
+  const schattenSichtbar = await sharp(schatten.buffer).extract({
+    left: cropLeft, top: cropTop,
+    width: Math.min(schattenMeta.width - cropLeft, leinwand - Math.max(0, schattenX)),
+    height: Math.min(schattenMeta.height - cropTop, leinwand - Math.max(0, schattenY)),
+  }).png().toBuffer();
   const packshot = await sharp(grund)
     .composite([
-      { input: schatten.buffer, left: px + schatten.dx, top: py + ph + schatten.dy },
+      { input: schattenSichtbar, left: Math.max(0, schattenX), top: Math.max(0, schattenY) },
       { input: skaliert, left: px, top: py },
     ])
     .jpeg({ quality: 95, chromaSubsampling: '4:4:4' })
@@ -629,6 +706,15 @@ async function bauePackshot(originalBuffer, maskenQuelle, opts = {}) {
 
   const randOk = await pruefeRand(packshot, verlauf ? VERLAUF_RAND_MIN : WEISS_RAND_MIN);
   if (!randOk.ok) return { ok: false, gruende: [randOk.grund] };
+
+  if (typeof opts.reviewResult === 'function') {
+    try {
+      const review = await opts.reviewResult(packshot);
+      if (review?.action !== 'ok') return { ok: false, gruende: ['ergebnis_nicht_bestaetigt', ...(review?.warnings || [])] };
+    } catch {
+      return { ok: false, gruende: ['ergebnispruefung_fehlgeschlagen'] };
+    }
+  }
 
   return {
     ok: true,
@@ -662,60 +748,38 @@ async function bauePackshot(originalBuffer, maskenQuelle, opts = {}) {
 }
 
 /**
- * Kontaktschatten aus der SILHOUETTE, nicht als Rechteck. Ein Rechteck ergibt
- * den grauen Balken, den niemand für einen Schatten hält.
+ * Enger Kontaktschatten + breite weiche Penumbra aus der unteren Kontur.
+ * Beide liegen am Produkt an und laufen sichtbar auf dem Boden aus. Die
+ * Weichheit richtet sich nach der Breite, nicht nach der Hoehe eines Koffers.
+ * Transparenter Rand verhindert, dass die Faltung den Schatten abschneidet.
  */
 async function baueKontaktschatten(produktPng, pw, ph) {
-  const hoehe = Math.max(6, Math.round(ph * 0.05));
-  const alpha = await sharp(produktPng)
-    .ensureAlpha()
-    .extractChannel('alpha')
-    .toColourspace('b-w')
-    .png()
-    .toBuffer();
-
-  // NUR DIE UNTERSTEN ZEILEN — die AUFSTANDSFLÄCHE (Korrektur 2026-09-04).
-  // Vorher wurde das untere DRITTEL der Silhouette gestaucht: bei einem Produkt,
-  // dessen Seitenkante schräg verläuft, ragte der Schatten dadurch weit über die
-  // Standfläche hinaus und stand als grauer Balken neben dem Produkt.
-  // Ein Kontaktschatten liegt da, wo das Objekt den Boden berührt — sonst nirgends.
-  const bandHoehe = Math.max(2, Math.round(ph * 0.04));
-  const zuschnitt = await sharp(alpha)
-    .extract({ left: 0, top: Math.max(0, ph - bandHoehe), width: pw, height: bandHoehe })
-    .resize(pw, hoehe, { fit: 'fill' })
-    .png()
-    .toBuffer();
-  const unteres = await sharp(zuschnitt).removeAlpha().toColourspace('b-w').raw().toBuffer();
-
-  const data = unteres;
-  const deckkraft = zahl('STUDIO_SHADOW_OPACITY', 0.30);
-  const out = Buffer.alloc(pw * hoehe);
-  for (let y = 0; y < hoehe; y += 1) {
-    // Nach unten ausblenden (Potenz 1,5) — nah am Produkt dunkel, dann weich weg.
-    const abfall = Math.pow(1 - y / hoehe, 1.5);
-    for (let x = 0; x < pw; x += 1) {
-      out[y * pw + x] = Math.round(data[y * pw + x] * abfall * deckkraft);
+  const alpha = await sharp(produktPng).ensureAlpha().extractChannel('alpha').raw().toBuffer();
+  const pad = Math.max(4, Math.ceil(pw * 0.04));
+  const width = pw + pad * 2;
+  const height = ph + pad * 3;
+  const kontakt = Buffer.alloc(width * height * 4);
+  const ambient = Buffer.alloc(width * height * 4);
+  const deckkraft = Math.max(0, Math.min(0.6, zahl('STUDIO_SHADOW_OPACITY', 0.30)));
+  const sigmaKontakt = Math.max(1, pw * 0.004);
+  const sigmaAmbient = Math.max(2, pw * 0.018);
+  for (let x = 0; x < pw; x++) {
+    let boden = ph - 1;
+    while (boden >= 0 && alpha[boden * pw + x] < 180) boden--;
+    // Nur die bodennahe Kontur, keine Projektion von Deckeln oder Auslegern.
+    if (boden < ph * 0.8) continue;
+    for (let y = Math.max(0, boden + pad - Math.ceil(sigmaAmbient * 3)); y < height; y++) {
+      const d = y - (boden + pad);
+      const k = ((y * width) + x + pad) * 4;
+      kontakt[k + 3] = Math.round(255 * deckkraft * Math.exp(-0.5 * (d / sigmaKontakt) ** 2));
+      ambient[k + 3] = Math.round(255 * deckkraft * 0.55 * Math.exp(-0.5 * ((d - pw * 0.008) / sigmaAmbient) ** 2));
     }
   }
-
-  // Wie bei der Produktmaske: die Staerke gehoert in den ALPHAKANAL. Ein raw-
-  // Puffer mit channels:1 gilt als Graustufe OHNE Alpha — `dest-in` liesse dann
-  // das volle graue Rechteck stehen, und genau das erschien als schwarzer Balken
-  // unter dem Produkt (gemessen 2026-09-04).
-  const rgba = Buffer.alloc(pw * hoehe * 4);
-  for (let p = 0; p < out.length; p += 1) {
-    rgba[p * 4] = 40;
-    rgba[p * 4 + 1] = 40;
-    rgba[p * 4 + 2] = 40;
-    rgba[p * 4 + 3] = out[p];
-  }
-  const schatten = await sharp(rgba, { raw: { width: pw, height: hoehe, channels: 4 } })
-    .blur(Math.max(2, pw * 0.012))
-    .png()
-    .toBuffer();
-
-  // Leicht unter die Unterkante schieben, damit er anliegt statt zu schweben.
-  return { buffer: schatten, dx: 0, dy: -Math.round(hoehe * 0.55) };
+  const raw = { width, height, channels: 4 };
+  const weich = await sharp(ambient, { raw }).blur(Math.max(0.3, pw * 0.008)).png().toBuffer();
+  const eng = await sharp(kontakt, { raw }).blur(Math.max(0.3, pw * 0.002)).png().toBuffer();
+  const buffer = await sharp(weich).composite([{ input: eng }]).png().toBuffer();
+  return { buffer, dx: -pad, dy: -ph - pad };
 }
 
 /**
@@ -1021,6 +1085,7 @@ module.exports = {
     fuelleLoecher,
     erodiere,
     winkelMinRechteck,
+    winkelStandflaeche,
     randberuehrungen,
     solid,
     bereichAusMaske,

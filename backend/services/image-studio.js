@@ -1,33 +1,19 @@
 'use strict';
 
 /**
- * image-studio.js
- *
- * Macht aus einem beliebigen Produktfoto einen sauberen Verkaufs-Packshot:
- * reinweisser Hintergrund (#FFFFFF), Produkt gerade geruecktet und mittig,
- * weicher Kontaktschatten — waehrend das Produkt selbst so bleibt, wie es
- * fotografiert wurde (Form, Farben, Beschriftung, Gebrauchsspuren).
- *
- * BETREIBER-VORGABE GEAENDERT 2026-09-04: die Vorgabe vom 2026-07-21, das
- * Ergebnis solle "leicht amateurhaft" wirken und ausdruecklich KEIN Studio-Render
- * sein, ist WIDERRUFEN. Verlangt wird jetzt genau das Gegenteil — sauberer
- * Hintergrund, gerade geruecktes Produkt, Studio-Beschattung. Der alte Satz stand
- * bis dahin im Prompt und war mit ein Grund, warum die Funktion nichts tat.
- *
- * Ablauf (jede Stufe best-effort, es wird nie aufgegeben ohne alles versucht zu haben):
- *   1. PIXELTREUES COMPOSITE (Primaerweg, lib/packshot-composite.js): das Modell
- *      liefert nur die Silhouette, ins Endbild gehen ORIGINALPIXEL. Der
- *      Kleindruck bleibt damit buchstabengetreu. Faellt eine Wache -> Stufe 2.
- *   2. Retusche durch das Modell (STUDIO_PROMPT, Fassung F): Studio-Look, aber
- *      das Bild wird neu gerendert und der Kleindruck leidet.
- *   3. Deterministischer Rueckfall: Produkt intakt auf Weiss (KEIN Freisteller).
- *   4. Upload nach GCS; scheitert der, wird die Data-URL zurueckgegeben.
+ * Interactive Studio-Foto: photographic relighting of the selected real item.
+ * Render first; require identity, condition, colour and presentation approval.
+ * Keep the finished lighting/shadow; square padding never crops or remasks it.
+ * STUDIO_PHOTOGRAPHIC=off restores the prior composite-first pipeline.
  */
 
 const sharp = require('sharp');
+const { photographicStudioEnabled, STUDIO_PHOTOGRAPHY_BRIEF, finishStudioCanvas } = require('../lib/studio-photography');
+const { PROFESSIONAL_RELIGHTING, PRODUCT_PRESERVATION } = require('../lib/product-photo-policy');
+const { neuerZaehler } = require('../lib/image-cost');
 const { generateProductImages } = require('../lib/vertex-ai');
 const { studioImageModelChain, maskImageModelChain, maxObjectReferences } = require('../lib/gemini-image-models');
-const { assessBackgroundBrightness } = require('../lib/image-result-check');
+const { assessBackgroundBrightness, judgeProductIdentity, classifyIdentityVerdict } = require('../lib/image-result-check');
 const { bauePackshot, compositeEnabled } = require('../lib/packshot-composite');
 const { buildMaskPrompt } = require('./prompt-engine');
 const { fetchImageAsDataUrl } = require('./image-generation');
@@ -46,52 +32,20 @@ const SIBLING_HINT = (total) =>
   'Do NOT copy their camera angle and do NOT merge them into the result. ' +
   "The output must keep image 1's perspective and framing.";
 
-/**
- * STUDIO_PROMPT — Fassung "F", an der echten API gemessen (2026-09-04).
- *
- * 21 Laeufe ueber 6 Fassungen, bewertet an Bildrand-Weisse und Kontaktschatten-
- * Tiefe. Ergebnis gegen den vorherigen Stand:
- *   Bildrand-Weisse   176,1  ->  249,4   (3 von 4 Laeufen bei 255)
- *   Kontaktschatten   keiner ->  15,0    (in 4 von 4 Laeufen messbar)
- *
- * WARUM DIE ALTFASSUNG NICHTS TAT: sie enthielt 14 Verbote gegen 2 Anweisungen,
- * darunter "If in doubt, leave the product pixel-for-pixel as it is" und die vom
- * Betreiber am 2026-09-04 WIDERRUFENE Vorgabe "do NOT turn it into a glossy
- * studio render, keep a slightly amateur look" (Altvorgabe 2026-07-21). Zusammen
- * war die sicherste Handlung fuer das Modell: gar nichts tun. Genau das wurde
- * gemeldet ("nur das selektierte Bild 1:1 gleich erstellt").
- *
- * Beide Saetze sind ersatzlos gestrichen. Die Anweisungen stehen jetzt POSITIV
- * und IMPERATIV zuerst, die Erhaltungsregeln danach.
- *
- * GEGENPROBE, die eine naheliegende Annahme widerlegt: laenger ist nicht besser.
- * Die Fassung, die zwei gute Fassungen kombinierte, fiel auf 242,8/3,3 zurueck.
- *
- * EHRLICHE GRENZE: der kopfstehende Kleindruck wird in JEDER Fassung verfaelscht,
- * auch in dieser — ein Bildmodell rendert das ganze Bild neu, es gibt kein "nur
- * ein bisschen". F ist die beste der Fassungen (8 von 13 Pruefeldern korrekt
- * gegen 5-6), aber buchstabengetreu ist sie NICHT.
- *
- * DESHALB IST DIESER PROMPT NUR NOCH DER RUECKFALL. Primaer laeuft das
- * pixeltreue Composite (lib/packshot-composite.js): dort liefert das Modell nur
- * die Silhouette, ins Bild gehen Originalpixel, und der Kleindruck bleibt
- * unversehrt. Dieser Prompt greift, wenn eine der Composite-Wachen faellt.
- */
-/**
- * Der MASKEN_PROMPT liegt seit 2026-09-10 in `services/prompt-engine.js` — die
- * Angebotsgalerie braucht denselben Wortlaut, und zwei Kopien wären eine Quelle
- * für Abweichungen.
- */
+// Legacy retouch prompt retained for explicit rollback. The current shared
+// photographic brief is selected at request time below.
 const MASKEN_PROMPT = buildMaskPrompt();
 
 const STUDIO_PROMPT = [
   'Retouch this photo into a clean e-commerce packshot of the SAME physical item.',
   '',
+  PROFESSIONAL_RELIGHTING,
+  PRODUCT_PRESERVATION,
   'DO THIS:',
-  '- Replace the whole background with seamless pure white, RGB 255,255,255, edge to edge. All four picture corners end up pure white — no gradient, no vignette, no grey wash, no tint, no visible horizon line. The only grey anywhere in the picture is the contact shadow described below.',
+  '- Replace the whole background with seamless pure white, RGB 255,255,255, edge to edge. All four picture corners end up pure white — no gradient, no vignette, no grey wash, no tint, no visible horizon line. Only the background must be white; preserve all grey areas and discoloration on the item.',
   '- Remove everything that is not the item: hands, fingers, table, shelf, floor, other boxes, clutter.',
   '- Straighten the item so its edges sit level and square to the camera, and centre it in the frame with even white space on all sides.',
-  '- Light it with soft, even studio light: open up the dark areas, remove the colour cast of the room, set a neutral white balance so white cardboard reads white and printed black reads black.',
+  '- Light it with soft, even studio light: lift only recoverable shadows and remove lighting colour casts. Preserve actual yellowing or discoloration of cardboard and faded print.',
   '- Cast a soft grey contact shadow under the item. It must be clearly visible: darkest right where the item meets the surface, then fading out to nothing within roughly one third of the item\'s width. Without that shadow the item looks pasted onto the page. Keep it tight under the item — everything further away stays pure white.',
   '',
   'KEEP EXACTLY AS PHOTOGRAPHED — this is the same real object, reproduced, not redesigned:',
@@ -99,7 +53,7 @@ const STUDIO_PROMPT = [
   '- Every printed character on the item: brand and company names, street addresses, product codes, lot numbers, dates, barcode bars and their digits, certification marks and every line of multilingual small print — letter for letter, digit for digit, accent for accent, in the same language, the same typeface, the same size and the same position. Print that sits sideways or upside down on the item stays sideways or upside down.',
   '- Copy these characters as shapes; do not read them and set them again. Where a line is too small or too blurred to copy, reproduce it exactly that small and that blurred rather than inventing legible words.',
   '',
-  'Add nothing: no props, no reflections, no overlay text, no watermark, no border, no people.',
+  'Add nothing: no props, no invented mirror image, no overlay text, no watermark, no border, no people.',
   '',
   'Output the retouched photograph only.',
 ].join('\n');
@@ -141,6 +95,7 @@ async function preprocessInput(buffer) {
       fit: 'inside',
       withoutEnlargement: true,
     })
+    .flatten({ background: '#ffffff' })
     .jpeg({ quality: 92, mozjpeg: true })
     .toBuffer();
   return out;
@@ -206,10 +161,16 @@ async function tryGeminiStudio(preBuffer, attempts, siblingDataUrls = [], prompt
   const anker = ankerErlaubt ? siblingDataUrls : [];
 
   for (const model of kette) {
+    if (opts.cost && !opts.cost.darfNoch(model, zielGroesse)) {
+      attempts.push({ model, reason: 'image_cost_cap' });
+      continue;
+    }
     // Die Obergrenze fuer Objekt-Referenzen ist MODELLABHAENGIG.
     const limit = Math.max(1, maxObjectReferences(model));
     const referenceImages = [referenceImageBase64, ...anker].slice(0, limit);
     try {
+      // Vorab reservieren: auch ein Timeout kann bereits Kosten verursacht haben.
+      opts.cost?.buche(model, zielGroesse, opts.maske ? 'studio_mask_attempt' : 'studio_retouch_attempt');
       const images = await generateProductImages({
         prompt:
           referenceImages.length > 1
@@ -221,7 +182,7 @@ async function tryGeminiStudio(preBuffer, attempts, siblingDataUrls = [], prompt
         // den Kleindruck neu: aus "glaskoch B. Koch jr. GmbH + Co. KG" wurde
         // "glaskooh B. Naoh p. Gnditt + Oa. KG". Ohne Vorgabe behaelt es das
         // Format der Vorlage und der Text bleibt buchstabengetreu.
-        aspectRatio: null,
+        aspectRatio: !opts.maske && photographicStudioEnabled() ? '1:1' : null,
         referenceImages,
         model,
         timeoutMs: studioTimeoutMs(),
@@ -242,17 +203,24 @@ async function tryGeminiStudio(preBuffer, attempts, siblingDataUrls = [], prompt
         continue;
       }
 
-      // BEWUSST KEINE Identitaets-Zweitmeinung im Studio-Pfad (geprueft und
-      // verworfen 2026-09-04). Sie war kurz eingebaut und verwarf im Test gute
-      // Bilder, weil der Vision-Aufruf scheiterte — genau der Fehlertyp, der
-      // einen Tag zuvor JEDES Studio-Foto gekostet hat (siehe Ecken-Korrektur
-      // oben). Eine Pruefung, die im Zweifel loescht und deren Verhalten wir
-      // nicht messen koennen, richtet mehr Schaden an als sie verhindert.
-      // Der Drift-Schutz liegt jetzt woanders: genau EIN Referenzfoto je Aufruf.
+      let quality = null;
+      if (!opts.maske) {
+        const identity = await judgeProductIdentity(
+          [{ inlineData: { data: preBuffer.toString('base64'), mimeType: 'image/jpeg' } }],
+          { data: candidate.base64, mimeType: candidate.mimeType || 'image/png' },
+          { requireCleanBackground: true, requireStudioPresentation: photographicStudioEnabled() },
+        );
+        quality = classifyIdentityVerdict(identity, { requireApproval: true, requireStudioPresentation: photographicStudioEnabled() });
+        if (quality.action === 'verwerfen') {
+          attempts.push({ model, reason: `${quality.reason}: ${quality.warnings.join('; ')}` });
+          continue;
+        }
+      }
       return {
         buffer,
         mimeType: candidate.mimeType || 'image/png',
         model,
+        quality,
         width: verdict.width,
         height: verdict.height,
       };
@@ -328,7 +296,7 @@ async function fallbackComposite(preBuffer) {
 /**
  * makeStudioPhoto({ productId, image }) → {
  *   image: { url_or_base64, variant, source, notes, mimeType, width, height },
- *   method: 'gemini' | 'composite_fallback',
+ *   method: 'gemini' | 'composite',
  *   model: string|null,
  *   attempts: Array<{model, reason}>,
  * }
@@ -367,22 +335,24 @@ async function makeStudioPhoto({ productId, image, siblingImages = [] }) {
   ).filter(Boolean);
 
   const attempts = [];
+  const cost = neuerZaehler();
   let result = null;
   let method = null;
   let model = null;
 
-  // ---------------------------------------------------------------------------
-  // PRIMÄRWEG: pixeltreues Composite (lib/packshot-composite.js).
-  // Das Modell liefert nur die Silhouette; ins Bild gehen ORIGINALPIXEL. Damit
-  // bleibt der Kleindruck buchstabengetreu — an einem echten Produktfoto Zeichen
-  // für Zeichen verifiziert, inklusive ß, Makron und Kyrillisch.
-  // Fällt eine der Wachen, wird NICHTS geliefert und der Retusche-Weg übernimmt.
-  // ---------------------------------------------------------------------------
-  if (compositeEnabled()) {
+  // Legacy composite path, used only for explicit rollback.
+  if (!photographicStudioEnabled() && compositeEnabled()) {
     try {
-      const maskenLauf = await tryGeminiStudio(preBuffer, attempts, [], MASKEN_PROMPT, { maske: true });
+      const maskenLauf = await tryGeminiStudio(preBuffer, attempts, [], MASKEN_PROMPT, { maske: true, cost });
       if (maskenLauf) {
-        const packshot = await bauePackshot(sourceBuffer, maskenLauf.buffer);
+        const packshot = await bauePackshot(sourceBuffer, maskenLauf.buffer, {
+          schattenlift: false,
+          reviewResult: async (buffer) => classifyIdentityVerdict(await judgeProductIdentity(
+            [{ inlineData: { data: preBuffer.toString('base64'), mimeType: 'image/jpeg' } }],
+            { data: buffer.toString('base64'), mimeType: 'image/jpeg' },
+            { requireCleanBackground: true },
+          ), { requireApproval: true }),
+        });
         if (packshot.ok) {
           result = { buffer: packshot.buffer, mimeType: 'image/jpeg', width: packshot.width, height: packshot.height };
           method = 'composite';
@@ -399,24 +369,29 @@ async function makeStudioPhoto({ productId, image, siblingImages = [] }) {
     }
   }
 
-  // RÜCKFALL 1: der Retusche-Weg (Fassung F) — Studio-Look, aber das Modell
-  // zeichnet das Bild neu und der Kleindruck leidet.
+  // Photographic default. No unverified flat-cutout fallback after rejection.
   if (!result) {
-    result = await tryGeminiStudio(preBuffer, attempts, siblingDataUrls);
+    const prompt = photographicStudioEnabled()
+      ? [STUDIO_PHOTOGRAPHY_BRIEF, 'Edit image 1 only. Keep exactly the same item, pose, visible parts and viewing direction.', PROFESSIONAL_RELIGHTING, PRODUCT_PRESERVATION].join(' ')
+      : STUDIO_PROMPT;
+    result = await tryGeminiStudio(preBuffer, attempts, siblingDataUrls, prompt, { cost });
     method = 'gemini';
     model = result?.model || null;
   }
 
   if (!result) {
-    console.warn(
-      `[image-studio] Gemini chain failed for ${productId} (${attempts
-        .map((a) => `${a.model}: ${a.reason}`)
-        .join(' | ')}), using composite fallback`
-    );
-    result = await fallbackComposite(preBuffer);
-    method = 'composite_fallback';
-    model = null;
+    const error = new Error('Kein Studiofoto hat die Qualitätsprüfung bestanden. Das Original bleibt erhalten. Bitte ein anderes Referenzfoto wählen.');
+    error.code = 'STUDIO_QUALITY_REJECTED';
+    error.attempts = attempts;
+    throw error;
   }
+
+  // Quadratisch erst NACH der Bearbeitung: kein generatives Umkomponieren,
+  // kein Beschnitt. Upscaling ergänzt keine echte Bildinformation.
+  Object.assign(result, await finishStudioCanvas(result.buffer));
+  const qualityNote = result.quality?.action === 'ungeprueft'
+    ? ' — Produkttreue nicht geprüft; bitte Original vergleichen.'
+    : result.quality?.warnings?.length ? ` — Bitte prüfen: ${result.quality.warnings.join('; ')}` : '';
 
   const resultDataUrl = `data:${result.mimeType};base64,${result.buffer.toString('base64')}`;
 
@@ -436,13 +411,14 @@ async function makeStudioPhoto({ productId, image, siblingImages = [] }) {
     image: {
       url_or_base64: finalUrl,
       variant: 'studio_front',
+      ...(photographicStudioEnabled() ? { studioPipeline: 'photographic-v1' } : {}),
       source: method === 'gemini' ? 'studio_gemini' : 'studio_composite',
       notes:
         method === 'gemini'
           ? // "Gemini" im Text ist Absicht: markiert das Bild im Frontend als
             // trusted-AI (isTrustedAiImage) und hält es aus Referenz-Pools raus.
-            'Studio-Foto (Gemini: Belichtung korrigiert, reinweißer Hintergrund, Kontaktschatten)'
-          : 'Studio-Foto (Produkt zentriert auf reinweißem Hintergrund)',
+            'Studio-Foto (Gemini: Belichtung korrigiert, reinweißer Hintergrund, Kontaktschatten)' + qualityNote
+          : 'Studio-Foto (Originaldetails erhalten, weißer Hintergrund, weicher Kontaktschatten)',
       mimeType,
       width: result.width || null,
       height: result.height || null,
@@ -450,6 +426,7 @@ async function makeStudioPhoto({ productId, image, siblingImages = [] }) {
     method,
     model,
     attempts,
+    cost: cost.bericht(),
   };
 }
 

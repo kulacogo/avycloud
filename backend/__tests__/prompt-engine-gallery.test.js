@@ -166,3 +166,11 @@ describe('buildGalleryPrompt — Weiche', () => {
     expect(p).toMatch(/seamless PURE WHITE background/i);
   });
 });
+
+
+it('bestellt bei vorhandenem Quellfoto keinen widerspruechlichen neuen Blickwinkel', () => {
+  const prompt = buildStudioPrompt({ product: PRODUCT, produkt: PRODUKT,
+    planEntry: { key: 'front', quelleIstEcht: true, winkel: 'rotate the item' } });
+  expect(prompt).toContain('exactly the supplied viewpoint');
+  expect(prompt).not.toContain('Produce a high-end rotate the item');
+});

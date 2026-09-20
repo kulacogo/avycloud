@@ -57,7 +57,7 @@ patchLocalModule(path.resolve(__dirname, '../lib/image-result-check.js'), {
   judgeProductIdentity: judgeSpy,
 });
 
-const { generateImagesForProduct, collectReferenceCandidates, isLikelyAiImage } =
+const { generateImagesForProduct, collectReferenceCandidates, isLikelyAiImage, _internal } =
   require('../services/image-generation');
 
 let studioPng;
@@ -111,6 +111,7 @@ const V = (index, viewpoint, extra = {}) => ({
 });
 
 beforeEach(async () => {
+  process.env.STUDIO_PHOTOGRAPHIC = 'off';
   vi.clearAllMocks();
   delete process.env.IMAGE_VARIANTS_MODE;
 
@@ -145,7 +146,7 @@ beforeEach(async () => {
     width: 1200,
     height: 1200,
   }));
-  judgeSpy.mockResolvedValue(null); // ungeprüft — darf nicht als "verwerfen" gelten
+  judgeSpy.mockResolvedValue({ sameItem: true, perspectiveKept: true, markingsKept: true, conditionKept: true, materialKept: true, colorKept: true, evidenceKept: true, backgroundClean: true, confidence: 0.95, problems: [] });
 });
 
 describe('Serie: mindestens 4 Studio + 2 Szenen', () => {
@@ -235,6 +236,43 @@ describe('Serie: mindestens 4 Studio + 2 Szenen', () => {
 });
 
 describe('alle echten Fotos gehen als Referenz mit', () => {
+  it('nutzt ladbare Web-Produktbilder auch wenn die Uploads nur Kartons zeigen', async () => {
+    const bilder = [
+      { url_or_base64: 'https://x/karton.jpg', source: 'upload' },
+      { url_or_base64: 'https://catalog.example/product.png', source: 'web_search' },
+    ];
+    classifySpy.mockResolvedValue(klassifikation([V(0, 'packaging', { showsProduct: false }), V(1, 'front')]));
+    const res = await generateImagesForProduct(produkt(bilder), { referenceImage: bilder[0], lifestyle: false });
+    expect(res.evidence.referenceCount).toBe(2);
+    expect(res.plan.find(p => p.viewpoint === 'front').sourceIndex).toBe(1);
+    expect(res.images.length).toBeGreaterThan(0);
+  });
+
+  it('meldet nicht ladbare Webbilder statt zu behaupten, es seien nur Kartonfotos vorhanden', async () => {
+    const download = globalThis.fetch;
+    globalThis.fetch = vi.fn((url, opts) => String(url).includes('catalog.example')
+      ? Promise.resolve({ ok: false, status: 404 }) : download(url, opts));
+    classifySpy.mockResolvedValue(klassifikation([V(0, 'packaging', { showsProduct: false })]));
+    const res = await generateImagesForProduct(produkt([
+      { url_or_base64: 'https://x/karton.jpg', source: 'upload' },
+      { url_or_base64: 'https://catalog.example/product.png?token=private', source: 'web_search' },
+    ]), { lifestyle: false });
+    expect(res.images).toHaveLength(0);
+    expect(res.skipped).toContainEqual({ viewpoint: 'reference', label: 'Webbild 2', reason: 'referenz_laden_fehlgeschlagen' });
+    expect(res.skipped.some(e => e.reason === 'vorlagen_nicht_vollstaendig_geladen')).toBe(true);
+    expect(JSON.stringify(res.skipped)).not.toContain('private');
+    expect(res.evidence.failedReferenceCount).toBe(1);
+    expect(generateSpy).not.toHaveBeenCalled();
+  });
+
+  it('setzt transparente Web-PNGs vor der KI-Analyse auf Weiss statt Schwarz', async () => {
+    const input = await sharp({ create: { width: 100, height: 100, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
+      .composite([{ input: await sharp({ create: { width: 40, height: 40, channels: 3, background: '#202020' } }).png().toBuffer(), left: 30, top: 30 }]).png().toBuffer();
+    const output = await _internal.preprocessReference(input);
+    const { data, info } = await sharp(output).raw().toBuffer({ resolveWithObject: true });
+    expect(data[0]).toBeGreaterThan(250);
+    expect(data[(50 * info.width + 50) * info.channels]).toBeLessThan(36);
+  });
   // Hier geht es um den RENDER-Weg und seine Referenzen. Der pixeltreue Weg
   // schickt bewusst nur EIN Bild (die Vorlage) und wuerde diese Frage gar nicht
   // beruehren — deshalb wird er hier ausdruecklich abgeschaltet, statt dass der
@@ -246,7 +284,7 @@ describe('alle echten Fotos gehen als Referenz mit', () => {
     delete process.env.GALLERY_PIXEL_FAITHFUL;
   });
 
-  it('sendet alle SAUBEREN echten Fotos als Referenz mit', async () => {
+  it('haelt echte Ansichten an einer Vorlage fest; abgeleitete Ansichten nutzen saubere Anker', async () => {
     // KEHRTWENDE zum 04.09.: damals genau EIN Bild, weil nur geputzt wurde.
     // Jetzt werden Ansichten ABGELEITET — dafuer braucht das Modell alle Seiten.
     classifySpy.mockResolvedValue(klassifikation([V(0, 'front'), V(1, 'side'), V(2, 'back')]));
@@ -260,7 +298,8 @@ describe('alle echten Fotos gehen als Referenz mit', () => {
       { referenceImage: { url_or_base64: 'https://x/1.jpg' } }
     );
 
-    expect(generateSpy.mock.calls[0][0].referenceImages).toHaveLength(3);
+    expect(generateSpy.mock.calls[0][0].referenceImages).toHaveLength(1);
+    expect(generateSpy.mock.calls.some(([args]) => args.referenceImages.length === 3)).toBe(true);
   });
 
   /**
@@ -418,9 +457,20 @@ describe('Ergebnisse werden geprueft', () => {
     expect(uploadSpy).not.toHaveBeenCalled();
   });
 
-  it('behaelt ein Bild mit Warnung, verwirft es aber nicht', async () => {
+  it('verwirft kosmetisch restaurierte Varianten vor dem Upload', async () => {
+    judgeSpy.mockResolvedValue({ sameItem: true, confidence: 0.95, perspectiveKept: true, markingsKept: true,
+      conditionKept: false, materialKept: true, colorKept: true, evidenceKept: true, problems: ['Kratzer entfernt'] });
+    classifySpy.mockResolvedValue(klassifikation([V(0, 'front')]));
+    const res = await generateImagesForProduct(produkt([{ url_or_base64: 'https://x/1.jpg' }]), {
+      referenceImage: { url_or_base64: 'https://x/1.jpg' },
+    });
+    expect(res.images).toHaveLength(0);
+    expect(uploadSpy).not.toHaveBeenCalled();
+  });
+
+  it('laedt ein unsicher beurteiltes Bild nicht hoch', async () => {
     judgeSpy.mockResolvedValue({
-      sameItem: true, confidence: 0.9, perspectiveKept: true, markingsKept: false, problems: ['Typenschild unscharf'],
+      sameItem: true, confidence: 0.3, perspectiveKept: true, markingsKept: false, problems: ['Typenschild unscharf'],
     });
     classifySpy.mockResolvedValue(klassifikation([V(0, 'front')]));
 
@@ -428,8 +478,9 @@ describe('Ergebnisse werden geprueft', () => {
       referenceImage: { url_or_base64: 'https://x/1.jpg' },
     });
 
-    expect(res.images.length).toBeGreaterThan(0);
-    for (const bild of res.images) expect(bild.warnings).toContain('Typenschild unscharf');
+    expect(res.images).toHaveLength(0);
+    expect(uploadSpy).not.toHaveBeenCalled();
+    expect(res.skipped.length).toBeGreaterThan(0);
   });
 });
 
@@ -645,7 +696,7 @@ describe('pixeltreuer Weg', () => {
     expect(maske.imageSize).toBe('1K');
   });
 
-  it('FAELLT AUF DEN RENDER-WEG ZURUECK, wenn die Maske unbrauchbar ist', async () => {
+  it('meldet eine dauerhaft unbrauchbare Maske ohne fehlerhaftes Galeriebild', async () => {
     classifySpy.mockResolvedValue(klassifikation([V(0, 'front')]));
 
     // Eine reinweisse Maske hat keine Silhouette — die Waechter in
@@ -672,8 +723,8 @@ describe('pixeltreuer Weg', () => {
     });
 
     const front = res.images.find((b) => b.variant === 'studio_front');
-    expect(front).toBeTruthy();
-    expect(front.pixeltreu).toBe(false);
+    expect(front).toBeUndefined();
+    expect(res.skipped.some(x => x.viewpoint === 'front')).toBe(true);
   });
 
   it('laesst sich per Notbremse abschalten', async () => {
@@ -747,7 +798,7 @@ describe('einheitliche Leinwand', () => {
     expect(szenenLeinwand).toHaveLength(0);
   });
 
-  it('liefert das rohe Renderbild, wenn die Vereinheitlichung scheitert — nie GAR KEIN Bild', async () => {
+  it('verwirft das rohe Renderbild, wenn die Freistellung scheitert', async () => {
     classifySpy.mockResolvedValue(klassifikation([V(0, 'front')]));
     // Eine reinweisse Maskenaufnahme hat keine Silhouette; die Waechter lehnen ab.
     const leer = await sharp({
@@ -771,8 +822,8 @@ describe('einheitliche Leinwand', () => {
       referenceImage: { url_or_base64: 'https://x/1.jpg' },
       lifestyle: false,
     });
-    expect(res.images.length).toBeGreaterThan(0);
-    expect(res.images.every((b) => b.einheitlicheLeinwand === false)).toBe(true);
+    expect(res.images).toHaveLength(0);
+    expect(uploadSpy).not.toHaveBeenCalled();
   });
 
   it('laesst sich per Notbremse abschalten und kostet dann nichts extra', async () => {
@@ -903,12 +954,9 @@ describe('Nachzuege zur einheitlichen Leinwand', () => {
       lifestyle: false,
     });
 
-    // Die Bilder bleiben — fail-open ist richtig.
-    expect(res.images.length).toBeGreaterThan(0);
-    // Aber der Grund steht jetzt im BLEIBENDEN Bericht.
-    const hinweis = res.skipped.find((x) => x.reason === 'leinwand_nicht_vereinheitlicht');
-    expect(hinweis).toBeTruthy();
-    expect(hinweis.attempts[0].reason).toMatch(/leinwand/);
+    expect(res.images).toHaveLength(0);
+    expect(uploadSpy).not.toHaveBeenCalled();
+    expect(res.skipped.some(x => x.attempts?.some(a => /leinwand/.test(a.reason)))).toBe(true);
   });
 
   it('rechnet den Leinwand-Posten in die Vorabschaetzung ein', () => {
@@ -962,13 +1010,8 @@ describe('gescheiterte Pixeltreue wird gemeldet', () => {
     });
 
     const front = res.images.find((b) => b.variant === 'studio_front');
-    // Das Bild entsteht trotzdem — fail-open ist richtig.
-    expect(front).toBeTruthy();
-    expect(front.pixeltreu).toBe(false);
-    // Aber der Grund steht jetzt im bleibenden Bericht.
-    const hinweis = res.skipped.find((x) => x.reason === 'nicht_pixeltreu_moeglich');
-    expect(hinweis).toBeTruthy();
-    expect(hinweis.attempts[0].reason).toMatch(/packshot_verworfen/);
+    expect(front).toBeUndefined();
+    expect(res.skipped.some(x => x.viewpoint === 'front' && x.attempts?.some(a => /packshot_verworfen/.test(a.reason)))).toBe(true);
   });
 
   it('meldet NICHT, wenn die Ansicht ohnehin abgeleitet war', async () => {
@@ -981,5 +1024,65 @@ describe('gescheiterte Pixeltreue wird gemeldet', () => {
     for (const h of res.skipped.filter((x) => x.reason === 'nicht_pixeltreu_moeglich')) {
       expect(h.viewpoint).toBe('front');
     }
+  });
+});
+
+describe('SAKK-Regression: Hintergrund, Farbtreue und parallele Kosten', () => {
+  it.each(['colorKept', 'backgroundClean'])('laedt kein Studioergebnis mit negativer %s-Pruefung hoch', async field => {
+    classifySpy.mockResolvedValue(klassifikation([V(0, 'front')]));
+    judgeSpy.mockResolvedValue({ sameItem: true, perspectiveKept: true, markingsKept: true, conditionKept: true, materialKept: true, colorKept: true, evidenceKept: true, backgroundClean: true, confidence: 0.95, problems: [], [field]: false });
+    const result = await generateImagesForProduct(produkt([{ url_or_base64: 'https://x/1.jpg' }]), { lifestyle: false });
+    expect(result.images).toHaveLength(0);
+    expect(uploadSpy).not.toHaveBeenCalled();
+  });
+  it('reserviert Kosten vor parallelen Modellaufrufen und bucht auch Timeout-Versuche', async () => {
+    classifySpy.mockResolvedValue(klassifikation([V(0, 'front')]));
+    generateSpy.mockRejectedValue(new Error('timeout'));
+    const result = await generateImagesForProduct(produkt([{ url_or_base64: 'https://x/1.jpg' }]), { kostendeckelUsd: 0.16 });
+    expect(result.report.kosten.kostenUsd).toBeGreaterThan(0);
+    expect(result.report.kosten.kostenUsd).toBeLessThanOrEqual(0.16);
+    expect(result.images).toHaveLength(0);
+  });
+});
+
+afterEach(() => { delete process.env.STUDIO_PHOTOGRAPHIC; });
+
+describe('photographic studio default', () => {
+  beforeEach(() => {
+    delete process.env.STUDIO_PHOTOGRAPHIC;
+    judgeSpy.mockResolvedValue({ sameItem: true, perspectiveKept: true, markingsKept: true,
+      conditionKept: true, materialKept: true, colorKept: true, evidenceKept: true, backgroundClean: true,
+      studioLighting: true, grounded: true, compositionGood: true, confidence: 0.95, problems: [] });
+  });
+  async function render(extra = {}) {
+    const part = { inlineData: { data: studioPng.toString('base64'), mimeType: 'image/png' } };
+    return _internal.renderOneView({ product: produkt([]), produktInfo: PRODUKT,
+      planEntry: { art: 'studio', key: 'front', variant: 'studio_front', quelleIstEcht: true },
+      references: [{ part, dataUrl: 'data:image/png;base64,' + part.inlineData.data, buffer: studioPng }], sourceIndex: 0, ...extra });
+  }
+  it('renders with directional light and keeps the finished photograph without mask calls', async () => {
+    const result = await render();
+    expect(result.failed).not.toBe(true);
+    expect(result.studioPipeline).toBe('photographic-v1');
+    expect(generateSpy).toHaveBeenCalledTimes(1);
+    expect(generateSpy.mock.calls[0][0].imageSize).toBe('2K');
+    expect(generateSpy.mock.calls[0][0].aspectRatio).toBe('1:1');
+    expect(judgeSpy.mock.calls[0][1].mimeType).toBe('image/png');
+    expect(generateSpy.mock.calls[0][0].prompt).toMatch(/contact shadow/);
+    expect(generateSpy.mock.calls[0][0].prompt).not.toMatch(/No cast shadow/);
+    expect(judgeSpy.mock.calls[0][2].requireStudioPresentation).toBe(true);
+    expect(result.width).toBe(result.height);
+  });
+  it('rejects an attractive but recoloured item and never returns an unchecked cutout', async () => {
+    judgeSpy.mockResolvedValue({ sameItem: true, colorKept: false, confidence: 0.95, problems: ['colour changed'] });
+    expect((await render()).failed).toBe(true);
+    expect(uploadSpy).not.toHaveBeenCalled();
+    expect(generateSpy.mock.calls.every(([a]) => a.imageSize === '2K')).toBe(true);
+  });
+  it('keeps explicit nurPixeltreu on the mask-only path even with photography enabled', async () => {
+    const result = await render({ nurPixeltreu: true });
+    expect(result.studioPipeline).toBeUndefined();
+    expect(generateSpy.mock.calls.length).toBeGreaterThan(0);
+    expect(generateSpy.mock.calls.every(([a]) => a.imageSize === '1K' && a.aspectRatio === null)).toBe(true);
   });
 });

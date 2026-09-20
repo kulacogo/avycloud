@@ -193,12 +193,12 @@ describe('classifyIdentityVerdict', () => {
     expect(classifyIdentityVerdict(null).action).toBe('ungeprueft');
   });
 
-  it('warnt bei entfernten Beschriftungen — genau der Schaden des alten "no text"-Prompts', () => {
+  it('verwirft sicher entfernte Beschriftungen — genau der Schaden des alten "no text"-Prompts', () => {
     const v = classifyIdentityVerdict({
       sameItem: true, confidence: 0.9, perspectiveKept: true, markingsKept: false,
       problems: ['Typenschild fehlt'],
     });
-    expect(v.action).toBe('warnen');
+    expect(v.action).toBe('verwerfen');
     expect(v.warnings).toContain('Beschriftungen wurden verändert oder entfernt');
     expect(v.warnings).toContain('Typenschild fehlt');
   });
@@ -214,6 +214,7 @@ describe('classifyIdentityVerdict', () => {
   it('meldet ein sauberes Ergebnis ohne Warnung', () => {
     const v = classifyIdentityVerdict({
       sameItem: true, confidence: 0.95, perspectiveKept: true, markingsKept: true, problems: [],
+      conditionKept: true, materialKept: true, colorKept: true, evidenceKept: true,
     });
     expect(v.action).toBe('ok');
     expect(v.warnings).toHaveLength(0);

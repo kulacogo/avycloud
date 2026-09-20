@@ -81,7 +81,9 @@ const CLASSIFY_SCHEMA = {
         type: 'object',
         properties: {
           index: { type: 'integer', description: '0-basierte Position des Bildes in der Reihenfolge, in der es gezeigt wurde.' },
+          visible_parts: { type: 'string', description: 'ZUERST rein visuell beschreiben, welche Bauteile in DIESEM Foto tatsaechlich sichtbar sind. Kein verdecktes Gehaeuse oder andere Teile aus Nachbarbildern annehmen. Dann subject_role bestimmen.' },
           viewpoint: { type: 'string', enum: [...VIEWPOINTS] },
+          subject_role: { type: 'string', enum: ['complete', 'component', 'detail', 'packaging', 'unclear'], description: 'complete = ganzer Verkaufsartikel (auch offener Deckel/offene Schublade); component = abgenommenes Einzelteil eines groesseren Artikels, z.B. Deckel, Innenbehaelter, leeres Aussengehaeuse; detail = Nahaufnahme. Bei als Ersatzteil verkauftem Artikel ist das gesamte Ersatzteil complete.' },
           shows_product: { type: 'boolean', description: 'true wenn das eigentliche Produkt zu sehen ist (nicht nur Verpackung, Zubehör oder ein Katalogblatt).' },
           product_fully_visible: { type: 'boolean', description: 'true wenn das Produkt vollständig im Bild ist und nicht angeschnitten.' },
           usable_as_reference: { type: 'boolean', description: 'true wenn das Bild scharf und hell genug ist, um die Form und Farbe des Produkts zuverlässig zu zeigen.' },
@@ -94,7 +96,7 @@ const CLASSIFY_SCHEMA = {
           },
           note: { type: 'string', description: 'Kurze Begründung, deutsch, maximal ein Satz.' },
         },
-        required: ['index', 'viewpoint', 'shows_product', 'usable_as_reference', 'confidence'],
+        required: ['index', 'visible_parts', 'subject_role', 'viewpoint', 'shows_product', 'usable_as_reference', 'confidence'],
       },
     },
     same_product_throughout: {
@@ -126,6 +128,8 @@ const PROMPT = [
   'Ordne JEDEM Bild zu, WELCHE SEITE des Artikels darauf zu sehen ist.',
   '',
   'Regeln:',
+  '- Wenn nur Deckel/Oberseite/Bedienfeld sichtbar ist, waehrend der Korpus nicht sichtbar ist, nimm subject_role=detail (oder component bei sicher abgenommenem Teil). Auch wenn viewpoint=top ist: niemals complete allein aus einem kreisfoermigen Deckel mit Logo ableiten. Nur eine belegte Gesamtansicht darf complete sein.',
+  '- subject_role: Unterscheide den KOMPLETTEN Verkaufsartikel von separat fotografierten Bestandteilen. Ein abgenommener Deckel ist KEINE Draufsicht des ganzen Muelleimers. Ein Inneneinsatz oder leeres Aussengehaeuse ist component. Ein komplettes Produkt mit geoeffnetem Deckel bleibt complete.',
   '- Urteile ausschliesslich danach, was tatsaechlich abgebildet ist. Rate nicht.',
   '- "front" ist die Seite mit Bedienelementen, Marke oder Hauptansicht; "back" ist die',
   '  gegenueberliegende Seite. Bist du dir nicht sicher, welche Seite es ist, nimm "unclear".',
@@ -227,6 +231,7 @@ async function classifyViewpointParts(imageParts, opts = {}) {
       views.push({
         index,
         viewpoint,
+        subjectRole: ['complete', 'component', 'detail', 'packaging'].includes(row?.subject_role) ? row.subject_role : 'unclear',
         showsProduct: row?.shows_product === true,
         fullyVisible: row?.product_fully_visible === true,
         usableAsReference: row?.usable_as_reference === true,
@@ -321,8 +326,10 @@ function summarizeEvidence(classification) {
     // (`referenceIndexes` sammelt nur brauchbare Fotos) — ein Anker, auf dem man
     // nichts erkennt, ankert nichts.
     if (!view.usableAsReference) continue;
-    if (!byViewpoint[view.viewpoint]) byViewpoint[view.viewpoint] = [];
-    byViewpoint[view.viewpoint].push(view);
+    // Detached parts are useful detail evidence, never a full-product angle.
+    const key = ['component', 'detail'].includes(view.subjectRole) ? 'detail' : view.viewpoint;
+    if (!byViewpoint[key]) byViewpoint[key] = [];
+    byViewpoint[key].push(view);
   }
 
   // Innerhalb einer Ansicht das beste Foto zuerst: sicher, vollständig, brauchbar.
@@ -355,7 +362,7 @@ function summarizeEvidence(classification) {
     // Gemessen: bei einem Produkt mit ausschliesslich Karton-, Folien- und
     // Szenenfotos war `referenceIndexes[0]` das KARTONFOTO, und der Plan baute
     // daraus vier Studio-Ansichten und eine Szene.
-    vorlageIndexes: ankerIndexes.map((v) => v.index),
+    vorlageIndexes: ankerIndexes.filter(v => !['component', 'detail', 'packaging'].includes(v.subjectRole)).map((v) => v.index),
     klassifiziert: true,
     anwendungIndexes,
   };
