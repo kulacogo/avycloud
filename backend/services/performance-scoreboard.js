@@ -72,8 +72,29 @@ function aggregatePerformance({ auditLogs = [], orderEvents = [], warehouseEvent
   return counts;
 }
 
-/** Products already credited as captured are not credited a second time as care
- * in the same window for the same person. Raw activity counts remain unchanged. */
+/** Credit documented data work or a human readiness completion once per product
+ * and account. Capturing photos is a separate task and never cancels this work.
+ * Existing raw save counts remain unchanged; missing legacy evidence is not invented. */
+function productCareEvidence(auditLogs = []) {
+  const byUser = new Map();
+  for (const event of auditLogs) {
+    const uid = event?.userId;
+    const id = event?.resourceId || event?.details?.productId;
+    if (!uid || uid === SYSTEM_UID || !id || !['product.updated', 'product.created'].includes(event.action)) continue;
+    if (!byUser.has(uid)) byUser.set(uid, { edited: new Set(), ready: new Set() });
+    const entry = byUser.get(uid);
+    const changes = Array.isArray(event.details?.changes) ? event.details.changes : [];
+    const fields = Array.isArray(event.details?.changedFields) ? event.details.changedFields : changes.map((change) => change?.field);
+    const ready = changes.some((change) => change?.field === 'ops.readiness' && change.to === 'ready' && change.from !== 'ready');
+    const edited = fields.some((field) => typeof field === 'string' && /^(details|identification)\./.test(field));
+    if (edited || ready) entry.edited.add(String(id));
+    if (ready) entry.ready.add(String(id));
+  }
+  return Object.fromEntries([...byUser].map(([uid, entry]) => [uid, { productCareEdited: entry.edited.size, productReady: entry.ready.size }]));
+}
+
+/** Legacy overlap metadata retained for API compatibility; no longer deducted
+ * from care credit because photographing and enriching are separate work. */
 function productCareOverlaps(auditLogs = []) {
   const byUser = new Map();
   for (const event of auditLogs) {
@@ -207,16 +228,18 @@ async function getPerformance({ tenantId = 'default', range = 'week', from, to }
   );
 
   const careOverlaps = productCareOverlaps(auditLogs);
+  const careEvidence = productCareEvidence(auditLogs);
   const rows = Object.entries(counts).map(([uid, c]) => ({
     uid,
     name: nameByUid.get(uid)?.name || uid,
     email: nameByUid.get(uid)?.email || null,
     ...c,
     productCareOverlap: careOverlaps[uid] || 0,
+    ...(careEvidence[uid] || { productCareEdited: 0, productReady: 0 }),
   }));
   rows.sort((a, b) => String(a.name).localeCompare(String(b.name)));
 
-  return { range: label, rows, dataQuality: { complete: Object.values(sources).every((status) => status === 'complete'), sources } };
+  return { range: label, rows, contributionDataVersion: 2, dataQuality: { complete: Object.values(sources).every((status) => status === 'complete'), sources } };
 }
 
-module.exports = { aggregatePerformance, computeCutoff, computeWindow, getPerformance, sourceCoverage, belongsToTenant, productCareOverlaps };
+module.exports = { aggregatePerformance, computeCutoff, computeWindow, getPerformance, sourceCoverage, belongsToTenant, productCareOverlaps, productCareEvidence };

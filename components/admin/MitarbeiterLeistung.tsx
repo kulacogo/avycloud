@@ -7,7 +7,6 @@ import { useTeamDirectory } from "./useTeamDirectory";
 import {
   METRICS,
   normalizeSearch,
-  metricValue,
   hasActivity,
   performanceRows,
 } from "./teamWorkspaceModel";
@@ -73,6 +72,7 @@ export const MitarbeiterLeistung: React.FC<{
   );
   const complete =
     result.data?.dataQuality?.complete === true &&
+    result.data?.contributionDataVersion === 2 &&
     !result.error &&
     !directory.error &&
     !directory.isPending;
@@ -283,11 +283,13 @@ export const MitarbeiterLeistung: React.FC<{
                           : item.key === "eingelagert"
                             ? "warehouse"
                             : "orders"
-                      ] === "unavailable"
+                      ] === "unavailable" ||
+                      (item.key === "angereichert" &&
+                        result.data?.contributionDataVersion !== 2)
                         ? "—"
                         : number(
                             rows.reduce(
-                              (sum, row) => sum + metricValue(row, item.key),
+                              (sum, row) => sum + creditedCount(row, item.key),
                               0,
                             ),
                           )}
@@ -309,9 +311,9 @@ export const MitarbeiterLeistung: React.FC<{
                   <div>
                     <h3 className="font-semibold">Gesamtbeitrag im Team</h3>
                     <p className="mt-1 max-w-lg text-xs leading-relaxed text-txt-muted">
-                      Alle fünf Tätigkeiten fließen nach ihrer Gewichtung ein.
-                      Die Punkte zeigen den erfassten Arbeitsumfang, keine
-                      Leistung pro Arbeitsstunde.
+                      Produktpflege 4 · Erfassen 3 · Packen 2 · Picken und
+                      Einlagern 1. Die Stufen berücksichtigen Datenprüfung,
+                      Fotos und Packaufwand.
                     </p>
                   </div>
                   <span className="rounded-lg bg-accent-dim px-2.5 py-1.5 text-xs font-medium text-accent">
@@ -471,13 +473,22 @@ export const MitarbeiterLeistung: React.FC<{
                       </p>
                     )}
                   </div>
-                  {Boolean(selectedRow.productCareOverlap) && (
-                    <p className="mb-4 text-xs leading-relaxed text-txt-muted">
-                      {selectedRow.productCareOverlap} Produkte wurden von
-                      diesem Konto im Zeitraum erfasst und gepflegt. Sie zählen
-                      nur unter Erfasst; die vollständigen Vorgangszahlen
-                      bleiben unten sichtbar.
-                    </p>
+                  {selectedRow.productCareEdited !== undefined && (
+                    <div className="mb-4 rounded-xl bg-app-elevated p-3 text-xs leading-relaxed text-txt-secondary">
+                      <p>
+                        {number(selectedRow.angereichert)} Produkte gespeichert,
+                        davon{" "}
+                        {number(creditedCount(selectedRow, "angereichert"))} mit
+                        dokumentierter Datenänderung oder Bereit-Abschluss.
+                      </p>
+                      <p className="mt-2">
+                        {number(selectedRow.productReady || 0)}{" "}
+                        Bereit-Abschlüsse neu protokolliert. Diese sind bereits
+                        in der Produktpflege enthalten. Frühere Freigaben und
+                        Prüfungen ohne Änderung sind nicht vollständig
+                        nachweisbar.
+                      </p>
+                    </div>
                   )}
                   <h4 className="text-sm font-semibold">
                     So setzt sich der Beitrag zusammen
@@ -492,7 +503,9 @@ export const MitarbeiterLeistung: React.FC<{
                             : "orders";
                       const available =
                         result.data?.dataQuality?.sources?.[source] !==
-                        "unavailable";
+                          "unavailable" &&
+                        (item.key !== "angereichert" ||
+                          result.data?.contributionDataVersion === 2);
                       return (
                         <div
                           key={item.key}
@@ -516,7 +529,7 @@ export const MitarbeiterLeistung: React.FC<{
                           <dd className="text-right">
                             <span className="font-semibold tabular-nums">
                               {available
-                                ? number(metricValue(selectedRow, item.key))
+                                ? number(creditedCount(selectedRow, item.key))
                                 : "—"}
                             </span>
                             <span className="ml-1 text-[11px] text-txt-muted">
@@ -575,28 +588,38 @@ export const MitarbeiterLeistung: React.FC<{
                   <strong className="text-txt-primary">
                     {CONTRIBUTION_MODEL_VERSION}:
                   </strong>{" "}
-                  Erfassen × 5, Produktpflege × 2, Einlagern × 2,
-                  Kommissionieren × 1, Verpacken × 3. Die Summe ergibt den
+                  Produktpflege × 4, Erfassen × 3, Verpacken × 2,
+                  Kommissionieren × 1 und Einlagern × 1. Die Summe ergibt den
                   Arbeitsbeitrag in Punkten. Teamanteil = persönliche Punkte ÷
                   Punkte aller bewertbaren Konten.
                 </p>
                 <p>
-                  Diese Gewichtung ist eine offengelegte Startannahme zum
-                  unterschiedlichen Aufwand, keine gemessene Bearbeitungszeit.
-                  Sie ist für alle Personen gleich. Mehr Punkte bedeuten mehr
-                  dokumentierten, gewichteten Arbeitsumfang; Arbeitszeit,
-                  Schwierigkeit des einzelnen Artikels und Qualität sind damit
-                  nicht bewertet.
+                  Produktpflege umfasst Recherche, Gegenprüfung und Korrektur
+                  bis zur Freigabe „Bereit“ und erhält die höchste Stufe. Danach
+                  folgen Erfassen mit Fotografieren und Packen mit
+                  Kartonvorbereitung und Wiegen. Pick und einfache
+                  Einlagerungsbuchungen erhalten die Basisstufe. Die Stufen
+                  bilden die betriebliche Aufwandsreihenfolge ab; sie sind keine
+                  gemessenen Zeitverhältnisse oder Qualitätsnoten.
                 </p>
                 <p>
-                  Erfasst und Produktpflege zählen eindeutige Produkte je Konto;
-                  mehrere Speicherungen am selben Produkt erhöhen die Zahl
-                  nicht. Erfasst und pflegt dasselbe Konto ein Produkt im
-                  gewählten Zeitraum, wird es nur unter Erfasst bepunktet.
-                  Einlagern zählt Buchungen, Kommissionieren und Verpacken
-                  zählen Vorgänge. Die Balken vergleichen die Punkte mit dem
-                  höchsten Beitrag im gewählten Zeitraum und stellen keine
-                  Zielerfüllung dar.
+                  Für Produktpflege zählen dokumentierte Datenänderungen oder
+                  der Wechsel zu „Bereit“, einmal je Produkt und Konto im
+                  Zeitraum. Fotografieren/Erfassen und spätere Datenarbeit sind
+                  eigenständige Tätigkeiten; die Pflegepunkte werden nicht mehr
+                  abgezogen. Bearbeitungsmodus öffnen oder ohne Änderung
+                  speichern zählt allein nicht als Anreicherung. Bereits korrekt
+                  vorliegende Daten können durch einen Bereit-Abschluss als
+                  geprüft bestätigt werden.
+                </p>
+                <p>
+                  Bereit-Abschlüsse werden seit dieser Überarbeitung
+                  protokolliert. Frühere reine Prüfungen können nicht
+                  rückwirkend zugeordnet werden. Die Original-Speicherzahlen
+                  bleiben in den Details sichtbar. Die Balken vergleichen den
+                  dokumentierten Beitrag im Zeitraum; Arbeitszeit, Anwesenheit,
+                  individuelle Schwierigkeit und tatsächliche Qualität sind
+                  nicht gemessen.
                 </p>
                 <p>
                   Historische oder deaktivierte Konten werden separat ohne

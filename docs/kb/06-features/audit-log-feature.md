@@ -50,6 +50,8 @@ Filter:
 
 `diffProduct(before, after)` aus `services/audit-log.js` wird in `backend/routes/products.js` genutzt, um Vorher/Nachher-Werte für Produkt-Updates zu berechnen — Output landet in `details`.
 
+Seit 20.09.2026 gehört `ops.readiness` als einzelnes fachliches Statusfeld dazu, damit der Wechsel zu „Bereit“ einer Person zugeordnet werden kann. Bearbeiterkürzel und Zeitstempel bleiben ausgeschlossen. Das zusätzliche Audit-Feld verändert den eigentlichen Speicherpfad nicht; alte Freigaben werden nicht rückwirkend erfunden. Die Leistungsansicht zählt dokumentierte Datenänderungen oder einen Bereit-Abschluss dedupliziert je Produkt und Konto, ohne Abzug für eine vorangegangene Erfassung.
+
 ### Aufrufer (Auswahl)
 
 - `backend/routes/products.js` — Produkt-Mutationen, Bulk-Updates
