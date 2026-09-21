@@ -78,7 +78,9 @@ Tenant-Source: `req.user?.tenantId || 'default'`. Bulk-Jobs erlauben `tenantId` 
 ### `GET /api/admin/roles`
 ### `PUT /api/admin/roles/:roleId`
 - **Auth**: `requirePermission('admin', 'roles.read' | 'roles.write')`
-- **PUT Request**: Patch der Permissions/Name.
+- **PUT Request**: `{ "permissions": { "invoices": { "read": true, "write": true }, "orders": { "read": true } }, "revision": 0 }`. Vollständige Matrix der ausgewählten Rolle; nicht angegebene Rechte sind gesperrt. Nur verifizierter Inhaber, `admin` unveränderlich. Keine Umbenennung oder beliebigen Actions.
+- **GET Response**: Rollen mit wirksamen `permissions`, `editable`, `customized`, `revision`. Tenant nur aus authentifizierter Identität.
+- **PUT Response**: Gespeicherte Matrix und neue Revision; 400 bei ungültigen/abhängigen Rechten, 403 ohne Inhaber, 409 bei veralteter Revision. Policy + Audit in einer Transaktion.
 - **Response**: `{ "ok": true, "data": ... }`
 - **Source**: [backend/routes/admin.js#L178-L199](../../../backend/routes/admin.js#L178-L199)
 

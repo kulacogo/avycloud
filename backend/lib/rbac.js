@@ -7,12 +7,13 @@ const AUDIT_COLLECTION = 'auditLogs';
 
 const { isBootstrapAdmin } = require('./auth');
 const { ACCESS_POLICY_VERSION, ROLE_IDS, defaultRoles, selectAccessRole, validateRoleAssignment } = require('./access-profiles');
+const { getRolePolicy, saveRolePolicy } = require('./access-role-policies');
 
 // Policy lives in code. Kept as a no-op for the existing startup contract.
 async function ensureDefaultRoles() {}
 
 function retiredPermissionEditor() {
-  const error = new Error('Bitte das Zugriffsprofil des Mitarbeiters ändern. Gruppen, Einzel-Ausnahmen und frei veränderbare Rollen werden nicht mehr verwendet.');
+  const error = new Error('Bitte die Rolle des Mitarbeiters oder deren Berechtigungen ändern. Gruppen und Einzel-Ausnahmen werden nicht mehr verwendet.');
   error.statusCode = 409;
   throw error;
 }
@@ -119,10 +120,19 @@ async function deleteUserProfile(targetUid) {
   await firestore.collection(USERS_COLLECTION).doc(String(targetUid)).delete();
 }
 
-async function listRoles() {
-  return Object.entries(defaultRoles()).map(([id, role]) => ({ id, ...role, managed: true }));
+async function listRoles({ tenantId = 'default' } = {}) {
+  return Promise.all(Object.entries(defaultRoles()).map(async ([id, role]) => ({
+    id, ...role, ...await getRolePolicy(tenantId, id), editable: id !== 'admin',
+  })));
 }
-const updateRole = retiredPermissionEditor;
+async function updateRole({ actorUid, actorEmail, tenantId, roleId, patch }) {
+  if (!isBootstrapAdmin(actorEmail)) {
+    const error = new Error('Nur der Inhaber darf Rollenrechte ändern.');
+    error.statusCode = 403;
+    throw error;
+  }
+  return saveRolePolicy({ actorUid, tenantId, roleId, patch });
+}
 
 function hasPermission(permissions, moduleName, action) {
   if (!permissions || typeof permissions !== 'object') return false;
@@ -162,7 +172,8 @@ async function resolvePermissionsForUser(uid, identity = {}) {
   // role, group, override, custom claim or mutable profile email alone.
   const isOwner = isBootstrapAdmin(identity.email);
   const role = selectAccessRole(profile, { isOwner });
-  return { profile, permissions: role ? defaultRoles()[role].permissions : {}, roles: role ? [role] : [] };
+  const policy = role ? await getRolePolicy(tenantId, role) : null;
+  return { profile, permissions: policy?.permissions || {}, roles: role ? [role] : [] };
 }
 
 function requirePermission(moduleName, action) {

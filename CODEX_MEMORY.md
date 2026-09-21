@@ -2,6 +2,20 @@
 
 Stand 20.09.2026. Pflichtlektüre aus AGENTS.md/CLAUDE.md bleibt maßgeblich. Die ausführliche Projektanalyse, Architektur und Claude-Historie liegt unter `/Users/oguz/Dev/avycloud/CODEX_MEMORY.md`; diese Datei hält den aktuellen isolierten Arbeitsstand fest. Produktionsänderungen haben direkten Einfluss auf den Betrieb von TrendOcean.
 
+
+## 21.09.2026 — editierbare Rollenrechte und Manager-Rechnungen
+
+Auftrag: Yasemin als Manager muss Rechnungen erstellen können; der Inhaber bestimmt Rechte pro Rolle selbst, sofort umsetzen und produktiv ausliefern. Autorisiert Auth/RBAC-Änderungen, Commit/Merge und Deployment. Vorherige Entscheidung für unveränderliche Rollen ist damit ersetzt; keine Rückfrage nötig.
+
+- Manager-Defaults jetzt `invoices.read/write`. Finanzberichte, Unternehmensdaten und Erstattungen weiterhin getrennte, standardmäßig gesperrte Rechte.
+- Kompakte Rollenansicht mit einzelnen Checkboxen, Suche, Speichern/Verwerfen. Backend erlaubt nur den definierten Katalog und prüft Arbeits-/Leseabhängigkeiten; UI schaltet Voraussetzungen mit. Admin sowie Konten-/Rechteverwaltung bleiben unveränderlich beim verifizierten Inhaber.
+- Neue tenantgebundene Collection `accessRolePolicies`, ein Dokument je Tenant/Rolle; vollständige Matrix, Revision, Schema, Akteur. Speicherung + Audit atomar; 409 bei veraltetem Stand. Keine Wiederbelebung historischer Rollen/Overrides/Gruppen. Fehlende Policy → Defaults, fehlerhafte Policy → kein Zugriff; Entzug wirksam bei nächster Anfrage, kein übergreifender Rechtecache.
+- Rechnungsroute prüft Tenant vor MwSt.-Speicherung. Keine automatische Rechnungsausstellung, keine echten Rechnungen beim Test erzeugt, keine Nutzerzuordnung verändert.
+- Basis `21042628` (PR18). Vor Auslieferung Web `01812-hkt`, Worker `00267-24n`. Branch `codex/role-permission-editor-20260921`, isoliert in `/Users/oguz/Dev/avycloud-role-editor`.
+- Prüfung: 5361 Backendtests/458 Dateien, 493 Frontendtests, TypeScript + Produktionsbuild grün. UI mit lokalen Beispieldaten: Rechte ändern/speichern, Bestätigung und Hell/Dunkel geprüft. Produktivstand wird im Hauptcheckout nachgeführt.
+- Rollback vor diesen Code ignoriert Custom-Policies und reaktiviert damalige Defaults: individuell entzogene Rechte vorher berücksichtigen.
+
+
 ## Rollenbereinigung: produktiv abgeschlossen
 
 PR [#9](https://github.com/kulacogo/avycloud/pull/9), Main `1fe401cd3339d045c40caf9b44fc4553eba985d7`. Freigegeben durch „ok los“ und ausdrückliche Fortsetzung am 20.09.; die vorherige Mahmoud-Rückfrage ist erledigt. Web `product-hub-backend-01803-9k2`, Worker `product-hub-worker-00258-zps`, Hosting `b015fc975fab2d48` waren beim Abschluss ready/100 %. Detaillierter lokaler Nachweis: `/Users/oguz/Dev/avycloud/CODEX_RELEASE_ROLES_20260920.md`. Vor weiteren Eingriffen veränderliche Werte frisch prüfen.

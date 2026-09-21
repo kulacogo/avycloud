@@ -1,8 +1,20 @@
-# Rollen und Rechte — Stand 20.09.2026
+# Rollen und Rechte — Stand 21.09.2026
 
 Status: implementiert und lokal geprüft auf `codex/roles-permissions-20260919`, Basis `4aa3b0ca` (PR #8). **Commit und kontrollierte Produktivauslieferung durch „ok los“ am 19.09.2026 freigegeben; erneut am 20.09.2026 beauftragt. Mahmoud wird zunächst „Nur Lesen“; seine endgültige Zuordnung übernimmt der Inhaber anschließend selbst.** Die Auth-/RBAC-Änderungen wurden durch die ausdrückliche Nutzeranforderung vom 19.09.2026 autorisiert.
 
-## Auftrag und tatsächliche Ursache
+## Ergänzung 21.09.2026: Inhaber bearbeitet Rollenrechte
+
+Ausdrücklich beauftragt: Yasemin muss als Manager Rechnungen erstellen können; der Inhaber bestimmt die Rechte pro Rolle selbst. Implementierung und Produktionsauslieferung einschließlich der nötigen RBAC-Änderung sind autorisiert. Diese Ergänzung ersetzt die ursprüngliche Entscheidung für ausschließlich unveränderliche Profile.
+
+- Manager erhalten standardmäßig `invoices.read/write`. Keine automatische Rechnungserstellung; Finanzberichte, Einkaufskosten und Erstattungen bleiben separate Rechte.
+- `access-profiles.js` enthält Defaults. Der Inhaber kann die fünf Nicht-Admin-Rollen im Reiter Rollen & Rechte über einzelne Checkboxen bearbeiten und speichern. Rollenwahl, Suche, Verwerfen und kurze Speicherbestätigung ersetzen die große Vergleichsansicht.
+- `accessRolePolicies/{base64url(tenantId)}__{roleId}` ist eine **neue**, ausschließlich serverseitig gelesene Quelle. Felder: `tenantId`, `roleId`, `schemaVersion:1`, vollständige `permissions`, `revision`, `updatedBy`, `updatedAt`. Fehlendes Dokument verwendet Defaults; ungültiges Dokument/Lesefehler verweigert den Zugriff. Alte `roles`-Dokumente, Nutzer-Overrides und Gruppen bleiben wirkungslos.
+- `access-permission-catalog.json` begrenzt erlaubte Rechte und deren Voraussetzungen. Workflowfreigaben schließen nötige Lese-/Arbeitsrechte ein; Entzug einer Voraussetzung entfernt abhängige Rechte. Server validiert dieselben Abhängigkeiten. Wildcards, Konten- und Rechteverwaltung bleiben ausschließlich beim verifizierten Inhaber. Sensible Finanz-, Unternehmens- und Integrationsrechte sind separat auswählbar, standardmäßig weiterhin gesperrt.
+- Jede Speicherung verwendet eine Firestore-Transaktion mit Audit und Versionsprüfung (409 bei paralleler Änderung). Ein Dokumentabruf pro betroffener Anfrage, kein Berechtigungs-Cache über Anfragen hinweg: Entzug greift bei der nächsten Anfrage. Der Inhaber benötigt keinen Policyabruf für seinen unveränderlichen Vollzugriff.
+- Keine Migration, keine Umverteilung von Nutzerkonten. Bereits geöffnete Oberflächen aktualisieren Berechtigungen bei Rückkehr in den Tab oder nach Neuladen. Rechnungserstellung prüft den Order-Tenant **vor** einer MwSt.-Änderung.
+- Rollback auf Code vor dieser Ergänzung ignoriert die neuen Policies und aktiviert die damaligen Defaults wieder. Individuelle Rechteentzüge würden damit aufgehoben; deshalb vor einem solchen Rollback betroffene Konten/Policies prüfen.
+
+## Ursprünglicher Auftrag und tatsächliche Ursache (19.–20.09.)
 
 Oguz ist der einzige Administrator. Efe und Yasemin sind Manager; Hüseyin und Semih Mitarbeiter; Fatih und Selahattin Partner. Die Mitarbeiter müssen mit persönlichen Konten arbeiten, damit Aktionen und Leistung zurechenbar sind. Scanner Support soll nicht mehr genutzt werden. Ops Dev ist ein künftiges Entwicklerkonto mit breitem Lesezugriff, ohne sensible Unternehmensbereiche.
 
@@ -23,13 +35,13 @@ Konkreter Arbeitsfehler: Gewicht speichern, Versandlabel und Druckauftrag verlan
 | Mahmoud Ali (vorläufig) | Nur Lesen | Endgültige Zuordnung nimmt der Inhaber nach Auslieferung selbst vor |
 | Neue reine Lesekonten | Nur Lesen | Operative Daten; keine Finanzen oder Änderungen |
 
-Partner behalten den schon bestehenden Finanz-Leseumfang der bisherigen Betrachterrolle. Manager, Mitarbeiter und Entwickler erhalten keine Finanzberichte, Rechnungsänderungen, Erstattungsfreigaben, Unternehmens-/Zugangskonfiguration oder Rechteverwaltung. Verkaufspreise, Auftragsbeträge und Versandtarife sind operative Daten. Einkaufskosten, interne Bewertungen und Marktplatz-Abrechnungsfelder werden für diese Profile aus JSON-Antworten und dem Produktstream entfernt. Finanzexporte erfordern Finanzleserechte. Kostenänderungen werden einschließlich Bulk-/Import-Mappings abgewehrt.
+Partner behalten den schon bestehenden Finanz-Leseumfang der bisherigen Betrachterrolle. Mitarbeiter und Entwickler erhalten standardmäßig keine Rechnungsänderungen. Manager, Mitarbeiter und Entwickler erhalten standardmäßig keine Finanzberichte, Erstattungsfreigaben, Unternehmens-/Zugangskonfiguration oder Rechteverwaltung. Verkaufspreise, Auftragsbeträge und Versandtarife sind operative Daten. Einkaufskosten, interne Bewertungen und Marktplatz-Abrechnungsfelder werden für diese Profile aus JSON-Antworten und dem Produktstream entfernt. Finanzexporte erfordern Finanzleserechte. Kostenänderungen werden einschließlich Bulk-/Import-Mappings abgewehrt.
 
 Retourenannahme/Notizen bleiben operativ. Die bisherige gemeinsame Funktion „Prüfen und Erstattung entscheiden“ enthält bereits eine Finanzentscheidung; diese Funktion und Erstattungs-Statusänderungen sind dem Admin vorbehalten. Der unabhängige physische Wareneingang bleibt über Lagerbuchungen möglich. Keine Änderung an Stock-, OMS- oder Refund-Engine.
 
 ## Autorisierung und Oberfläche
 
-- `backend/lib/access-profiles.js` ist die einzige Berechtigungs-Policy. Sechs klar benannte Profile; genau eines pro Konto. Die Rechte sind als geprüfte Profile festgelegt und werden nicht mehr über beliebige Checkboxkombinationen verbogen.
+- `backend/lib/access-profiles.js` definiert die Defaults. Seit 21.09. ergänzt die validierte Tenant-Policy die vom Inhaber editierbare Rechtematrix. Sechs Profile, genau eines pro Konto.
 - Neues additives Feld `users.accessRole`, dazu `accessPolicyVersion` und `tenantId`. Alte Rollenarrays, Overrides, Gruppen und Rollendokumente sind keine Autorisierungsquelle mehr. Sie bleiben ausschließlich für eine kontrollierte Rückkehr des Codes gespeichert; die Nutzeroberfläche zeigt sie nicht.
 - Nur die verifizierte Bootstrap-Inhaberidentität (`AUTH_BOOTSTRAP_ADMIN_EMAIL`, derzeit admin@) erhält Admin. Ein gespeichertes `admin`-Profil, eine Gruppe oder eine alte Wildcard kann keinen zweiten Admin schaffen. Der Inhaber kann nicht herabgestuft/gelöscht werden.
 - Gesperrte Profile werden bereits bei Authentifizierung geprüft, einschließlich Endpunkten ohne zusätzliches RBAC-Gate. Der Auth-Lesevorgang wird im nachfolgenden RBAC-Check wiederverwendet. Rechtefehler liefern einen sichtbaren, wiederholbaren Fehler statt einer vermeintlich erfolgreichen leeren Rolle.

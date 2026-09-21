@@ -1,96 +1,118 @@
 import React from "react";
-import { useQuery } from "@tanstack/react-query";
-import { adminListRoles } from "../../api/client";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { adminListRoles, adminUpdateRole } from "../../api/client";
 import { useAuth } from "../../context/AuthContext";
+import { useToast } from "../../context/ToastContext";
 import { SearchIcon } from "../icons/Icons";
-import { ROLE_CATALOG, roleDisplayName } from "./roleCatalog";
+import {
+  ROLE_CATALOG,
+  PERMISSION_MODULES,
+  roleDisplayName,
+} from "./roleCatalog";
 import { useTeamDirectory } from "./useTeamDirectory";
+import { profileId } from "./teamWorkspaceModel";
 import {
-  profileId,
-  displayName,
-  userId,
-  PERMISSION_GROUPS,
-  allowsCapability,
-  compareCapabilities,
-} from "./teamWorkspaceModel";
-import {
-  TeamAvatar,
   RoleBadge,
-  TeamIcon,
   TeamError,
   TeamSkeleton,
-  TeamEmpty,
   fieldClass,
 } from "./TeamPrimitives";
+import {
+  permissionEnabled,
+  togglePermission,
+  samePermissions,
+  type PermissionMatrix,
+} from "./rolePermissionEditor";
+import type { AdminRoleRecord } from "../../api/client";
 
 export const AdminRoleManagement: React.FC<{
   active?: boolean;
   onViewMembers?: (role: string) => void;
 }> = ({ active = true, onViewMembers }) => {
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
+  const toast = useToast();
+  const client = useQueryClient();
   const directory = useTeamDirectory();
+  const queryKey = ["team-access-profiles", user?.uid];
   const result = useQuery({
-    queryKey: ["team-access-profiles", user?.uid],
+    queryKey,
     queryFn: adminListRoles,
     enabled: active && Boolean(user?.uid),
     staleTime: 60000,
     refetchOnWindowFocus: false,
     retry: false,
   });
-  const [selected, setSelected] = React.useState("employee");
-  const [comparison, setComparison] = React.useState("manager");
-  const [differences, setDifferences] = React.useState(false);
+  const [selected, setSelected] = React.useState("manager");
   const [query, setQuery] = React.useState("");
-  const ids = [
-    selected,
-    ...(comparison && comparison !== selected ? [comparison] : []),
-  ];
-  const capabilities = compareCapabilities(
-    result.data || [],
-    ids,
-    differences && ids.length > 1,
-    query,
-  );
-  const profile = ROLE_CATALOG.find((role) => role.id === selected)!;
-  const members = (directory.data || []).filter(
-    (account) => profileId(account) === selected,
-  );
-  const memberCount = (role: string) =>
-    (directory.data || []).filter((account) => profileId(account) === role)
+  const [drafts, setDrafts] = React.useState<
+    Record<string, { permissions: PermissionMatrix; revision: number }>
+  >({});
+  const role = result.data?.find((item) => item.id === selected);
+  const draft = drafts[selected];
+  const permissions = draft?.permissions || role?.permissions || {};
+  const editable =
+    role?.editable === true && hasPermission("admin", "roles.write");
+  const dirty = Boolean(draft);
+  const clearDraft = (id: string) =>
+    setDrafts((previous) => {
+      const next = { ...previous };
+      delete next[id];
+      return next;
+    });
+  const mutation = useMutation({
+    mutationFn: ({
+      id,
+      patch,
+    }: {
+      id: string;
+      patch: { permissions: PermissionMatrix; revision: number };
+    }) => adminUpdateRole(id, patch),
+    onSuccess: (saved, { id }) => {
+      client.setQueryData<AdminRoleRecord[]>(queryKey, (previous) =>
+        previous?.map((item) =>
+          item.id === id ? { ...item, ...saved } : item,
+        ),
+      );
+      clearDraft(id);
+      toast.success(`${roleDisplayName(id)}: Rechte gespeichert.`);
+    },
+  });
+  React.useEffect(() => {
+    if (!Object.keys(drafts).length) return;
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [drafts]);
+  const count = (id: string) =>
+    (directory.data || []).filter((account) => profileId(account) === id)
       .length;
-  const pick = (id: string) => {
-    if (id === comparison) setComparison(selected);
-    setSelected(id);
+  const change = (module: string, action: string, enabled: boolean) => {
+    const next = togglePermission(permissions, module, action, enabled);
+    mutation.reset();
+    if (samePermissions(next, role?.permissions || {})) clearDraft(selected);
+    else
+      setDrafts((previous) => ({
+        ...previous,
+        [selected]: {
+          permissions: next,
+          revision: draft?.revision ?? role?.revision ?? 0,
+        },
+      }));
   };
+  const modules = PERMISSION_MODULES.map((module) => ({
+    ...module,
+    actions: module.actions.filter((action) =>
+      `${module.label} ${action.label}`
+        .toLocaleLowerCase("de")
+        .includes(query.trim().toLocaleLowerCase("de")),
+    ),
+  })).filter((module) => module.actions.length);
+
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-semibold tracking-tight">
-            Zugriff mit klaren Grenzen
-          </h2>
-          <p className="mt-1 text-sm text-txt-secondary">
-            Profil auswählen, Aufgaben prüfen und Unterschiede vergleichen.
-          </p>
-        </div>
-        <span className="inline-flex items-center gap-2 rounded-full border border-app-border bg-app-surface px-3 py-2 text-xs text-txt-secondary">
-          <TeamIcon kind="shield" className="h-4 w-4 text-accent" />
-          Ein Konto · Ein Profil
-        </span>
-      </div>
-      <div className="flex items-start gap-3 rounded-2xl border border-warning/25 bg-warning-dim p-4">
-        <TeamIcon
-          kind="shield"
-          className="mt-0.5 h-5 w-5 shrink-0 text-warning"
-        />
-        <p className="text-sm leading-relaxed text-txt-secondary">
-          <strong className="text-txt-primary">
-            Vollzugriff bleibt beim Inhaber.
-          </strong>{" "}
-          Mitarbeiter können wiegen, packen und versenden. Finanzen,
-          Unternehmensdaten und Rechteverwaltung sind separat geschützt.
-        </p>
-      </div>
+    <div className="space-y-4">
       {result.error && (
         <TeamError
           message={result.error.message}
@@ -99,7 +121,7 @@ export const AdminRoleManagement: React.FC<{
       )}
       {directory.error && (
         <TeamError
-          message="Die Zuordnung der Konten konnte nicht geladen werden."
+          message="Konten konnten nicht geladen werden."
           onRetry={() => directory.refetch()}
         />
       )}
@@ -108,227 +130,161 @@ export const AdminRoleManagement: React.FC<{
       ) : (
         result.data && (
           <>
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {ROLE_CATALOG.map((role) => (
+            <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
+              {ROLE_CATALOG.map((item) => (
                 <button
+                  key={item.id}
                   type="button"
-                  key={role.id}
-                  aria-pressed={selected === role.id}
-                  aria-label={`Profil ansehen: ${role.name}`}
-                  onClick={() => pick(role.id)}
-                  className={`flex flex-col rounded-2xl border p-4 text-left transition hover:border-accent ${selected === role.id ? "border-accent bg-accent-dim" : "border-app-border bg-app-surface"}`}
+                  aria-pressed={selected === item.id}
+                  disabled={mutation.isPending}
+                  onClick={() => {
+                    setSelected(item.id);
+                    mutation.reset();
+                  }}
+                  className={`flex flex-wrap items-center justify-between gap-2 rounded-xl border px-4 py-3 text-left transition hover:border-accent ${selected === item.id ? "border-accent bg-accent-dim" : "border-app-border bg-app-surface"}`}
                 >
-                  <span className="flex w-full items-center justify-between gap-2">
-                    <RoleBadge role={role.id} />
-                    <span className="text-xs text-txt-muted">
-                      {directory.isPending || directory.error
+                  <RoleBadge role={item.id} />
+                  <span className="text-xs text-txt-muted">
+                    {drafts[item.id]
+                      ? "Ungespeichert"
+                      : directory.isPending || directory.error
                         ? "—"
-                        : memberCount(role.id)}{" "}
-                      {memberCount(role.id) === 1 ? "Konto" : "Konten"}
-                    </span>
-                  </span>
-                  <span className="mt-3 flex-1 text-xs leading-relaxed text-txt-secondary">
-                    {role.description}
-                  </span>
-                  <span
-                    className={`mt-3 inline-flex items-center gap-1.5 text-xs font-medium ${selected === role.id ? "text-accent" : "text-txt-muted"}`}
-                  >
-                    {selected === role.id ? "Ausgewählt" : "Profil ansehen"}
-                    <TeamIcon
-                      kind={selected === role.id ? "check" : "arrow"}
-                      className="h-3.5 w-3.5"
-                    />
+                        : `${count(item.id)} ${count(item.id) === 1 ? "Konto" : "Konten"}`}
                   </span>
                 </button>
               ))}
             </div>
             <section className="overflow-hidden rounded-2xl border border-app-border bg-app-surface">
-              <div className="flex flex-wrap items-center justify-between gap-4 border-b border-app-border p-5">
-                <div>
-                  <h3 className="font-semibold">{profile.name} im Detail</h3>
-                  <p className="mt-1 text-xs text-txt-muted">
-                    {members.length
-                      ? `${members.length} ${members.length === 1 ? "zugeordnetes Konto" : "zugeordnete Konten"}${members.some((account) => account.disabled) ? " · einschließlich deaktivierter Konten" : ""}`
-                      : directory.isPending || directory.error
-                        ? "Kontozuordnung nicht verfügbar"
-                        : "Noch keinem Konto zugeordnet"}
-                  </p>
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-app-border px-5 py-4">
+                <div className="flex flex-wrap items-center gap-3">
+                  <h2 className="font-semibold">{roleDisplayName(selected)}</h2>
+                  {selected === "admin" && (
+                    <span className="text-xs text-txt-muted">
+                      Vollzugriff · Nur Inhaber
+                    </span>
+                  )}
+                  {onViewMembers && (
+                    <button
+                      type="button"
+                      className="text-xs text-accent hover:underline"
+                      onClick={() => onViewMembers(selected)}
+                    >
+                      Konten ansehen →
+                    </button>
+                  )}
                 </div>
-                {members.length > 0 && (
-                  <div className="flex flex-wrap items-center gap-3">
-                    <div className="flex -space-x-1.5">
-                      {members.slice(0, 4).map((account) => (
-                        <span
-                          key={userId(account)}
-                          title={`${displayName(account)}${account.disabled ? " (deaktiviert)" : ""}`}
-                          className="rounded-2xl ring-2 ring-app-surface"
-                        >
-                          <TeamAvatar
-                            name={displayName(account)}
-                            role={selected}
-                            small
-                          />
-                        </span>
-                      ))}
-                    </div>
-                    {onViewMembers && (
-                      <button
-                        type="button"
-                        onClick={() => onViewMembers(selected)}
-                        className="inline-flex items-center gap-1 text-xs font-medium text-accent hover:underline"
-                      >
-                        Konten ansehen
-                        <TeamIcon kind="arrow" className="h-4 w-4" />
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
-              <div className="flex flex-wrap items-end gap-3 p-5">
-                <label className="min-w-[190px] flex-1 text-xs text-txt-secondary">
-                  Vergleichen mit
-                  <select
-                    aria-label="Vergleichsprofil"
-                    value={comparison}
-                    onChange={(event) => setComparison(event.target.value)}
-                    className={`${fieldClass} mt-1.5`}
-                  >
-                    <option value="">Ohne Vergleich</option>
-                    {ROLE_CATALOG.filter((role) => role.id !== selected).map(
-                      (role) => (
-                        <option key={role.id} value={role.id}>
-                          {role.name}
-                        </option>
-                      ),
-                    )}
-                  </select>
-                </label>
-                <label className="relative min-w-[190px] flex-1">
-                  <SearchIcon className="absolute bottom-3 left-3 h-4 w-4 text-txt-muted" />
+                <label className="relative w-full sm:w-64">
+                  <SearchIcon className="absolute left-3 top-3 h-4 w-4 text-txt-muted" />
                   <input
                     aria-label="Berechtigungen suchen"
-                    placeholder="Aufgabe suchen …"
+                    placeholder="Berechtigung suchen …"
                     value={query}
                     onChange={(event) => setQuery(event.target.value)}
                     className={`${fieldClass} pl-10`}
                   />
                 </label>
-                <label
-                  className={`flex min-h-10 items-center gap-2 text-xs ${ids.length < 2 ? "text-txt-muted" : "text-txt-secondary"}`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={differences}
-                    disabled={ids.length < 2}
-                    onChange={(event) => setDifferences(event.target.checked)}
-                    className="accent-accent"
-                  />
-                  Nur Unterschiede
-                </label>
               </div>
-              {capabilities.length === 0 ? (
-                <div className="px-5 pb-5">
-                  <TeamEmpty title="Keine passenden Berechtigungen">
-                    {query
-                      ? "Versuche einen anderen Suchbegriff."
-                      : "Für die gezeigten Aufgaben haben diese Profile die gleichen Rechte."}
-                  </TeamEmpty>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <caption className="sr-only">
-                      Berechtigungen von{" "}
-                      {ids.map(roleDisplayName).join(" und ")}
-                    </caption>
-                    <thead>
-                      <tr className="bg-app-bg">
-                        <th
-                          scope="col"
-                          className="px-5 py-3 text-left text-xs font-medium text-txt-muted"
+              <div className="divide-y divide-app-border">
+                {modules.map((module) => (
+                  <div
+                    key={`${module.id}-${module.label}`}
+                    className="grid gap-3 px-5 py-3.5 lg:grid-cols-[190px_1fr]"
+                  >
+                    <h3 className="text-sm font-medium">{module.label}</h3>
+                    <div className="flex flex-wrap gap-x-5 gap-y-3">
+                      {module.actions.map((action) => (
+                        <label
+                          key={action.action}
+                          className={`inline-flex items-center gap-2 text-sm ${editable ? "cursor-pointer" : "text-txt-secondary"}`}
                         >
-                          Aufgabe
-                        </th>
-                        {ids.map((id) => (
-                          <th
-                            key={id}
-                            scope="col"
-                            className="w-36 px-3 py-3 text-center text-xs font-semibold"
-                          >
-                            {roleDisplayName(id)}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    {PERMISSION_GROUPS.map((group) => {
-                      const items = capabilities.filter(
-                        (item) => item.group === group,
-                      );
-                      return (
-                        items.length > 0 && (
-                          <tbody key={group}>
-                            <tr>
-                              <th
-                                scope="rowgroup"
-                                colSpan={ids.length + 1}
-                                className="border-t border-app-border bg-app-elevated px-5 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-txt-secondary"
-                              >
-                                {group}
-                              </th>
-                            </tr>
-                            {items.map((item) => (
-                              <tr
-                                key={item.label}
-                                className="border-t border-app-border"
-                              >
-                                <th
-                                  scope="row"
-                                  className="px-5 py-3 text-left text-xs font-normal sm:text-sm"
-                                >
-                                  {item.label}
-                                </th>
-                                {ids.map((id) => {
-                                  const allowed = allowsCapability(
-                                    result.data.find((role) => role.id === id),
-                                    item,
-                                  );
-                                  return (
-                                    <td
-                                      key={id}
-                                      className="px-3 py-3 text-center"
-                                    >
-                                      <span
-                                        className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-2 py-1 text-xs ${allowed ? "bg-success-dim text-success" : "text-txt-muted"}`}
-                                      >
-                                        <TeamIcon
-                                          kind={allowed ? "check" : "close"}
-                                          className="h-3.5 w-3.5"
-                                        />
-                                        <span className="hidden sm:inline">
-                                          {allowed ? "Erlaubt" : "Gesperrt"}
-                                        </span>
-                                        <span className="sr-only sm:hidden">
-                                          {allowed ? "Erlaubt" : "Gesperrt"}
-                                        </span>
-                                      </span>
-                                    </td>
-                                  );
-                                })}
-                              </tr>
-                            ))}
-                          </tbody>
-                        )
-                      );
-                    })}
-                  </table>
+                          <input
+                            type="checkbox"
+                            aria-label={`${module.label}: ${action.label}`}
+                            checked={permissionEnabled(
+                              permissions,
+                              module.id,
+                              action.action,
+                            )}
+                            disabled={!editable || mutation.isPending}
+                            onChange={(event) =>
+                              change(
+                                module.id,
+                                action.action,
+                                event.target.checked,
+                              )
+                            }
+                            className="h-4 w-4 rounded accent-accent disabled:opacity-60"
+                          />
+                          {action.label}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+                {!modules.length && (
+                  <p className="p-5 text-sm text-txt-muted">
+                    Keine passende Berechtigung.
+                  </p>
+                )}
+                <div className="flex justify-between gap-3 px-5 py-3 text-xs text-txt-muted">
+                  <span>Konten & Rechteverwaltung</span>
+                  <span>Nur Inhaber</span>
                 </div>
-              )}
-              <div className="border-t border-app-border p-4 text-xs leading-relaxed text-txt-muted">
-                Die Übersicht zeigt die hinterlegten Zugriffsprofile.
-                Zuordnungen änderst du im Mitarbeiterprofil. Bei deaktivierten
-                Konten bleibt der Zugang unabhängig vom Profil gesperrt.
               </div>
             </section>
+            {dirty && (
+              <div className="sticky bottom-3 z-10 rounded-xl border border-accent bg-app-surface p-3 shadow-lg">
+                {mutation.error && (
+                  <div
+                    role="alert"
+                    className="mb-3 flex flex-wrap items-center gap-3 text-sm text-danger"
+                  >
+                    {mutation.error.message}
+                    <button
+                      type="button"
+                      className="underline"
+                      onClick={async () => {
+                        const refreshed = await result.refetch();
+                        if (!refreshed.error) {
+                          clearDraft(selected);
+                          mutation.reset();
+                        }
+                      }}
+                    >
+                      Neu laden
+                    </button>
+                  </div>
+                )}
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <span className="text-sm">
+                    {roleDisplayName(selected)} · Ungespeicherte Änderungen
+                  </span>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      disabled={mutation.isPending}
+                      className="rounded-lg border border-app-border px-4 py-2 text-sm"
+                      onClick={() => {
+                        clearDraft(selected);
+                        mutation.reset();
+                      }}
+                    >
+                      Verwerfen
+                    </button>
+                    <button
+                      type="button"
+                      disabled={mutation.isPending}
+                      className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                      onClick={() =>
+                        draft && mutation.mutate({ id: selected, patch: draft })
+                      }
+                    >
+                      {mutation.isPending ? "Speichert …" : "Rechte speichern"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </>
         )
       )}

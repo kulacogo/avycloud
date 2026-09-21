@@ -1,7 +1,7 @@
 'use strict';
 
-// One versioned, code-reviewed policy. Firestore role documents, groups and
-// per-user wildcards are deliberately NOT authorization inputs anymore.
+// Default profiles. Tenant-specific, validated policies may replace permissions;
+// legacy role documents, groups and per-user overrides remain retired.
 const ACCESS_POLICY_VERSION = 1;
 const ROLE_IDS = ['admin', 'manager', 'employee', 'partner', 'viewer', 'developer'];
 
@@ -20,10 +20,10 @@ function defaultRoles() {
   return {
     admin: { name: 'Administrator', description: 'Inhaber: vollständiger Zugriff, Finanzen und Verwaltung.', permissions: { '*': { '*': true } } },
     manager: {
-      name: 'Manager', description: 'Alle operativen Abläufe, Auftragskorrekturen, Regeln und Lagerkonfiguration. Keine Finanzen oder Unternehmensverwaltung.',
+      name: 'Manager', description: 'Alle operativen Abläufe, Auftragskorrekturen, Regeln und Lagerkonfiguration. Rechnungen erstellen, keine Finanzberichte oder Unternehmensverwaltung.',
       permissions: { ...employee, products: { read: true, write: true, delete: true },
         categories: { read: true, write: true }, warehouse: { read: true, write: true, configure: true },
-        orders: { read: true, pick: true, pack: true, ship: true, edit: true, write: true }, rules: { read: true, write: true } },
+        orders: { read: true, pick: true, pack: true, ship: true, edit: true, write: true }, rules: { read: true, write: true }, invoices: { read: true, write: true } },
     },
     employee: { name: 'Mitarbeiter', description: 'Produkte erfassen und pflegen, einlagern, kommissionieren, wiegen, packen, versenden und Labels drucken.', permissions: employee },
     partner: { name: 'Gesellschafter / Partner', description: 'Operative Übersicht und Finanzberichte lesen. Keine Änderungen.', permissions: { ...read, invoices: { read: true }, admin: { 'reports.read': true } } },

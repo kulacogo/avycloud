@@ -1,7 +1,7 @@
 ---
 title: Admin (Produkte-Tabelle & Admin-Panel)
 for: [user, dev, admin]
-lastReviewed: 2026-09-20
+lastReviewed: 2026-09-21
 ---
 
 ## Zweck
@@ -77,7 +77,7 @@ Pro-Endpunkt-Doku: `docs/kb/09-api/admin.md`, `docs/kb/09-api/products.md` (TBD)
 
 ## Mitarbeiter & Rollen — Zugriffsprofile (19.09.2026)
 
-`#/settings/team` enthält Mitarbeiter, Leistung und Rollen & Rechte. Ein Konto erhält genau ein Profil. Die Rollenübersicht erklärt die sechs Profile und zeigt die serverseitige Rechtematrix. Keine Gruppenregisterkarte, keine addierten Altrollen oder Checkbox-Ausnahmen. Das Inhaberprofil ist für andere Konten nicht auswählbar. Deaktivierte Konten sind sichtbar gekennzeichnet.
+`#/settings/team` enthält Mitarbeiter, Leistung und Rollen & Rechte. Ein Konto erhält genau ein Profil. Die Rollenübersicht zeigt sechs Profile; seit 21.09. ist die serverseitige Matrix pro Rolle bearbeitbar. Keine Gruppenregisterkarte, keine addierten Altrollen oder Einzel-Ausnahmen. Das Inhaberprofil ist für andere Konten nicht auswählbar. Deaktivierte Konten sind sichtbar gekennzeichnet.
 
 Der Bereich ist ausschließlich für den Inhaber zugänglich, einschließlich direkter Hash-Aufrufe. Die Profile wurden am 20.09.2026 mit PR #9 produktiv ausgeliefert. Fachliche Regeln: [Zugriffsprofile](../../features/access-profiles/spec.md).
 
@@ -86,7 +86,7 @@ Der Bereich ist ausschließlich für den Inhaber zugänglich, einschließlich di
 
 - **Mitarbeiter:** Profilkarten mit tatsächlichem Zugangsstatus, Namens-/E-Mail-Suche (auch ohne türkische Sonderzeichen), Filter für operative Konten, Lesezugriff, deaktivierte Konten und einzelne Profile. Einladen und Bearbeiten in fokussierten Dialogen; Profilwechsel zeigt vorher/nachher. Löschen bleibt bestätigt und ist für Inhaber/eigenes Konto nicht angeboten. Der Status ist keine Online-Anzeige.
 - **Leistung:** Gesamtbeitrag je Konto in Punkten und Teamanteil; Rohzahlen erst nach Auswahl in den Kontodetails. Teamweite Kennzahlen bleiben informative Summen. Suche, Sortierung nach Beitrag/Name und Tätigkeitsfilter. Heute, letzte 7/30 Tage oder eigener Zeitraum; Datumsgrenzen in UTC, eigener Zeitraum erst nach vollständiger Eingabe und „Anwenden“. Vom Mitarbeiterprofil direkt zu dessen Details. Betriebliche Aufwandsstufen: Produktpflege ×4, Erfassen mit Fotos ×3, Verpacken/Wiegen ×2, Kommissionieren und einfache Einlagerungsbuchung ×1. Keine Arbeitszeit-, Qualitäts- oder Zielerfüllungsnote.
-- **Rollen & Rechte:** Profilkarten mit zugeordneten Konten, Vergleich von zwei Profilen, Filter „Nur Unterschiede“ und Aufgabensuche. Matrix in Tagesgeschäft, Steuerung und sensible Bereiche gegliedert. Zusammengesetzte Aufgaben setzen alle zugehörigen Rechte voraus. Werte kommen aus der bestehenden serverseitigen Policy. „Konten ansehen“ öffnet den passenden Mitarbeiterfilter.
+- **Rollen & Rechte:** Seit 21.09. kompakte Rollenauswahl mit einzelnen Berechtigungsschaltern und Suche. Speichern/Verwerfen bei Änderungen; Voraussetzungen werden gemeinsam geschaltet. „Konten ansehen“ öffnet den passenden Mitarbeiterfilter.
 - Filter/Zeitraum bleiben beim Registerwechsel erhalten. Native Dialoge, Tastaturnavigation der Register und responsive Detailposition. Design-Tokens für Hell/Dunkel.
 - Datenabfragen über bestehende APIs; gemeinsam zwischengespeichertes Kontoverzeichnis, keine zusätzliche Datenquelle. Leistungs-/Rollenabfragen nur bei geöffnetem Register, kein periodisches Polling. Ladefehler zeigen Wiederholungsaktionen und keine erfundenen Nullwerte oder Rechte.
 
@@ -101,3 +101,7 @@ Seit dem Support-Nachtrag zeigt Leistung zusätzlich die Quellenabdeckung von Ka
 ### Kompakte Leistung (20.09.2026)
 
 Die Leistungsansicht zeigt Kennzahlen und eine Tätigkeitstabelle statt permanenter Erklärungstexte. Supportquellen stehen als kleine Statusanzeigen neben dem Zeitraum; Einzelwerte nur bei der ausgewählten Person. „Datenaufbereitung · Details“ und „Berechnung“ öffnen Nachweise/Methodik bei Bedarf. Fehler/Teilabdeckung bleiben direkt erkennbar. Rechenregeln und Quellen unverändert.
+
+## Rollen & Rechte seit 21.09.2026
+
+Kompakte Rollenauswahl, Suche und einzelne Berechtigungsschalter. Änderungen bleiben bis „Rechte speichern“ Entwurf; „Verwerfen“ verwirft sie. Die neue Matrix gilt für alle Konten dieser Rolle. Nötige Workflowrechte werden gemeinsam ein-/ausgeschaltet. Administrator bleibt fest beim Inhaber; Konten- und Rechteverwaltung sind nicht delegierbar. Manager dürfen standardmäßig Rechnungen erstellen und korrigieren.

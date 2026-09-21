@@ -1884,14 +1884,17 @@ router.post('/orders/:orderId/invoice', requirePermission('invoices', 'write'), 
   try {
     const { orderId } = req.params;
     const tenantId = req.user?.tenantId || 'default';
+    const orderRef = firestore.collection('orders').doc(orderId);
+    const orderSnap = await orderRef.get();
+    if (!orderSnap.exists || (orderSnap.data().tenantId || 'default') !== tenantId) {
+      return res.status(404).json({ ok: false, error: { code: 'NOT_FOUND', message: 'Bestellung nicht gefunden.' } });
+    }
 
     // Persist VAT rate on order before generating invoice
     if (req.body.vatRate !== undefined) {
       const rate = parseFloat(req.body.vatRate);
       if ([0, 0.07, 0.19].includes(rate)) {
-        const { Firestore } = require('@google-cloud/firestore');
-        const db = new Firestore();
-        await db.collection('orders').doc(orderId).set({ vatRate: rate, updatedAt: new Date().toISOString() }, { merge: true });
+        await orderRef.set({ vatRate: rate, updatedAt: new Date().toISOString() }, { merge: true });
       }
     }
 

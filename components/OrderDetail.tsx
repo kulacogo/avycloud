@@ -47,6 +47,7 @@ import {
   ShippingOptionModal,
 } from "./orders/ShippingDecisionDialog";
 import { useToast } from "../context/ToastContext";
+import { useAuth } from "../context/AuthContext";
 
 /* ─── OMS Status Colors ─── */
 const STATUS_COLORS: Record<string, { bg: string; text: string; dot: string }> =
@@ -127,6 +128,8 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
   suspended = false,
 }) => {
   const toast = useToast();
+  const { hasPermission } = useAuth();
+  const canWriteInvoices = hasPermission("invoices", "write");
   const [order, setOrder] = useState<Order | null>(null);
   const [timeline, setTimeline] = useState<OrderTimelineEvent[]>([]);
   const [nextStatuses, setNextStatuses] = useState<string[]>([]);
@@ -1437,7 +1440,7 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
                         <ActionButton
                           label={korrigiereRechnung ? "Korrigiere…" : "Rechnung korrigieren"}
                           icon="↻"
-                          disabled={korrigiereRechnung}
+                          disabled={korrigiereRechnung || !canWriteInvoices}
                           onClick={async () => {
                             setKorrigiereRechnung(true);
                             try {
@@ -1699,7 +1702,7 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
                           }}
                         />
                       )}
-                      {!order.invoiceNumber && (
+                      {!order.invoiceNumber && canWriteInvoices && (
                         <>
                           <select
                             value={selectedVatRate}

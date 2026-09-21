@@ -1,12 +1,12 @@
 ---
 title: Auth-Rules
 for: [dev, agent, admin]
-lastReviewed: 2026-09-19
+lastReviewed: 2026-09-21
 ---
 
 # Auth-Regeln
 
-`backend/lib/auth.js` und `backend/lib/rbac.js` bleiben Protected Zone gemäß CLAUDE.md. Die ausdrückliche Anweisung vom 19.09.2026 zur grundlegenden Rollenbereinigung autorisiert die hier dokumentierten Änderungen. Commit/Merge weiterhin nur auf explizite Anweisung.
+`backend/lib/auth.js` und `backend/lib/rbac.js` bleiben Protected Zone gemäß CLAUDE.md. Die ausdrückliche Anweisung vom 19.09.2026 zur grundlegenden Rollenbereinigung autorisiert die hier dokumentierten Änderungen. Am 21.09.2026 wurden editierbare Rollenrechte, Manager-Rechnungserstellung und deren Produktionsauslieferung ausdrücklich beauftragt.
 
 1. Genau ein kanonisches Profil aus `backend/lib/access-profiles.js` pro Konto; keine Rechteaddition aus alten Rollen, Gruppen oder Overrides.
 2. Nur die verifizierte Bootstrap-Inhaberidentität ist Admin. Weder Frontend-E-Mailvergleiche noch gespeicherte Wildcards verleihen Vollzugriff.
@@ -20,3 +20,5 @@ lastReviewed: 2026-09-19
 10. Vor Auslieferung muss die additive Zuordnung vorbereitet sein. Exakte Reihenfolge, Trockenlauf, Accountliste, Rollback und Testgrenzen: [Zugriffsprofile](../../features/access-profiles/spec.md).
 
 Weitere bestehende Auth-Grenzen (Domain, SSE-Token-Transport, öffentliche Webhook-Ausnahmen) wurden nicht grundsätzlich umgebaut. Keine Aussage über eine vollständige Sicherheitsprüfung des Gesamtsystems.
+
+11. Rollen-Policies ausschließlich über `access-role-policies.js`: tenantgebunden, allowlistvalidiert, Revision und Audit atomar. Admin unveränderlich, keine Wildcards oder Delegation von Konten-/Rechteverwaltung. Fehlende Policies nutzen Defaults, ungültige Policies verweigern Zugriff; kein langlebiger Permission-Cache.
