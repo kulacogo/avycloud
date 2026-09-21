@@ -49,3 +49,10 @@ test("enrichment prerequisites work transitively and reverting removes a dirty d
     true,
   );
 });
+
+test("picking includes stock booking and loses access when booking is revoked", () => {
+  const picking = togglePermission({}, "orders", "pick", true);
+  assert.equal(picking.warehouse.write, true);
+  assert.equal(picking.warehouse.read, true);
+  assert.equal(togglePermission(picking, "warehouse", "write", false).orders.pick, false);
+});

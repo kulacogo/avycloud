@@ -185,7 +185,8 @@ export const PERMISSION_MODULES: PermModule[] = [
         "requires": [
           "orders.read",
           "products.read",
-          "warehouse.read"
+          "warehouse.read",
+          "warehouse.write"
         ]
       },
       {

@@ -12,7 +12,7 @@ Auftrag: Yasemin als Manager muss Rechnungen erstellen können; der Inhaber best
 - Neue tenantgebundene Collection `accessRolePolicies`, ein Dokument je Tenant/Rolle; vollständige Matrix, Revision, Schema, Akteur. Speicherung + Audit atomar; 409 bei veraltetem Stand. Keine Wiederbelebung historischer Rollen/Overrides/Gruppen. Fehlende Policy → Defaults, fehlerhafte Policy → kein Zugriff; Entzug wirksam bei nächster Anfrage, kein übergreifender Rechtecache.
 - Rechnungsroute prüft Tenant vor MwSt.-Speicherung. Keine automatische Rechnungsausstellung, keine echten Rechnungen beim Test erzeugt, keine Nutzerzuordnung verändert.
 - Basis `21042628` (PR18). Vor Auslieferung Web `01812-hkt`, Worker `00267-24n`. Branch `codex/role-permission-editor-20260921`, isoliert in `/Users/oguz/Dev/avycloud-role-editor`.
-- Prüfung: 5361 Backendtests/458 Dateien, 493 Frontendtests, TypeScript + Produktionsbuild grün. UI mit lokalen Beispieldaten: Rechte ändern/speichern, Bestätigung und Hell/Dunkel geprüft. Produktivstand wird im Hauptcheckout nachgeführt.
+- Prüfung: 5361 Backendtests/458 Dateien, 494 Frontendtests, TypeScript + Produktionsbuild grün. UI mit lokalen Beispieldaten: Rechte ändern/speichern, Bestätigung und Hell/Dunkel geprüft. Produktivstand wird im Hauptcheckout nachgeführt.
 - Rollback vor diesen Code ignoriert Custom-Policies und reaktiviert damalige Defaults: individuell entzogene Rechte vorher berücksichtigen.
 
 
