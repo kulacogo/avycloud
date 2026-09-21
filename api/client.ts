@@ -2002,6 +2002,9 @@ export type AdminUserRecord = {
 
 export type AdminRoleRecord = {
   id: string;
+  revision?: number;
+  editable?: boolean;
+  customized?: boolean;
   name?: string;
   roleId?: string;
   permissions?: Record<string, Record<string, boolean>>;
@@ -2520,9 +2523,9 @@ export const adminUpdateRole = async (roleId: string, patch: Partial<AdminRoleRe
   });
   const result = await parseResponse(res);
   if (!res.ok || result?.ok === false) {
-    throw new Error(result?.error?.message || 'Failed to update role');
+    throw new Error(result?.error?.message || 'Rollenrechte konnten nicht gespeichert werden.');
   }
-  return true;
+  return result.data as Pick<AdminRoleRecord, 'permissions' | 'revision' | 'customized'>;
 };
 
 export type AdminRulebookConfig = {

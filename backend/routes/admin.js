@@ -240,7 +240,7 @@ router.delete('/groups/:groupId', requirePermission('admin', 'groups.write'), as
 
 router.get('/roles', requirePermission('admin', 'roles.read'), async (req, res) => {
   try {
-    const roles = await listRolesAdmin();
+    const roles = await listRolesAdmin({ tenantId: req.user?.tenantId || 'default' });
     res.json({ ok: true, data: roles });
   } catch (error) {
     console.error('Admin list roles failed:', error);
@@ -252,8 +252,9 @@ router.put('/roles/:roleId', requirePermission('admin', 'roles.write'), async (r
   try {
     const roleId = req.params?.roleId;
     const patch = req.body || {};
-    await updateRoleAdmin({ actorUid: req.user?.uid, roleId, patch });
-    res.json({ ok: true });
+    const data = await updateRoleAdmin({ actorUid: req.user?.uid, actorEmail: req.user?.email,
+      tenantId: req.user?.tenantId || 'default', roleId, patch });
+    res.json({ ok: true, data });
   } catch (error) {
     const code = error?.statusCode || 500;
     console.error('Admin update role failed:', error);

@@ -17,11 +17,17 @@ describe('Verbindliche Zugriffsprofile', () => {
       }
     });
     it(`${role}: keine Finanz- und Verwaltungsrechte`, () => {
-      for (const [m, a] of [['admin','reports.read'], ['admin','reports.write'], ['invoices','write'], ['returns','refund'], ['settings','company.write'], ['admin','users.write'], ['admin','roles.write'], ['integrations','write']]) {
+      for (const [m, a] of [['admin','reports.read'], ['admin','reports.write'], ['returns','refund'], ['settings','company.write'], ['admin','users.write'], ['admin','roles.write'], ['integrations','write']]) {
         expect(can(role, m, a), `${role}: ${m}.${a}`).toBe(false);
       }
     });
   }
+  it('Manager darf Rechnungen lesen und erstellen, Mitarbeiter standardmäßig nicht', () => {
+    for (const action of ['read', 'write']) {
+      expect(can('manager', 'invoices', action)).toBe(true);
+      expect(can('employee', 'invoices', action)).toBe(false);
+    }
+  });
   it('Manager darf operative Konfiguration, Mitarbeiter nicht', () => {
     for (const [m,a] of [['orders','write'], ['warehouse','configure'], ['products','delete'], ['rules','write']]) {
       expect(can('manager', m, a)).toBe(true);
