@@ -463,6 +463,9 @@ export interface WarehouseLayout {
   regale: number[];
   ebenen: string[];
   binCount: number;
+  rootBinCount?: number;
+  containerCount?: number;
+  shelfCount?: number;
   createdAt: string;
   totalProducts?: number;
 }

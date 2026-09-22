@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   fetchWarehouseZones,
   createWarehouseLayoutApi,
@@ -8,6 +8,7 @@ import {
   deleteWarehouseGangApi,
   deleteWarehouseRegalApi,
   deleteWarehouseEbeneApi,
+  deleteWarehouseZoneApi,
   openBinLabelWindow,
   openBinLabelsBatchWindow,
   createChildBinApi,
@@ -60,6 +61,7 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
     onConfirm: () => void | Promise<void>;
   } | null>(null);
   const [isLoadingBins, setIsLoadingBins] = useState(false);
+  const binRequestId = useRef(0);
   const [selectedBinCodes, setSelectedBinCodes] = useState<Set<string>>(new Set());
   const [layoutForm, setLayoutForm] = useState({
     zone: 'X',
@@ -77,22 +79,22 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
     try {
       const data = await fetchWarehouseZones();
       setZones(data);
-      if (!selectedZone && data.length > 0) {
-        setSelectedZone(data[0]);
-      }
+      setSelectedZone((current) => data.find((zone) => zone.id === current?.id) || data[0] || null);
     } catch (error: any) {
       setStatusMessage(error?.message || 'Fehler beim Laden der Lagerzonen.');
     }
-  }, [selectedZone]);
+  }, []);
 
   useEffect(() => {
     loadZones();
   }, [loadZones]);
 
   const loadBins = useCallback(async (zone: string, etage: string, preserveBinCode?: string) => {
+    const requestId = ++binRequestId.current;
     setIsLoadingBins(true);
     try {
       const data = await fetchWarehouseBins(zone, etage);
+      if (requestId !== binRequestId.current) return;
       setBins(data);
       setSelectedBinCodes((prev) => {
         if (!prev.size) return prev;
@@ -121,7 +123,7 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
           setSelectedBin(preserved);
           try {
             const detail = await fetchWarehouseBinDetail(preserved.code);
-            setBinDetail(detail);
+            if (requestId === binRequestId.current) setBinDetail(detail);
           } catch (error) {
             console.error('Failed to refresh bin detail:', error);
           }
@@ -134,17 +136,28 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
         setBinDetail(null);
       }
     } catch (error: any) {
-      setStatusMessage(error?.message || 'Fehler beim Laden der Bins.');
+      if (requestId === binRequestId.current) setStatusMessage(error?.message || 'Fehler beim Laden der Bins.');
     } finally {
-      setIsLoadingBins(false);
+      if (requestId === binRequestId.current) setIsLoadingBins(false);
     }
   }, []);
 
+  const selectedZoneCode = selectedZone?.zone;
+  const selectedZoneFloor = selectedZone?.etage;
   useEffect(() => {
-    if (selectedZone) {
-      loadBins(selectedZone.zone, selectedZone.etage);
+    if (selectedZoneCode && selectedZoneFloor) {
+      loadBins(selectedZoneCode, selectedZoneFloor);
+    } else {
+      ++binRequestId.current;
+      setBins([]);
+      setSelectedGang(null);
+      setSelectedRegal(null);
+      setSelectedBin(null);
+      setBinDetail(null);
+      setSelectedBinCodes(new Set());
+      setIsLoadingBins(false);
     }
-  }, [selectedZone, loadBins]);
+  }, [selectedZoneCode, selectedZoneFloor, loadBins]);
 
   useEffect(() => {
     if (!refreshBin) return;
@@ -278,6 +291,7 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
     }
     setStatusMessage('Layout erfolgreich erstellt.');
     await loadZones();
+    if (selectedZone) await loadBins(selectedZone.zone, selectedZone.etage);
   };
 
   const handleSelectBin = async (bin: WarehouseBin) => {
@@ -330,6 +344,7 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
           ? `Ausgelagert: ${menge} × ${binCode}.`
           : 'Produkt ausgelagert.'
       );
+      await loadZones();
       if (selectedZone) {
         await loadBins(selectedZone.zone, selectedZone.etage, selectedBin.code);
       }
@@ -349,8 +364,8 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
     try {
       await createChildBinApi(binDetail.code);
       setStatusMessage('Behälter erstellt.');
-      const detail = await fetchWarehouseBinDetail(binDetail.code);
-      setBinDetail(detail);
+      await loadZones();
+      if (selectedZone) await loadBins(selectedZone.zone, selectedZone.etage, binDetail.code);
     } catch (error: any) {
       setStatusMessage(error?.message || 'Fehler beim Erstellen des Behälters.');
     } finally {
@@ -364,8 +379,8 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
     try {
       await deleteChildBinApi(binDetail.code, childCode);
       setStatusMessage('Behälter entfernt.');
-      const detail = await fetchWarehouseBinDetail(binDetail.code);
-      setBinDetail(detail);
+      await loadZones();
+      if (selectedZone) await loadBins(selectedZone.zone, selectedZone.etage, binDetail.code);
     } catch (error: any) {
       setStatusMessage(error?.message || 'Fehler beim Entfernen des Behälters.');
     } finally {
@@ -385,6 +400,7 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
     try {
       await deleteChildBinApi(parentCode, childCode);
       setStatusMessage(`Behälter ${childCode} entfernt.`);
+      await loadZones();
       const detail = await fetchWarehouseBinDetail(parentCode);
       setBinDetail(detail);
       if (selectedZone) await loadBins(selectedZone.zone, selectedZone.etage, parentCode);
@@ -402,6 +418,64 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
       setSelectedBin(detail);
     } catch (error: any) {
       setStatusMessage(error?.message || 'Fehler beim Laden des Behälters.');
+    }
+  };
+
+  const handleDeleteZone = async () => {
+    if (!selectedZone || deletingStructure) return;
+    const target = selectedZone;
+    const label = `${target.zone} / ${target.etage}`;
+    setStatusMessage(null);
+    setDeletingStructure(true);
+    try {
+      const preview = await deleteWarehouseZoneApi(target.zone, target.etage, { dryRun: true });
+      if (!preview.ok) {
+        setStatusMessage(preview.error?.message || 'Zone konnte nicht geprüft werden.');
+        return;
+      }
+      const codes = preview.data?.binCodes || [];
+      setConfirmDialog({
+        title: `Zone ${label} löschen?`,
+        tone: 'danger',
+        description: codes.length
+          ? `Die Zone ${label} und ihre ${codes.length} leeren BINs einschließlich Behältern werden entfernt. Andere Zonen und Etagen bleiben erhalten. Der Bestand wird vor dem Löschen erneut geprüft.`
+          : `Die leere Zone ${label} wird aus der Lagerstruktur entfernt. Andere Zonen und Etagen bleiben erhalten.`,
+        details: codes.length ? codes.join('\n') : undefined,
+        confirmLabel: 'Zone löschen',
+        onConfirm: async () => {
+          setDeletingStructure(true);
+          try {
+            const response = await deleteWarehouseZoneApi(target.zone, target.etage, { confirm: true });
+            if (!response.ok) {
+              setStatusMessage(response.error?.message || 'Zone löschen fehlgeschlagen.');
+              return;
+            }
+            // Invalidate old BIN requests before selecting the next zone.
+            ++binRequestId.current;
+            setBins([]);
+            setSelectedGang(null);
+            setSelectedRegal(null);
+            setSelectedBin(null);
+            setBinDetail(null);
+            setSelectedBinCodes(new Set());
+            setIsLoadingBins(false);
+            const remaining = zones.filter((zone) => zone.id !== target.id);
+            setZones(remaining);
+            setSelectedZone(remaining[0] || null);
+            setStatusMessage(`Zone ${label} gelöscht (${response.data?.deleted || 0} BINs).`);
+            await loadZones();
+          } catch (error: any) {
+            setStatusMessage(error?.message || 'Zone löschen fehlgeschlagen.');
+          } finally {
+            setConfirmDialog(null);
+            setDeletingStructure(false);
+          }
+        },
+      });
+    } catch (error: any) {
+      setStatusMessage(error?.message || 'Zone konnte nicht geprüft werden.');
+    } finally {
+      setDeletingStructure(false);
     }
   };
 
@@ -597,7 +671,8 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
           details={confirmDialog.details}
           tone={confirmDialog.tone || 'default'}
           confirmLabel={confirmDialog.confirmLabel}
-          onCancel={() => setConfirmDialog(null)}
+          confirmBusy={deletingStructure}
+          onCancel={() => { if (!deletingStructure) setConfirmDialog(null); }}
           onConfirm={confirmDialog.onConfirm}
         />
       ) : null}
@@ -728,6 +803,7 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
           {zones.map((zone) => (
             <button
               key={zone.id}
+              disabled={deletingStructure}
               onClick={() => setSelectedZone(zone)}
               className={`text-left p-3 rounded-xl border transition ${
                 selectedZone?.id === zone.id ? 'border-accent bg-accent-dim' : 'border-app-border hover:border-accent/50'
@@ -736,9 +812,18 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
               <div className="text-lg font-semibold text-txt-primary">
                 Zone {zone.zone} / {zone.etage}
               </div>
-              <div className="text-sm text-txt-secondary">{zone.binCount} Bins · {zone.totalProducts || 0} Produkte</div>
+              <div className="text-sm text-txt-secondary">
+                {zone.binCount.toLocaleString('de-DE')} {zone.binCount === 1 ? 'BIN' : 'BINs'} · {(zone.totalProducts || 0).toLocaleString('de-DE')} Stück
+              </div>
+              {zone.rootBinCount != null && zone.containerCount != null && (
+                <div className="text-xs text-txt-muted">
+                  {zone.rootBinCount.toLocaleString('de-DE')} {zone.rootBinCount === 1 ? 'Lagerplatz' : 'Lagerplätze'} · {zone.containerCount.toLocaleString('de-DE')} Behälter
+                </div>
+              )}
               <div className="text-xs text-txt-muted">
-                Gänge {zone.gangs?.join(', ')} · Regale {zone.regale?.join(', ')} · Ebenen {zone.ebenen?.join(', ')}
+                Gänge ({zone.gangs?.length || 0}): {zone.gangs?.join(', ') || '—'}
+                {' · '}Regale{zone.shelfCount != null ? ` (${zone.shelfCount})` : ''}: Nr. {zone.regale?.join(', ') || '—'}
+                {' · '}Ebenen: {zone.ebenen?.join(', ') || '—'}
               </div>
             </button>
           ))}
@@ -786,6 +871,15 @@ const WarehouseView: React.FC<WarehouseViewProps> = ({ refreshBin, onRefreshBinC
           </div>
 
           <div className="flex flex-wrap items-center gap-2 mb-4">
+            <button
+              type="button"
+              disabled={deletingStructure || isLoadingBins}
+              onClick={handleDeleteZone}
+              className="px-3 py-1.5 rounded-xl bg-danger-dim text-sm text-danger disabled:opacity-40 hover:bg-danger/20 transition"
+              title="Löscht diese Zone samt aller leeren BINs und Behälter auf der ausgewählten Etage."
+            >
+              Zone löschen
+            </button>
             <button
               type="button"
               disabled={!selectedZone || selectedGang == null || deletingStructure}

@@ -482,15 +482,48 @@ async function listWarehouseZones() {
       .where('zone', '==', data.zone)
       .where('etage', '==', data.etage)
       .get();
-    const totalProducts = binsSnap.docs.reduce((sum, b) => sum + (b.get('productCount') || 0), 0);
+    // Stored layout metadata describes the last generated slice, not the full
+    // current zone. Derive every summary from the BINs already read above.
+    const gangs = new Set();
+    const regale = new Set();
+    const ebenen = new Set();
+    const shelves = new Set();
+    let containerCount = 0;
+    let totalProducts = 0;
+    const units = (value) => {
+      const number = Number(value);
+      return Number.isFinite(number) && number > 0 ? number : 0;
+    };
+    for (const binDoc of binsSnap.docs) {
+      const bin = binDoc.data() || {};
+      const gang = Number(bin.gang);
+      const regal = Number(bin.regal);
+      const validGang = Number.isInteger(gang) && gang > 0;
+      const validRegal = Number.isInteger(regal) && regal > 0;
+      if (validGang) gangs.add(gang);
+      if (validRegal) regale.add(regal);
+      if (validGang && validRegal) shelves.add(`${gang}:${regal}`);
+      const ebene = String(bin.ebene || '').trim().toUpperCase();
+      if (ebene) ebenen.add(ebene);
+      if (bin.isContainer || bin.parentBinCode) containerCount++;
+      // products[] contains actual quantities; the cached counter is only a
+      // fallback for legacy BINs without an entry array. This is a read only
+      // summary and deliberately does not repair stock/counters.
+      totalProducts += Array.isArray(bin.products)
+        ? bin.products.reduce((sum, entry) => sum + units(entry?.quantity), 0)
+        : units(bin.productCount);
+    }
     layouts.push({
       id: doc.id,
       zone: data.zone,
       etage: data.etage,
-      gangs: data.gangs || [],
-      regale: data.regale || [],
-      ebenen: data.ebenen || [],
-      binCount: data.binCount || binsSnap.size,
+      gangs: [...gangs].sort((a, b) => a - b),
+      regale: [...regale].sort((a, b) => a - b),
+      ebenen: [...ebenen].sort(),
+      binCount: binsSnap.size,
+      rootBinCount: binsSnap.size - containerCount,
+      containerCount,
+      shelfCount: shelves.size,
       createdAt: data.createdAt ? data.createdAt.toDate().toISOString() : null,
       totalProducts,
     });
@@ -1764,6 +1797,69 @@ async function deleteWarehouseBinsByFilter(filter, { dryRun = false } = {}) {
   return { deleted: binCodes.length, binCodes, layout };
 }
 
+// Unlike partial layout deletion, a zone deletion must also remove the
+// warehouseZones document. Read/check/delete in ONE transaction so a concurrent
+// stock booking forces a retry instead of deleting a newly occupied BIN.
+async function deleteWarehouseZone(zone, etage, { tenantId, dryRun = true, actor = null } = {}) {
+  const zoneKey = String(zone || '').trim().toUpperCase();
+  const etageKey = String(etage || '').trim().toUpperCase();
+  const fail = (message, statusCode) => { throw Object.assign(new Error(message), { statusCode }); };
+  if (!tenantId || typeof tenantId !== 'string') fail('Tenant fehlt.', 400);
+  if (!ZONES.includes(zoneKey) || !ETAGEN.includes(etageKey)) fail('Ungültige Zone oder Etage.', 400);
+  const zoneRef = zonesCollection.doc(`${zoneKey}_${etageKey}`);
+
+  return firestore.runTransaction(async (tx) => {
+    const zoneSnap = await tx.get(zoneRef);
+    const result = { zone: zoneKey, etage: etageKey, deleted: 0, binCodes: [], zoneDeleted: false, dryRun };
+    if (!zoneSnap.exists) return result;
+    if ((zoneSnap.data().tenantId || 'default') !== tenantId) fail('Zone nicht gefunden.', 404);
+
+    // Reuse the existing legacy slice query: warehouse layouts/BINs were created
+    // without tenantId. Adding a where(tenantId) would hide occupied legacy BINs.
+    // Missing ownership belongs ONLY to default; every returned/reference doc
+    // is checked below. Mixed ownership aborts the entire operation.
+    const binsSnap = await tx.get(buildBinsQueryForFilter({ zone: zoneKey, etage: etageKey }));
+    const bins = new Map(binsSnap.docs.map((doc) => [doc.id, doc]));
+    for (const [code, doc] of bins) {
+      const data = doc.data() || {};
+      if ((data.tenantId || 'default') !== tenantId ||
+          (data.zone && data.zone !== zoneKey) || (data.etage && data.etage !== etageKey)) {
+        fail('Zone kann nicht gelöscht werden: widersprüchliche BIN-Zuordnung.', 409);
+      }
+      const quantities = [data.productCount ?? 0];
+      if (data.products != null && !Array.isArray(data.products)) {
+        fail(`Bestand in BIN ${code} ist nicht prüfbar.`, 409);
+      }
+      quantities.push(...(data.products || []).map((entry) => entry?.quantity));
+      if (quantities.some((quantity) =>
+        (typeof quantity !== 'number' && (typeof quantity !== 'string' || !quantity.trim())) ||
+        !Number.isFinite(Number(quantity)) || Number(quantity) < 0)) {
+        fail(`Bestand in BIN ${code} ist nicht prüfbar.`, 409);
+      }
+      if (quantities.some((quantity) => Number(quantity) > 0)) {
+        fail(`Zone kann nicht gelöscht werden: BIN ${code} enthält noch Bestand. Bitte zuerst umlagern oder auslagern.`, 409);
+      }
+      // Map iteration also visits newly added legacy children; the key prevents
+      // duplicate deletes and cycles. All reads happen before any writes.
+      for (const childCode of Array.isArray(data.childBinCodes) ? data.childBinCodes : []) {
+        if (bins.has(childCode)) continue;
+        const child = await tx.get(binsCollection.doc(childCode));
+        if (child.exists) bins.set(childCode, child);
+      }
+    }
+    result.binCodes = [...bins.keys()];
+    if (dryRun) return result;
+
+    for (const doc of bins.values()) tx.delete(doc.ref);
+    tx.delete(zoneRef);
+    writeWarehouseEventTx(tx, {
+      type: 'zone_delete', tenantId, actor,
+      zone: zoneKey, etage: etageKey, deletedBins: bins.size,
+    });
+    return { ...result, deleted: bins.size, zoneDeleted: true };
+  });
+}
+
 // ── Child-BIN (Container) Functions ──────────────────────────────────
 
 async function createChildBin(parentBinCode, options = {}) {
@@ -1932,6 +2028,7 @@ module.exports = {
   getProductBinSummaryMap,
   recomputeWarehouseZoneLayout,
   deleteWarehouseBinsByFilter,
+  deleteWarehouseZone,
   deleteWarehouseGang,
   deleteWarehouseRegal,
   deleteWarehouseEbene,

@@ -1,7 +1,7 @@
 ---
 title: Warehouse & BIN Management
 for: [dev, agent, admin, manager]
-lastReviewed: 2026-05-18
+lastReviewed: 2026-09-21
 ---
 
 # Warehouse & BIN Management
@@ -55,6 +55,14 @@ BIN-Code-Format: `{Zone}-{Etage}-{Gang}-{Regal}-{Ebene}` (z. B. `M-EG-3-7-B`).
 - `bookStockOut(productId, binCode, qty, { orderId, flow })` — bei `flow:'pick'` und `meta.orderId` MUSS `claimOrderStockDecrementInTx()` in derselben Transaction aufgerufen werden (CLAUDE.md Punkt 13, siehe `stock-management.md`).
 - `refreshProductInventory(productId)` aggregiert über alle BINs den Bestand und schreibt nach `products_v2.inventory.quantity` (über `saveProductV2()`).
 - **Wichtig**: `refreshProductInventory` legt **keine** neuen Produkt-Dokumente an — wenn die Doc-ID nicht existiert, wird geskippt (Schutz vor Stub-Docs).
+
+### Zonen entfernen
+
+In der Lager-Struktur kann eine ausgewählte Zone/Etage über „Zone löschen“ entfernt werden, auch wenn bereits null BINs existieren. Alle zugehörigen BINs und Behälter müssen leer sein. Der neue Pfad `deleteWarehouseZone()` liest und löscht Zone/BINs samt Audit in einer Transaktion; Vorprüfung allein berechtigt nicht zur Löschung. Die alten Gang-/Regal-/Ebenenpfade bleiben unverändert. Details zu Tenant-Altbeständen, Fehlern und API-Vertrag: [Warehouse-API](../09-api/warehouse.md).
+
+### Zonenübersicht
+
+`listWarehouseZones()` berechnet Gänge, Regale, Ebenen, BIN-Anzahl und Stückzahl aus den bereits abgefragten tatsächlichen BIN-Dokumenten. Historische `warehouseZones`-Zusammenfassungen können nur den letzten Generierungsaufruf enthalten und werden für diese Werte ignoriert. Behälter zählen zu den gesamten BINs, werden zusätzlich getrennt von den Lagerplätzen ausgewiesen. Regalanzahl zählt Gang/Regal-Paare, nicht nur unterschiedliche Regalnummern. Dies ist eine reine Anzeigekorrektur ohne Bestandsbuchungen oder Datenmigration. Regression: `backend/__tests__/warehouse-zone-summary.test.js`.
 
 ### BIN-Labels
 
@@ -112,6 +120,7 @@ Verweis auf `docs/kb/09-api/` (TBD). Auswahl aus `backend/routes/warehouse.js`:
 
 - `GET  /api/warehouse/zones` — Zonen-Liste
 - `POST /api/warehouse/layouts` — Layout (Zone/Etage/Gänge/Regale/Ebenen) anlegen
+- `DELETE /api/warehouse/layouts/:zone/:etage` — vollständige leere Zone, Vorprüfung standardmäßig, Löschung nur mit `confirm=1`
 - `DELETE /api/warehouse/layouts/:zone/:etage/gangs/:gang(/regale/:regal(/ebenen/:ebene))` — Layout-Teile löschen
 - `GET  /api/warehouse/zones/:zone/:etage` — Slice-Anzeige
 - `GET  /api/warehouse/bins/labels` (JSON) / `.pdf` — BIN-Labels (Bulk-PDF)
