@@ -135,13 +135,13 @@ async function applyUnassignmentPlan(plan, { db, saveProductV2, versionOf: getVe
       tx.create(db.collection('warehouseEvents').doc(`${plan.tenantId}_${plan.operationId}_${product.id}`), {
         tenantId: plan.tenantId, type: 'relocation_unassign', productId: product.id, sku: product.sku,
         delta: 0, quantity: product.movedQuantity, operationId: plan.operationId,
-        createdAt: plan.now, meta: { reason: 'zone_unassign', sourceZone: plan.zone, destination: 'unassigned' },
+        createdAt: new Date(plan.now), meta: { reason: 'zone_unassign', sourceZone: plan.zone, destination: 'unassigned' },
       });
     }
     for (const snap of binSnapshots) tx.update(snap.ref, { products: [], productCount: 0, lastUpdatedAt: plan.now });
     tx.create(operationRef, {
       tenantId: plan.tenantId, zone: plan.zone, operationId: plan.operationId, status: 'completed',
-      createdAt: plan.now, summary: plan.summary, orphanEntries: plan.orphans,
+      createdAt: new Date(plan.now), summary: plan.summary, orphanEntries: plan.orphans,
       products: plan.products.map(p => ({ productId: p.id, quantity: p.movedQuantity, inventoryBefore: p.inventoryBefore })),
       binCodes: plan.bins.map(bin => bin.id),
     });

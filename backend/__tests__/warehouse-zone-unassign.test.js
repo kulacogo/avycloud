@@ -114,7 +114,7 @@ describe('atomic application', () => {
     expect(s.saveProductV2).toHaveBeenCalledTimes(1);
     expect(s.writes.find(x => x[1] === 'warehouseBins/XEG0101A')[2]).toMatchObject({ products: [], productCount: 0 });
     expect(s.writes.find(x => x[1].startsWith('warehouseRelocations/'))[2]).toMatchObject({ tenantId: 'default', status: 'completed', orphanEntries: [] });
-    expect(s.writes.find(x => x[1].startsWith('warehouseEvents/'))[2]).toMatchObject({ delta: 0, productId: 'p1', tenantId: 'default' });
+    expect(s.writes.find(x => x[1].startsWith('warehouseEvents/'))[2]).toMatchObject({ delta: 0, productId: 'p1', tenantId: 'default', createdAt: new Date(s.plan.now) });
   });
 
   it('rejects changes since the backup without staging any writes', async () => {
