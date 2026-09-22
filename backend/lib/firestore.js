@@ -2912,7 +2912,7 @@ async function saveProduct(product, options = {}) {
       enforceDescriptionProse(deLiteralizeProductTextFields(productData)),
     );
 
-    if (hasExisting && !canWriteWarehouseFields) {
+    if (hasExisting) {
       // OVERSELL-GUARD: Dieser Schreibpfad (Content-Saves auf Bestandsprodukte —
       // Chat-Apply, Kategorie-Fix, Enrichment, Improve, Bulk-Optimize) DARF die
       // Lagerfelder nicht schreiben, sondern nur erhalten. Der existingData-
@@ -2926,9 +2926,21 @@ async function saveProduct(product, options = {}) {
       await firestore.runTransaction(async (tx) => {
         const freshSnap = await tx.get(docRef);
         const freshData = freshSnap.exists ? (freshSnap.data() || {}) : {};
-        if (freshData.inventory !== undefined) sanitizedProduct.inventory = freshData.inventory;
-        if (freshData.storage !== undefined) sanitizedProduct.storage = freshData.storage;
-        if (freshData.storageBins !== undefined) sanitizedProduct.storageBins = freshData.storageBins;
+        const hasRelocation = freshData.ops?.relocation && typeof freshData.ops.relocation === 'object';
+        // An operator may detach BINs while this content save is preparing.
+        // Its marker and warehouse fields are one atomic state: preserving only
+        // the locations would lose unassigned stock; preserving only the marker
+        // would restore the old X assignment. Full saves must retain both even
+        // with allowWarehouseFields. Relocation writes use the narrow
+        // saveProductV2 warehousePatch transaction path instead.
+        if (!canWriteWarehouseFields || hasRelocation) {
+          if (freshData.inventory !== undefined) sanitizedProduct.inventory = freshData.inventory;
+          if (freshData.storage !== undefined) sanitizedProduct.storage = freshData.storage;
+          if (freshData.storageBins !== undefined) sanitizedProduct.storageBins = freshData.storageBins;
+        }
+        if (hasRelocation) {
+          sanitizedProduct.ops = { ...sanitizedProduct.ops, relocation: freshData.ops.relocation };
+        }
         tx.set(docRef, sanitizedProduct);
       });
     } else {

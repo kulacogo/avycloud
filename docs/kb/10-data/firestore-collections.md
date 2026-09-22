@@ -57,6 +57,8 @@ lastReviewed: 2026-05-18
 
 ## Warehouse + Bins + Stock
 
+Seit 22.09.2026: `warehouseRelocations/{tenantId}_{operationId}` speichert tenantgebundene, atomar mit der Räumung erzeugte Umzugsbelege. Felder: `tenantId`, `zone`, `operationId`, `status='completed'`, `createdAt`, `summary`, `products[{productId, quantity, inventoryBefore}]`, `binCodes`, `orphanEntries[{productId, sourceBin, entry}]`. Quellen-BINs sind historische Auditinformationen, keine aktive Zuordnung. Keine TTL: Verwaiste Einträge müssen nachvollziehbar bleiben. Writer/Reader: [warehouse-zone-unassign.js](../../../backend/lib/warehouse-zone-unassign.js), aufrufbar über das explizite Operatorscript. Kein öffentlicher API-Zugriff; Operation wird direkt über den tenantgebundenen Dokumentpfad gelesen und Tenant/Zone erneut geprüft.
+
 | Collection | Primary Writers | Primary Readers | Tenant-Scoping | TTL | Notes |
 |------------|-----------------|-----------------|----------------|-----|-------|
 | `warehouseBins` | `routes/warehouse.js`, `lib/warehouse.js bookStockIn()/bookStockOut()` ([:930](../../../backend/lib/warehouse.js)) | `refreshProductInventory()`, `listBinsForProduct()`, UI Warehouse | none — `tenantId` derzeit nicht erfasst | keine | DocID = Bin-Code (z. B. `M-EG-3-2-A`). Array-Feld `products[]` mit `{productId, sku, quantity, name, firstStoredAt, lastUpdatedAt}`. |

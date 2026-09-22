@@ -21,6 +21,8 @@ Nach Erstanlage **bleibt die DocID stabil** — Re-Normalisierung darf sie nie a
 
 ## Top-Level-Felder
 
+Additiv seit 22.09.2026: `ops.relocation = {unassignedQuantity: number, operationId: string, updatedAt: ISO-string, reason: 'zone_unassign'}` bezeichnet bereits im Bestand/Lagerbuch enthaltene Einheiten ohne BIN. Reguläres Stow konsumiert diese Menge mit Delta null; echte Neuware/Retouren bleiben Zugänge. `unassignedQuantity=0` bleibt als Marker bestehen. Content-Saves erhalten diese Daten und die Lagerfelder transaktional frisch. Siehe [Warehouse](../../06-features/warehouse-bins.md).
+
 | Feld | Typ | Pflicht | Quelle | Beschreibung |
 |------|-----|---------|--------|--------------|
 | `id` | string | ja | `pickProductId()` | Spiegel der DocID. |
