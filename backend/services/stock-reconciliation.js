@@ -2,6 +2,7 @@
 
 const { getAllProducts, getAllProductsForTenant, firestore } = require('../lib/firestore');
 const { refreshProductInventory } = require('../lib/warehouse');
+const { relocatedStockTotal } = require('../lib/warehouse-relocation');
 const { computeAvailableQuantity, syncStockToAllChannels, findProductsBySkuChunk } = require('./stock-sync-dispatcher');
 
 /**
@@ -12,7 +13,7 @@ const { computeAvailableQuantity, syncStockToAllChannels, findProductsBySkuChunk
 function checkBinDrift(product) {
   const inventoryQty = Number(product.inventory?.quantity || 0);
   const bins = Array.isArray(product.storageBins) ? product.storageBins : [];
-  const binTotal = bins.reduce((sum, b) => sum + (Number(b?.quantity) || 0), 0);
+  const binTotal = relocatedStockTotal(product, bins.reduce((sum, b) => sum + (Number(b?.quantity) || 0), 0));
 
   if (binTotal === inventoryQty) return null;
 

@@ -1,5 +1,6 @@
 const { Firestore, Timestamp } = require('@google-cloud/firestore');
 const { getProduct, adjustPendingIntakeQuantity } = require('./firestore');
+const { hasRelocationStock, getUnassignedQuantity, planRelocationStockIn, relocatedStockTotal } = require('./warehouse-relocation');
 
 const firestore = new Firestore({
   projectId: process.env.GOOGLE_CLOUD_PROJECT || 'avycloud',
@@ -145,7 +146,7 @@ function writeWarehouseEventTx(tx, payload = {}) {
 }
 
 // Rebuild inventory summary (total quantity and primary BIN)
-async function refreshProductInventory(productId) {
+async function refreshProductInventory(productId, retryAttempt = 0) {
   if (!productId) return;
   const resolvedId = String(productId).trim();
   if (!resolvedId) return;
@@ -247,9 +248,8 @@ async function refreshProductInventory(productId) {
   // quantity from the LEDGER (Σ warehouseEvents) instead of from bins — bins
   // remain only the layout source (storageBins/storage). This is THE single
   // writer of inventory.quantity, so gating it here cuts the whole projection
-  // over to the ledger. Fail-safe: a ledger read error falls back to the
-  // bins-derived total (never blocks the refresh).
-  let effectiveQty = totalQty;
+  // over to the ledger. Relocated stock remains counted outside BINs.
+  let effectiveQty = relocatedStockTotal(productData, totalQty);
   let qtySource = 'bins';
   try {
     const { stockLedgerEnabled, sumProductLedger } = require('./stock-core');
@@ -258,6 +258,9 @@ async function refreshProductInventory(productId) {
       qtySource = 'ledger';
     }
   } catch (err) {
+    // A relocation deliberately leaves counted stock outside BINs. Falling
+    // back to BINs after a ledger failure would silently lose that stock.
+    if (hasRelocationStock(productData)) throw err;
     console.warn(`[refreshProductInventory] ledger source failed for ${resolvedId}, falling back to bins: ${err.message}`);
     effectiveQty = totalQty;
     qtySource = 'bins-fallback';
@@ -266,12 +269,23 @@ async function refreshProductInventory(productId) {
   // Use update() to avoid creating documents by mistake, and update inventory.quantity as a field path
   // so we don't overwrite other inventory metadata (inventoryId, inventoryName, etc.).
   const priorQty = productData?.inventory?.quantity;
-  await docRef.update({
+  const projection = {
     'inventory.quantity': effectiveQty,
     'inventory.quantitySource': qtySource,
     storageBins,
     storage,
-  });
+  };
+  try {
+    // An unassignment may commit after the reads above. Never restore its old
+    // BINs (or an old quantity) from this stale snapshot. Rebuild on conflict.
+    if (snap.updateTime) await docRef.update(projection, { lastUpdateTime: snap.updateTime });
+    else await docRef.update(projection); // Test adapters without versions.
+  } catch (err) {
+    if ((err.code === 9 || err.code === 'FAILED_PRECONDITION') && retryAttempt < 3) {
+      return refreshProductInventory(productId, retryAttempt + 1);
+    }
+    throw err;
+  }
 
   // Stock-Change-Notify: emit stock:changed + append inventory_ledger, wenn Qty sich aenderte.
   // Siehe CLAUDE.md Punkt 10 (Oversell-Verbot) und Plan P2.3 + P2.4.
@@ -298,7 +312,7 @@ async function refreshProductInventory(productId) {
     const legacySnap = await legacyRef.get();
     if (legacySnap.exists) {
       await legacyRef.update({
-        'inventory.quantity': totalQty,
+        'inventory.quantity': relocatedStockTotal(productData, totalQty),
         storageBins,
         storage,
       });
@@ -655,6 +669,87 @@ async function removeProductFromBin(binCode, productId, options = {}) {
  *  - Remove empty bin entries; clear storage if primary bin disappears.
  *  - Keep warehouseBins collection consistent for touched bins.
  */
+async function decrementRelocatedProduct(productRef, quantity, productKey) {
+  const result = await firestore.runTransaction(async (tx) => {
+    const snap = await tx.get(productRef);
+    if (!snap.exists) throw new Error('Produkt nicht gefunden.');
+    const product = snap.data();
+    const before = Number(product.inventory?.quantity) || 0;
+    const applied = Math.min(Math.max(0, before), Number(quantity));
+    if (!applied) return null;
+    let remaining = applied;
+    const bins = (product.storageBins || []).map((bin) => ({ ...bin }));
+    const changes = [];
+    for (const bin of bins) {
+      if (!bin.code || remaining <= 0) continue;
+      const take = Math.min(Math.max(0, Number(bin.quantity) || 0), remaining);
+      if (!take) continue;
+      const ref = binsCollection.doc(String(bin.code));
+      const binSnap = await tx.get(ref);
+      if (!binSnap.exists) throw new Error(`BIN ${bin.code} fehlt; Versandbuchung abgebrochen.`);
+      const data = binSnap.data();
+      const keySet = buildProductKeySet(product);
+      keySet.add(normalizeKey(productRef.id));
+      let binRemaining = take;
+      const products = cloneProductsArray(data).map((entry) => {
+        if (!binEntryMatchesKeySet(entry, keySet) || binRemaining <= 0) return entry;
+        const entryTake = Math.min(Math.max(0, Number(entry.quantity) || 0), binRemaining);
+        binRemaining -= entryTake;
+        return { ...entry, quantity: Number(entry.quantity) - entryTake, lastUpdatedAt: new Date().toISOString() };
+      }).filter((entry) => Number(entry.quantity) > 0);
+      if (binRemaining > 0) throw new Error(`BIN ${bin.code} hat abweichenden Bestand; Versandbuchung abgebrochen.`);
+      changes.push({ ref, products, code: bin.code, delta: -take });
+      bin.quantity -= take;
+      remaining -= take;
+    }
+    const unassigned = getUnassignedQuantity(product);
+    const relocatedQuantity = Math.min(unassigned, remaining);
+    const storageBins = bins.filter((bin) => Number(bin.quantity) > 0);
+    const primary = storageBins.find((bin) => bin.code === product.storage?.binCode) || storageBins[0];
+    const storage = primary ? {
+      binCode: primary.code, quantity: primary.quantity,
+      zone: primary.zone || null, etage: primary.etage || null,
+      gang: primary.gang || null, regal: primary.regal || null, ebene: primary.ebene || null,
+      assigned_at: primary.firstStoredAt || product.storage?.assigned_at || new Date().toISOString(),
+    } : null;
+    tx.update(productRef, {
+      'inventory.quantity': before - applied,
+      storageBins,
+      storage,
+      'ops.relocation.unassignedQuantity': unassigned - relocatedQuantity,
+      'ops.relocation.updatedAt': new Date().toISOString(),
+    });
+    for (const change of changes) {
+      tx.update(change.ref, { products: change.products, productCount: calculateBinProductCount(change.products), lastStoredAt: Timestamp.now() });
+    }
+    writeWarehouseEventTx(tx, {
+      tenantId: product.tenantId || 'default', type: 'order_decrement',
+      productId: productRef.id, productKey, requestedQty: Number(quantity),
+      delta: -applied, relocatedQuantity,
+      relocationOperationId: product.ops.relocation.operationId || null,
+      appliedBinDeltas: changes.map(({ code, delta }) => ({ code, delta })),
+      inventoryAfter: before - applied, binCountAfter: storageBins.length,
+    });
+    return { before, after: before - applied, product };
+  });
+  if (!result) return;
+  // The transaction already wrote the complete projection and matching ledger
+  // event. A second non-transactional rebuild is unnecessary here.
+  try {
+    const { notifyStockChange } = require('./stock-change-events');
+    await notifyStockChange({
+      tenantId: result.product.tenantId || 'default', productId: productRef.id,
+      sku: result.product.identification?.sku || result.product.details?.identifiers?.sku || null,
+      before: result.before, after: result.after,
+      reason: 'ship-decrement', source: 'warehouse.decrementProductByIdOrSku',
+    });
+  } catch (err) {
+    // The debit is committed. Propagating a telemetry failure would make the
+    // caller release its order claim and potentially debit the same unit twice.
+    console.warn(`[decrementRelocatedProduct] notify failed productId=${productRef.id}: ${err.message}`);
+  }
+}
+
 async function decrementProductByIdOrSku(productIdOrSku, quantity) {
   if (!quantity || quantity <= 0) return;
   const id = String(productIdOrSku).trim();
@@ -672,6 +767,9 @@ async function decrementProductByIdOrSku(productIdOrSku, quantity) {
     }
   }
   const productData = productSnap.data() || {};
+  if (hasRelocationStock(productData)) {
+    return decrementRelocatedProduct(productRef, quantity, id);
+  }
   let remaining = Number(quantity) || 0;
   const bins = Array.isArray(productData.storageBins) ? [...productData.storageBins] : [];
   const binDeltas = [];
@@ -806,13 +904,16 @@ async function assignProductToBin(binCode, productId, quantity) {
   keySet.add(normalizeKey(productId));
 
   await firestore.runTransaction(async (tx) => {
-    const binSnap = await tx.get(binRef);
+    const [binSnap, productSnap] = await Promise.all([tx.get(binRef), tx.get(productRef)]);
     if (!binSnap.exists) {
       throw new Error('BIN nicht gefunden.');
     }
     const binData = binSnap.data();
+    if (!productSnap.exists) throw new Error('Produkt nicht gefunden.');
+    const currentProduct = productSnap.data();
     const products = Array.isArray(binData.products) ? [...binData.products] : [];
     let entry = products.find((p) => binEntryMatchesKeySet(p, keySet));
+    previousBinQty = 0;
     if (entry) {
       previousBinQty = Number(entry.quantity || 0) || 0;
       entry.quantity = quantity;
@@ -831,6 +932,13 @@ async function assignProductToBin(binCode, productId, quantity) {
       products.push(entry);
     }
     const productCount = products.reduce((sum, item) => sum + (item.quantity || 0), 0);
+    const relocatedQuantity = Math.min(getUnassignedQuantity(currentProduct), Math.max(0, quantity - previousBinQty));
+    if (relocatedQuantity > 0) {
+      tx.update(productRef, {
+        'ops.relocation.unassignedQuantity': getUnassignedQuantity(currentProduct) - relocatedQuantity,
+        'ops.relocation.updatedAt': now.toDate().toISOString(),
+      });
+    }
     tx.update(binRef, {
       products,
       productCount,
@@ -843,6 +951,7 @@ async function assignProductToBin(binCode, productId, quantity) {
       productId: String(productId),
       quantity: Number(quantity) || 0,
       mode: 'set',
+      ...(relocatedQuantity > 0 ? { relocatedQuantity, relocationOperationId: currentProduct.ops.relocation.operationId || null } : {}),
     });
   });
 
@@ -1021,7 +1130,10 @@ async function bookStockIn({ productId, sku, barcode, binCode, quantity, meta })
     });
 
     const storageQuantity = entry.quantity;
-    const inventoryQuantity =
+    const relocation = planRelocationStockIn(productData, quantity, meta);
+    const inventoryQuantity = hasRelocationStock(productData)
+      ? (Number(productData.inventory?.quantity) || 0) + relocation.delta
+      :
       productData.storage?.binCode && productData.storage.binCode !== binCode
         ? (productData.inventory?.quantity || 0) + quantity
         : storageQuantity;
@@ -1041,7 +1153,7 @@ async function bookStockIn({ productId, sku, barcode, binCode, quantity, meta })
         };
 
     const currentPending = Number(productData?.ops?.pending_intake_quantity) || 0;
-    const nextPending = Math.max(0, currentPending - quantity);
+    const nextPending = Math.max(0, currentPending - relocation.delta);
     tx.update(productRef, {
       storage: storagePayload,
       inventory: {
@@ -1049,13 +1161,21 @@ async function bookStockIn({ productId, sku, barcode, binCode, quantity, meta })
         quantity: inventoryQuantity,
       },
       'ops.pending_intake_quantity': nextPending,
+      ...(relocation.relocatedQuantity > 0 ? {
+        'ops.relocation.unassignedQuantity': relocation.unassignedQuantity,
+        'ops.relocation.updatedAt': nowIso,
+      } : {}),
     });
     writeWarehouseEventTx(tx, {
       type: 'stock_in',
       binCode,
       productId: resolvedProductId,
       sku: productData.details?.identifiers?.sku || productData.identification?.sku || null,
-      delta: Number(quantity) || 0,
+      delta: relocation.delta,
+      ...(relocation.relocatedQuantity > 0 ? {
+        relocatedQuantity: relocation.relocatedQuantity,
+        relocationOperationId: productData.ops.relocation.operationId || null,
+      } : {}),
       quantityAfter: inventoryQuantity,
       binQuantityAfter: entry.quantity,
       meta: meta || null,

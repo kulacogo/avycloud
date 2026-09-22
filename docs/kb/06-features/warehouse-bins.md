@@ -154,4 +154,12 @@ TBD — keine Stand-alone-Spec ("WH-001" existiert nicht in `docs/features/`). V
 
 ## Bekannte Issues
 
+### Neutraler Umzug ohne Lagerplatz (22.09.2026)
+
+Ein expliziter Umzug ohne Ziel-BIN entfernt nur die Lagerzuordnung; `inventory.quantity` und das Lagerbuch bleiben unverändert. Bereits gezählte, unzugeordnete Einheiten stehen in `ops.relocation.unassignedQuantity`. Reguläres Stow (`source=api`, `action=stock-in`, ohne Order-/Retouren-/Inventur-/Repair-Kontext) verbraucht diesen Wert zuerst und bucht nur den darüber hinausgehenden echten Zugang. Retouren/Recredits verbrauchen ihn nicht. Versand, Lagerabgleich und Produktspeicherung erhalten den Umzugsbestand; veraltete Refreshes dürfen frühere BIN-Zuordnungen nicht zurückschreiben.
+
+Der eng begrenzte Operator [unassign-warehouse-zone.js](../../../backend/scripts/unassign-warehouse-zone.js) ist standardmäßig lesend und auf den freigegebenen Tenant `default`/Zone `X` begrenzt. Er erstellt vor `--apply` eine neue private Sicherungsdatei, prüft beide Zuordnungsseiten und schreibt unter Firestore-SKU-Locks alle Produkte/BINs, Delta-null-Ereignisse und den tenantgebundenen Beleg `warehouseRelocations/{tenantId}_{operationId}` in einer Transaktion. Produktpatches gehen über `saveProductV2` mit `warehousePatch`; Bestand/Inhalt sind dort nicht erlaubte Patchfelder. Verwaiste BIN-Einträge bleiben vollständig im Beleg `orphanEntries`, ohne künstliche Produktanlage oder stillen Mengenverlust. Andere Zonen und die leere Struktur bleiben erhalten.
+
+**Rollback:** Solange `ops.relocation.unassignedQuantity > 0` existiert, nicht auf Code ohne diesen Umzugspfad zurückrollen. Ein Datenrückweg muss aktuelle Lagerbewegungen berücksichtigen und darf keine alte Sicherung blind überschreiben. Kein allgemeiner UI-Räumungsendpunkt wurde hinzugefügt.
+
 TBD — laufende Bugs siehe `TASKS.md`.

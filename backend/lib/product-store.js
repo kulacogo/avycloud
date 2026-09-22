@@ -167,6 +167,65 @@ function makeGhostRejectedError(productId, validationErrors) {
 }
 
 /**
+ * Location-only update inside a caller-owned Firestore transaction. The caller
+ * must read this snapshot in that transaction before staging any writes. This
+ * path never creates a product, reads again, or invokes the full-save identity,
+ * registry, normalization or stock-change side effects. Stock is unchanged.
+ */
+function saveWarehousePatch(product, options, collection) {
+  const { warehousePatch, transaction, productSnapshot, tenantId } = options;
+  const isRecord = (value) => value != null && typeof value === 'object' &&
+    (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null);
+  if (!isRecord(product) || typeof product.id !== 'string' || !product.id.trim() ||
+      product.id !== product.id.trim() || product.id.includes('/') ||
+      Object.keys(product).some((key) => key !== 'id')) {
+    throw new Error('warehousePatch requires a product containing only its existing document id');
+  }
+  if (collection !== V2_COLLECTION) {
+    throw new Error('warehousePatch requires the current products_v2 collection');
+  }
+  if (!transaction || typeof transaction.update !== 'function' || typeof transaction.get !== 'function') {
+    throw new Error('warehousePatch requires a caller-owned transaction');
+  }
+  if (!productSnapshot || productSnapshot.exists !== true || typeof productSnapshot.data !== 'function' || !productSnapshot.ref) {
+    throw new Error('warehousePatch requires an existing product snapshot');
+  }
+  if (productSnapshot.id !== product.id || productSnapshot.ref.id !== product.id) {
+    throw new Error('warehousePatch product id does not match the snapshot');
+  }
+  if (productSnapshot.ref.path !== `${V2_COLLECTION}/${product.id}`) {
+    throw new Error('warehousePatch snapshot must belong to the root products_v2 collection');
+  }
+  if (typeof tenantId !== 'string' || !tenantId.trim() || tenantId !== tenantId.trim()) {
+    throw new Error('warehousePatch requires an explicit tenantId');
+  }
+  const current = productSnapshot.data();
+  if (!isRecord(current)) throw new Error('warehousePatch requires an existing product snapshot');
+  if (current.id != null && current.id !== product.id) {
+    throw new Error('warehousePatch stored product id does not match the document id');
+  }
+  // Existing unscoped documents are legacy default-tenant records only.
+  if ((current.tenantId == null ? 'default' : current.tenantId) !== tenantId) {
+    throw new Error('warehousePatch tenantId does not match the product');
+  }
+  const allowed = new Set(['storage', 'storageBins', 'ops.relocation']);
+  if (!isRecord(warehousePatch) || !Object.keys(warehousePatch).length ||
+      Object.keys(warehousePatch).some((key) => !allowed.has(key) || warehousePatch[key] === undefined) ||
+      ('storage' in warehousePatch && warehousePatch.storage !== null && !isRecord(warehousePatch.storage)) ||
+      ('storageBins' in warehousePatch && (!Array.isArray(warehousePatch.storageBins) || !warehousePatch.storageBins.every(isRecord))) ||
+      ('ops.relocation' in warehousePatch && warehousePatch['ops.relocation'] !== null && !isRecord(warehousePatch['ops.relocation']))) {
+    throw new Error('Invalid warehousePatch: only storage, storageBins and ops.relocation are allowed');
+  }
+  const update = { ...warehousePatch };
+  transaction.update(productSnapshot.ref, update);
+  const result = { ...current, id: product.id };
+  if ('storage' in update) result.storage = update.storage;
+  if ('storageBins' in update) result.storageBins = update.storageBins;
+  if ('ops.relocation' in update) result.ops = { ...current.ops, relocation: update['ops.relocation'] };
+  return result;
+}
+
+/**
  * Produkt speichern — Drop-in-Replacement für saveProduct().
  *
  * 1. Ruft die originale saveProduct(product, options) auf → volle Business-Logik
@@ -176,6 +235,9 @@ function makeGhostRejectedError(productId, validationErrors) {
  */
 async function saveProductV2(product, options = {}) {
   const { PRODUCTS_COLLECTION } = require('./firestore');
+  if (Object.prototype.hasOwnProperty.call(options, 'warehousePatch')) {
+    return saveWarehousePatch(product, options, PRODUCTS_COLLECTION);
+  }
 
   // Pre-State-Read (best-effort): Qty vor der Mutation fuer Stock-Change-Detection.
   // Skippable via options.skipStockEvent (z.B. bei Bulk-Imports).

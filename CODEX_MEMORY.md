@@ -3,6 +3,15 @@
 Stand 20.09.2026. Pflichtlektüre aus AGENTS.md/CLAUDE.md bleibt maßgeblich. Die ausführliche Projektanalyse, Architektur und Claude-Historie liegt unter `/Users/oguz/Dev/avycloud/CODEX_MEMORY.md`; diese Datei hält den aktuellen isolierten Arbeitsstand fest. Produktionsänderungen haben direkten Einfluss auf den Betrieb von TrendOcean.
 
 
+## 22.09.2026 — Zone X ohne neue BIN-Zuordnung räumen
+
+- Nutzer hat nach Rückfrage ausdrücklich „keine bin zuordnung! zone X leeren!“ bestätigt. Produktionsauftrag gilt fort. Neues Paket auf Main `d2795461` in Branch `codex/zone-x-unassign-20260922`; die vorherige Zonenlöschung/Übersicht ist bereits produktiv (PR20).
+- Neue geprüfte Räumung: `scripts/unassign-warehouse-zone.js`, dry-run default, explizit X/default, private Sicherung mit exklusivem Dateinamen, Firestore-SKU-Locks, Versionsprüfung und eine Transaktion für BINs, Produktpatches via `saveProductV2`, Delta-null-Ereignisse und tenantgebundenen `warehouseRelocations`-Beleg. Keine `inventory.quantity`-Änderung durch die Räumung, andere Zonen bleiben erhalten.
+- `ops.relocation.unassignedQuantity` hält bereits gezählten Bestand ohne BIN. Reguläres Stow konsumiert ihn neutral, echte Retouren bleiben Zugänge. Versand und Reconciliation berücksichtigen den Marker. Refresh-CAS sowie finaler transaktionaler Fullsave-Guard verhindern Wiederherstellung alter Lagerdaten und Verlust des Markers. Keine neuen Routen, keine Auth-/Infra-Änderung.
+- Frischer Dry-run vor Release: 46 X-BINs, 127 Einheiten, 100 vorhandene Produkte mit 126 X-Einheiten, Inventory-Summe 129 einschließlich zwei bestehenden L-Einheiten und einer vorher unlokalisierten Einheit. Eine verwaiste BIN-Einheit wird vollständig im Operationsbeleg gesichert, nicht als Produkt erfunden oder still verworfen. Private Sicherung außerhalb Git unter `/Users/oguz/Dev/avycloud-local-backups/zone-x/`.
+- TDD: fehlender Umzugspfad, doppelte Stow-Zählung und verlorener Marker zunächst rot reproduziert; final 5484 Backendtests/464 Dateien grün. Unabhängige Review ohne verbleibenden Blocker. **Produktionsdatenaktion erfolgt erst nach erfolgreichem Deployment des Umzugspfads.** Exakten Release-/Räumungsnachweis anschließend im Hauptcheckout nachführen.
+- Rückweg: nicht auf Code ohne Relocation-Unterstützung zurückrollen, solange unassignedQuantity positiv ist; aktuelle Bewegungen berücksichtigen, keine blinde Snapshot-Wiederherstellung.
+
 ## 22.09.2026 — Produktionsauslieferung ausdrücklich freigegeben
 
 - Nutzer: „bitte schnell! und direkt auf prod!“ zu fehlender Zonenlöschung und anschließender Räumung X/EG. Dies autorisiert jetzt die erforderlichen Commit-/Merge-/Deploy-Schritte für Zonenlöschung und Übersicht; ältere Hinweise „keine Freigabe“ unten beschreiben den vorherigen Stand.
