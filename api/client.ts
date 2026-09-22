@@ -4947,6 +4947,31 @@ export const createWarehouseLayoutApi = async (payload: {
   }
 };
 
+export const deleteWarehouseZoneApi = async (
+  zone: string,
+  etage: string,
+  options?: { confirm?: boolean; dryRun?: boolean; timeoutMs?: number }
+): Promise<{ ok: boolean; data?: { binCodes: string[]; deleted: number; zoneDeleted: boolean; dryRun: boolean }; error?: { code: number; message: string } }> => {
+  let response: Response | undefined;
+  try {
+    const params = new URLSearchParams();
+    if (options?.dryRun) params.set('dryRun', '1');
+    if (options?.confirm) params.set('confirm', '1');
+    response = await fetchWithTimeout(
+      `${BACKEND_URL}/api/warehouse/layouts/${encodeURIComponent(zone)}/${encodeURIComponent(etage)}?${params}`,
+      { method: 'DELETE' },
+      options?.timeoutMs || 25000
+    );
+    const result = await parseResponse(response);
+    if (!response.ok) {
+      return { ok: false, error: { code: response.status, message: result?.error?.message || 'Zone löschen fehlgeschlagen.' } };
+    }
+    return { ok: true, data: result?.data };
+  } catch (error) {
+    return { ok: false, error: extractErrorInfo(error, response) };
+  }
+};
+
 export const deleteWarehouseGangApi = async (
   zone: string,
   etage: string,

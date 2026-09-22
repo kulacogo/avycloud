@@ -1,7 +1,7 @@
 ---
 title: API — Warehouse
 for: [dev, agent, admin]
-lastReviewed: 2026-05-18
+lastReviewed: 2026-09-21
 ---
 
 # API — Warehouse
@@ -10,11 +10,12 @@ Mount: `app.use('/api/warehouse', warehouseRouter)` ([backend/index.js#L242](../
 
 Quelle: [backend/routes/warehouse.js](../../../backend/routes/warehouse.js). Core-Library: [backend/lib/warehouse.js](../../../backend/lib/warehouse.js). Label-Printer: [backend/services/label-printer.js](../../../backend/services/label-printer.js).
 
-Tenant-Source: für CRUD und Zone-Operations ohne Tenant-Scope (read global). Für Settings/Inventories: `req.user?.tenantId || 'default'`.
+Tenant-Source: bestehende CRUD- und Zonen-Leseoperationen global. Settings/Inventories und vollständige Zonenlöschung: `req.user?.tenantId || 'default'`.
 
 Permissions:
 - Read: `requirePermission('warehouse', 'read')`
 - Write: `requirePermission('warehouse', 'write')`
+- Layout erstellen/löschen (auch Zonen): `requirePermission('warehouse', 'configure')`
 - Inventory-Read/Write benutzt `requirePermission('warehouse', '...')` für die unter `/warehouse/inventories/*`-Routes.
 
 ---
@@ -26,7 +27,10 @@ Permissions:
 - **Auth**: `requirePermission('warehouse', 'read')`
 - **Tenant Source**: none — global
 - **Request**: `(empty)`
-- **Response**: `{ "ok": true, "data": [{ "zone": "Z01", "etage": "EG", "gangs": [...], "regale": [...], "ebenen": [...] }] }`
+- **Response**: `{ "ok": true, "data": [{ "id": "S_EG", "zone": "S", "etage": "EG", "gangs": [1,2,3,4,5,6], "regale": [1,2], "ebenen": ["A","B","C","D","E","F","G"], "binCount": 120, "rootBinCount": 84, "containerCount": 36, "shelfCount": 12, "totalProducts": 2720 }] }` (Beispiel, keine festen Sollzahlen).
+- **Berechnung**: alle Strukturwerte aus den vorhandenen `warehouseBins` der Zone/Etage. `warehouseZones.binCount/gangs/regale/ebenen` beschreiben historisch oft nur die zuletzt generierte Teilstruktur und sind keine verlässliche Übersicht. Vorhandene BIN-Abfrage wiederverwenden; keine zusätzlichen Abfragen/Schreibvorgänge zur Berechnung.
+- **Zählweise**: `binCount` umfasst alle BIN-Dokumente, `rootBinCount` die Lagerplätze ohne Containerkennzeichen, `containerCount` Behälter (`isContainer` oder `parentBinCode`). `shelfCount` zählt eindeutige Paare aus Gang/Regal; `regale` listet deren Regalnummern, `gangs` Gangnummern, `ebenen` Ebenenbuchstaben. Nummern numerisch, Ebenen alphabetisch sortiert.
+- **Bestandsanzeige**: `totalProducts` bleibt als Feldname kompatibel, bedeutet aber **Stückzahl**, keine Anzahl verschiedener Artikel. Summe positiver Mengen aus `products[].quantity`, nur bei Legacy-BINs ohne Array Rückfall auf numerischen `productCount`. Keine Reparatur von Bestandsdaten beim Lesen.
 - **Side-Effects**: read.
 - **Idempotency**: read.
 - **Failure Modes**: `500`.
@@ -34,7 +38,7 @@ Permissions:
 
 ### `POST /api/warehouse/layouts`
 
-- **Auth**: `requirePermission('warehouse', 'write')`
+- **Auth**: `requirePermission('warehouse', 'configure')`
 - **Tenant Source**: none
 - **Request**:
   ```json
@@ -46,11 +50,25 @@ Permissions:
 - **Failure Modes**: `400` bei fehlenden Pflichtfeldern.
 - **Source**: [backend/routes/warehouse.js#L115-L139](../../../backend/routes/warehouse.js#L115-L139)
 
+### `DELETE /api/warehouse/layouts/:zone/:etage`
+
+- **Auth**: `requirePermission('warehouse', 'configure')`, globale Anmeldung erforderlich.
+- **Scope**: genau eine Zone/Etage (z. B. `XQ/GA`). Andere Etagen bleiben erhalten.
+- **Tenant**: aus dem angemeldeten Nutzer. Zonen- und BIN-Dokumente werden auf Zugehörigkeit geprüft; fehlendes `tenantId` wird ausschließlich als historischer `default`-Bestand behandelt. Die bestehende Zonen-/Etagenabfrage wird wiederverwendet: ein zusätzlicher Tenant-Filter würde diese alten BINs unsichtbar machen. Fremde oder widersprüchliche Zuordnungen brechen vollständig ab; keine Tenant-Migration als Nebeneffekt.
+- **Request**: standardmäßig nur Prüfung. `?dryRun=1` prüft explizit, nur `?confirm=1` löscht. Bei beiden Parametern gewinnt `dryRun`.
+- **Response**: `{ "ok": true, "data": { "zone": "XQ", "etage": "GA", "binCodes": [], "deleted": 0, "zoneDeleted": true, "dryRun": false } }`. `deleted` zählt BIN-Dokumente, nicht Zonen. `zoneDeleted` ist nur bei tatsächlicher Entfernung wahr.
+- **Bestandsschutz**: BINs einschließlich referenzierter Behälter werden anhand von `productCount` **und** einzelnen `products[].quantity` geprüft. Positive Mengen oder nicht prüfbare Mengen sperren die Aktion. Einträge mit Menge 0 dürfen entfernt werden. Zonen mit null BINs sind löschbar.
+- **Atomarität**: Prüfung, Entfernung von BINs + Zone und Audit `warehouseEvents/type=zone_delete` erfolgen in einer Firestore-Transaktion. Bei Konflikten wird erneut gelesen/geprüft; Fehler verursachen keine Teillöschung. Siehe [Firestore-Transaktionen](https://docs.cloud.google.com/firestore/native/docs/manage-data/transactions).
+- **Keine Nebenbuchung**: keine Produkt-/Bestands-/OMS-Mutation, kein Marktplatz-Sync; historische Bewegungen bleiben erhalten. Audit enthält Tenant und Akteur.
+- **Idempotenz**: bereits fehlende Zone → Erfolg mit `zoneDeleted:false`, keine Dokumente werden angelegt.
+- **Fehler**: `400` ungültige Zone/Etage, `403` fehlendes Recht, `404` fremde Zone, `409` Bestand/unklare Zuordnung, `500` Speicherfehler.
+- **Quelle/Tests**: `backend/lib/warehouse.js:deleteWarehouseZone`, `backend/routes/warehouse.js`, `backend/__tests__/warehouse-zone-delete.test.js`.
+
 ### `DELETE /api/warehouse/layouts/:zone/:etage/gangs/:gang`
 ### `DELETE /api/warehouse/layouts/:zone/:etage/gangs/:gang/regale/:regal`
 ### `DELETE /api/warehouse/layouts/:zone/:etage/gangs/:gang/regale/:regal/ebenen/:ebene`
 
-- **Auth**: `requirePermission('warehouse', 'write')`
+- **Auth**: `requirePermission('warehouse', 'configure')`
 - **Tenant Source**: none
 - **Request**: Query `?dryRun=true|?confirm=true` — **default ist dryRun**. Erst mit `?confirm=true` wird tatsächlich gelöscht (`!parseTruthy(req.query?.confirm)` wird zu `dryRun=true`).
 - **Response**: `{ "ok": true, "data": { ...counts, "dryRun": true|false } }`

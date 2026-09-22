@@ -9,6 +9,7 @@ const {
   deleteWarehouseGang,
   deleteWarehouseRegal,
   deleteWarehouseEbene,
+  deleteWarehouseZone,
   assignProductToBin,
   removeProductFromBin,
   refreshProductInventory,
@@ -162,6 +163,25 @@ router.post('/layouts', requirePermission('warehouse', 'configure'), async (req,
     res.status(400).json({
       ok: false,
       error: { code: 400, message: error.message || 'Fehler beim Anlegen der Lagerstruktur.' },
+    });
+  }
+});
+
+router.delete('/layouts/:zone/:etage', requirePermission('warehouse', 'configure'), async (req, res) => {
+  try {
+    const dryRun = parseTruthy(req.query?.dryRun) || !parseTruthy(req.query?.confirm);
+    const result = await deleteWarehouseZone(req.params.zone, req.params.etage, {
+      tenantId: req.user?.tenantId || 'default',
+      dryRun,
+      actor: { uid: req.user?.uid || null },
+    });
+    res.json({ ok: true, data: result });
+  } catch (error) {
+    const status = error.statusCode || 500;
+    if (status === 500) console.error('Failed to delete warehouse zone:', error);
+    res.status(status).json({
+      ok: false,
+      error: { code: status, message: status === 500 ? 'Zone konnte nicht gelöscht werden. Bitte erneut versuchen.' : error.message },
     });
   }
 });
