@@ -1,3 +1,4 @@
+const { PRODUCT_TABLE_FIELDS } = require('../lib/product-read-models');
 const { stripFinancialFields } = require('../lib/financial-access');
 const router = require('express').Router();
 const crypto = require('crypto');
@@ -1766,7 +1767,9 @@ router.get('/products', requirePermission('products', 'read'), async (req, res) 
 
     // Parallelise independent Firestore queries to cut latency (mobile timeout fix)
     const [products, { reservedMap, soldMap }] = await Promise.all([
-      getAllProductsForTenant(tenantId),
+      req.query?.view === 'table'
+        ? getAllProductsForTenant(tenantId, { fieldMask: PRODUCT_TABLE_FIELDS })
+        : getAllProductsForTenant(tenantId),
       getOrderQuantityMapsCached(tenantId),
     ]);
     const filteredProducts = Array.isArray(products)
@@ -1802,7 +1805,7 @@ router.get('/products', requirePermission('products', 'read'), async (req, res) 
     //
     // Ohne den Parameter bleibt die Antwort exakt wie bisher, damit kein
     // bestehender Aufrufer bricht.
-    const listeAusgabe = req.query?.view === 'list'
+    const listeAusgabe = req.query?.view === 'list' || req.query?.view === 'table'
       ? withCompletenessFiltered.map(stripForList)
       : withCompletenessFiltered;
 

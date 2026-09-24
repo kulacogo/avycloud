@@ -70,6 +70,20 @@ describe('GET /api/products', () => {
     expect(res.body.products.length).toBe(1);
   });
 
+  it('opts table reads into projection while retaining the list envelope and pagination', async () => {
+    firebaseSpies.getAllProductsForTenant.mockResolvedValue([SAMPLE_PRODUCT, { ...SAMPLE_PRODUCT, id: 'second' }]);
+    const res = await request(app).get('/api/products?view=table&limit=1');
+    expect(res.status).toBe(200);
+    expect(res.body.products).toHaveLength(1);
+    expect(res.body.products[0].identification.name).toBe(SAMPLE_PRODUCT.identification.name);
+    expect(res.body.pagination).toMatchObject({ total: 2, returned: 1, hasMore: true });
+    const mask = firebaseSpies.getAllProductsForTenant.mock.calls[0][1].fieldMask;
+    expect(mask).toContain('ops.relocation');
+    expect(mask).toContain('ops.created_at_iso');
+    expect(mask).not.toContain('ops');
+    expect(mask).not.toContain('ops.data_quality');
+  });
+
   it('returns 200 with empty array when no products exist', async () => {
     firebaseSpies.getAllProductsForTenant?.mockResolvedValue([]);
     const res = await request(app).get('/api/products');

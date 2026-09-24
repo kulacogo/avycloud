@@ -22,6 +22,7 @@
 const queryState = {
   // last where() args captured for assertion
   whereCalls: [],
+  selectCalls: [],
   // controlled response for .get()
   getResponse: { docs: [], empty: true, size: 0, forEach: () => {} },
 };
@@ -32,6 +33,7 @@ function makeQuery() {
       queryState.whereCalls.push({ field, op, value });
       return makeQuery();
     },
+    select(...fields) { queryState.selectCalls.push(fields); return makeQuery(); },
     orderBy() { return makeQuery(); },
     limit() { return makeQuery(); },
     get() {
@@ -54,6 +56,7 @@ function makeCollection() {
       queryState.whereCalls.push({ field, op, value });
       return makeQuery();
     },
+    select(...fields) { queryState.selectCalls.push(fields); return makeQuery(); },
     orderBy: () => makeQuery(),
     limit: () => makeQuery(),
     get: () => Promise.resolve(queryState.getResponse),
@@ -116,6 +119,7 @@ function makeDoc(id, data) {
 
 beforeEach(() => {
   queryState.whereCalls = [];
+  queryState.selectCalls = [];
   setSnapshotDocs([]);
 });
 
@@ -257,5 +261,26 @@ describe('getAllProductsForTenant — D.0b-Hotfix Legacy-Compat for default tena
     await getAllProductsForTenant('default');
     // Legacy-Compat-Branch reads full collection, no where('tenantId','==','default')
     expect(queryState.whereCalls).toEqual([]);
+  });
+});
+
+
+describe('projected product reads preserve tenant boundaries', () => {
+  it('always selects tenantId for the default legacy filter, even if omitted by the caller', async () => {
+    setSnapshotDocs([makeDoc('legacy', {}), makeDoc('ours', { tenantId: 'default' }), makeDoc('foreign', { tenantId: 'other' })]);
+    const result = await getAllProductsForTenant('default', { fieldMask: ['identification', 'inventory'] });
+    expect(queryState.selectCalls).toEqual([['identification', 'inventory', 'tenantId']]);
+    expect(result.map(p => p.id)).toEqual(['legacy', 'ours']);
+  });
+  it('keeps the server-side tenant filter and native creation-date fallback', async () => {
+    setSnapshotDocs([{ ...makeDoc('p', { tenantId: 'tenant-A' }), createTime: { toDate: () => new Date('2026-09-01T10:00:00Z') } }]);
+    const result = await getAllProductsForTenant('tenant-A', { fieldMask: ['identification'] });
+    expect(queryState.whereCalls).toEqual([{ field: 'tenantId', op: '==', value: 'tenant-A' }]);
+    expect(result[0].ops.created_at_iso).toBe('2026-09-01T10:00:00.000Z');
+  });
+  it('does not project any existing full-document caller', async () => {
+    await getAllProductsForTenant('default');
+    await getAllProductsForTenant('tenant-A');
+    expect(queryState.selectCalls).toEqual([]);
   });
 });

@@ -1087,30 +1087,29 @@ router.get('/kaufland/sku-index', requirePermission('products', 'read'), async (
 router.get('/kaufland/listings', requirePermission('products', 'read'), async (req, res) => {
   try {
     const storefront = String(req.query?.storefront || 'de').trim().toLowerCase();
-    const { getAllProductsV2, getAllProductsV2ForTenant } = require('../lib/product-store');
+    const { getAllProductsV2ForTenant } = require('../lib/product-store');
 
-    // Fetch both collections in parallel
-    // Try with storefront filter first, fall back to all units if empty
-    let unitsSnap = await firestore
-      .collection('kauflandUnitsLive')
-      .where('storefront', '==', storefront)
-      .get();
-    if (unitsSnap.empty) {
-      // Storefront field might be missing or use different case — fetch all
-      unitsSnap = await firestore.collection('kauflandUnitsLive').get();
-    }
-    // D.0c-style tenant fallback: prefer Firestore-side filter when a
-    // tenantId is on req.user, else read globally (legacy behaviour).
-    const tenantIdForListings = req.user?.tenantId;
-    const products = tenantIdForListings
-      ? await getAllProductsV2ForTenant(tenantIdForListings)
-      : await getAllProductsV2();
-
-    // BUG-070: storageBins are in `products` (legacy), not products_v2.
-    // Build a lookup from legacy docs to merge BIN data.
-    const legacySnap = await firestore.collection('products').select('storageBins', 'storage').get();
+    const { MARKETPLACE_PRODUCT_FIELDS } = require('../lib/product-read-models');
+    const { readDocumentBatches } = require('../lib/firestore-read-batches');
+    const tenantIdForListings = req.user?.tenantId || 'default';
+    const [initialUnits, products] = await Promise.all([
+      firestore.collection('kauflandUnitsLive').where('storefront', '==', storefront).get(),
+      getAllProductsV2ForTenant(tenantIdForListings, {
+        queryFn: ref => ref.select(...MARKETPLACE_PRODUCT_FIELDS),
+      }),
+    ]);
+    // Preserve the legacy storefront fallback and all listings/counts.
+    const unitsSnap = initialUnits.empty
+      ? await firestore.collection('kauflandUnitsLive').get()
+      : initialUnits;
+    // Only products lacking V2 bins need the legacy fallback. An empty V2 array
+    // is authoritative (e.g. a cleared warehouse zone), exactly as before.
+    const legacyRefs = products.filter(p => !p.storageBins && p.id)
+      .map(p => firestore.collection('products').doc(String(p.id)));
+    const legacyDocs = await readDocumentBatches(firestore, legacyRefs, ['tenantId', 'storageBins', 'storage']);
     const legacyBinMap = new Map();
-    legacySnap.docs.forEach((doc) => {
+    legacyDocs.forEach((doc) => {
+      if (!doc.exists) return;
       const ld = doc.data() || {};
       if (ld.storageBins || ld.storage) legacyBinMap.set(doc.id, ld);
     });

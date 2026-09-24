@@ -477,3 +477,7 @@ Setzt Unit-Status auf `AVAILABLE` oder `ONHOLD`.
 ## eBay-Nachrichtenfreigabe (20.09.2026)
 
 Bestehendes `GET /api/ebay/oauth/start?messages=1` verlangt weiterhin integrations.write und ergänzt commerce.message nur auf diese ausdrückliche Option. Für Nachrichten aktuell nur Tenant default. Consent enthält die Vereinigung vorhandener und konfigurierter Scopes, additive Snapshot-/tenantId-Felder im OAuth-State. Callback speichert bestätigte Scopes; fehlt ein angeforderter Grant in einer expliziten Tokenantwort, bleibt die bisherige Verbindung unangetastet. Tokenrefresh weiterhin mit gespeicherten Grants. Ein erfolgreicher Callback leert den Supportcache. Keine Nachrichten werden versandt.
+
+## Listen-Ladezeit (24.09.2026)
+
+Die bestehenden Listing-GETs projizieren ihre benötigten Produkt-/Listingfelder. eBay-Joins lesen bis zu vier Batches à 500 Dokumenten parallel je Quelle; Ergebnisse bleiben vollständig und in Eingangsreihenfolge. Fehler liefern keinen stillen Teilbestand. Legacy-BINs werden nur für Produkte ohne V2-`storageBins` gelesen; ein vorhandenes leeres Array bleibt autoritativ. Kaufland liest Units und den tenantgefilterten Produktkatalog parallel. Status-, Preis-, Match- und Zählregeln bleiben erhalten. Im Frontend ist nur die Query des geöffneten Marktplatzes aktiv; der Produkt-Fallback nutzt App-Daten statt einer zweiten Katalogabfrage. Sync-/Publish-/Bestandsmutationen unverändert.

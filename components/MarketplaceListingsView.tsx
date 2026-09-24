@@ -35,6 +35,7 @@ import { isListingRowActive } from "../utils/listingRowStatus";
 
 interface MarketplaceListingsViewProps {
   marketplace: "ebay" | "kaufland";
+  products: Product[];
 }
 
 type ListingStatus =
@@ -432,15 +433,23 @@ const IconWarning = () => (
 
 // ─── Component ───────────────────────────────────────────────
 
-export function MarketplaceListingsView({ marketplace }: MarketplaceListingsViewProps) {
+export function MarketplaceListingsView({ marketplace, products }: MarketplaceListingsViewProps) {
   const queryClient = useQueryClient();
-  const ebayQuery = useEbayListings();
-  const kauflandQuery = useKauflandListings("de");
+  const ebayQuery = useEbayListings(marketplace === "ebay");
+  const kauflandQuery = useKauflandListings("de", marketplace === "kaufland");
 
-  // Product-master lookup (id + SKU) used as a fallback source for listing-row
-  // stock/category when the listing itself carries none. Fetched once on mount,
-  // best-effort — a failure leaves rows on their existing (listing-level) data.
-  const [productMaster, setProductMaster] = useState<ProductMasterMap | null>(null);
+  // Reuse App's current product list. Mounting a marketplace must not start
+  // a second full-catalog request, and stock updates should reach this lookup.
+  const productMaster = useMemo<ProductMasterMap>(() => {
+    const byId = new Map<string, Product>();
+    const bySku = new Map<string, Product>();
+    for (const p of products) {
+      if (p.id) byId.set(p.id, p);
+      const sku = String(p.identification?.sku || p.details?.identifiers?.sku || "").toLowerCase();
+      if (sku) bySku.set(sku, p);
+    }
+    return { byId, bySku };
+  }, [products]);
 
   // Derive listings from React Query data
   const listings = useMemo<NormalizedListing[]>(() => {
@@ -513,26 +522,6 @@ export function MarketplaceListingsView({ marketplace }: MarketplaceListingsView
       fetchEbayStatus().then((s) => { if (s) setConnectionStatus(s); }).catch(() => {});
     }
   }, [marketplace]);
-
-  // Fetch the product master once on mount to back-fill listing-row stock/category
-  // when the listing itself has none (BUG-070 C1/C4). Best-effort, fire-and-forget.
-  useEffect(() => {
-    let cancelled = false;
-    fetchProducts()
-      .then((products) => {
-        if (cancelled) return;
-        const byId = new Map<string, Product>();
-        const bySku = new Map<string, Product>();
-        for (const p of products) {
-          if (p.id) byId.set(p.id, p);
-          const sku = String(p.identification?.sku || p.details?.identifiers?.sku || "").toLowerCase();
-          if (sku) bySku.set(sku, p);
-        }
-        setProductMaster({ byId, bySku });
-      })
-      .catch(() => { /* swallow — rows fall back to listing-level data */ });
-    return () => { cancelled = true; };
-  }, []);
 
   // Background-Refresh beim Mount: wenn der letzte Kaufland-Sync älter als 5min ist
   // → fire-and-forget einen Sync triggern. Frontend bleibt responsive (der Realtime-
