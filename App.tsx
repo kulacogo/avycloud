@@ -1,3 +1,4 @@
+import { blocksOnProductCatalog } from "./utils/pageLoading";
 import { ALLOWED_VIEWS, canAccessView } from "./utils/viewPermissions";
 
 import React, { useState, useCallback, useEffect, useMemo, useRef, lazy, Suspense, startTransition } from 'react';
@@ -440,7 +441,7 @@ const AppInner: React.FC = () => {
   const [view, setView] = useState<View>(initialView);
   const [initialProductId] = useState<string | null>(initialHashProductId);
   const [products, setProducts] = useState<Product[]>([]);
-  const [productsLoading, setProductsLoading] = useState<boolean>(false);
+  const [productsLoading, setProductsLoading] = useState<boolean>(true);
   const [productsError, setProductsError] = useState<string | null>(null);
   const productsRef = useRef<Product[]>([]);
   const { workspace, dispatch: updateWorkspace, currentProduct, setCurrentProduct, sheetDirtyRef, closeTab, closeProductSheet, pendingCloseId, capacityMessage, confirmClose, cancelClose } = useProductWorkspace();
@@ -987,6 +988,7 @@ const AppInner: React.FC = () => {
           />
         ) : (
           <Dashboard
+            productsLoading={productsLoading || Boolean(productsError)}
             products={products}
             onSelectProduct={handleSelectProduct}
             onRefreshProducts={loadProducts}
@@ -1093,7 +1095,7 @@ const AppInner: React.FC = () => {
         if (!(hasPermission('products', 'read') || hasPermission('products', 'write'))) {
           return <div className="text-center p-8 text-txt-muted">{t('error.forbidden')}</div>;
         }
-        return <MarketplaceListingsView key="ebay" marketplace="ebay" />;
+        return <MarketplaceListingsView key="ebay" marketplace="ebay" products={products} />;
       case 'admin':
         if (
           !(
@@ -1128,7 +1130,7 @@ const AppInner: React.FC = () => {
       case 'warehouse-settings':
         return <WarehouseSettingsView />;
       case 'marketplace-kaufland':
-        return <MarketplaceListingsView key="kaufland" marketplace="kaufland" />;
+        return <MarketplaceListingsView key="kaufland" marketplace="kaufland" products={products} />;
       case 'marketplace-errors':
         if (!(hasPermission('products', 'read') || hasPermission('products', 'write'))) {
           return <div className="text-center p-8 text-txt-muted">{t('error.forbidden')}</div>;
@@ -1190,6 +1192,7 @@ const AppInner: React.FC = () => {
           />
         ) : (
           <Dashboard
+            productsLoading={productsLoading || Boolean(productsError)}
             products={products}
             onSelectProduct={handleSelectProduct}
             onRefreshProducts={loadProducts}
@@ -1231,7 +1234,7 @@ const AppInner: React.FC = () => {
   };
 
   const renderLoadState = () => {
-    if (productsLoading && products.length === 0) {
+    if (blocksOnProductCatalog(view, productsLoading, products.length)) {
       return (
         <div className="p-6 space-y-6 animate-pulse">
           {/* KPI cards skeleton */}

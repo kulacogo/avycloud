@@ -612,3 +612,7 @@ Bestehende Notiz-Routen (`GET /api/products/notes-counts`, `GET/POST /api/produc
 - **Side-Effects**: `enrichPriceForProductBestEffort` (SerpAPI / external lookup). `saveProductV2()` falls aktualisiert.
 - **Failure Modes**: `400`, `404`, `500`.
 - **Source**: [backend/routes/products.js#L2071-L2128](../../../backend/routes/products.js#L2071-L2128)
+
+## Listen-Ladezeit (24.09.2026)
+
+`GET /api/products?view=table` verwendet eine Firestore-Feldprojektion aus `backend/lib/product-read-models.js`. Alle Produkte, Tenant-/Legacy-Filter, natives Erfassungsdatum, BIN-Anreicherung, Reservierungen und Vollständigkeitsberechnung bleiben erhalten. `details` wird vollständig gelesen, damit alle vorhandenen Filter weiter funktionieren; große Qualitäts- und Identitätshistorien werden nicht übertragen. `view=list` und der Standardpfad behalten ihren bisherigen Vertrag. Produktdetails und sämtliche Schreibpfade lesen weiterhin vollständige Dokumente. Neue Listenfelder müssen im Read-Model berücksichtigt und auf Filter-/Anzeigeparität geprüft werden. Keine Ergebnis-Caches oder Bestandslimits eingeführt.

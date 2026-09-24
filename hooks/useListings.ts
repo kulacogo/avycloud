@@ -11,9 +11,10 @@ import type { EbayListingRow } from "../types";
  * - refetchOnWindowFocus: false (no need to hammer for slow-changing data)
  * - SSE listing sync events invalidate this cache via useSSE hook
  */
-export function useEbayListings() {
+export function useEbayListings(enabled = true) {
   return useQuery<EbayListingRow[]>({
     queryKey: ["listings", "ebay"],
+    enabled,
     // limit 20000 (vorher 6000, davor 2000): ebayListingsLive hatte am
     // 2026-08-20 bereits 6.152 Docs (inkl. inaktive) — das 6000er-Fenster
     // kappte damit erneut still die NEUESTEN ItemIDs (Firestore-Default-
@@ -38,11 +39,12 @@ export function useEbayListings() {
  * Refetches on window focus to catch UI returning from a tab switch, with a
  * short staleTime so background tab returns still get fresh data.
  */
-export function useKauflandListings(storefront = "de") {
+export function useKauflandListings(storefront = "de", enabled = true) {
   const queryClient = useQueryClient();
   const initialEventRef = useRef(true);
 
   useEffect(() => {
+    if (!enabled) return;
     // Reset the "skip-first-snapshot" flag whenever storefront changes — the
     // listener re-attaches and Firestore will fire the current state as the
     // first event, which we don't want to count as a change.
@@ -85,9 +87,10 @@ export function useKauflandListings(storefront = "de") {
     return () => {
       try { unsubscribe?.(); } catch (_e) { /* noop */ }
     };
-  }, [storefront, queryClient]);
+  }, [storefront, queryClient, enabled]);
 
   return useQuery({
+    enabled,
     queryKey: ["listings", "kaufland", storefront],
     queryFn: () => fetchKauflandListings(storefront),
     staleTime: 30_000,

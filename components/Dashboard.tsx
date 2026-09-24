@@ -1,3 +1,4 @@
+import { settleProgressively } from "../utils/progressiveLoad";
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import {
   ComposedChart,
@@ -22,6 +23,7 @@ import {
 // ─── Props ────────────────────────────────────────────────────────────────────
 interface DashboardProps {
   products: Product[];
+  productsLoading?: boolean;
   onSelectProduct: (productId: string) => void;
   onRefreshProducts?: () => void | Promise<void>;
   rangePreset?: string;
@@ -406,6 +408,7 @@ const DateRangePicker: React.FC<{
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export const Dashboard: React.FC<DashboardProps> = ({
+  productsLoading = false,
   products,
   onSelectProduct: _onSelectProduct,
   onRefreshProducts,
@@ -417,8 +420,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
   // Sichtbarer Hinweis, wenn Teile der Seite nicht geladen werden konnten.
   const [loadWarnung, setLoadWarnung] = useState<string | null>(null);
   const [alleFehlgeschlagen, setAlleFehlgeschlagen] = useState(false);
-  const alleFehlgeschlagenRef = useRef(false);
-  alleFehlgeschlagenRef.current = alleFehlgeschlagen;
   const [opsError, setOpsError] = useState<string | null>(null);
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [metricsLoading, setMetricsLoading] = useState(true);
@@ -467,25 +468,32 @@ export const Dashboard: React.FC<DashboardProps> = ({
     setSyncLoading(true);
     const fromDate = activePreset === 'custom' ? from : undefined;
     const toDate = activePreset === 'custom' ? to : undefined;
+    let received = false;
     try {
-      const [oResult, mResult, sResult, aResult, actResult] = await Promise.allSettled([
+      const [oResult, mResult, sResult, aResult, actResult] = await settleProgressively([
         fetchOperationalMetrics({ preset: activePreset, from_date: fromDate, to_date: toDate }, { timeoutMs: long ? 90000 : 45000 }),
         fetchDashboardMetrics({ days: 7, preset: activePreset, from_date: fromDate, to_date: toDate }, { timeoutMs: long ? 90000 : 28000 }),
         fetchSyncStatus(),
         fetchReorderAlerts(),
         fetchActivityFeed(15),
-      ]);
+      ] as const, (index, result) => {
+        if (seq !== loadSeqRef.current) return;
+        if (result.status === 'fulfilled') {
+          received = true;
+          if (index === 0) { setOps(result.value as OperationalMetrics); setOpsError(null); }
+          if (index === 1) setMetrics(result.value as DashboardMetrics);
+          if (index === 2) setSyncStatus(result.value as SyncStatusData);
+          if (index === 3) setReorderAlerts((result.value || []) as any[]);
+          if (index === 4) setActivities((result.value || []) as ActivityEvent[]);
+        } else if (index === 0) {
+          setOpsError(result.reason?.message || 'Fehler beim Laden der Kennzahlen');
+        }
+        if (index === 0) setOpsLoading(false);
+        if (index === 1) setMetricsLoading(false);
+        if (index === 2) setSyncLoading(false);
+        if (index === 3) setAlertsLoading(false);
+      });
       if (seq !== loadSeqRef.current) return;
-      if (oResult.status === 'fulfilled') {
-        setOps(oResult.value);
-        setOpsError(null);
-      } else {
-        setOpsError((oResult.reason as any)?.message || 'Fehler beim Laden der Kennzahlen');
-      }
-      if (mResult.status === 'fulfilled') setMetrics(mResult.value);
-      if (sResult.status === 'fulfilled') setSyncStatus(sResult.value);
-      if (aResult.status === 'fulfilled') setReorderAlerts(aResult.value || []);
-      if (actResult.status === 'fulfilled') setActivities(actResult.value || []);
 
       // Vier der fuenf Abrufe scheiterten bisher LAUTLOS: das Diagramm meldete
       // "Keine Daten fuer diesen Zeitraum", die Nachbestell-Warnungen
@@ -511,12 +519,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
         setAlertsLoading(false);
         loadingRef.current = false;
         // Zeitstempel NUR setzen, wenn wirklich etwas Frisches ankam.
-        if (!alleFehlgeschlagenRef.current) setLastRefreshed(new Date());
+        if (received) setLastRefreshed(new Date());
       }
     }
   }, [activePreset]);
 
-  useEffect(() => { loadAll(); }, [loadAll]);
+  useEffect(() => { loadAll(); return () => { loadSeqRef.current++; }; }, [loadAll]);
 
   useEffect(() => {
     const long = activePreset === 'year_to_date' || activePreset === 'last_year';
@@ -785,11 +793,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 <p className="text-[11px] font-medium text-txt-muted uppercase tracking-wide">Bestand</p>
                 <div className="flex flex-wrap items-baseline gap-x-5 gap-y-2">
                   <span>
-                    <span className="text-base font-semibold text-txt-primary tabular-nums">{fmtNum(inv.inStock)}</span>
+                    <span className="text-base font-semibold text-txt-primary tabular-nums">{productsLoading && products.length === 0 ? '—' : fmtNum(inv.inStock)}</span>
                     <span className="text-txt-muted text-xs"> Produkte</span>
                   </span>
                   <span>
-                    <span className="text-base font-semibold text-txt-primary tabular-nums">{fmtNum(inv.available)}</span>
+                    <span className="text-base font-semibold text-txt-primary tabular-nums">{productsLoading && products.length === 0 ? '—' : fmtNum(inv.available)}</span>
                     <span className="text-txt-muted text-xs"> verfügbar</span>
                     {inv.reserved > 0 && (
                       <span className="text-txt-muted text-xs"> · {fmtNum(inv.reserved)} reserviert</span>

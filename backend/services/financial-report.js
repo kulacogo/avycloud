@@ -19,6 +19,7 @@
 
 const { getDashboardMetrics, firestore } = require('../lib/firestore');
 const { getAllProductsV2ForTenant } = require('../lib/product-store');
+const { FINANCE_PRODUCT_FIELDS, FINANCE_ORDER_FIELDS, FINANCE_LISTING_FIELDS } = require('../lib/product-read-models');
 const { getCheckAccountBalances, getShippingCostsFromSevDesk, getMarketplacePayoutsFromSevDesk } = require('../lib/sevdesk');
 const { getShippingCostsSummary: getSendCloudShippingSummary } = require('../lib/sendcloud');
 const { getEbayNetRevenueSummary } = require('../lib/ebay-finances');
@@ -310,9 +311,33 @@ async function queryReturnsWindow(fromIso, toIso) {
   };
 }
 
-/**
- * Haupteinstieg: vollständiger Finanzbericht für einen Zeitraum.
- */
+// Independent report inputs: start together, preserve the existing math below.
+async function loadLotCosts() {
+  const { losKostenFuerBericht } = require('../lib/lot-metrics');
+  const { getLotMetricsStore } = require('../lib/lot-metrics-store');
+  const loseSnap = await firestore.collection('warehouse_lots').get();
+  const lose = loseSnap.docs.map((d) => ({ code: d.id, ekBrutto: num(d.data().ekBrutto) }));
+
+  // Bezugsmenge kommt aus dem LAGER-JOURNAL, nicht aus den Auftraegen.
+  //
+  // Der alte Weg (heutiger Bestand + verkauft laut 'orders') sieht die
+  // Verkaufshistorie nur unvollstaendig: 'orders' beginnt erst am
+  // Kontowechsel 09.07.2026, und von 1.668 Auftraegen mit gebuchtem Pick
+  // existieren nur noch 705 — 963 (58 %) wurden geloescht (gemessen
+  // 30.08.2026). Die Bezugsmenge wurde dadurch zu klein und der
+  // Einkaufspreis je Einheit zu hoch, am staerksten beim Sammel-Los
+  // NL-0626 (3,78 € statt 2,51 € netto, +51 %).
+  const kennzahlen = await getLotMetricsStore().kennzahlen(lose);
+  return losKostenFuerBericht(lose, kennzahlen.proLos);
+}
+
+async function loadKauflandFeeBookings() {
+  const { getBookings } = require('../lib/kaufland-api');
+  const bis = new Date().toISOString().slice(0, 10);
+  const von = new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);
+  return getBookings({ from: von, to: bis, storefront: 'de' });
+}
+
 async function getFinancialReport({ preset = null, fromDate = null, toDate = null, tenantId = 'default' } = {}) {
   const errors = [];
 
@@ -332,18 +357,23 @@ async function getFinancialReport({ preset = null, fromDate = null, toDate = nul
   const bucket = pickBucket(fromIso, toIso);
 
   // ── Best-effort parallel IO ──
-  const [returnsRes, ebayRes, ordersRes, productsRes, balancesRes, sevdeskRes, sendcloudRes, payoutRes, costCfgRes, ebayListingsRes] =
+  const [returnsRes, ebayRes, ordersRes, productsRes, balancesRes, sevdeskRes, sendcloudRes, payoutRes, costCfgRes, ebayListingsRes, shipmentsRes, lotCostsRes, snapshotRes, bookingsRes] =
     await Promise.allSettled([
       queryReturnsWindow(fromIso, toIso),
       getEbayNetRevenueSummary(fromDateStr, toDateStr, { timeoutMs: 15000 }),
-      firestore.collection('orders').where('tenantId', '==', tenantId).get(),
-      getAllProductsV2ForTenant(tenantId),
+      firestore.collection('orders').where('tenantId', '==', tenantId).select(...FINANCE_ORDER_FIELDS).get(),
+      getAllProductsV2ForTenant(tenantId, { queryFn: ref => ref.select(...FINANCE_PRODUCT_FIELDS) }),
       getCheckAccountBalances({ timeoutMs: 15000 }),
       getShippingCostsFromSevDesk(fromDateStr, toDateStr, { timeoutMs: 20000 }),
       getSendCloudShippingSummary(fromDateStr, toDateStr, { timeoutMs: 20000 }),
       getMarketplacePayoutsFromSevDesk(fromDateStr, toDateStr, { timeoutMs: 20000 }),
       getCostModelConfig(tenantId),
-      firestore.collection('ebayListingsLive').get(),
+      firestore.collection('ebayListingsLive').select(...FINANCE_LISTING_FIELDS).get(),
+      String(process.env.SHIPPING_SOURCE || '').trim().toLowerCase() === 'legacy'
+        ? Promise.resolve(null) : countShipmentsWindow(fromIso, toIso, tenantId),
+      loadLotCosts(),
+      getListingSnapshotsInRange(fromIso, toIso, tenantId),
+      loadKauflandFeeBookings(),
     ]);
 
   const returns = returnsRes.status === 'fulfilled' ? returnsRes.value : (errors.push('Retouren konnten nicht geladen werden.'), { value: 0, count: 0 });
@@ -388,7 +418,7 @@ async function getFinancialReport({ preset = null, fromDate = null, toDate = nul
     const { mergeShippingBankFirst } = require('../lib/finance-shipping-merge');
     // Stueckzahl aus der EIGENEN Sendungsliste; SendCloud nur noch als
     // Rueckfall fuer alte Zeitraeume vor der v3-Umstellung.
-    const eigeneSendungen = await countShipmentsWindow(fromIso, toIso, tenantId).catch(() => null);
+    const eigeneSendungen = shipmentsRes.status === 'fulfilled' ? shipmentsRes.value : null;
     const stueckQuelle = eigeneSendungen && eigeneSendungen.parcel_count > 0
       ? eigeneSendungen
       : sendcloudShipping;
@@ -434,22 +464,8 @@ async function getFinancialReport({ preset = null, fromDate = null, toDate = nul
   // 5,39 € bei NL-0626 gegen 129,65 € bei L-072643).
   let lotCosts = new Map();
   try {
-    const { losKostenFuerBericht } = require('../lib/lot-metrics');
-    const { getLotMetricsStore } = require('../lib/lot-metrics-store');
-    const loseSnap = await firestore.collection('warehouse_lots').get();
-    const lose = loseSnap.docs.map((d) => ({ code: d.id, ekBrutto: num(d.data().ekBrutto) }));
-
-    // Bezugsmenge kommt aus dem LAGER-JOURNAL, nicht aus den Auftraegen.
-    //
-    // Der alte Weg (heutiger Bestand + verkauft laut 'orders') sieht die
-    // Verkaufshistorie nur unvollstaendig: 'orders' beginnt erst am
-    // Kontowechsel 09.07.2026, und von 1.668 Auftraegen mit gebuchtem Pick
-    // existieren nur noch 705 — 963 (58 %) wurden geloescht (gemessen
-    // 30.08.2026). Die Bezugsmenge wurde dadurch zu klein und der
-    // Einkaufspreis je Einheit zu hoch, am staerksten beim Sammel-Los
-    // NL-0626 (3,78 € statt 2,51 € netto, +51 %).
-    const kennzahlen = await getLotMetricsStore().kennzahlen(lose);
-    lotCosts = losKostenFuerBericht(lose, kennzahlen.proLos);
+    if (lotCostsRes.status === 'rejected') throw lotCostsRes.reason;
+    lotCosts = lotCostsRes.value;
     if (lotCosts.size > 0) {
       const unstimmig = [...lotCosts.values()].filter((l) => l.stimmig === false).length;
       console.log(
@@ -492,7 +508,8 @@ async function getFinancialReport({ preset = null, fromDate = null, toDate = nul
 
   let snapAvg = { avgOnline: 0, avgEbay: 0, avgKaufland: 0, days: 0 };
   try {
-    snapAvg = snapshotAverage(await getListingSnapshotsInRange(fromIso, toIso, tenantId));
+    if (snapshotRes.status === 'rejected') throw snapshotRes.reason;
+    snapAvg = snapshotAverage(snapshotRes.value);
   } catch (err) {
     console.warn('[financial-report] snapshot read failed:', err && err.message);
   }
@@ -526,10 +543,8 @@ async function getFinancialReport({ preset = null, fromDate = null, toDate = nul
   // dagegen ist sofort belastbar.
   try {
     const { measureKauflandFeeRate } = require('../lib/kaufland-fee-rate');
-    const { getBookings } = require('../lib/kaufland-api');
-    const bis = new Date().toISOString().slice(0, 10);
-    const von = new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);
-    const bericht = await getBookings({ from: von, to: bis, storefront: 'de' });
+    if (bookingsRes.status === 'rejected') throw bookingsRes.reason;
+    const bericht = bookingsRes.value;
     const gemessen = measureKauflandFeeRate(bericht?.bookings || []);
     if (gemessen) {
       feeRateKauflandGemessen = gemessen;

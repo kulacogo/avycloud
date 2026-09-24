@@ -41,3 +41,7 @@ Pro-Endpunkt-Details kommen in `docs/kb/09-api/dashboard.md` (TBD — Datei noch
 ## Bekannte Issues
 
 - [TASKS.md](../../../TASKS.md) — **BUG-069** Dashboard Chart endet bei ~12.03 (✅ gefixt, Dashboard-Redesign mit korrektem Zeitraum-Mapping). Wenn Chart nochmal abreißt → erstes Verdachtskandidat ist `preset`-Mapping in Backend-Route.
+
+## Ladeverhalten (24.09.2026)
+
+Dashboard und Home warten nicht mehr auf den globalen Produktkatalog. Unabhängige Kennzahlen, Sync-Status, Nachbestellungen und Aktivitäten erscheinen jeweils nach ihrem eigenen Abruf. Bei Zeitraumwechsel/unmount werden verspätete Ergebnisse verworfen. Lagerzahlen zeigen bis zum ersten Produktabruf `—`; ein fehlgeschlagener Gesamtabruf erhält keinen neuen Aktualisierungszeitpunkt. Bestands- und Finanzberechnungen unverändert.

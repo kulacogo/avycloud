@@ -3153,7 +3153,8 @@ async function getAllProducts(options = {}) {
  * cost and avoids cross-tenant leakage.
  *
  * @param {string} tenantId - non-empty tenant identifier
- * @param {object} [options] - reserved for future extensions (limit, orderBy, etc.)
+ * @param {object} [options] - optional read projection; no implicit limit/orderBy
+ * @param {string[]} [options.fieldMask] - explicit read model (tenantId is always included)
  * @returns {Promise<Array>} - product docs filtered by tenantId (empty array if none match)
  * @throws {Error} - if tenantId is missing, not a string, or empty/whitespace
  */
@@ -3176,7 +3177,9 @@ async function getAllProductsForTenant(tenantId, options = {}) {
     // zurück die entweder kein tenantId-Feld haben ODER tenantId === 'default'.
     // Nach Backfill (Phase B) kann diese Branch entfernt werden (Phase C).
     if (tenantId === 'default') {
-      const snapshot = await firestore.collection(PRODUCTS_COLLECTION).get();
+      let query = firestore.collection(PRODUCTS_COLLECTION);
+      if (options.fieldMask) query = query.select(...new Set([...options.fieldMask, 'tenantId']));
+      const snapshot = await query.get();
       const products = [];
       snapshot.forEach((doc) => {
         const data = doc.data();
@@ -3199,10 +3202,9 @@ async function getAllProductsForTenant(tenantId, options = {}) {
     // Echter Multi-Tenant-Filter für nicht-'default' Tenants
     // Mirror getAllProducts(): no orderBy on optional fields (would silently
     // drop docs without that field). Filter server-side by tenantId.
-    const snapshot = await firestore
-      .collection(PRODUCTS_COLLECTION)
-      .where('tenantId', '==', tenantId)
-      .get();
+    let query = firestore.collection(PRODUCTS_COLLECTION).where('tenantId', '==', tenantId);
+    if (options.fieldMask) query = query.select(...new Set([...options.fieldMask, 'tenantId']));
+    const snapshot = await query.get();
 
     const products = [];
     snapshot.forEach((doc) => {

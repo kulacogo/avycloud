@@ -35,3 +35,7 @@ Keine neue Backend-Finanzberechnung in diesem UI-Paket. Fachliche Datenlücken w
 ## Gestaltungsgrundlagen
 
 [Microsoft: Dashboard design tips](https://learn.microsoft.com/en-us/power-bi/create-reports/service-dashboards-design-tips): Kennzahlen priorisieren, Ablenkung reduzieren, Vergleiche nachvollziehbar machen. Die Umsetzung nutzt bestehende AvyCloud-Tokens für hell/dunkel und eine tabellarische Alternative zu Diagrammen.
+
+## Ladeverhalten (24.09.2026)
+
+Finanzen wird unabhängig vom globalen Produktkatalog eingeblendet. Der Report liest nur für die bestehende Rechnung benötigte Order-, Produkt- und Listingfelder. Eigene Sendungen, Loskosten, Listing-Snapshots und Kaufland-Gebührenbericht starten parallel zu den übrigen Quellen. Berechnung, Zeitraumgrenzen und Kennzeichnung fehlender/geschätzter Zahlen bleiben erhalten; keine zusätzlichen Ergebnis-Caches. Regressionen: `backend/__tests__/services/financial-read-performance.test.js`.

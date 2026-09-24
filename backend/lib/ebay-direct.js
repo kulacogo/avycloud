@@ -2107,28 +2107,20 @@ async function listLiveListings({
   if (!includeInactive) {
     query = query.where('active', '==', true);
   }
-  const snapshot = await query.get();
+  const snapshot = await query.select(
+    'tenantId', 'sku', 'title', 'subtitle', 'listingType', 'listingStatus', 'active',
+    'primaryCategoryId', 'categoryName', 'primaryCategoryName', 'viewItemUrl',
+    'currentPrice', 'currency', 'quantityAvailable', 'updatedAt', 'lastSeenAt', 'lastChangedAt'
+  ).get();
   const listings = snapshot.docs.map((doc) => ({ ...(doc.data() || {}), itemId: doc.id }));
   const ids = listings.map((x) => x.itemId).filter(Boolean);
 
-  // Firestore getAll() supports max 500 refs per call — batch if needed
-  const batchGetAll = async (refs) => {
-    if (!refs.length) return [];
-    const BATCH = 500;
-    if (refs.length <= BATCH) return firestore.getAll(...refs);
-    const results = [];
-    for (let i = 0; i < refs.length; i += BATCH) {
-      const chunk = refs.slice(i, i + BATCH);
-      const docs = await firestore.getAll(...chunk);
-      results.push(...docs);
-    }
-    return results;
-  };
+  const { readDocumentBatches } = require('./firestore-read-batches');
   const linkRefs = ids.map((id) => firestore.collection(EBAY_LINKS_COLLECTION).doc(id));
   const gapRefs = ids.map((id) => firestore.collection(EBAY_GAPS_COLLECTION).doc(id));
   const [linkDocs, gapDocs] = await Promise.all([
-    batchGetAll(linkRefs),
-    batchGetAll(gapRefs),
+    readDocumentBatches(firestore, linkRefs, ['tenantId', 'productId', 'status', 'method', 'confidence']),
+    readDocumentBatches(firestore, gapRefs, ['tenantId', 'gaps', 'updatedAt']),
   ]);
 
   const linkMap = new Map();
@@ -2145,14 +2137,18 @@ async function listLiveListings({
   const productMap = new Map();
   if (uniqueProductIds.length > 0) {
     const prodRefs = uniqueProductIds.map((id) => firestore.collection('products_v2').doc(id));
-    const prodDocs = await batchGetAll(prodRefs);
+    const prodDocs = await readDocumentBatches(firestore, prodRefs,
+      ['tenantId', 'storageBins', 'storage', 'binCode', 'inventory', 'identification.category']);
     prodDocs.forEach((doc) => {
       if (doc.exists) productMap.set(doc.id, doc.data() || {});
     });
     // BUG-070: storageBins/storage are written to `products` (legacy) by warehouse.js,
     // not to products_v2. Merge BIN data from legacy collection so listings show BIN codes.
-    const legacyRefs = uniqueProductIds.map((id) => firestore.collection('products').doc(id));
-    const legacyDocs = await batchGetAll(legacyRefs);
+    const legacyRefs = uniqueProductIds.filter(id => {
+      const p = productMap.get(id);
+      return p && !p.storageBins;
+    }).map((id) => firestore.collection('products').doc(id));
+    const legacyDocs = await readDocumentBatches(firestore, legacyRefs, ['tenantId', 'storageBins', 'storage']);
     legacyDocs.forEach((doc) => {
       if (!doc.exists) return;
       const ld = doc.data() || {};
