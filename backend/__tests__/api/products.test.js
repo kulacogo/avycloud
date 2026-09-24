@@ -84,6 +84,16 @@ describe('GET /api/products', () => {
     expect(mask).not.toContain('ops.data_quality');
   });
 
+  it('preserves the legacy top-level price used by completeness in projected table reads', async () => {
+    firebaseSpies.getAllProductsForTenant.mockImplementation(async (_tenant, { fieldMask }) => {
+      const full = { ...SAMPLE_PRODUCT, pricing: { price: 25 } };
+      return [Object.fromEntries(Object.entries(full).filter(([field]) => fieldMask.includes(field)))];
+    });
+    const res = await request(app).get('/api/products?view=table');
+    expect(res.status).toBe(200);
+    expect(res.body.products[0].completeness.missing).not.toContain('price');
+  });
+
   it('returns 200 with empty array when no products exist', async () => {
     firebaseSpies.getAllProductsForTenant?.mockResolvedValue([]);
     const res = await request(app).get('/api/products');

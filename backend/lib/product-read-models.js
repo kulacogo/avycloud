@@ -4,7 +4,7 @@
 // Detail/edit endpoints and all operational stock writers still load full docs.
 const PRODUCT_TABLE_FIELDS = [
   'id', 'tenantId', 'identification', 'details', 'inventory', 'storage', 'storageBins',
-  'completeness', 'marketplace', 'marketplace_listings', 'binCode', 'createdAt', 'updatedAt',
+  'completeness', 'pricing', 'marketplace', 'marketplace_listings', 'binCode', 'createdAt', 'updatedAt',
   ...[
     'sync_status', 'last_saved_iso', 'last_synced_iso', 'created_at_iso', 'identified_by',
     'base_product_id', 'pending_intake_quantity', 'revision', 'condition_locked',

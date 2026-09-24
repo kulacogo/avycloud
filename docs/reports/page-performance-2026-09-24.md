@@ -21,7 +21,7 @@ Read-only Messung am vollständigen Produktbestand (2.385 Dokumente): volle Docs
 ## Validierung vor Rollout
 
 - Ausgangsbasis: 5.484 Backendtests/464 Dateien, 494 Frontendtests, Typecheck/Build grün.
-- Danach: 5.495 Backendtests/468 Dateien, 497 Frontendtests, Typecheck/Produktionsbuild grün.
+- Danach: 5.496 Backendtests/468 Dateien, 497 Frontendtests, Typecheck/Produktionsbuild grün.
 - Neue Regressionen für begrenzte Batch-Parallelität, Vollständigkeit/Fehlerverhalten, projizierte tenantbezogene Reads, API-Pagination, eBay-/Kaufland-Zeilen, Finanzresultate und parallele Quellen, unabhängiges Seiten-/Abschnittsladen.
 - Read-only Paritätsprüfung über alle 2.385 produktiven Produktdokumente: **29 Filterdefinitionen / 1.555 Vergleichsfälle einschließlich dynamischer Optionen und Mengen-/Kategorie-Helfer identisch**. Gegenüberstellung aus demselben Snapshot; keine Daten geschrieben.
 - Alt-Clients nutzen weiter `view=list`; neuer Client mit altem Backend erhält im Rollout-Fenster den bestehenden vollständigen Response. Keine inkompatible Umstellung.
