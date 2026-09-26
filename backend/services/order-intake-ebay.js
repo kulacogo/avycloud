@@ -35,6 +35,8 @@ function getDb() {
 async function fetchEbayOrders({
   createTimeFrom,
   createTimeTo,
+  modTimeFrom,
+  modTimeTo,
   pageNumber = 1,
   entriesPerPage = 50,
   orderRole = 'Seller',
@@ -42,12 +44,23 @@ async function fetchEbayOrders({
 } = {}) {
   // Default: last 7 days
   const now = new Date();
-  const from = createTimeFrom || new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
-  const to = createTimeTo || now.toISOString();
-
-  const innerXml = `
+  // ModTime (geaendert im Fenster) und CreateTime (angelegt im Fenster) schliessen
+  // sich bei GetOrders gegenseitig aus. ModTime ist der Abgleich-Weg: er liefert
+  // nur, was sich seit dem letzten Lauf bei eBay bewegt hat.
+  let timeFilter;
+  if (modTimeFrom) {
+    timeFilter = `
+    <ModTimeFrom>${modTimeFrom}</ModTimeFrom>
+    <ModTimeTo>${modTimeTo || now.toISOString()}</ModTimeTo>`;
+  } else {
+    const from = createTimeFrom || new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const to = createTimeTo || now.toISOString();
+    timeFilter = `
     <CreateTimeFrom>${from}</CreateTimeFrom>
-    <CreateTimeTo>${to}</CreateTimeTo>
+    <CreateTimeTo>${to}</CreateTimeTo>`;
+  }
+
+  const innerXml = `${timeFilter}
     <OrderRole>${orderRole}</OrderRole>
     <OrderStatus>${orderStatus}</OrderStatus>
     <Pagination>
@@ -339,33 +352,96 @@ async function syncEbayOrders({ tenantId = 'default', lookbackDays = 7 } = {}) {
   }
 
   // --- Status reconciliation: re-fetch recent orders to pick up status changes ---
-  try {
-    const reconcileDays = parseInt(process.env.RECONCILIATION_MAX_AGE_DAYS || '30', 10);
-    const reconcileFrom = new Date(Date.now() - reconcileDays * 24 * 60 * 60 * 1000).toISOString();
-    let recPage = 1;
-    let recTotal = 0;
-    let recChecked = 0;
-    do {
-      const result = await fetchEbayOrders({
-        createTimeFrom: reconcileFrom,
-        createTimeTo: now.toISOString(),
-        pageNumber: recPage,
-        entriesPerPage: 100,
-      });
-      recTotal = result.totalEntries;
-      for (const order of result.orders) {
-        await saveOrderIfNew({ tenantId, order });
-        recChecked++;
-      }
-      recPage++;
-      if (recPage > result.totalPages) break;
-    } while (recPage <= 50);
-    console.log(`[ebay-intake] Status reconciliation: checked ${recChecked} orders (14d lookback)`);
-  } catch (err) {
-    console.warn(`[ebay-intake] Status reconciliation failed: ${err.message}`);
+  const startedAtMs = Date.now();
+  const plan = planReconciliation(startedAtMs);
+  if (plan.mode !== 'skip') {
+    markReconciliationAttempt(startedAtMs);
+    try {
+      const reconcileDays = parseInt(process.env.RECONCILIATION_MAX_AGE_DAYS || '30', 10);
+      const recWindow = plan.mode === 'full'
+        ? { createTimeFrom: new Date(startedAtMs - reconcileDays * 24 * 60 * 60 * 1000).toISOString(), createTimeTo: now.toISOString() }
+        : { modTimeFrom: new Date(plan.modTimeFromMs).toISOString(), modTimeTo: new Date(startedAtMs).toISOString() };
+      let recPage = 1;
+      let recChecked = 0;
+      do {
+        const result = await fetchEbayOrders({ ...recWindow, pageNumber: recPage, entriesPerPage: 100 });
+        for (const order of result.orders) {
+          await saveOrderIfNew({ tenantId, order });
+          recChecked++;
+        }
+        recPage++;
+        if (recPage > result.totalPages) break;
+      } while (recPage <= 50);
+      markReconciliationDone(plan.mode, startedAtMs);
+      console.log(`[ebay-intake] Status reconciliation (${plan.mode}): checked ${recChecked} orders (${recPage - 1} page(s))`);
+    } catch (err) {
+      console.warn(`[ebay-intake] Status reconciliation failed: ${err.message}`);
+    }
   }
 
   return { synced: totalSynced, skipped: totalSkipped, total: totalEntries };
+}
+
+// ─── Abgleich-Taktung (seit 2026-09-26) ─────────────────────────────────────
+//
+// Vorher lief bei JEDEM syncEbayOrders-Aufruf ein Voll-Abgleich ueber 30 Tage
+// (bei ~400 Auftraegen 4+ GetOrders-Seiten, wachsend mit dem Umsatz) — auch
+// beim 5-min-Fast-Poll, dessen Kommentar in index.js ausdruecklich "KEIN
+// 30d-Reconcile" verspricht, und bei jedem Oberflaechen-Abgleich (gemessen:
+// 243 Laeufe in 6 h allein auf dem Web-Dienst). Gemessen am 26.09.: GetOrders
+// verbrauchte 1.760 von 2.460 Trading-Aufrufen seit dem Tages-Reset — 72 %.
+// Das Tageskontingent (5.000 fuer ALLE Trading-Aufrufe zusammen) war an fast
+// jedem Tag ab ~00:30 UTC leer, bis zum Reset um 07:00 UTC: kein Auftrags-
+// Import, kein Bestandsabgleich, kein Versand-Melden (Vorfall 25.09.).
+//
+// Jetzt:
+//   full         — 30-Tage-Abgleich wie bisher, hoechstens alle 3 h je Prozess
+//                  (Sicherheitsnetz, faengt alles, was ModTime verpassen koennte)
+//   incremental  — nur Auftraege, die eBay seit dem Beginn des letzten Voll-
+//                  Abgleichs geaendert hat (ModTimeFrom); im Normalfall EINE Seite
+//   skip         — weniger als 4 min seit dem letzten Abgleich-VERSUCH: nur die
+//                  Neuanlage (Intake). Die Sperre gilt auch fuer einen
+//                  gescheiterten Voll-Lauf — sonst wiederholte jeder Aufruf die
+//                  30-Tage-Abfrage und der alte Verbrauch waere zurueck.
+//
+// Lueckenlos: das inkrementelle Fenster beginnt immer beim START des letzten
+// ERFOLGREICHEN Voll-Abgleichs (minus Ueberlappung) — alles davor hat der
+// Voll-Abgleich gesehen, alles danach sieht ModTime. Scheitert ein Voll-Lauf,
+// bleibt der alte Startpunkt stehen und der Voll-Lauf bleibt faellig.
+//
+// Notbremse: EBAY_RECONCILE_MODE='full' stellt das alte Verhalten her.
+
+const RECONCILE_FULL_INTERVAL_MS = parseInt(process.env.EBAY_RECONCILE_FULL_INTERVAL_MS || String(3 * 60 * 60 * 1000), 10);
+const RECONCILE_MIN_INTERVAL_MS = parseInt(process.env.EBAY_RECONCILE_MIN_INTERVAL_MS || String(4 * 60 * 1000), 10);
+const RECONCILE_OVERLAP_MS = 10 * 60 * 1000;
+
+const _reconcileState = { lastFullStartedAtMs: 0, lastAttemptAtMs: 0 };
+
+/**
+ * Rein bis auf den uebergebenen Zustand: welcher Abgleich ist jetzt faellig?
+ * @param {number} nowMs
+ * @returns {{ mode: 'full'|'incremental'|'skip', modTimeFromMs?: number }}
+ */
+function planReconciliation(nowMs, state = _reconcileState) {
+  if (String(process.env.EBAY_RECONCILE_MODE || '').trim().toLowerCase() === 'full') return { mode: 'full' };
+  if (state.lastAttemptAtMs && nowMs - state.lastAttemptAtMs < RECONCILE_MIN_INTERVAL_MS) return { mode: 'skip' };
+  if (!state.lastFullStartedAtMs || nowMs - state.lastFullStartedAtMs >= RECONCILE_FULL_INTERVAL_MS) {
+    return { mode: 'full' };
+  }
+  return { mode: 'incremental', modTimeFromMs: state.lastFullStartedAtMs - RECONCILE_OVERLAP_MS };
+}
+
+function markReconciliationAttempt(startedAtMs, state = _reconcileState) {
+  state.lastAttemptAtMs = startedAtMs;
+}
+
+function markReconciliationDone(mode, startedAtMs, state = _reconcileState) {
+  if (mode === 'full') state.lastFullStartedAtMs = startedAtMs;
+}
+
+function _resetReconcileStateForTests() {
+  _reconcileState.lastFullStartedAtMs = 0;
+  _reconcileState.lastAttemptAtMs = 0;
 }
 
 /**
@@ -621,4 +697,8 @@ module.exports = {
   syncEbayOrders,
   saveOrderIfNew,
   enrichOrderItemsWithWeight,
+  planReconciliation,
+  markReconciliationAttempt,
+  markReconciliationDone,
+  _resetReconcileStateForTests,
 };

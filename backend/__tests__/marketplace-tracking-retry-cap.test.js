@@ -41,7 +41,20 @@ describe('marketplace-tracking retry cap', () => {
     });
     expect(r.status).toBe('failed');
     expect(r.rateLimited).toBe(true);
-    expect(r.attempts).toBe(2);
+    // Seit 2026-09-26: Kontingent-Fehler zaehlen NICHT gegen die Obergrenze —
+    // sonst waere ein Push nach einer Stunde leerem Tageskontingent fuer immer
+    // aufgegeben, obwohl er am Morgen problemlos durchginge.
+    expect(r.attempts).toBe(1);
+  });
+
+  it('rate-limited error at the cap → still failed, never abandoned by quota alone', () => {
+    const r = deriveMarketplacePushStatus({
+      ok: false,
+      error: 'eBay Trading skipped for CompleteSale: exceeded usage limit (quota cooldown 42s)',
+      prevAttempts: MAX_PUSH_ATTEMPTS - 1,
+    });
+    expect(r.status).toBe('failed');
+    expect(r.attempts).toBe(MAX_PUSH_ATTEMPTS - 1);
   });
 
   it('transient error under cap → failed, retry allowed', () => {

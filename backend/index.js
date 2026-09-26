@@ -534,6 +534,20 @@ const server = app.listen(PORT, () => {
     setTimeout(() => { runTrackingCatchup().catch((err) => console.warn('[tracking-catchup] failed:', err?.message)); }, 120_000); // First run after 2 min
     setInterval(() => { runTrackingCatchup().catch((err) => console.warn('[tracking-catchup] failed:', err?.message)); }, TRACKING_CATCHUP_INTERVAL_MS);
     console.log(`[tracking-catchup] safety-net enabled: every ${TRACKING_CATCHUP_INTERVAL_MS}ms`);
+
+    // Schneller Nachholer NUR fuer gescheiterte Tracking-Pushes (seit 2026-09-26).
+    // Ein Versand, der wegen leerem eBay-Kontingent scheiterte, wird nach
+    // spaetestens 10 min erneut gemeldet — nicht erst nach 2 h. Im Normalfall
+    // liefert die Abfrage 0 Treffer (ein Firestore-Lesevorgang).
+    const TRACKING_FAST_CATCHUP_INTERVAL_MS = parseInt(process.env.TRACKING_FAST_CATCHUP_INTERVAL_MS || String(10 * 60 * 1000), 10);
+    const runFastTrackingCatchup = async () => {
+      const { retryFailedTrackingPushes } = require('./services/marketplace-tracking');
+      await runForAllTenants('tracking-catchup-fast', async ({ tenantId }) => {
+        await retryFailedTrackingPushes({ tenantId });
+      });
+    };
+    setInterval(() => { runFastTrackingCatchup().catch((err) => console.warn('[tracking-catchup-fast] failed:', err?.message)); }, TRACKING_FAST_CATCHUP_INTERVAL_MS);
+    console.log(`[tracking-catchup-fast] enabled: every ${TRACKING_FAST_CATCHUP_INTERVAL_MS}ms`);
   } catch (err) {
     console.warn('[tracking-catchup] failed to start safety-net:', err?.message || err);
   }

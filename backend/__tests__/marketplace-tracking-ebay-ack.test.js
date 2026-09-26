@@ -38,6 +38,12 @@ patch('../lib/ebay-trading-api', {
   buildRequestRoot: () => '<xml/>',
   callTradingApi: async (callName, xml) => tradingApiImpl(callName, xml),
 });
+// Kontingent-Fehler nehmen seit 2026-09-26 den Fulfillment-API-Ausweichweg
+// (eigener Test: marketplace-tracking-ebay-rest-fallback.test.js). Hier ohne
+// Netz: der Token-Abruf scheitert sofort, der Push bleibt ok:false.
+patch('../lib/ebay-oauth', {
+  getValidEbayAccessToken: async () => { throw new Error('eBay is not connected (test)'); },
+});
 
 const { pushTrackingToEbay, deriveMarketplacePushStatus } = require('../services/marketplace-tracking');
 

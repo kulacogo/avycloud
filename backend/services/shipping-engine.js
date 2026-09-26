@@ -1562,6 +1562,37 @@ async function downloadLabelPdf(labelUrl, { maxRetries = 8, retryDelayMs = 2000 
  * @param {{ tenantId?: string, fromDate?: string, toDate?: string }} opts
  * @returns {Promise<{ matched: object[], unmatched: object[], skipped: number }>}
  */
+/**
+ * Welche Primaer-Felder darf der SendCloud-Abgleich am Auftrag setzen?
+ *
+ * Vorfall (15 Auftraege in 45 Tagen, zuletzt ebay__20-15189-76007 am
+ * 25.09.2026): scheitert beim Etikett-Erstellen die Anmeldung beim
+ * Transporteur ("SendCloud Announcement failed"), bleibt bei SendCloud ein
+ * Paket OHNE Sendungsnummer mit Status "problem" zurueck — createParcel wirft,
+ * bevor ein shipments-Doc entsteht. Der Bediener nimmt dann eine andere
+ * Versandart, die klappt. Sekunden spaeter fand der Abgleich das verwaiste
+ * Paket, hielt es fuer neu und schrieb es als Primaer-Sendung auf den Auftrag:
+ * `trackingNumber: null`, `shipmentId` → das Problem-Paket. Folgen: die
+ * Sendungsnummer verschwand aus der Oberflaeche, die Zustellungs-Abfrage fand
+ * nichts mehr (alle 15 hingen dauerhaft auf "Versendet"), und ein gescheiterter
+ * eBay-Push konnte nie nachgeholt werden — der Nachholer braucht die Nummer.
+ *
+ * Regel: ein Paket ohne Sendungsnummer wird nie Primaer-Sendung. Es bleibt als
+ * shipments-Doc protokolliert, der Auftrag bleibt unberuehrt.
+ *
+ * @returns {object|null} Update fuer den Auftrag oder null (nichts schreiben)
+ */
+function buildSyncOrderTrackingUpdate({ trackingNumber, trackingUrl, carrier, shipmentId, nowIso = new Date().toISOString() }) {
+  if (!trackingNumber) return null;
+  return {
+    trackingNumber,
+    trackingUrl: trackingUrl || null,
+    shippingService: carrier || null,
+    shipmentId,
+    updatedAt: nowIso,
+  };
+}
+
 async function syncSendCloudParcels({ tenantId = 'default', fromDate, toDate } = {}) {
   const auth = await getSendCloudAuth();
   const db = getDb();
@@ -1754,15 +1785,14 @@ async function syncSendCloudParcels({ tenantId = 'default', fromDate, toDate } =
 
     const shipRef = await db.collection(SHIPMENTS_COLLECTION).add(shipmentDoc);
 
-    // Update order with tracking info
-    const orderUpdate = {
-      trackingNumber,
-      trackingUrl,
-      shippingService: carrier,
-      shipmentId: shipRef.id,
-      updatedAt: new Date().toISOString(),
-    };
-    await db.collection(ORDERS_COLLECTION).doc(order.id).set(orderUpdate, { merge: true });
+    // Update order with tracking info — aber NIE mit einem Paket ohne
+    // Sendungsnummer (siehe buildSyncOrderTrackingUpdate).
+    const orderUpdate = buildSyncOrderTrackingUpdate({ trackingNumber, trackingUrl, carrier, shipmentId: shipRef.id });
+    if (orderUpdate) {
+      await db.collection(ORDERS_COLLECTION).doc(order.id).set(orderUpdate, { merge: true });
+    } else {
+      console.warn(`[syncSendCloud] Paket ${parcelId} (${parcel.status?.message || statusId}) ohne Sendungsnummer fuer ${order.id} — nur protokolliert, Primaer-Sendung bleibt`);
+    }
 
     // Auto-transition to shipped if tracking is confirmed and order is NOT already in a terminal state
     const currentStatus = order.omsStatus || order.status || 'pending';
@@ -2165,6 +2195,7 @@ module.exports = {
   refreshShipmentFromSendCloud,
   downloadLabelPdf,
   syncSendCloudParcels,
+  buildSyncOrderTrackingUpdate,
   pollDeliveryStatus,
   DEFAULT_CARRIER_RULES,
 };

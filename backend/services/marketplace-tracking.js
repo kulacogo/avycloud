@@ -130,7 +130,8 @@ function isPermanentPushError(msg) {
     m.includes('order not found') ||
     m.includes('already shipped') ||
     m.includes('already acknowledged') ||
-    m.includes('invalid order')
+    m.includes('invalid order') ||
+    m.includes('order cancelled on ebay')
   );
 }
 
@@ -138,15 +139,24 @@ function isPermanentPushError(msg) {
  * Decide the marketplacePush status + attempt count for a push result.
  * Pure + exported so the retry-cap behavior is unit-tested without Firestore.
  *
+ * Kontingent-Fehler zaehlen NICHT gegen die Obergrenze (seit 2026-09-26):
+ * das eBay-Tageskontingent ist regelmaessig von ~00:30 bis 07:00 UTC leer.
+ * Zaehlte jeder Nachholversuch in dieser Zeit mit, waere der Push nach einer
+ * Stunde 'abandoned' — fuer immer, obwohl er am Morgen problemlos durchginge.
+ * Der Push selbst ist daran nicht schuld; gegen einen Sturm schuetzt der
+ * Kontingent-Schutzschalter in lib/ebay-trading-api.js (der Aufruf verlaesst
+ * den Prozess gar nicht) und die Altersgrenze im Nachholer.
+ *
  * @param {{ ok: boolean, error?: string, prevAttempts?: number }} opts
  * @returns {{ status: 'success'|'failed'|'abandoned', attempts: number, rateLimited: boolean, permanent: boolean }}
  */
 function deriveMarketplacePushStatus({ ok, error, prevAttempts = 0 }) {
   const base = Number(prevAttempts) || 0;
   if (ok) return { status: 'success', attempts: base, rateLimited: false, permanent: false };
-  const attempts = base + 1;
   const permanent = isPermanentPushError(error);
-  const rateLimited = isRateLimitedError(error);
+  const rateLimited = !permanent && isRateLimitedError(error);
+  if (rateLimited) return { status: 'failed', attempts: base, rateLimited, permanent };
+  const attempts = base + 1;
   const status = permanent || attempts >= MAX_PUSH_ATTEMPTS ? 'abandoned' : 'failed';
   return { status, attempts, rateLimited, permanent };
 }
@@ -218,6 +228,9 @@ async function pushTrackingToMarketplace({ orderId, trackingNumber, carrier }) {
     error: result.ok ? null : (result.error || 'unknown'),
     trackingNumber,
     carrier: carrier || null,
+    // Welcher eBay-Weg die Meldung getragen hat ('trading' = CompleteSale,
+    // 'fulfillment_api' = REST-Ausweichweg bei leerem Trading-Kontingent).
+    via: result.via || null,
   }, orderId);
 
   if (status === 'abandoned') {
@@ -243,17 +256,41 @@ async function pushTrackingToMarketplace({ orderId, trackingNumber, carrier }) {
 }
 
 /**
- * Push tracking to eBay via CompleteSale (Trading API).
+ * Push tracking to eBay via CompleteSale (Trading API). Ist das
+ * Trading-Tageskontingent leer, geht die Meldung ueber die
+ * Sell-Fulfillment-REST-API (eigenes Kontingent).
  *
  * @param {{ order: object, trackingNumber: string, carrier: string }} opts
- * @returns {Promise<{ ok: boolean, marketplace: string, error?: string }>}
+ * @returns {Promise<{ ok: boolean, marketplace: string, via?: string, error?: string }>}
  */
 async function pushTrackingToEbay({ order, trackingNumber, carrier }) {
+  const ebayOrderId = order.marketplaceOrderId || order.externalOrderId;
+  if (!ebayOrderId) return { ok: false, marketplace: 'ebay', error: 'No eBay order ID' };
+
+  const trading = await pushTrackingToEbayTrading({ order, ebayOrderId, trackingNumber, carrier });
+  if (trading.ok || !isRateLimitedError(trading.error) || !ebayRestFallbackEnabled()) return trading;
+
+  // Trading-Tageskontingent leer (gemessen: 5.000 Aufrufe/Tag fuer ALLE
+  // Trading-Aufrufe zusammen, Reset 07:00 UTC; GetOrders allein verbrauchte
+  // 72 %). Die Sell-Fulfillment-REST-API hat ein EIGENES Kontingent
+  // (100.000/Tag) — der Versand wird also trotzdem sofort gemeldet, statt
+  // bis zum naechsten Morgen zu warten.
+  console.warn(`[marketplace-tracking] eBay Trading-Kontingent leer fuer ${ebayOrderId} — melde ueber Fulfillment-API`);
+  const rest = await pushTrackingToEbayRest({ order, ebayOrderId, trackingNumber, carrier });
+  if (rest.ok) return rest;
+  // Beide Wege gescheitert: die Kontingent-Signatur der Trading-Antwort
+  // behalten, damit der Nachholer den Versuch nicht gegen die Obergrenze zaehlt.
+  return { ok: false, marketplace: 'ebay', via: 'fulfillment_api', error: `${trading.error} | Fulfillment-API: ${rest.error}` };
+}
+
+/** Notbremse fuer den REST-Ausweichweg — nur exakt 'off' schaltet ab. */
+function ebayRestFallbackEnabled() {
+  return String(process.env.EBAY_TRACKING_REST_FALLBACK || '').trim().toLowerCase() !== 'off';
+}
+
+async function pushTrackingToEbayTrading({ order, ebayOrderId, trackingNumber, carrier }) {
   try {
     const { callTradingApi, buildRequestRoot, getEbayTradingConfig } = require('../lib/ebay-trading-api');
-
-    const ebayOrderId = order.marketplaceOrderId || order.externalOrderId;
-    if (!ebayOrderId) return { ok: false, marketplace: 'ebay', error: 'No eBay order ID' };
 
     const ebayCarrier = EBAY_CARRIER_MAP[(carrier || '').toLowerCase()] || carrier || 'Other';
 
@@ -288,7 +325,7 @@ async function pushTrackingToEbay({ order, trackingNumber, carrier }) {
         `CompleteSale failed with Ack=${result.ack || 'Failure'}`;
       console.error(`[marketplace-tracking] eBay CompleteSale Ack=Failure for order ${ebayOrderId}: ${message}`);
       collectError({ type: 'api_error', severity: 'warning', channel: 'ebay', message: `Tracking-Push eBay abgelehnt (Ack=Failure): ${message}`, entityType: 'order', entityId: ebayOrderId, source: 'marketplace-tracking' });
-      return { ok: false, marketplace: 'ebay', error: message };
+      return { ok: false, marketplace: 'ebay', via: 'trading', error: message };
     }
 
     if (ack === 'warning') {
@@ -297,11 +334,141 @@ async function pushTrackingToEbay({ order, trackingNumber, carrier }) {
       console.warn(`[marketplace-tracking] eBay CompleteSale Ack=Warning for order ${ebayOrderId} (accepted): ${warnMsg}`);
     }
 
-    return { ok: true, marketplace: 'ebay' };
+    return { ok: true, marketplace: 'ebay', via: 'trading' };
   } catch (err) {
     console.error(`[marketplace-tracking] eBay push failed: ${err.message}`);
     collectError({ type: 'api_error', severity: 'warning', channel: 'ebay', message: `Tracking-Push eBay fehlgeschlagen: ${err.message}`, entityType: 'order', entityId: order.marketplaceOrderId || order.externalOrderId, source: 'marketplace-tracking' });
-    return { ok: false, marketplace: 'ebay', error: err.message };
+    return { ok: false, marketplace: 'ebay', via: 'trading', error: err.message };
+  }
+}
+
+/**
+ * eBay-Versanddienstleister-Codes fuer die Fulfillment-REST-API. Anders als
+ * CompleteSale (dort loest eBay auch 'dhl_de' oder 'dp' selbst auf — gemessen:
+ * 'dhl_de' → "DHL Germany", 'dp' → "Deutsche Post (DHL)") verlangt
+ * shippingCarrierCode einen Wert der eBay-Liste. Quelle: GeteBayDetails
+ * ShippingCarrierDetails, Site 77, abgerufen 2026-09-26.
+ */
+const EBAY_REST_CARRIER_CODES = {
+  dhl: 'DHL',
+  dhl_de: 'DHL',
+  'dhl-de': 'DHL',
+  dhlde: 'DHL',
+  dp: 'DeutschePost',
+  deutsche_post: 'DeutschePost',
+  deutschepost: 'DeutschePost',
+  dpd: 'DPD',
+  dpd_de: 'DPD',
+  'dpd-de': 'DPD',
+  gls: 'GLS',
+  gls_de: 'GLS',
+  hermes: 'Hermes',
+  hermes_de: 'Hermes',
+  ups: 'UPS',
+  dhl_express: 'DHLEXPRESS',
+  dhlexpress: 'DHLEXPRESS',
+};
+
+/**
+ * Interne Transporteur-Kennung → eBay-Code fuer die REST-API, oder null.
+ * Nur der Teil vor dem ':' zaehlt ('dpd:express/delivery=18' → dpd).
+ * null heisst: nicht sicher zuzuordnen — dann lieber NICHT ueber REST melden
+ * (ein falscher Code macht die Sendungsverfolgung fuer den Kaeufer wertlos).
+ */
+function toEbayRestCarrierCode(carrier) {
+  const key = String(carrier || '').trim().toLowerCase().split(':')[0].replace(/\s+/g, '_');
+  if (!key) return null;
+  return EBAY_REST_CARRIER_CODES[key] || null;
+}
+
+/**
+ * Versanddatum fuer die REST-Meldung: der ECHTE Versandzeitpunkt des Auftrags,
+ * nicht der Zeitpunkt, zu dem der Nachholer endlich durchkam. Ungueltig oder
+ * in der Zukunft → jetzt.
+ */
+function resolveShippedDate(order, nowMs = Date.now()) {
+  const raw = order?.shippedAt;
+  const ms = raw && typeof raw.toDate === 'function' ? raw.toDate().getTime() : Date.parse(raw || '');
+  if (!Number.isFinite(ms) || ms > nowMs) return new Date(nowMs).toISOString();
+  return new Date(ms).toISOString();
+}
+
+async function readRestError(res) {
+  const text = await res.text().catch(() => '');
+  try {
+    const json = JSON.parse(text);
+    const first = Array.isArray(json?.errors) ? json.errors[0] : null;
+    if (first) return `${first.errorId || ''} ${first.longMessage || first.message || ''}`.trim();
+  } catch (_) { /* kein JSON */ }
+  return text.slice(0, 300);
+}
+
+/**
+ * Versand ueber die Sell-Fulfillment-REST-API melden
+ * (POST /sell/fulfillment/v1/order/{id}/shipping_fulfillment).
+ *
+ * Idempotent: vorher wird der Auftrag gelesen. Ist er bei eBay bereits
+ * versendet gemeldet, wird KEINE zweite Sendung angelegt — das gilt als
+ * Erfolg (egal ob mit unserer oder einer von Hand eingetragenen Nummer).
+ *
+ * @param {{ order: object, ebayOrderId: string, trackingNumber: string, carrier: string, fetchImpl?: Function }} opts
+ * @returns {Promise<{ ok: boolean, marketplace: 'ebay', via: 'fulfillment_api', error?: string, alreadyFulfilled?: boolean }>}
+ */
+async function pushTrackingToEbayRest({ order, ebayOrderId, trackingNumber, carrier, fetchImpl = fetch }) {
+  const base = { marketplace: 'ebay', via: 'fulfillment_api' };
+  try {
+    const carrierCode = toEbayRestCarrierCode(carrier);
+    if (!carrierCode) return { ...base, ok: false, error: `Transporteur "${carrier || '?'}" hat keinen eBay-Code fuer die Fulfillment-API` };
+
+    const { getValidEbayAccessToken } = require('../lib/ebay-oauth');
+    const { accessToken, apiBaseUrl } = await getValidEbayAccessToken();
+    const root = `${apiBaseUrl || 'https://api.ebay.com'}/sell/fulfillment/v1/order/${encodeURIComponent(ebayOrderId)}`;
+    const headers = {
+      Authorization: `Bearer ${accessToken}`,
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+      'X-EBAY-C-MARKETPLACE-ID': 'EBAY_DE',
+    };
+
+    const orderRes = await fetchImpl(root, { method: 'GET', headers });
+    if (orderRes.status === 404) return { ...base, ok: false, error: 'Order not found on eBay (Fulfillment-API 404)' };
+    if (!orderRes.ok) return { ...base, ok: false, error: `Fulfillment-API getOrder HTTP ${orderRes.status}: ${await readRestError(orderRes)}` };
+    const ebayOrder = await orderRes.json();
+
+    if (String(ebayOrder?.cancelStatus?.cancelState || '').toUpperCase() === 'CANCELED') {
+      return { ...base, ok: false, error: 'Order cancelled on eBay — kein Versand meldbar' };
+    }
+
+    const lineItems = (Array.isArray(ebayOrder?.lineItems) ? ebayOrder.lineItems : [])
+      .filter((li) => li?.lineItemId && String(li.lineItemFulfillmentStatus || '').toUpperCase() !== 'FULFILLED')
+      .map((li) => ({ lineItemId: String(li.lineItemId), quantity: Number(li.quantity) || 1 }));
+
+    if (lineItems.length === 0) {
+      console.log(`[marketplace-tracking] eBay ${ebayOrderId} ist bereits als versendet gemeldet — keine zweite Sendung (Fulfillment-API)`);
+      return { ...base, ok: true, alreadyFulfilled: true };
+    }
+
+    const createRes = await fetchImpl(`${root}/shipping_fulfillment`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        lineItems,
+        shippedDate: resolveShippedDate(order),
+        shippingCarrierCode: carrierCode,
+        trackingNumber: String(trackingNumber),
+      }),
+    });
+    if (!createRes.ok) {
+      const detail = await readRestError(createRes);
+      // 429 → Kontingent-Signatur, damit die Obergrenze nicht zaehlt.
+      const prefix = createRes.status === 429 ? '429 rate limit' : `HTTP ${createRes.status}`;
+      return { ...base, ok: false, error: `Fulfillment-API createShippingFulfillment ${prefix}: ${detail}` };
+    }
+    console.log(`[marketplace-tracking] eBay Fulfillment-API: Versand gemeldet fuer ${ebayOrderId} (${carrierCode} ${trackingNumber}, ${lineItems.length} Position(en))`);
+    return { ...base, ok: true };
+  } catch (err) {
+    console.error(`[marketplace-tracking] eBay Fulfillment-API push failed for ${ebayOrderId}: ${err.message}`);
+    return { ...base, ok: false, error: err.message };
   }
 }
 
@@ -447,59 +614,167 @@ async function ensureMarketplaceTrackingPushed({ orderId }) {
   return pushTrackingToMarketplace({ orderId, trackingNumber, carrier });
 }
 
+// ─── Tracking-Nachholer ─────────────────────────────────────────────────────
+//
+// Vorfall 2026-09-25/26: 13 eBay-Auftraege wurden morgens um 08:25–09:06 Uhr
+// versendet, als das Trading-Tageskontingent leer war. Der Push scheiterte
+// (richtig), der Nachholer lief alle 2 h (richtig) — und sah sie trotzdem NIE:
+// er fragte `omsStatus=='shipped' AND updatedAt>=cutoff` mit `.limit(50)`, und
+// Firestore liefert dann die 50 AELTESTEN. Gemessen: 94 versendete Auftraege im
+// Fenster, die 50 zurueckgegebenen reichten vom 21.09. bis 24.09. — alle schon
+// erfolgreich gemeldet. Die frischen Fehlschlaege lagen immer hinter Platz 50.
+// Bei eBay standen sie 30 h spaeter noch auf NOT_STARTED.
+//
+// Jetzt: die Fehlschlaege werden DIREKT abgefragt (marketplacePush.status),
+// unabhaengig von Auftragsstatus, Aenderungsdatum und Reihenfolge — und auch
+// ein inzwischen als zugestellt gefuehrter Auftrag wird noch gemeldet.
+
+const TRACKING_RETRY_STATUSES = new Set(['shipped', 'delivered', 'completed']);
+const TRACKING_CATCHUP_MAX_AGE_DAYS = parseInt(process.env.TRACKING_CATCHUP_MAX_AGE_DAYS || '14', 10) || 14;
+const CATCHUP_SCAN_LIMIT = 1000;
+
+function toMillisLoose(value) {
+  if (!value) return NaN;
+  if (typeof value.toDate === 'function') return value.toDate().getTime();
+  return Date.parse(value);
+}
+
+/**
+ * Rein: was tut der Nachholer mit diesem Auftrag?
+ *
+ * @param {object} order
+ * @param {{ nowMs?: number, maxAgeDays?: number, tenantId?: string }} opts
+ * @returns {{ action: 'push'|'skip'|'expire', reason?: string, trackingNumber?: string, carrier?: string }}
+ */
+function classifyTrackingCatchup(order, { nowMs = Date.now(), maxAgeDays = TRACKING_CATCHUP_MAX_AGE_DAYS, tenantId = 'default' } = {}) {
+  if (!order) return { action: 'skip', reason: 'no_order' };
+  if ((order.tenantId || 'default') !== tenantId) return { action: 'skip', reason: 'other_tenant' };
+  const marketplace = String(order.marketplace || order.orderSource || '').toLowerCase();
+  if (!['ebay', 'kaufland'].includes(marketplace)) return { action: 'skip', reason: 'no_marketplace' };
+  const pushStatus = order.marketplacePush?.status;
+  if (pushStatus === 'success' || pushStatus === 'abandoned') return { action: 'skip', reason: `push_${pushStatus}` };
+  const status = order.omsStatus || order.status || '';
+  if (!TRACKING_RETRY_STATUSES.has(status)) return { action: 'skip', reason: `status_${status || 'unknown'}` };
+  const trackingNumber = order.trackingNumber || order.tracking?.trackingNumber;
+  if (!trackingNumber) return { action: 'skip', reason: 'no_tracking' };
+
+  const shippedMs = [order.shippedAt, order.marketplacePush?.lastAttempt, order.updatedAt]
+    .map(toMillisLoose)
+    .find(Number.isFinite);
+  if (Number.isFinite(shippedMs) && nowMs - shippedMs > maxAgeDays * 24 * 60 * 60 * 1000) {
+    return { action: 'expire', reason: 'catchup_window_expired' };
+  }
+
+  const carrier = order.carrier || order.shippingService || order.tracking?.carrier || 'other';
+  return { action: 'push', trackingNumber, carrier };
+}
+
+let _trackingCatchupRunning = false;
+
+/**
+ * Meldet alle versendeten Auftraege nach, deren Tracking-Push gescheitert ist.
+ * Laeuft alle 10 min (index.js) — im Normalfall liefert die Abfrage 0 Treffer
+ * und kostet einen einzigen Firestore-Lesevorgang.
+ *
+ * @param {{ tenantId?: string, maxAgeDays?: number, includeNeverPushed?: boolean, nowMs?: number }} opts
+ *   includeNeverPushed: zusaetzlich versendete Auftraege OHNE jeden Push-Versuch
+ *   suchen (teurer, deshalb nur im 2-h-Lauf).
+ */
+async function retryFailedTrackingPushes({
+  tenantId = 'default',
+  maxAgeDays = TRACKING_CATCHUP_MAX_AGE_DAYS,
+  includeNeverPushed = false,
+  nowMs = Date.now(),
+} = {}) {
+  const stats = { checked: 0, retried: 0, succeeded: 0, failed: 0, expired: 0 };
+  if (_trackingCatchupRunning) return { ...stats, skippedRunning: true };
+  _trackingCatchupRunning = true;
+  try {
+    const db = getDb();
+    const candidates = new Map();
+
+    const failedSnap = await db.collection(ORDERS_COLLECTION)
+      .where('marketplacePush.status', '==', 'failed')
+      .limit(CATCHUP_SCAN_LIMIT)
+      .get();
+    if (failedSnap.size >= CATCHUP_SCAN_LIMIT) {
+      console.warn(`[marketplace-tracking] Nachholer: ${failedSnap.size} fehlgeschlagene Pushes — Obergrenze erreicht, Rest im naechsten Lauf`);
+    }
+    for (const doc of failedSnap.docs) candidates.set(doc.id, doc);
+
+    if (includeNeverPushed) {
+      // Ohne .limit(): ein Limit bei aufsteigender Sortierung war genau der
+      // blinde Fleck des alten Nachholers. Das Fenster begrenzt die Menge.
+      const cutoff = new Date(nowMs - maxAgeDays * 24 * 60 * 60 * 1000).toISOString();
+      const shippedSnap = await db.collection(ORDERS_COLLECTION)
+        .where('omsStatus', '==', 'shipped')
+        .where('updatedAt', '>=', cutoff)
+        .get();
+      for (const doc of shippedSnap.docs) {
+        if (!doc.data().marketplacePush) candidates.set(doc.id, doc);
+      }
+    }
+
+    for (const doc of candidates.values()) {
+      stats.checked++;
+      const order = doc.data();
+      const decision = classifyTrackingCatchup(order, { nowMs, maxAgeDays, tenantId });
+      if (decision.action === 'skip') continue;
+
+      if (decision.action === 'expire') {
+        stats.expired++;
+        await saveMarketplacePushStatus(doc.ref, {
+          ...(order.marketplacePush || {}),
+          status: 'abandoned',
+          error: `Nachholfenster (${maxAgeDays} Tage) abgelaufen — letzter Fehler: ${order.marketplacePush?.error || 'unbekannt'}`,
+          abandonedAt: new Date(nowMs).toISOString(),
+        }, doc.id);
+        collectError({ type: 'api_error', severity: 'warning', channel: String(order.marketplace || 'internal').toLowerCase(), message: `Tracking-Push nach ${maxAgeDays} Tagen aufgegeben`, entityType: 'order', entityId: doc.id, source: 'marketplace-tracking' });
+        continue;
+      }
+
+      stats.retried++;
+      try {
+        const result = await pushTrackingToMarketplace({
+          orderId: doc.id,
+          trackingNumber: decision.trackingNumber,
+          carrier: decision.carrier,
+        });
+        if (result.ok) stats.succeeded++;
+        else stats.failed++;
+      } catch (err) {
+        stats.failed++;
+        console.error(`[marketplace-tracking] Retry tracking push failed for ${doc.id}: ${err.message}`);
+      }
+    }
+
+    if (stats.retried > 0 || stats.expired > 0) {
+      console.log(`[marketplace-tracking] Tracking-Nachholer: checked=${stats.checked} retried=${stats.retried} succeeded=${stats.succeeded} failed=${stats.failed} expired=${stats.expired}`);
+    }
+    return stats;
+  } finally {
+    _trackingCatchupRunning = false;
+  }
+}
+
 /**
  * Catch-up: Find all shipped orders where marketplace push failed or was never done, and retry.
- * Called periodically as a safety net.
+ * Called periodically as a safety net (2h). Der schnelle 10-min-Lauf nutzt
+ * retryFailedTrackingPushes() direkt.
  *
- * @param {{ tenantId?: string, maxAge?: number }} opts — maxAge in days (default: 7)
+ * @param {{ tenantId?: string, maxAge?: number }} opts — maxAge in days (default: 7, nur fuer Stornos)
  * @returns {Promise<{ checked: number, retried: number, succeeded: number, failed: number }>}
  */
 async function retryFailedMarketplacePushes({ tenantId = 'default', maxAge = 7 } = {}) {
   const db = getDb();
   const cutoff = new Date(Date.now() - maxAge * 24 * 60 * 60 * 1000).toISOString();
 
-  let checked = 0;
-  let retried = 0;
-  let succeeded = 0;
-  let failed = 0;
-
-  // 1) Retry shipped orders without successful tracking push
-  const shippedSnap = await db.collection(ORDERS_COLLECTION)
-    .where('omsStatus', '==', 'shipped')
-    .where('updatedAt', '>=', cutoff)
-    .limit(50)
-    .get();
-
-  for (const doc of shippedSnap.docs) {
-    checked++;
-    const order = doc.data();
-    const marketplace = (order.marketplace || order.orderSource || '').toLowerCase();
-
-    if (!['ebay', 'kaufland'].includes(marketplace)) continue;
-    if (order.marketplacePush?.status === 'success' || order.marketplacePush?.status === 'abandoned') continue;
-
-    const trackingNumber = order.trackingNumber || order.tracking?.trackingNumber;
-    if (!trackingNumber) continue;
-
-    retried++;
-    const carrier = order.carrier || order.shippingService || order.tracking?.carrier || 'other';
-
-    try {
-      const result = await pushTrackingToMarketplace({
-        orderId: doc.id,
-        trackingNumber,
-        carrier,
-      });
-      if (result.ok) {
-        succeeded++;
-      } else {
-        failed++;
-      }
-    } catch (err) {
-      failed++;
-      console.error(`[marketplace-tracking] Retry tracking push failed for ${doc.id}: ${err.message}`);
-    }
-  }
+  // 1) Tracking: Fehlschlaege + nie versuchte Pushes
+  const tracking = await retryFailedTrackingPushes({ tenantId, includeNeverPushed: true });
+  let checked = tracking.checked;
+  let retried = tracking.retried;
+  let succeeded = tracking.succeeded;
+  let failed = tracking.failed;
 
   // 2) Retry cancelled orders without successful cancellation push
   const cancelledSnap = await db.collection(ORDERS_COLLECTION)
@@ -728,9 +1003,14 @@ function escapeXml(str) {
 module.exports = {
   pushTrackingToMarketplace,
   pushTrackingToEbay,
+  pushTrackingToEbayRest,
   pushTrackingToKaufland,
   ensureMarketplaceTrackingPushed,
   retryFailedMarketplacePushes,
+  retryFailedTrackingPushes,
+  classifyTrackingCatchup,
+  toEbayRestCarrierCode,
+  resolveShippedDate,
   pushCancellationToMarketplace,
   cancelOrderOnEbay,
   cancelOrderOnKaufland,
