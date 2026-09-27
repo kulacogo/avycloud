@@ -15,7 +15,7 @@ Bestandsrückkehr darf auf eBay und Kaufland kein inaktives, pausiertes, beendet
 
 ## Abnahme vor Release
 
-Tests zuerst: automatische Wiederaktivierungen und inkonsistente Status reproduziert (rot), anschließend korrigiert. Nach Integration von main `43a0df50` (Navigation, PR27): **5.672 Backendtests/491 Dateien, 537 Frontendtests, TypeScript und Produktionsbuild grün**. Auch Bestandsverlust während des Kaufland-Status-GET ist abgesichert: vor PATCH erneut BIN-/Reservierungsprüfung. Endgültige CI und Produktionsnachweise werden nach Rollout ergänzt.
+Tests zuerst: automatische Wiederaktivierungen und inkonsistente Status reproduziert (rot), anschließend korrigiert. Nach Integration von main `43a0df50` (Navigation, PR27): **5.673 Backendtests/491 Dateien, 537 Frontendtests, TypeScript und Produktionsbuild grün**. Auch Bestandsverlust während des Kaufland-Status-GET ist abgesichert: vor PATCH erneut BIN-/Reservierungsprüfung. Endgültige CI und Produktionsnachweise werden nach Rollout ergänzt.
 
 Read-only Marktaufnahme ca. 21:29 MESZ: 2.059 aktive eBay-Angebote; Kaufland DE 557 AVAILABLE mit positiver Menge, 527 ONHOLD/0; andere sechs Storefronts leer. Bestandsabgleich 19:31 UTC: 0 Nullbestand, 0 Übermengen, 0 unbekannte SKUs; 762 aktive SKUs gegen echte BIN-Inhalte geprüft, 0 Abweichungen. Keine Angebote zu Testzwecken publiziert oder reaktiviert. Private Nachweise: `/Users/oguz/Dev/avycloud-local-backups/manual-reactivation-20260927/`.
 

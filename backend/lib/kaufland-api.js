@@ -861,6 +861,12 @@ async function createUnit(product, { storefront = 'de', autoCreateProductData = 
     throw err;
   }
 
+  // Catalog preparation can take time. An automatic retry must not overwrite
+  // a unit that was created/paused in the meantime via POST's upsert semantics.
+  if (!manualActivation && await findUnit({ storefront: picked.storefront, idOffer: picked.idOffer, ean: picked.ean })) {
+    throw Object.assign(new Error('Angebot existiert inzwischen. Wiederaktivierung ist ausschließlich manuell erlaubt.'), { code: 'KAUFLAND_MANUAL_ACTIVATION_REQUIRED' });
+  }
+
   // Fresh location/reservation guard after slow catalog preparation.
   if (createData.amount > 0) {
     createData.amount = await require('./marketplace-stock-quantity').readMarketplaceQuantity(product, createData.amount);

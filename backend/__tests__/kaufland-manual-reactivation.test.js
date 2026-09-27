@@ -1,16 +1,17 @@
 function patch(p, exports) { const id = require.resolve(p); require.cache[id] = { id, filename: id, loaded: true, exports }; }
 const calls = [];
 let liveUnit;
+let unitLookupSequence = [];
 patch('../services/integration-store', { resolveProviderCredentials: async () => ({ clientKey: 'test', secretKey: 'test' }) });
 patch('node-fetch', async (url, opts) => {
   calls.push({ url, method: opts.method, body: opts.body ? JSON.parse(opts.body) : null });
-  const data = opts.method === 'GET' ? (new URL(url).pathname.endsWith('/units') ? [liveUnit] : liveUnit) : {};
+  const data = opts.method === 'GET' ? (new URL(url).pathname.endsWith('/units') ? (unitLookupSequence.length ? unitLookupSequence.shift() : [liveUnit]) : liveUnit) : {};
   return { ok: true, status: 200, text: async () => JSON.stringify({ data }), headers: { get: () => null } };
 });
 patch('../lib/marketplace-stock-quantity', { resolveMarketplaceQuantity: () => 2, readMarketplaceQuantity: async () => 2 });
 const { updateUnit, createUnit } = require('../lib/kaufland-api');
 const product = { id: 'p1', tenantId: 'default', identification: { sku: 'SKU-TEST' }, inventory: { quantity: 2 }, storageBins: [{ code: 'A-01', quantity: 2 }], details: { identifiers: { ean: '4006633144780' }, pricing: { sellPrice: 29 } } };
-beforeEach(() => { calls.length = 0; liveUnit = { id_unit: 1234, id_offer: 'SKU-TEST', status: 'ONHOLD', amount: 0 }; });
+beforeEach(() => { unitLookupSequence = []; calls.length = 0; liveUnit = { id_unit: 1234, id_offer: 'SKU-TEST', status: 'ONHOLD', amount: 0 }; });
 it.each(['ONHOLD', 'DEACTIVATED', 'INCOMPLETE', 'BLOCKED', 'UNKNOWN'])('stock update never reactivates %s', async status => {
   liveUnit.status = status;
   const result = await updateUnit(1234, product);
@@ -46,4 +47,10 @@ it('rechecks BIN stock after the live status lookup before sending quantity', as
     await updateUnit(1234, product);
     expect(calls.find(c => c.method === 'PATCH').body).toMatchObject({ amount: 0, status: 'ONHOLD' });
   } finally { spy.mockRestore(); }
+});
+
+it('an automatic create retry checks again after slow catalog preparation', async () => {
+  unitLookupSequence = [[], [liveUnit]];
+  await expect(createUnit(product, { autoCreateProductData: false })).rejects.toMatchObject({ code: 'KAUFLAND_MANUAL_ACTIVATION_REQUIRED' });
+  expect(calls.filter(c => c.method === 'POST' || c.method === 'PATCH')).toHaveLength(0);
 });
