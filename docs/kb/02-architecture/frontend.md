@@ -113,3 +113,7 @@ Aus [firebase.json](../../../firebase.json):
 ## Deploy
 
 Push auf `main` → [.github/workflows/firebase-hosting.yml](../../../.github/workflows/firebase-hosting.yml) baut + deployt. Detail: [04-deployment/frontend-deploy.md](../04-deployment/frontend-deploy.md).
+
+## Desktop-Navigation
+
+Struktur, persönliche Gruppenpräferenzen und Tests: [Linke Navigation](../05-pages/navigation.md). Die vorhandenen Hash-Routen bleiben unverändert.
