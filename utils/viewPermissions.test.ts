@@ -29,5 +29,6 @@ test('Partner lesen Finanzberichte; Entwickler sehen Diagnose, keine Zugangskonf
   assert.equal(canAccessView('integrations-sevdesk', can('developer')), false);
 });
 test('Menüs und direkter Seitenaufruf verwenden dieselbe Entscheidung', () => {
-  for (const file of ['../App.tsx', '../components/Sidebar.tsx', '../components/Header.tsx', '../components/MobileTabBar.tsx']) assert.match(fs.readFileSync(new URL(file, import.meta.url), 'utf8'), /canAccessView\(/);
+  assert.match(fs.readFileSync(new URL('../components/Sidebar.tsx', import.meta.url), 'utf8'), /getSidebarSections\(hasPermission\)/);
+  for (const file of ['../App.tsx', './sidebarNavigation.ts', '../components/Header.tsx', '../components/MobileTabBar.tsx']) assert.match(fs.readFileSync(new URL(file, import.meta.url), 'utf8'), /canAccessView\(/);
 });

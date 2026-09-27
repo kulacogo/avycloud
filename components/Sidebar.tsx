@@ -1,4 +1,8 @@
-import { canAccessView } from "../utils/viewPermissions";
+import {
+  getSidebarSections, isSidebarItemActive, sectionIsOpen, sidebarStorageKey,
+  readSidebarPreferences, saveSidebarPreferences, initializeSidebarPreferences,
+  type SidebarItem,
+} from "../utils/sidebarNavigation";
 import { roleDisplayName } from "./admin/roleCatalog";
 import React, { useState, useCallback, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
@@ -11,25 +15,9 @@ interface SidebarProps {
   setView: (view: View) => void;
 }
 
-/* ─── localStorage helpers for collapsed state ─── */
-const SIDEBAR_COLLAPSED_KEY = "avycloud:sidebar:collapsed";
-const SECTIONS_COLLAPSED_KEY = "avycloud:sidebar:sections";
-
-const readCollapsed = (): boolean => {
-  try {
-    return window.localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "true";
-  } catch {
-    return false;
-  }
-};
-
-const readSectionsCollapsed = (): Record<string, boolean> => {
-  try {
-    const raw = window.localStorage.getItem(SECTIONS_COLLAPSED_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
+// Accessing localStorage itself can throw (e.g. browser privacy settings).
+const browserStorage = (): Storage | undefined => {
+  try { return window.localStorage; } catch { return undefined; }
 };
 
 /* ─── SVG icon helper (18×18, stroke) ─── */
@@ -221,21 +209,6 @@ const icons = {
   ),
 };
 
-/* ─── Nav item types ─── */
-type NavItem = {
-  view: View;
-  label: string;
-  icon: React.ReactNode;
-  children?: { view: View; label: string }[];
-};
-
-type NavSection = {
-  id: string;
-  label: string;
-  collapsible: boolean;
-  items: NavItem[];
-};
-
 /* ─── View → hash path mapping ─── */
 const viewToHash = (view: View): string => {
   const map: Partial<Record<View, string>> = {
@@ -257,42 +230,24 @@ const viewToHash = (view: View): string => {
   return map[view] || `#/${view}`;
 };
 
-/* ─── Active state detection ─── */
-const isViewActive = (current: View, target: View): boolean => {
-  if (current === target) return true;
-  if (target === "dashboard" && current === "home") return true;
-  if (target === "products" && (current === "products" || current === "search" || current === "sheet")) return true;
-  if (target === "orders" && current === "orders") return true;
-  return false;
+// A keyed boundary prevents one account's in-memory state leaking into the next.
+export const Sidebar: React.FC<SidebarProps> = (props) => {
+  const { user } = useAuth();
+  const storageKey = sidebarStorageKey(user?.uid ?? "signed-out", user?.tenantId);
+  return <SidebarContent key={storageKey} {...props} storageKey={storageKey} />;
 };
 
-const isGroupActive = (current: View, item: NavItem): boolean => {
-  if (isViewActive(current, item.view)) return true;
-  if (item.children?.some((c) => current === c.view)) return true;
-  return false;
-};
-
-export const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
-  const { user, logout, hasPermission, isAdmin, rbac } = useAuth();
-  const [collapsed, setCollapsed] = useState(() => readCollapsed());
-  const [sectionsCollapsed, setSectionsCollapsed] = useState<Record<string, boolean>>(() => readSectionsCollapsed());
-
-  // Persist collapsed state
+const SidebarContent: React.FC<SidebarProps & { storageKey: string }> = ({ currentView, setView, storageKey }) => {
+  const { user, logout, hasPermission, rbac } = useAuth();
+  const [preferences, setPreferences] = useState(() => initializeSidebarPreferences(readSidebarPreferences(browserStorage(), storageKey), currentView));
+  const collapsed = preferences.collapsed;
+  const setCollapsed = (value: boolean) => setPreferences(prev => ({ ...prev, collapsed: value }));
+  const setSectionOpen = (id: string, open: boolean) => {
+    setPreferences(prev => ({ ...prev, sections: { ...prev.sections, [id]: open } }));
+  };
   useEffect(() => {
-    try {
-      window.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(collapsed));
-    } catch { /* ignore */ }
-  }, [collapsed]);
-
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(SECTIONS_COLLAPSED_KEY, JSON.stringify(sectionsCollapsed));
-    } catch { /* ignore */ }
-  }, [sectionsCollapsed]);
-
-  const toggleSection = useCallback((id: string) => {
-    setSectionsCollapsed((prev) => ({ ...prev, [id]: !prev[id] }));
-  }, []);
+    if (user) saveSidebarPreferences(browserStorage(), storageKey, preferences);
+  }, [preferences, storageKey, user]);
 
   const handleNav = useCallback(
     (e: React.MouseEvent, view: View) => {
@@ -304,150 +259,27 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
     [setView]
   );
 
-  /* ─── Permission checks ─── */
-  const canSeeOrders = hasPermission("orders", "read") || hasPermission("orders", "pick") || hasPermission("orders", "pack");
-  const canSeeProducts = hasPermission("products", "read");
-  const canSeeWarehouse = hasPermission("warehouse", "read") || hasPermission("warehouse", "write");
-  const canSeeIdentify = hasPermission("identify", "run");
-  const canSeeAdmin = isAdmin || hasPermission("admin", "users.read") || hasPermission("admin", "roles.read");
-
-  /* ─── Navigation structure ─── */
-  const sections: NavSection[] = [
-    // Dashboard (standalone, no section header)
-    {
-      id: "main",
-      label: "",
-      collapsible: false,
-      items: [
-        { view: "dashboard", label: "Dashboard", icon: icons.dashboard },
-        ...(canAccessView("shop-health", hasPermission)
-          ? [{ view: "shop-health" as View, label: "Shop-Gesundheit", icon: icons.store }]
-          : []),
-        // Finanzen: eigener Einstieg für alle mit Report-Recht (admin,
-        // buchhaltung, leitung) — lag vorher NUR im Admin-Panel und war damit
-        // ohne User-/Rollen-Verwaltungsrechte unerreichbar (2026-07-10).
-        ...(hasPermission("admin", "reports.read")
-          ? [{ view: "finance" as View, label: "Finanzen", icon: icons.creditCard }]
-          : []),
-      ],
-    },
-    // AUFTRÄGE
-    ...(canSeeOrders
-      ? [
-          {
-            id: "orders",
-            label: "AUFTRÄGE",
-            collapsible: true,
-            items: [
-              { view: "orders" as View, label: "Bestellungen", icon: icons.orders },
-              { view: "orders-returns" as View, label: "Retouren", icon: icons.returns },
-              { view: "orders-shipping" as View, label: "Versand & Labels", icon: icons.truck },
-              { view: "orders-invoices" as View, label: "Rechnungen", icon: icons.fileText },
-              {
-                view: "orders-settings" as View,
-                label: "Einstellungen",
-                icon: icons.sliders,
-              },
-            ],
-          },
-        ]
-      : []),
-    // PRODUKTE
-    ...(canSeeProducts || canSeeIdentify
-      ? [
-          {
-            id: "products",
-            label: "PRODUKTE",
-            collapsible: true,
-            items: [
-              ...(canSeeProducts
-                ? [
-                    { view: "products" as View, label: "Produktdaten", icon: icons.package },
-                    { view: "inventory" as View, label: "Inventar", icon: icons.warehouse },
-                  ]
-                : []),
-              ...(canSeeIdentify
-                ? [{ view: "input" as View, label: "Erfassen", icon: icons.scanLine }]
-                : []),
-              ...(canSeeProducts
-                ? [
-                    { view: "duplicates" as View, label: "Duplikate", icon: icons.layers },
-                    { view: "pricing" as View, label: "Preise", icon: icons.tag },
-                    { view: "rules" as View, label: "Regeln", icon: icons.settings },
-                  ]
-                : []),
-            ],
-          },
-        ]
-      : []),
-    // LAGER
-    ...(canSeeWarehouse
-      ? [
-          {
-            id: "warehouse",
-            label: "LAGER",
-            collapsible: true,
-            items: [
-              { view: "warehouse" as View, label: "Verwaltung", icon: icons.mapPin },
-              { view: "warehouse-settings" as View, label: "Einstellungen", icon: icons.sliders },
-            ],
-          },
-        ]
-      : []),
-    // MARKTPLÄTZE (dynamic — show only connected ones)
-    // For now, show eBay always (it's connected). Kaufland can be added when connected.
-    ...(canSeeProducts
-      ? [
-          {
-            id: "marketplaces",
-            label: "MARKTPLÄTZE",
-            collapsible: true,
-            items: [
-              { view: "marketplace-ebay" as View, label: "eBay", icon: icons.shoppingBag },
-              { view: "marketplace-kaufland" as View, label: "Kaufland", icon: icons.store },
-              { view: "marketplace-errors" as View, label: "Listing-Fehler", icon: icons.fileText },
-            ],
-          },
-        ]
-      : []),
-    // Integrationen
-    {
-      id: "integrations",
-      label: "",
-      collapsible: true,
-      items: [
-        {
-          view: "integrations" as View,
-          label: "Integrationen",
-          icon: icons.plug,
-          children: [
-            { view: "integrations-ebay" as View, label: "eBay" },
-            { view: "integrations-kaufland" as View, label: "Kaufland" },
-            { view: "integrations-sendcloud" as View, label: "SendCloud" },
-            { view: "integrations-sevdesk" as View, label: "SevDesk" },
-          ],
-        },
-      ],
-    },
-    // EINSTELLUNGEN
-    ...(canSeeAdmin
-      ? [
-          {
-            id: "settings",
-            label: "EINSTELLUNGEN",
-            collapsible: true,
-            items: [
-              { view: "settings" as View, label: "Unternehmensdaten", icon: icons.building },
-              { view: "settings-profile" as View, label: "Persönliche Daten", icon: icons.user },
-              { view: "settings-team" as View, label: "Mitarbeiter & Rollen", icon: icons.users },
-              { view: "settings-api" as View, label: "API", icon: icons.code },
-              { view: "settings-billing" as View, label: "Plan & Abrechnung", icon: icons.creditCard },
-              { view: "audit-log" as View, label: "Aktivitätsprotokoll", icon: icons.fileText },
-            ],
-          },
-        ]
-      : []),
-  ];
+  const sections = getSidebarSections(hasPermission);
+  const renderLink = (item: SidebarItem) => {
+    const active = isSidebarItemActive(currentView, item.view);
+    return (
+      <a
+        key={item.view}
+        href={viewToHash(item.view)}
+        onClick={(e) => handleNav(e, item.view)}
+        className={`relative flex items-center gap-2.5 rounded-lg text-[13px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${
+          collapsed ? "justify-center px-0 py-2.5 mx-1" : "px-3 py-[9px]"
+        } ${active ? "bg-accent/[0.08] text-accent" : "text-txt-secondary hover:bg-app-elevated hover:text-txt-primary"}`}
+        aria-current={active ? "page" : undefined}
+        aria-label={item.label}
+        title={collapsed ? item.label : undefined}
+      >
+        {active && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-accent" aria-hidden="true" />}
+        <span className={active ? "text-accent" : "text-txt-muted"}>{icons[item.icon as keyof typeof icons]}</span>
+        {!collapsed && <span>{item.label}</span>}
+      </a>
+    );
+  };
 
   const userInitial = user?.email?.charAt(0)?.toUpperCase() || "?";
   const userName = user?.displayName || user?.email?.split("@")[0] || "User";
@@ -495,77 +327,55 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
         </div>
       )}
 
-      {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto px-2 py-1">
-        {sections.map(section => ({ ...section, items: section.items.filter(item => canAccessView(item.view, hasPermission)).map(item => ({ ...item, children: item.children?.filter(child => canAccessView(child.view, hasPermission)) })) })).map((section) => {
-          if (section.items.length === 0) return null;
-          const isSectionCollapsed = sectionsCollapsed[section.id] === true;
-          const hasActiveItem = section.items.some((item) => isGroupActive(currentView, item));
-
+      {/* Navigation: one disclosure per work area, with remembered personal choices. */}
+      <nav aria-label="Hauptnavigation" className="flex-1 overflow-y-auto px-2 py-1">
+        {sections.map((section) => {
+          if (section.id === "main") return <div key={section.id} className="mb-3">{section.items.map(renderLink)}</div>;
+          const open = sectionIsOpen(section, preferences, currentView, sections);
+          const active = [...section.items, ...section.secondaryItems].some(item => isSidebarItemActive(currentView, item.view));
+          const moreId = `${section.id}:more`;
+          const moreOpen = preferences.sections[moreId]
+            ?? section.secondaryItems.some(item => isSidebarItemActive(currentView, item.view));
+          const contentId = `sidebar-${section.id}`;
           return (
-            <div key={section.id} className={section.label ? "mt-4" : "mt-1"}>
-              {/* Section header (collapsible) */}
-              {section.label && !collapsed && (
-                <button
-                  type="button"
-                  onClick={() => section.collapsible && toggleSection(section.id)}
-                  className="w-full flex items-center justify-between px-3 pt-1 pb-1.5 group"
-                >
-                  <span className="text-[11px] font-semibold text-txt-muted uppercase tracking-[0.05em]">
-                    {section.label}
-                  </span>
-                  {section.collapsible && (
-                    <span
-                      className={`text-txt-muted/50 group-hover:text-txt-muted transition-transform duration-150 ${
-                        isSectionCollapsed ? "-rotate-90" : ""
-                      }`}
-                    >
-                      {icons.chevronDown}
-                    </span>
-                  )}
-                </button>
-              )}
-
-              {/* Section label in collapsed mode — just a divider line */}
-              {section.label && collapsed && (
-                <div className="mx-2 my-2 border-t border-app-border/60" />
-              )}
-
-              {/* Nav items */}
-              {(!isSectionCollapsed || collapsed) &&
-                section.items.map((item) => {
-                  const active = isViewActive(currentView, item.view);
-                  const hash = viewToHash(item.view);
-
-                  return (
-                    <a
-                      key={item.view}
-                      href={hash}
-                      onClick={(e) => handleNav(e, item.view)}
-                      className={`relative flex items-center gap-2.5 rounded-lg text-[13px] font-medium transition-all cursor-pointer ${
-                        collapsed ? "justify-center px-0 py-2.5 mx-1" : "px-3 py-[9px]"
-                      } ${
-                        active
-                          ? "bg-accent/[0.08] text-accent"
-                          : "text-txt-secondary hover:bg-app-elevated hover:text-txt-primary"
-                      }`}
-                      aria-current={active ? "page" : undefined}
-                      title={collapsed ? item.label : undefined}
-                    >
-                      {/* Active indicator — left accent border */}
-                      {active && (
-                        <span
-                          className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-accent"
-                          aria-hidden="true"
-                        />
-                      )}
-                      <span className={active ? "text-accent" : "text-txt-muted"}>
-                        {item.icon}
-                      </span>
-                      {!collapsed && <span>{item.label}</span>}
-                    </a>
-                  );
-                })}
+            <div key={section.id} className="mb-1">
+              <button
+                type="button"
+                onClick={() => {
+                  if (collapsed) {
+                    setPreferences(prev => ({ ...prev, collapsed: false, sections: { ...prev.sections, [section.id]: true } }));
+                  } else setSectionOpen(section.id, !open);
+                }}
+                aria-expanded={!collapsed && open}
+                aria-controls={contentId}
+                aria-label={section.label}
+                title={collapsed ? section.label : undefined}
+                className={`w-full flex items-center rounded-lg py-2.5 text-[13px] font-semibold transition-colors hover:bg-app-elevated focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${collapsed ? "justify-center" : "gap-2.5 px-3"} ${active ? "text-accent" : "text-txt-secondary"}`}
+              >
+                {icons[section.icon as keyof typeof icons]}
+                {!collapsed && <>
+                  <span className="flex-1 text-left">{section.label}</span>
+                  {active && !open && <span className="w-1.5 h-1.5 rounded-full bg-accent" aria-label="Enthält die aktuelle Seite" />}
+                  <span className={`text-txt-muted transition-transform ${open ? "" : "-rotate-90"}`}>{icons.chevronDown}</span>
+                </>}
+              </button>
+              <div id={contentId} hidden={collapsed || !open} className="ml-5 pl-1 border-l border-app-border mb-2">
+                {section.items.map(renderLink)}
+                {section.secondaryItems.length > 0 && <>
+                  <button
+                    type="button"
+                    aria-expanded={moreOpen}
+                    aria-controls={`${contentId}-more`}
+                    aria-label={`Weitere Funktionen: ${section.label}`}
+                    onClick={() => setSectionOpen(moreId, !moreOpen)}
+                    className="w-full flex items-center justify-between gap-1 px-3 py-2 text-xs text-txt-muted hover:text-txt-primary rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+                  >
+                    <span>Weitere Funktionen</span>
+                    <span className={`transition-transform ${moreOpen ? "" : "-rotate-90"}`}>{icons.chevronDown}</span>
+                  </button>
+                  <div id={`${contentId}-more`} hidden={!moreOpen}>{section.secondaryItems.map(renderLink)}</div>
+                </>}
+              </div>
             </div>
           );
         })}
