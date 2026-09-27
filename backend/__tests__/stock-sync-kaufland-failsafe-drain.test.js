@@ -61,6 +61,7 @@ function kauflandProduct(quantity) {
     tenantId: 'default',
     identification: { sku: 'SKU-FAILSAFE-1', ean: '4045516002427' },
     inventory: { quantity },
+    storageBins: [{ code: 'A-01', quantity: quantity }],
     ops: { kaufland: { unitId: '391413730199' } },
   };
 }

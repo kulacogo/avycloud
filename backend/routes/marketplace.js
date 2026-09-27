@@ -1900,7 +1900,7 @@ router.post('/kaufland/units/bulk-status', requirePermission('products', 'write'
     const results = [];
     for (const unitId of unitIds.slice(0, 100)) {
       try {
-        await setUnitStatus(unitId, status, { storefront: 'de' });
+        await setUnitStatus(unitId, status, { storefront: 'de', tenantId: req.user?.tenantId || 'default' });
         results.push({ unitId, ok: true });
         // Update local status in kauflandUnitsLive
         await firestore.collection('kauflandUnitsLive').doc(String(unitId)).set(

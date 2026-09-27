@@ -515,7 +515,10 @@ async function findProductsBySkuChunk(skuChunk) {
  * @returns {Promise<{ physicalQty: number, reservedQty: number, availableQty: number }>}
  */
 async function computeAvailableQuantity(product, tenantId = 'default') {
-  const physicalQty = Number(product?.inventory?.quantity ?? 0);
+  const rawQuantity = Number(product?.inventory?.quantity ?? 0);
+  if (!Number.isFinite(rawQuantity) || rawQuantity < 0) throw new Error('invalid physical stock');
+  const { resolveMarketplaceQuantity } = require('../lib/marketplace-stock-quantity');
+  const physicalQty = resolveMarketplaceQuantity({ ...product, inventory: { quantity: product?.inventory?.quantity } });
   const sku = String(product?.identification?.sku || product?.details?.identifiers?.sku || '').trim();
   const productId = String(product?.id || '');
 
@@ -534,6 +537,7 @@ async function computeAvailableQuantity(product, tenantId = 'default') {
     throw new Error(`reservation lookup unavailable for ${sku || productId}: ${err.message}`);
   }
 
+  if (!Number.isFinite(reservedQty) || reservedQty < 0) throw new Error('invalid reserved stock');
   const availableQty = Math.max(0, physicalQty - reservedQty);
   return { physicalQty, reservedQty, availableQty };
 }

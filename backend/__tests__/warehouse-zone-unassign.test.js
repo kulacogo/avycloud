@@ -110,7 +110,9 @@ describe('atomic application', () => {
 
   it('stages every product through saveProductV2 and a delta-zero durable operation in one transaction', async () => {
     const s = setup();
-    await applyUnassignmentPlan(s.plan, { db: s.db, saveProductV2: s.saveProductV2, versionOf: () => '1:0' });
+    const notifyStockChange = vi.fn(async () => { expect(s.writes.length).toBeGreaterThan(0); });
+    await applyUnassignmentPlan(s.plan, { db: s.db, saveProductV2: s.saveProductV2, versionOf: () => '1:0', notifyStockChange });
+    expect(notifyStockChange).toHaveBeenCalledWith(expect.objectContaining({ productId: 'p1', forceSync: true }));
     expect(s.saveProductV2).toHaveBeenCalledTimes(1);
     expect(s.writes.find(x => x[1] === 'warehouseBins/XEG0101A')[2]).toMatchObject({ products: [], productCount: 0 });
     expect(s.writes.find(x => x[1].startsWith('warehouseRelocations/'))[2]).toMatchObject({ tenantId: 'default', status: 'completed', orphanEntries: [] });

@@ -104,6 +104,7 @@ function baseProduct(overrides = {}) {
     tenantId: 'default',
     identification: { sku: 'SKU-6656556112' },
     inventory: { quantity: 1 },
+    storageBins: [{ code: 'A-01', quantity: overrides.inventory?.quantity ?? 1 }],
     ops: { ebay: { itemId: '800339004471' } },
     ...overrides,
   };
@@ -560,4 +561,12 @@ describe('stock sync refuses uncertain inventory', () => {
       expect(results.some(r => r.status === 'failed' && r.retryable === true)).toBe(true);
     });
   }
+});
+
+it('ends unlocated stock and never relists it, even with an old zero-stock marker', async () => {
+ const product = baseProduct({ storageBins: [], ops: { ebay: { itemId: '800339004471', zeroStockEnd: { itemId: '800339004471' } } } });
+ await syncStockToAllChannels({ tenantId: 'default', product, onlyChannels: ['ebay'] });
+ expect(endCalls).toHaveLength(1);
+ expect(relistCalls).toHaveLength(0);
+ expect(reviseCalls).toHaveLength(0);
 });

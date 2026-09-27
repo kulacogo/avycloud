@@ -137,3 +137,9 @@ describe('notifyStockChange', () => {
     expect(ledgerAddMock.mock.calls[0][0].actor).toEqual({ uid: 'user-42', email: 'admin@example.com' });
   });
 });
+
+it('location-only changes trigger sync without inventing an inventory delta', async () => {
+ await notifyStockChange({ productId: 'p', before: 5, after: 5, forceSync: true, reason: 'warehouse-location-change' });
+ expect(emitSyncEventMock).toHaveBeenCalledWith('stock:changed', expect.objectContaining({ delta: 0 }));
+ expect(ledgerAddMock).not.toHaveBeenCalled();
+});

@@ -106,7 +106,8 @@ function productWithStock() {
     id: 'prod-incident-1',
     tenantId: 'default',
     identification: { sku: 'SKU-9635453280' },
-    inventory: { quantity: 2 }, // stock just went UP to 2 — listing must stay alive
+    inventory: { quantity: 2 },
+    storageBins: [{ code: 'A-01', quantity: 2 }], // stock just went UP to 2 — listing must stay alive
     ops: { ebay: { itemId: '389922954728' } },
   };
 }

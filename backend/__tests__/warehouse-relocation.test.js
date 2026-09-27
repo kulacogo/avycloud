@@ -334,6 +334,7 @@ describe('Umzugsbestand ohne BIN', () => {
     expect(qtyOf('prod-1')).toBe(5);
     expect(store.products_v2['prod-1'].ops.relocation.unassignedQuantity).toBe(1);
     expect(stockInEvents()[0]).toMatchObject({ delta: 0, relocatedQuantity: 3 });
+    expect(emitSyncEvent).toHaveBeenCalledWith('stock:changed', expect.objectContaining({ productId: 'prod-1', delta: 0 }));
     await stow({ requestId: 'reloc-1', quantity: 3 });
     expect(qtyOf('prod-1')).toBe(5);
     expect(store.products_v2['prod-1'].ops.relocation.unassignedQuantity).toBe(1);

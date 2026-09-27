@@ -73,6 +73,7 @@ describe('Fremde/entfernte ItemIDs erzeugen KEINE Retry-Schleife mehr', () => {
       id: 'p1', tenantId: 'default',
       identification: { sku: 'SKU-ALT' },
       inventory: { quantity: 0 },
+    storageBins: [{ code: 'A-01', quantity: 0 }],
       ops: { ebay: { itemId: '389864203096' } },
     };
 
@@ -93,6 +94,7 @@ describe('Fremde/entfernte ItemIDs erzeugen KEINE Retry-Schleife mehr', () => {
       id: 'p2', tenantId: 'default',
       identification: { sku: 'SKU-ALT2' },
       inventory: { quantity: 2 },
+    storageBins: [{ code: 'A-01', quantity: 2 }],
       ops: { ebay: { itemId: '389864185033' } },
     };
 
@@ -111,6 +113,7 @@ describe('Fremde/entfernte ItemIDs erzeugen KEINE Retry-Schleife mehr', () => {
       id: 'p3', tenantId: 'default',
       identification: { sku: 'SKU-T' },
       inventory: { quantity: 0 },
+    storageBins: [{ code: 'A-01', quantity: 0 }],
       ops: { ebay: { itemId: '800000000001' } },
     };
 

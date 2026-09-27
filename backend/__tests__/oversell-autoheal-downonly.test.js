@@ -117,6 +117,7 @@ function dualChannelProduct(quantity) {
     identification: { sku: 'SKU-DOWNONLY-1', ean: '4045516002427' },
     details: { pricing: { sellPrice: 19.99 } },
     inventory: { quantity },
+    storageBins: [{ code: 'A-01', quantity: quantity }],
     ops: {
       ebay: { itemId: '110987654321' },
       kaufland: { unitId: '391413730777' },

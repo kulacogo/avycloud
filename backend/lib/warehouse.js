@@ -289,7 +289,9 @@ async function refreshProductInventory(productId, retryAttempt = 0) {
 
   // Stock-Change-Notify: emit stock:changed + append inventory_ledger, wenn Qty sich aenderte.
   // Siehe CLAUDE.md Punkt 10 (Oversell-Verbot) und Plan P2.3 + P2.4.
-  if (priorQty !== undefined && priorQty !== null && Number(priorQty) !== Number(effectiveQty)) {
+  const { locatedQuantity } = require('./marketplace-stock-quantity');
+  const locationChanged = locatedQuantity(productData) !== locatedQuantity({ storageBins });
+  if (priorQty !== undefined && priorQty !== null && (Number(priorQty) !== Number(effectiveQty) || locationChanged)) {
     try {
       const { notifyStockChange } = require('./stock-change-events');
       await notifyStockChange({
@@ -298,7 +300,8 @@ async function refreshProductInventory(productId, retryAttempt = 0) {
         sku: productData.identification?.sku || productData.details?.identifiers?.sku || null,
         before: Number(priorQty),
         after: Number(effectiveQty),
-        reason: 'warehouse-refresh',
+        forceSync: locationChanged,
+        reason: locationChanged ? 'warehouse-location-change' : 'warehouse-refresh',
         source: 'warehouse.refreshProductInventory',
       });
     } catch (err) {
