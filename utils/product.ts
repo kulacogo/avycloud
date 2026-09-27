@@ -27,31 +27,20 @@ const toNumber = (value: any): number => {
   return Number.isFinite(n) ? n : 0;
 };
 
-/**
- * Physical quantity (what is in the warehouse), independent of reservations.
- * Prefers API-enriched `inventory.physicalQuantity` when present.
- */
+/** Warehouse stock requires positive quantities allocated to named BINs. */
 export const getProductPhysicalQuantity = (product: Product): number => {
-  const physical = (product as any)?.inventory?.physicalQuantity;
-  if (typeof physical === 'number' && Number.isFinite(physical)) {
-    return Math.max(0, physical);
+  if (!Array.isArray(product?.storageBins)) return 0;
+  const bins = new Map<string, number>();
+  for (const bin of product.storageBins) {
+    const code = String(bin?.code || (bin as any)?.binCode || '').trim();
+    const quantity = Number(bin?.quantity);
+    if (!code || !Number.isFinite(quantity) || quantity <= 0) continue;
+    bins.set(code, Math.min(bins.get(code) ?? Infinity, Math.floor(quantity)));
   }
-
-  const inventoryQty = product?.inventory?.quantity;
-  if (typeof inventoryQty === 'number' && Number.isFinite(inventoryQty)) {
-    return Math.max(0, inventoryQty);
-  }
-
-  const storageQty = product?.storage?.quantity;
-  if (typeof storageQty === 'number' && Number.isFinite(storageQty)) {
-    return Math.max(0, storageQty);
-  }
-
-  if (Array.isArray(product.storageBins) && product.storageBins.length) {
-    return product.storageBins.reduce((sum, bin) => sum + toNumber(bin?.quantity), 0);
-  }
-
-  return 0;
+  const located = [...bins.values()].reduce((sum, quantity) => sum + quantity, 0);
+  const physical = Number(product?.inventory?.quantity);
+  if (!Number.isFinite(physical) || physical <= 0) return 0;
+  return Math.min(Math.floor(physical), located);
 };
 
 /**
@@ -69,13 +58,15 @@ export const getProductReservedQuantity = (product: Product): number => {
  * Available quantity = physical - reserved (API-enriched preferred).
  */
 export const getProductAvailableQuantity = (product: Product): number => {
-  const available = (product as any)?.inventory?.availableQuantity;
-  if (typeof available === 'number' && Number.isFinite(available)) {
-    return Math.max(0, available);
-  }
   const physical = getProductPhysicalQuantity(product);
   const reserved = getProductReservedQuantity(product);
-  return Math.max(0, physical - reserved);
+  const locatedAvailable = Math.max(0, physical - reserved);
+  const available = (product as any)?.inventory?.availableQuantity;
+  if (available !== undefined && available !== null) {
+    const n = Number(available);
+    return Number.isFinite(n) ? Math.max(0, Math.min(locatedAvailable, Math.floor(n))) : 0;
+  }
+  return locatedAvailable;
 };
 
 export const getProductQuantity = (product: Product): number => {

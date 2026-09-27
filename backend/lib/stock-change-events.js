@@ -37,13 +37,14 @@ async function notifyStockChange({
   reason = 'unknown',
   source = 'unknown',
   actor = null,
+  forceSync = false,
 } = {}) {
   if (!productId) return;
   if (before === null || before === undefined || after === null || after === undefined) return;
   const bNum = Number(before);
   const aNum = Number(after);
   if (!Number.isFinite(bNum) || !Number.isFinite(aNum)) return;
-  if (bNum === aNum) return;
+  if (bNum === aNum && !forceSync) return;
 
   // 1) emit stock:changed event
   if (emitEnabled()) {
@@ -68,7 +69,7 @@ async function notifyStockChange({
   }
 
   // 2) append to inventory_ledger
-  if (ledgerEnabled()) {
+  if (ledgerEnabled() && bNum !== aNum) {
     try {
       const { firestore } = require('./firestore');
       await firestore.collection('inventory_ledger').add({

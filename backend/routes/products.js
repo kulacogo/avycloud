@@ -305,7 +305,9 @@ function attachReservedAvailability(products = [], reservedMap, soldMap) {
     const soldEntry = key ? sMap.get(key) : null;
     const soldQuantity = soldEntry ? soldEntry.sold : 0;
     const openOrderQuantity = soldEntry ? soldEntry.open : 0;
-    const physicalQuantity = Number(product?.inventory?.quantity || 0);
+    const physicalQuantity = require('../lib/marketplace-stock-quantity').resolveMarketplaceQuantity({
+      ...product, inventory: { quantity: product?.inventory?.quantity },
+    });
     const availableQuantity = Math.max(0, physicalQuantity - reservedQuantity);
     return {
       ...product,

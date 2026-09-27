@@ -851,6 +851,12 @@ async function createUnit(product, { storefront = 'de', autoCreateProductData = 
     throw err;
   }
 
+  // Fresh location/reservation guard after slow catalog preparation.
+  if (createData.amount > 0) {
+    createData.amount = await require('./marketplace-stock-quantity').readMarketplaceQuantity(product, createData.amount);
+    createData.status = createData.amount > 0 ? 'AVAILABLE' : 'ONHOLD';
+  }
+
   // Step 3: Create the unit — Kaufland accepts EAN without id_product
   try {
     const res = await kauflandRequest('POST', '/units', {
@@ -892,6 +898,10 @@ async function createUnit(product, { storefront = 'de', autoCreateProductData = 
 
 async function updateUnit(unitId, product, { storefront = 'de', priceOnly = false } = {}) {
   const picked = pickUnitData(product, { mode: 'update', storefront });
+  if (!priceOnly && picked.patchData.amount > 0) {
+    picked.patchData.amount = await require('./marketplace-stock-quantity').readMarketplaceQuantity(product, picked.patchData.amount);
+    picked.patchData.status = picked.patchData.amount > 0 ? 'AVAILABLE' : 'ONHOLD';
+  }
   const res = await kauflandRequest('PATCH', `/units/${encodeURIComponent(String(unitId))}`, {
     query: { storefront: picked.storefront },
     body: priceOnly
@@ -915,13 +925,25 @@ async function updateUnit(unitId, product, { storefront = 'de', priceOnly = fals
  * @param {'ONHOLD'|'AVAILABLE'} status
  * @param {{ storefront?: string }} options
  */
-async function setUnitStatus(unitId, status, { storefront = 'de' } = {}) {
+async function setUnitStatus(unitId, status, { storefront = 'de', tenantId = 'default' } = {}) {
   const validStatuses = ['AVAILABLE', 'ONHOLD'];
   const normalizedStatus = String(status || '').toUpperCase();
   if (!validStatuses.includes(normalizedStatus)) {
     throw new Error(`Invalid Kaufland unit status: ${status}`);
   }
   const body = { status: normalizedStatus };
+  if (normalizedStatus === 'AVAILABLE') {
+    const live = await getUnit(unitId, { storefront });
+    const sku = live?.id_offer;
+    if (!sku) throw new Error('Keine SKU zur sicheren Bestandsprüfung');
+    const { firestore } = require('./firestore');
+    const matches = await firestore.collection('products_v2').where('tenantId', '==', tenantId)
+      .where('identification.sku', '==', sku).limit(2).get();
+    if (matches.docs.length !== 1) throw new Error('Keine eindeutige Produktzuordnung zur Bestandsprüfung');
+    const product = { ...matches.docs[0].data(), id: matches.docs[0].id };
+    body.amount = await require('./marketplace-stock-quantity').readMarketplaceQuantity(product);
+    if (body.amount <= 0) throw new Error('Kein verfügbarer Bestand auf einem Lagerplatz — Aktivierung gesperrt');
+  }
   if (normalizedStatus === 'ONHOLD') body.amount = 0;
   const res = await kauflandRequest('PATCH', `/units/${encodeURIComponent(String(unitId))}`, {
     query: { storefront },

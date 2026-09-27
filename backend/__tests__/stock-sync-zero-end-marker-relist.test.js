@@ -1,3 +1,5 @@
+const stockQuantities = require('../lib/marketplace-stock-quantity');
+stockQuantities.readLocatedQuantity = async product => stockQuantities.locatedQuantity(product);
 // globals: true in vitest.config.js — describe/it/expect/vi are global
 //
 // REGRESSION GUARD — Incident 2026-07-19 (SKU-6656556112, itemId 800339004471).
@@ -104,6 +106,7 @@ function baseProduct(overrides = {}) {
     tenantId: 'default',
     identification: { sku: 'SKU-6656556112' },
     inventory: { quantity: 1 },
+    storageBins: [{ code: 'A-01', quantity: overrides.inventory?.quantity ?? 1 }],
     ops: { ebay: { itemId: '800339004471' } },
     ...overrides,
   };
@@ -560,4 +563,30 @@ describe('stock sync refuses uncertain inventory', () => {
       expect(results.some(r => r.status === 'failed' && r.retryable === true)).toBe(true);
     });
   }
+});
+
+it('ends unlocated stock and never relists it, even with an old zero-stock marker', async () => {
+ const product = baseProduct({ storageBins: [], ops: { ebay: { itemId: '800339004471', zeroStockEnd: { itemId: '800339004471' } } } });
+ await syncStockToAllChannels({ tenantId: 'default', product, onlyChannels: ['ebay'] });
+ expect(endCalls).toHaveLength(1);
+ expect(relistCalls).toHaveLength(0);
+ expect(reviseCalls).toHaveLength(0);
+});
+
+it('does not end or relist anything when actual BIN verification is unavailable', async () => {
+ const previous = stockQuantities.readLocatedQuantity;
+ stockQuantities.readLocatedQuantity = async () => { throw new Error('BIN read unavailable'); };
+ try {
+  const result = await syncStockToAllChannels({tenantId:'default',product:baseProduct(),onlyChannels:['ebay']});
+  expect(result.results[0]).toMatchObject({status:'failed',retryable:true});
+  expect(endCalls).toHaveLength(0); expect(reviseCalls).toHaveLength(0); expect(relistCalls).toHaveLength(0);
+ } finally { stockQuantities.readLocatedQuantity = previous; }
+});
+it('ends an offer when a named product location is absent from the actual BIN', async () => {
+ const previous = stockQuantities.readLocatedQuantity;
+ stockQuantities.readLocatedQuantity = async () => 0;
+ try {
+  await syncStockToAllChannels({tenantId:'default',product:baseProduct(),onlyChannels:['ebay']});
+  expect(endCalls).toHaveLength(1); expect(reviseCalls).toHaveLength(0); expect(relistCalls).toHaveLength(0);
+ } finally { stockQuantities.readLocatedQuantity = previous; }
 });

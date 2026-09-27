@@ -101,9 +101,9 @@ function buildUnassignmentPlan({ tenantId, zone, operationId, now, bins, product
   };
 }
 
-async function applyUnassignmentPlan(plan, { db, saveProductV2, versionOf: getVersion = versionOf }) {
+async function applyUnassignmentPlan(plan, { db, saveProductV2, versionOf: getVersion = versionOf, notifyStockChange = require('./stock-change-events').notifyStockChange }) {
   const operationRef = db.collection('warehouseRelocations').doc(`${plan.tenantId}_${plan.operationId}`);
-  return db.runTransaction(async tx => {
+  const result = await db.runTransaction(async tx => {
     const operation = await tx.get(operationRef);
     if (operation.exists) {
       const previous = operation.data();
@@ -147,6 +147,17 @@ async function applyUnassignmentPlan(plan, { db, saveProductV2, versionOf: getVe
     });
     return { ...plan.summary, alreadyApplied: false };
   });
+  // Location removal changes sellable stock even though the ledger delta is 0.
+  // Notify only after commit; a rejected transaction must never close offers.
+  if (!result.alreadyApplied) {
+    for (const product of plan.products) {
+      if (product.movedQuantity <= 0) continue;
+      await notifyStockChange({ tenantId: plan.tenantId, productId: product.id,
+        sku: product.sku, before: product.inventoryBefore, after: product.inventoryBefore,
+        forceSync: true, reason: 'warehouse-location-removed', source: 'warehouse-zone-unassign' });
+    }
+  }
+  return result;
 }
 
 module.exports = { buildUnassignmentPlan, applyUnassignmentPlan, inZone, versionOf };

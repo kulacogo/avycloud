@@ -26,11 +26,11 @@ const produkt = (id: string, over: Record<string, unknown> = {}) =>
   }) as any;
 
 const mitBestand = (id: string, menge: number) =>
-  produkt(id, { inventory: { quantity: menge, availableQuantity: menge } });
+  produkt(id, { storageBins: [{ code: "A-01", quantity: menge }], inventory: { quantity: menge, availableQuantity: menge } });
 
 const online = (id: string, menge = 1) =>
   produkt(id, {
-    inventory: { quantity: menge, availableQuantity: menge },
+    storageBins: [{ code: "A-01", quantity: menge }], inventory: { quantity: menge, availableQuantity: menge },
     ops: { listingStatus: { ebay: "active" } },
   });
 

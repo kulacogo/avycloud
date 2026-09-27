@@ -1,3 +1,5 @@
+const stockQuantities = require('../lib/marketplace-stock-quantity');
+stockQuantities.readLocatedQuantity = async product => stockQuantities.locatedQuantity(product);
 // globals: true in vitest.config.js — describe/it/expect/vi are global
 //
 // REGRESSION GUARD — Oversell-Incident 2026-07-11 (SKU-2510094553):
@@ -117,6 +119,7 @@ function dualChannelProduct(quantity) {
     identification: { sku: 'SKU-DOWNONLY-1', ean: '4045516002427' },
     details: { pricing: { sellPrice: 19.99 } },
     inventory: { quantity },
+    storageBins: [{ code: 'A-01', quantity: quantity }],
     ops: {
       ebay: { itemId: '110987654321' },
       kaufland: { unitId: '391413730777' },

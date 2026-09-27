@@ -205,8 +205,8 @@ describe("productWeightKg — eine Kette fuer Filter UND Spalte", () => {
 
 describe("applyProductFilters — neue Dimensionen", () => {
   test("Menge mit Vergleichsoperator (WMS-Wahrheit via getProductQuantity)", () => {
-    const a = makeProduct({ id: "a", inventory: { quantity: 2 } });
-    const b = makeProduct({ id: "b", inventory: { quantity: 10 } });
+    const a = makeProduct({ id: "a", storageBins: [{code: "A-01", quantity: 2}], inventory: { quantity: 2 } });
+    const b = makeProduct({ id: "b", storageBins: [{code: "A-01", quantity: 10}], inventory: { quantity: 10 } });
     const active: ActiveFilter[] = [{ id: "menge", value: { op: "gt", a: 5, b: null } }];
     assert.deepEqual(apply([a, b], active), ["b"]);
   });

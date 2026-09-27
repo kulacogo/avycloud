@@ -1,3 +1,5 @@
+const stockQuantities = require('../lib/marketplace-stock-quantity');
+stockQuantities.readLocatedQuantity = async product => stockQuantities.locatedQuantity(product);
 // globals: true in vitest.config.js — describe/it/expect/vi are global
 
 let stockSyncFailuresAdds = [];
@@ -137,6 +139,7 @@ describe('syncStockWithRetry failure queue integration', () => {
         tenantId: 'trendocean',
         identification: { sku: 'SKU-SYNC-1' },
         inventory: { quantity: 3 },
+    storageBins: [{ code: 'A-01', quantity: 3 }],
         ops: { ebay: { itemId: 'EBAY-123' } },
       },
     });
@@ -164,6 +167,7 @@ describe('syncStockWithRetry failure queue integration', () => {
         tenantId: 'trendocean',
         identification: { sku: 'SKU-SYNC-2' },
         inventory: { quantity: 4 },
+    storageBins: [{ code: 'A-01', quantity: 4 }],
         ops: { ebay: { itemId: 'EBAY-456' } },
       },
     });
@@ -189,6 +193,7 @@ describe('syncStockWithRetry failure queue integration', () => {
         tenantId: 'trendocean',
         identification: { sku: 'SKU-LIVE-1' },
         inventory: { quantity: 2 },
+    storageBins: [{ code: 'A-01', quantity: 2 }],
         ops: {},
       },
     });
@@ -227,6 +232,7 @@ describe('syncStockWithRetry — durable drain flag (WP1 Task 4)', () => {
         tenantId: 'trendocean',
         identification: { sku: 'SKU-DUR-1' },
         inventory: { quantity: 3 },
+    storageBins: [{ code: 'A-01', quantity: 3 }],
         ops: { ebay: { itemId: 'EBAY-DUR-1' } },
       },
     });
@@ -253,6 +259,7 @@ describe('syncStockWithRetry — durable drain flag (WP1 Task 4)', () => {
           tenantId: 'trendocean',
           identification: { sku: 'SKU-LEG-1' },
           inventory: { quantity: 3 },
+    storageBins: [{ code: 'A-01', quantity: 3 }],
           ops: { ebay: { itemId: 'EBAY-LEG-1' } },
         },
       });
