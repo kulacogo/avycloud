@@ -7,6 +7,18 @@ title: Erfassungsqualität — Arbeitsstand für Codex
 lastReviewed: 2026-09-27
 ---
 
+## 27.09.2026 — linke Navigation konsolidiert (Release freigegeben)
+
+**Aktuelle Betreiberfreigabe:** „raus damit auf prod“ autorisiert Commit, PR/Merge und Deployment dieses Navigationsauftrags. Die folgenden früheren Hinweise „kein Commit/Deployment“ beschreiben den vorherigen Prüfstand.
+
+- Auftrag: Übersicht verbessern, bekannte Linknamen erhalten, Gruppenpräferenzen pro Konto merken. Isolierter Worktree `/Users/oguz/Dev/avycloud-navigation-20260927`, Branch `codex/navigation-consolidation-20260927`, Basis `origin/main` **cd8a9b2e** (PR26). Hauptcheckout und andere laufende Arbeiten nicht für die Implementierung verwendet.
+- Alle 26 bisherigen Linknamen/Hashes erhalten. Inventar → Lager; Shop-Gesundheit → Marktplätze; Integrationen → Einstellungen. Duplikate/Regeln sowie die jeweiligen Auftrags-/Lager-Einstellungen unter „Weitere Funktionen“. Kein Ziel ersatzlos entfernt, keine behauptete Nutzungsmessung.
+- Erststart öffnet nur den aktuellen Bereich (bei Dashboard Aufträge); danach alle Gruppen, Untergruppen und Leistenbreite je Firebase-UID/tenantId in Browser-localStorage gespeichert. Initiale Standardzustände werden ebenfalls materialisiert; Kontowechsel remountet die State-Grenze. Alte kontoübergreifende Schlüssel nicht migrieren. Keine Cloud-/Gerätesynchronisierung.
+- Rechte weiter ausschließlich `canAccessView`, jetzt je Link statt zusätzlicher grober Gruppen-Gates. Inventar bleibt mit Produkt-Leserecht sichtbar; Persönliche Daten nutzt sein bestehendes allgemeines Zugriffsrecht. Keine Auth-/Backend-/Routing-/Bestandsänderung.
+- Nachweise: **537 Frontendtests, 6 lokale Browsertests, TypeScript und Produktionsbuild grün**. Unverändertes Backend: isolierte Baseline **5.659 Tests / 489 Dateien grün** (`GOOGLE_CLOUD_PROJECT=avycloud-local-test`, `GCLOUD_PROJECT=avycloud-local-test`, `FIRESTORE_EMULATOR_HOST=127.0.0.1:1`, `GOOGLE_APPLICATION_CREDENTIALS=/dev/null`). Hell/Dunkel visuell geprüft, 1024×600 mit gescrolltem Menü und erreichbarem Footer getestet.
+- Quellen: Worktree `components/Sidebar.tsx`, `utils/sidebarNavigation.ts`, `utils/sidebarNavigation.test.ts`, `tools/navigation/sidebar.browser-test.mjs`, `docs/kb/05-pages/navigation.md`. Bestehende Rechte-/Titeltests an ausgelagerte Struktur angepasst, nicht abgeschaltet.
+- **Kein Commit, Merge, Push oder Deployment für diesen Auftrag.** Frühere Releasefreigaben anderer Aufgaben gelten nicht dafür. Bei Fortsetzung Worktree verwenden, aktuellen Main auf parallele Änderungen prüfen; temporäre node_modules-Symlinks wurden nach Prüfung entfernt. Umfang und Vorschau: `/Users/oguz/Dev/avycloud/CODEX_NAVIGATION_20260927.md`.
+
 ## Produktionsauftrag vom 27.09.2026, 20:30 MESZ
 
 Der Betreiber hat ausdrücklich klargestellt: Die Lösung soll nach den Tests auf Produktion. **Commit, PR/Merge und Deployment sind für diese Korrektur autorisiert; nicht erneut fragen.** Frühere Hinweise auf fehlende Freigabe weiter unten beschreiben nur den vorigen Stand.

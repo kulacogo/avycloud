@@ -1,3 +1,4 @@
+import { getSidebarSections } from "./sidebarNavigation.ts";
 import { ALLOWED_VIEWS } from "./viewPermissions.ts";
 import { describe, test } from "node:test";
 import assert from "node:assert";
@@ -48,8 +49,7 @@ function viewTitles(): Set<string> {
 
 /** Ansichten, die aus der Seitenleiste heraus anklickbar sind. */
 function sidebarViews(): Set<string> {
-  const src = fs.readFileSync(path.join(ROOT, "components/Sidebar.tsx"), "utf8");
-  return new Set(Array.from(src.matchAll(/view:\s*"([a-z0-9-]+)"\s*as View/g)).map((x) => x[1]));
+  return new Set(getSidebarSections(() => true).flatMap(section => [...section.items, ...section.secondaryItems]).map(item => item.view));
 }
 
 describe("Seitennamen in der Topbar", () => {
