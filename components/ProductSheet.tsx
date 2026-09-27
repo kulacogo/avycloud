@@ -45,6 +45,7 @@ import { useInventoryContext } from '../context/InventoryContext';
 import { useAuth } from '../context/AuthContext';
 import { rejectedConditionNotice, catalogAgeNotice } from "../utils/conditionNotice";
 import { describeImageReferenceIssue, imageReferenceNextStep } from "../utils/imageReferenceNotice";
+import { applyPhotoChanges, type PhotoChange } from "../utils/photoEditorSession";
 
 interface ProductSheetProps {
   product: Product;
@@ -534,6 +535,18 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     },
     [updateImages]
   );
+
+  const handleApplyPhotoChanges = useCallback((changes: PhotoChange[]) => {
+    const snapshot = latestProductRef.current;
+    if (!isEditing || isSavingRef.current || snapshot.id !== product.id) return false;
+    const images = applyPhotoChanges(snapshot.details?.images || [], changes);
+    if (!images) return false;
+    const next = { ...snapshot, details: { ...snapshot.details, images } };
+    latestProductRef.current = next;
+    setLocalProduct(next);
+    setIsDirty(true);
+    return true;
+  }, [isEditing, product.id]);
 
   const handleInsertImage = useCallback(
     (image: ProductImage, afterIndex: number) => {
@@ -2375,6 +2388,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
             onDeleteImage={isEditing ? handleDeleteImage : undefined}
             onReorder={isEditing ? handleReorderImages : undefined}
             onUpdateImage={isEditing ? handleUpdateImage : undefined}
+            onApplyPhotoChanges={isEditing ? handleApplyPhotoChanges : undefined}
             onAddImage={isEditing ? handleInsertImage : undefined}
           />
           {isEditing && (

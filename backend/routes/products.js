@@ -30,7 +30,8 @@ const {
   updateJob,
   Timestamp,
 } = require('../lib/improve-jobs');
-const { uploadBase64Image, deleteProductImages } = require('../lib/storage');
+const { uploadBase64Image, uploadPhotoEditorAsset, deleteProductImages } = require('../lib/storage');
+const { preparePhotoEditorImage, validatePhotoEditorImages } = require('../lib/photo-editor-assets');
 const { isProductImageFolderReferenced } = require('../lib/firestore');
 
 /**
@@ -2049,8 +2050,25 @@ router.post('/save', requirePermission('products', 'write'), async (req, res) =>
     if (product.details && product.details.images) {
       const processedImages = [];
 
+      // Validate the complete edit payload before uploads; originals/masks must
+      // be durable before the product write. An upload failure is not a save.
+      try {
+        validatePhotoEditorImages(product.details.images);
+      } catch (error) {
+        return res.status(error.status || 422).json({ ok: false, error: { code: error.code || 'INVALID_PHOTO_EDITOR', message: error.message } });
+      }
+
       for (let i = 0; i < product.details.images.length; i++) {
         const image = product.details.images[i];
+
+        if (image?.photoEditor != null) {
+          try {
+            processedImages.push(await preparePhotoEditorImage(image, product.id, uploadPhotoEditorAsset));
+          } catch (error) {
+            return res.status(error.status || 503).json({ ok: false, error: { code: error.code || 'PHOTO_EDITOR_UPLOAD_FAILED', message: error.message } });
+          }
+          continue;
+        }
 
         // Only process base64 images
         if (typeof image.url_or_base64 === 'string' && image.url_or_base64.startsWith('data:')) {

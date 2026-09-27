@@ -20,6 +20,7 @@ const {
 } = require('./gpsr-manufacturer-registry');
 const { planRegistryEnforce } = require('./gpsr-enforce-guard');
 const { decodeHtmlEntitiesDeep } = require('./html-entities');
+const { imageAssetUrls } = require('./photo-editor-assets');
 
 /**
  * Notbremse für die Registry-Enforce-Sperre (Vorfall 2026-09-03).
@@ -4430,6 +4431,7 @@ async function computeOrdersDeliveryTotal(fromDate, toDate) {
 async function isProductImageFolderReferenced(folderId, excludeDocId = null) {
   if (!folderId) return false;
   const needle = `/products/${String(folderId)}/`;
+  const encodedNeedle = `/products/${encodeURIComponent(String(folderId))}/`;
   const snap = await firestore.collection(PRODUCTS_COLLECTION).select('details.images').get();
   for (const doc of snap.docs) {
     if (excludeDocId && doc.id === excludeDocId) continue;
@@ -4437,11 +4439,7 @@ async function isProductImageFolderReferenced(folderId, excludeDocId = null) {
     try { imgs = doc.get('details.images'); } catch { imgs = null; }
     if (!Array.isArray(imgs)) continue;
     for (const im of imgs) {
-      const raw = typeof im === 'string' ? im
-        : (im && (im.url_or_base64 || im.url)) || '';
-      const url = typeof raw === 'string' ? raw
-        : (raw && typeof raw === 'object' && typeof raw.url === 'string' ? raw.url : '');
-      if (typeof url === 'string' && url.includes(needle)) return true;
+      if (imageAssetUrls(im).some((url) => url.includes(needle) || url.includes(encodedNeedle))) return true;
     }
   }
   return false;
