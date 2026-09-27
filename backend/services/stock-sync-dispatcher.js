@@ -184,11 +184,11 @@ async function persistSyncFailureForDrain({
   }).catch(() => {});
 }
 
-async function resolveEbayItemIdFromLiveListing({ productId, freshProduct }) {
+async function resolveEbayItemIdFromLiveListing({ productId, freshProduct, listingsSnapshot = null }) {
   const sku = extractProductSku(freshProduct);
   if (!sku) return null;
   try {
-    const listingsSnap = await firestore.collection('ebayListingsLive')
+    const listingsSnap = listingsSnapshot || await firestore.collection('ebayListingsLive')
       .where('sku', '==', sku)
       .limit(5)
       .get();
@@ -531,7 +531,7 @@ async function computeAvailableQuantity(product, tenantId = 'default') {
     }
     reservedQty = reservations.length > 0 ? Math.max(...reservations) : 0;
   } catch (err) {
-    console.warn(`[stock-sync] reservation lookup failed for ${sku || productId}: ${err.message}`);
+    throw new Error(`reservation lookup unavailable for ${sku || productId}: ${err.message}`);
   }
 
   const availableQty = Math.max(0, physicalQty - reservedQty);
@@ -562,7 +562,8 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
   const channelFilter = Array.isArray(onlyChannels) && onlyChannels.length
     ? new Set(onlyChannels.map((c) => String(c || '').toLowerCase()).filter(Boolean))
     : null;
-  const channelAllowed = (name) => !channelFilter || channelFilter.has(name);
+  let ebayLookupFailed = false;
+  const channelAllowed = (name) => (!channelFilter || channelFilter.has(name)) && !(name === 'ebay' && ebayLookupFailed);
 
   const productId = String(product.id);
   const { withStockLock } = require('../lib/stock-lock');
@@ -577,13 +578,38 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
       freshProduct = { id: freshDoc.id, ...freshDoc.data() };
     }
   } catch (err) {
-    console.warn(`[stock-sync] fresh read failed for ${productId}, using passed object: ${err.message}`);
+    return { results: [{ channel: 'all', status: 'failed', retryable: true, action: 'stock_read_unavailable', error: err.message }] };
   }
 
-  const { physicalQty: quantity, reservedQty, availableQty: availableQuantity } =
-    await computeAvailableQuantity(freshProduct, tenantId);
+  let stock;
+  try {
+    if (freshProduct.tenantId && freshProduct.tenantId !== tenantId) throw new Error('product tenant mismatch');
+    stock = await computeAvailableQuantity(freshProduct, tenantId);
+    if (!Number.isFinite(stock.physicalQty) || stock.physicalQty < 0) throw new Error('invalid physical stock');
+  } catch (err) {
+    return { results: [{ channel: 'all', status: 'failed', retryable: true, action: 'stock_read_unavailable', error: err.message }] };
+  }
+  const { physicalQty: quantity, reservedQty, availableQty: availableQuantity } = stock;
   const results = [];
   const isZeroStock = availableQuantity === 0;
+  let completeEbayListings = null;
+  const listingPagination = String(process.env.EBAY_LISTING_PAGINATION || 'off').toLowerCase();
+  if (channelAllowed('ebay') && ['on', 'shadow'].includes(listingPagination)) {
+    try {
+      if (freshProduct.tenantId && freshProduct.tenantId !== tenantId) throw new Error('product tenant mismatch');
+      const { readEbayListingPages } = require('../lib/ebay-listing-pages');
+      const snapshot = await readEbayListingPages({ firestore, sku: extractProductSku(freshProduct), tenantId });
+      if (listingPagination === 'on') completeEbayListings = snapshot;
+      else if (snapshot.docs.length > 5) {
+        console.info(`[stock-sync] eBay pagination shadow product=${productId} candidates=${snapshot.docs.length} active=${snapshot.docs.filter(d => d.data()?.active !== false).length}`);
+      }
+    } catch (err) {
+      if (listingPagination === 'on') {
+        ebayLookupFailed = true;
+        results.push({ channel: 'ebay', status: 'failed', retryable: true, action: 'listing_lookup_incomplete', error: err.message });
+      } else console.warn(`[stock-sync] eBay pagination shadow failed product=${productId}: ${err.message}`);
+    }
+  }
 
   if (isZeroStock) {
     console.warn(`[stock-sync] ⚠️ ZERO STOCK product=${productId} physical=${quantity} reserved=${reservedQty} → pushing 0 to all channels`);
@@ -595,7 +621,7 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
     || freshProduct?.marketplace?.ebay?.itemId;
   let resolvedEbayItemId = ebayItemId;
   if (!resolvedEbayItemId && channelAllowed('ebay')) {
-    resolvedEbayItemId = await resolveEbayItemIdFromLiveListing({ productId, freshProduct });
+    resolvedEbayItemId = await resolveEbayItemIdFromLiveListing({ productId, freshProduct, listingsSnapshot: completeEbayListings });
   }
 
   const isEndedListing = (msg) => {
@@ -644,7 +670,7 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
           const sku = extractProductSku(freshProduct);
           const deadId = String(resolvedEbayItemId || '');
           if (sku && deadId) {
-            const snap = await firestore.collection('ebayListingsLive').where('sku', '==', sku).limit(5).get();
+            const snap = completeEbayListings || await firestore.collection('ebayListingsLive').where('sku', '==', sku).limit(5).get();
             await Promise.all(snap.docs
               .filter((d) => d.id === deadId || String(d.data()?.itemId || '') === deadId)
               .map((d) =>
@@ -734,7 +760,7 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
           try {
             const sku = extractProductSku(freshProduct);
             if (sku) {
-              const dupSnap = await firestore.collection('ebayListingsLive').where('sku', '==', sku).limit(5).get();
+              const dupSnap = completeEbayListings || await firestore.collection('ebayListingsLive').where('sku', '==', sku).limit(5).get();
               const other = dupSnap.docs
                 .map((d) => ({ id: d.id, ...d.data() }))
                 .find((row) => row.active !== false && String(row.itemId || row.id) !== String(resolvedEbayItemId));
@@ -853,7 +879,7 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
       // (Lücke bewiesen 2026-07-22 an SKU-9550750665).
       const endedSiblingIds = [];
       if (sku) {
-        const sibSnap = await firestore.collection('ebayListingsLive').where('sku', '==', sku).limit(10).get();
+        const sibSnap = completeEbayListings || await firestore.collection('ebayListingsLive').where('sku', '==', sku).limit(10).get();
         const trackedId = String(resolvedEbayItemId || '');
         const seenSiblings = new Set();
         for (const doc of sibSnap.docs) {
@@ -922,6 +948,7 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
       }
     } catch (fanoutErr) {
       console.warn(`[stock-sync] ebay Multi-Site-Fan-Out failed for product=${productId}: ${fanoutErr?.message}`);
+      results.push({ channel: 'ebay', status: 'failed', retryable: true, action: 'sibling_lookup_failed', error: fanoutErr?.message || String(fanoutErr) });
     }
   }
 
@@ -1166,7 +1193,7 @@ async function syncPriceToAllChannels({ tenantId = 'default', product, prices = 
           sellPrice: kauflandPrice,
         },
       };
-      const result = await updateUnit(kauflandUnitId, productWithPrice, { storefront: 'de' });
+      const result = await updateUnit(kauflandUnitId, productWithPrice, { storefront: 'de', priceOnly: true });
       results.push({ channel: 'kaufland', status: result?.updated ? 'success' : 'failed', pricePushed: kauflandPrice });
       console.log(`[price-sync] kaufland product=${productId} price=${kauflandPrice} status=success`);
     } catch (err) {

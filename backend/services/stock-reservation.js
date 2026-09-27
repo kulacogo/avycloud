@@ -433,8 +433,9 @@ async function getReservedQuantity({ tenantId = 'default', sku, productId }) {
   let total = 0;
   snap.docs.forEach((doc) => {
     const data = doc.data();
-    // Skip expired reservations even if cleanup hasn't run yet
-    if (data.expiresAt && data.expiresAt < now) return;
+    // A delivery obligation does not expire after 72h. Order lifecycle
+    // releases/consumes it explicitly; age alone must not relist sold stock.
+    if (!data.orderId && data.expiresAt && data.expiresAt < now) return;
     total += Number(data.quantity) || 0;
   });
   return total;
@@ -483,8 +484,10 @@ async function expireStaleReservations({ tenantId } = {}) {
   const snap = await query.get();
   if (snap.empty) return { expired: 0 };
 
+  const expirable = snap.docs.filter((doc) => !doc.data().orderId);
+  if (!expirable.length) return { expired: 0 };
   const batch = firestore.batch();
-  snap.docs.forEach((doc) => {
+  expirable.forEach((doc) => {
     batch.update(doc.ref, {
       status: 'expired',
       expiredAt: now,
@@ -492,7 +495,7 @@ async function expireStaleReservations({ tenantId } = {}) {
   });
   await batch.commit();
 
-  return { expired: snap.docs.length };
+  return { expired: expirable.length };
 }
 
 module.exports = {

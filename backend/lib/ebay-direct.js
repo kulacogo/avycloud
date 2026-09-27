@@ -4386,12 +4386,10 @@ function mapProductToEbayItem(product, overrides = {}) {
 
   const currency = safeString(overrides.currency) || safeString(pricing?.currency) || 'EUR';
 
-  // Use actual stock: storageBins sum → inventory.quantity → marketplace override → fallback 1
-  const binStock = Array.isArray(product?.storageBins)
-    ? product.storageBins.reduce((sum, b) => sum + (Number(b?.quantity) || 0), 0)
-    : 0;
-  const physicalStock = binStock || Number(product?.inventory?.quantity ?? 0);
-  const quantity = overrides.quantity ?? (physicalStock > 0 ? physicalStock : (product?.marketplace?.ebay?.quantity ?? 1));
+  // Inventory is authoritative; old BINs, marketplace mirrors and caller
+  // overrides must never manufacture stock (incident 2026-09-27).
+  const { resolveMarketplaceQuantity } = require('./marketplace-stock-quantity');
+  const quantity = resolveMarketplaceQuantity(product, overrides.quantity);
 
   // --- Artikelzustand ---
   // Der Zustand ist bei eBay ein EIGENES Feld (<ConditionID>), unabhaengig von
@@ -4814,6 +4812,10 @@ async function explainConditionRejection({ publishErr, product, overrides = {}, 
 function validatePublishReadiness(product, overrides = {}) {
   const blockers = [];
   const warnings = [];
+  const { resolveMarketplaceQuantity } = require('./marketplace-stock-quantity');
+  if (resolveMarketplaceQuantity(product, overrides.quantity) <= 0) {
+    blockers.push('Kein verfügbarer Lagerbestand — Veröffentlichung gesperrt.');
+  }
 
   // BEREIT-GATE (Policy-Verstoß 2026-07-20: 63 Produkte mit Status
   // "In Bearbeitung" wurden vom Repair-Script gelistet): Haus-Policy ist
@@ -5189,6 +5191,8 @@ async function verifyPublishProduct(productId, overrides = {}) {
   }
 
   const item = mapProductToEbayItem(product, overrides);
+  item.quantity = await require('./marketplace-stock-quantity').readMarketplaceQuantity(product, overrides.quantity);
+  if (item.quantity <= 0) return { productId: id, canPublish: false, blockers: ['Kein verfügbarer Lagerbestand.'], warnings: [], fees: null };
   const verifyResult = await verifyAddFixedPriceItem(item);
   return {
     productId: id,
@@ -5348,6 +5352,9 @@ async function publishProduct(productId, overrides = {}, { actor = null } = {}) 
   let lastPublishErr = null;
 
   for (let attempt = 0; attempt <= MAX_AUTOFIX_ATTEMPTS; attempt += 1) {
+    // Stock errors are not content errors: never send them through AI auto-fix.
+    item.quantity = await require('./marketplace-stock-quantity').readMarketplaceQuantity(product, overrides.quantity);
+    if (item.quantity <= 0) return { productId: id, ok: false, blockers: ['Kein verfügbarer Lagerbestand.'], warnings: [] };
     try {
       result = await addFixedPriceItem(item);
       lastPublishErr = null;
@@ -5674,7 +5681,6 @@ async function reviseListingFromProduct(itemId, product, { actor = null } = {}) 
     pictureUrls: sanitizeEbayPictureUrls(item.pictureUrls),
     startPrice: item.startPrice,
     currency: item.currency || 'EUR',
-    quantity: item.quantity,
     conditionId: conditionIdForPatch,
     ean: item.ean,
     isbn: item.isbn,

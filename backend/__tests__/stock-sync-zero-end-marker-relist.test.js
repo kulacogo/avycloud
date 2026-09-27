@@ -26,13 +26,16 @@ const productUpdates = [];
 const mirrorSets = [];
 let ebayLiveDocs = [];
 let mirrorDocData = {};
+let mirrorReadError = null;
+let freshReadError = null;
+let reservationReadError = null;
 
 const mockFirestore = {
   collection: vi.fn((name) => {
     if (name === 'products_v2') {
       return {
         doc: vi.fn((id) => ({
-          get: async () => ({ exists: false }),
+          get: async () => { if (freshReadError) throw freshReadError; return { exists: false }; },
           set: async () => {},
           update: async (payload) => { productUpdates.push({ id, payload }); },
         })),
@@ -47,11 +50,17 @@ const mockFirestore = {
         data: () => ({ ...d }),
         ref: { set: async (payload) => { mirrorSets.push({ id: d.id, payload }); } },
       }));
+      let queryLimit = Infinity;
+      let afterId = null;
       const chain = {
         where: vi.fn(() => chain),
-        limit: vi.fn(() => chain),
+        limit: vi.fn((n) => { queryLimit = n; return chain; }),
+        startAfter: vi.fn((doc) => { afterId = doc.id; return chain; }),
         get: async () => {
-          const docs = docsForQuery();
+          if (mirrorReadError) throw mirrorReadError;
+          const all = docsForQuery();
+          const start = afterId === null ? 0 : all.findIndex(d => d.id === afterId) + 1;
+          const docs = all.slice(start, start + queryLimit);
           return { empty: docs.length === 0, docs };
         },
         doc: vi.fn((id) => ({
@@ -78,7 +87,7 @@ function patch(path, exports) {
 
 patch('../lib/firestore', { firestore: mockFirestore });
 patch('../lib/stock-lock', { withStockLock: async (_key, fn) => fn() });
-patch('../services/stock-reservation', { getReservedQuantity: async () => 0 });
+patch('../services/stock-reservation', { getReservedQuantity: async () => { if (reservationReadError) throw reservationReadError; return 0; } });
 const opsAlerts = [];
 patch('../lib/ops-alert', { emitOpsAlert: (a) => { opsAlerts.push(a); } });
 patch('../lib/ebay-trading-api', {
@@ -108,10 +117,43 @@ beforeEach(() => {
   mirrorSets.length = 0;
   ebayLiveDocs = [];
   mirrorDocData = {};
+  mirrorReadError = null;
+  freshReadError = null;
+  reservationReadError = null;
+  delete process.env.EBAY_LISTING_PAGINATION;
   opsAlerts.length = 0;
   reviseImpl = async () => ({ ack: 'Success' });
   relistImpl = async () => ({ ack: 'Success', itemId: 'NEW-ITEM-1' });
   endImpl = async () => ({ ack: 'Success' });
+});
+
+afterEach(() => { delete process.env.EBAY_LISTING_PAGINATION; });
+
+describe('Vollständiger Listing-Abgleich', () => {
+  it('belegt die alte Lücke bei ausgeschalteter Pagination', async () => {
+    ebayLiveDocs = Array.from({ length: 205 }, (_, i) => ({ id: `old-${i}`, active: false }));
+    ebayLiveDocs.push({ id: 'late-active', active: true });
+    await syncStockToAllChannels({ tenantId: 'default', product: baseProduct(), onlyChannels: ['ebay'] });
+    expect(reviseCalls.map(call => call.itemId)).not.toContain('late-active');
+  });
+
+  it('erreicht ein aktives Länderangebot hinter vielen historischen Einträgen', async () => {
+    process.env.EBAY_LISTING_PAGINATION = 'on';
+    ebayLiveDocs = Array.from({ length: 205 }, (_, i) => ({ id: `old-${i}`, active: false }));
+    ebayLiveDocs.push({ id: 'late-active', active: true });
+    await syncStockToAllChannels({ tenantId: 'default', product: baseProduct(), onlyChannels: ['ebay'] });
+    expect(reviseCalls.map(call => call.itemId)).toContain('late-active');
+  });
+
+  it('ändert bei unvollständigem Read kein Angebot, sondern liefert einen dauerhaften Retry-Kandidaten', async () => {
+    process.env.EBAY_LISTING_PAGINATION = 'on';
+    mirrorReadError = new Error('unavailable');
+    const { results } = await syncStockToAllChannels({ tenantId: 'default', product: baseProduct({ inventory: { quantity: 0 } }), onlyChannels: ['ebay'] });
+    expect(endCalls).toHaveLength(0);
+    expect(reviseCalls).toHaveLength(0);
+    expect(relistCalls).toHaveLength(0);
+    expect(results).toContainEqual(expect.objectContaining({ status: 'failed', retryable: true, action: 'listing_lookup_incomplete' }));
+  });
 });
 
 describe('Zero-Stock-End schreibt den Selbstheilungs-Marker', () => {
@@ -503,4 +545,19 @@ describe('clearStaleItemId deaktiviert NUR die tote ItemID im Mirror', () => {
     // Nur die tote 800339004471 wird inaktiv gestempelt — 800368782370 nie
     expect(deactivated.every((m) => m.id === '800339004471')).toBe(true);
   });
+});
+
+
+describe('stock sync refuses uncertain inventory', () => {
+  for (const source of ['product', 'reservation']) {
+    it(`does not increase or end listings on ${source} read failure`, async () => {
+      if (source === 'product') freshReadError = new Error('unavailable');
+      else reservationReadError = new Error('unavailable');
+      const { results } = await syncStockToAllChannels({ tenantId: 'default', product: baseProduct() });
+      expect(reviseCalls).toHaveLength(0);
+      expect(endCalls).toHaveLength(0);
+      expect(relistCalls).toHaveLength(0);
+      expect(results.some(r => r.status === 'failed' && r.retryable === true)).toBe(true);
+    });
+  }
 });

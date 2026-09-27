@@ -353,15 +353,8 @@ function pickUnitData(product, { mode = 'create', storefront = 'de' } = {}) {
   // nicht die rohe Bin-Summe — sonst werden offene Reservierungen ignoriert
   // und Kaufland kann mehr verkaufen als wirklich frei ist (Oversell).
   // availableQuantity wird vom stock-sync-dispatcher pre-berechnet (computeAvailableQuantity).
-  const binStock = Array.isArray(product?.storageBins)
-    ? product.storageBins.reduce((sum, b) => sum + (Number(b?.quantity) || 0), 0)
-    : null;
-  const quantityRaw = product?.inventory?.availableQuantity
-    ?? product?.inventory?.quantity
-    ?? binStock
-    ?? product?.storage?.quantity
-    ?? 0;
-  const amount = Math.max(0, toInteger(quantityRaw) || 0);
+  const { resolveMarketplaceQuantity } = require('./marketplace-stock-quantity');
+  const amount = resolveMarketplaceQuantity(product);
   const handlingTime = Math.max(1, toInteger(product?.details?.handling_time) || 1);
   const condition = normalizeCondition(product?.details?.condition);
   const note = safeString(
@@ -897,11 +890,13 @@ async function createUnit(product, { storefront = 'de', autoCreateProductData = 
   }
 }
 
-async function updateUnit(unitId, product, { storefront = 'de' } = {}) {
+async function updateUnit(unitId, product, { storefront = 'de', priceOnly = false } = {}) {
   const picked = pickUnitData(product, { mode: 'update', storefront });
   const res = await kauflandRequest('PATCH', `/units/${encodeURIComponent(String(unitId))}`, {
     query: { storefront: picked.storefront },
-    body: picked.patchData,
+    body: priceOnly
+      ? { listing_price: picked.patchData.listing_price, minimum_price: picked.patchData.minimum_price }
+      : picked.patchData,
   });
   const parsedUnitId = Number(unitId);
   return {
