@@ -22,6 +22,15 @@ describe('POST /api/save preserves reversible photo edits', () => {
     local.saveProductV2.mockReset().mockImplementation(async (value) => { persisted = JSON.parse(JSON.stringify(value)); return persisted; });
     local.uploadBase64Image.mockClear();
   });
+  it('advertises editor persistence without reads or writes and forbids caching the deployment capability', async () => {
+    const response = await request(app).get('/api/images/editor-capabilities');
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ ok: true, data: { version: 1 } });
+    expect(response.headers['cache-control']).toBe('no-store');
+    expect(dataSpies.getProduct).not.toHaveBeenCalled();
+    expect(local.saveProductV2).not.toHaveBeenCalled();
+    expect(upload).not.toHaveBeenCalled();
+  });
   it('writes durable originals/masks/result and round-trips metadata on the real read route', async () => {
     const response = await request(app).post('/api/save').send(product());
     expect(response.status).toBe(200);

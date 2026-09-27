@@ -1331,6 +1331,18 @@ router.post('/generate-images', requirePermission('products', 'write'), async (r
   }
 });
 
+// Hosting and Cloud Run deploy independently. The frontend checks this before
+// sending nested editor assets, which older save handlers cannot make durable.
+router.get('/images/editor-capabilities', requirePermission('products', 'write'), async (req, res) => {
+  try {
+    res.set('Cache-Control', 'no-store');
+    return res.json({ ok: true, data: { version: 1 } });
+  } catch (error) {
+    console.error(`[GET /api/images/editor-capabilities] ${error.message}`, error);
+    return res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: 'Bildbearbeitung ist vorübergehend nicht verfügbar.' } });
+  }
+});
+
 // --- Studio-Foto (Bild verbessern → Studio-Packshot) ---
 router.post('/images/studio', requirePermission('products', 'write'), async (req, res) => {
   try {

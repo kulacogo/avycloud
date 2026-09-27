@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { applyPhotoChanges, createPhotoHistory, pushPhotoHistory } from "./photoEditorSession.ts";
+import { applyPhotoChanges, assertPhotoEditorBackend, createPhotoHistory, pushPhotoHistory } from "./photoEditorSession.ts";
 import type { ProductImage } from "../types.ts";
 
 const photo = (url: string): ProductImage => ({ source: "upload", url_or_base64: url });
@@ -31,4 +31,18 @@ test("duplicate batch targets are rejected", () => {
   const a = photo("a");
   const c = { index: 0, expected: a, image: photo("new") };
   assert.equal(applyPhotoChanges([a], [c, c]), null);
+});
+
+test("legacy products do not require the new backend capability", async () => {
+  let calls = 0;
+  await assertPhotoEditorBackend([photo("legacy")], async () => { calls++; return { ok: false }; });
+  assert.equal(calls, 0);
+});
+test("mixed deployments, network errors and unsupported versions cannot reach the product write", async () => {
+  const edited = { ...photo("edited"), photoEditor: { version: 1 } } as ProductImage;
+  for (const response of [{ ok: false }, { ok: true }, { ok: true, version: 2 }]) {
+    await assert.rejects(assertPhotoEditorBackend([edited], async () => response), /Änderungen bleiben/);
+  }
+  await assert.rejects(assertPhotoEditorBackend([edited], async () => { throw new Error("network"); }), /Änderungen bleiben/);
+  await assert.doesNotReject(assertPhotoEditorBackend([edited], async () => ({ ok: true, version: 1 })));
 });

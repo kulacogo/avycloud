@@ -3,6 +3,14 @@ import type { ProductImage } from "../types.ts";
 export type PhotoChange = { index: number; expected: ProductImage; image: ProductImage };
 export type PhotoHistory<T> = { entries: Array<{ value: T; label: string }>; position: number };
 
+/** Hosting and Cloud Run deploy independently. Never send nested image assets to an older save handler. */
+export async function assertPhotoEditorBackend(images: ProductImage[], request: () => Promise<{ ok: boolean; version?: number }>): Promise<void> {
+  if (!images.some(image => image?.photoEditor)) return;
+  let ready = false;
+  try { const capability = await request(); ready = capability.ok && capability.version === 1; } catch { /* Fail before the product POST. */ }
+  if (!ready) throw new Error("Die Bildwerkstatt kann gerade noch nicht sicher speichern. Bitte kurz warten und erneut speichern. Ihre Änderungen bleiben im Datenblatt erhalten.");
+}
+
 export function createPhotoHistory<T>(value: T): PhotoHistory<T> {
   return { entries: [{ value, label: "Ausgangsstand" }], position: 0 };
 }
