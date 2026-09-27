@@ -1,14 +1,14 @@
 ---
 title: Stock Management
 for: [dev, agent, admin, manager]
-lastReviewed: 2026-05-18
+lastReviewed: 2026-09-18
 ---
 
 # Stock Management
 
 ## Was es macht
 
-Verwaltet `products_v2.inventory.quantity` als einzige autoritative Wahrheit für Bestand. Erzwingt das **Stock Single Writer Invariant** (CLAUDE.md Punkt 13): pro `(sku × order)` darf der Bestand während des Order-Lifecycle GENAU EINMAL dekrementiert werden. Schützt vor Oversell durch Firestore-Locks, Stock-Reservations, Marketplace-Sync-Events, Failure-Drain und Inventory-Ledger.
+Verwaltet `products_v2.inventory.quantity` als Bestandsprojektion. Bei `STOCK_LEDGER=on` wird sie aus der Summe der gebuchten `warehouseEvents.delta` abgeleitet; eine alleinige Projektionskorrektur ist deshalb nicht dauerhaft. Erzwingt das **Stock Single Writer Invariant** (CLAUDE.md Punkt 13): pro `(sku × order)` darf der Bestand während des Order-Lifecycle GENAU EINMAL dekrementiert werden. Schützt vor Oversell durch Firestore-Locks, Stock-Reservations, Marketplace-Sync-Events, Failure-Drain und Inventory-Ledger.
 
 ## Wie es funktioniert
 
@@ -68,6 +68,12 @@ Periodischer Worker pro Tenant. Liest `stock_operation_failures` (`status='pendi
 ### Stock-Reservation (`backend/services/stock-reservation.js`)
 
 Soft-Lock zwischen Order-Eingang und Pick. Idempotent (Skip wenn schon `reserved` für `orderId`). Default-Expiry 72 h (`STOCK_RESERVATION_EXPIRY_HOURS`). Collection `stock_reservations`.
+
+## Versand-/BIN-Korrektur vom 18.09.2026 (lokal)
+
+`order_decrement` und physische BIN-Entfernung buchen ein Delta in Höhe des tatsächlich angewandten Abgangs; reine Layoutbewegungen bleiben ohne Bestandsdelta. Versand liest Mengen innerhalb der Transaktion, übergibt `meta.orderId`, emittiert den Stock-Change vor dem Projektionsrefresh und behandelt einen fehlgeschlagenen Refresh nach erfolgreicher Buchung nicht als erneut abzubuchenden Fehler. Ein verspäteter Pick nach Versandabbuchung bleibt ohne zweiten Write. BIN-Entfernung emittiert auch dann, wenn der korrekte Ledger-Refresh keinen Mengenunterschied mehr findet.
+
+Regression: `backend/__tests__/ship-decrement-no-ledger-resurrection.test.js` (17 Fälle), zusammen mit Pick/Ship-Tests 36 Fälle. Die Änderung enthält keine Altbestandsreparatur. Das bestehende orderweite Claim-vor-mehreren-SKU-Buchungen-Verhalten ist **nicht** atomar über alle Positionen: Prozessabbruch/Teilerfolg und wiederholte Teil-Picks bleiben gesonderter A8-Abnahmeumfang. Ein bestandener Delta-Test beweist diese Fälle nicht.
 
 ## Code-Pfade
 
@@ -157,3 +163,12 @@ TBD — keine Stand-alone-Spec. Quelle der Wahrheit:
 
 - **Gap C** (CLAUDE.md): `routes/marketplace.js:966` mutiert `inventory.quantity` direkt im Kaufland-Reconcile, außerhalb `lib/warehouse.js`/`product-store.js`. Bekannte Schuld in TASKS.md.
 - Weitere laufende Bugs: siehe `TASKS.md`.
+
+## Oversell-Härtung 27.09.2026
+
+- Versand- und bestandswirksame BIN-Entfernung schreiben das tatsächlich angewandte `warehouseEvents.delta`. Versandmengen werden im Transaktionsread ermittelt; ein späterer Refreshfehler gibt den bereits ausgeführten Versand nicht für einen zweiten Abzug frei. Pick nach Ship-Claim ist ein No-op. Relocation-Pfad bleibt erhalten.
+- `backend/lib/marketplace-stock-quantity.js`: Produktprojektion begrenzt jede Angebotsmenge; `availableQuantity` und Overrides dürfen sie nur senken. Alte BIN-/Marktplatzmengen und Default 1 sind keine Bestandsquelle. eBay-Publish und jeder Auto-Fix-Wiederholungsversuch lesen unmittelbar vor dem API-Aufruf Produkt und Reservierungen neu. Datenblatt-Revise überträgt keine Menge; Kaufland-Preisabgleich verändert weder Menge noch Verfügbarkeitsstatus.
+- Produkt-/Reservierungs-Lesefehler im Bestandsabgleich liefern retrybare Fehler; keine Interpretation als Bestand 0 oder unreservierter Bestand.
+- Auftragsgebundene Reservierungen bleiben bis Pick, Versand oder expliziter Freigabe bestehen. 72 Stunden allein geben verkaufte Ware nicht mehr frei. Verwaiste Auftragsreservierungen müssen geprüft werden; sie werden bewusst nicht still für den Verkauf freigegeben.
+- `EBAY_LISTING_PAGINATION=on` aktiviert `backend/lib/ebay-listing-pages.js`: vollständige, begrenzte Cursor-Abfrage vor jeder eBay-Mutation statt der alten 5-/10-Dokument-Fenster. Ein unvollständiger Abruf wird retried. Legacy-Spiegel ohne tenantId gehören ausschließlich zum bestehenden default-Mandanten.
+- Ein fehlender BIN beweist keinen Nullbestand: Umzugsbestände in `ops.relocation.unassignedQuantity` sind bewusst lagerplatzlos. Mengen nur anhand belegter Buchungsfehler oder bestätigter physischer Zählung korrigieren. Fallnachweis: [Incident 27.09.2026](../../incidents/2026-09-27-oversell.md).

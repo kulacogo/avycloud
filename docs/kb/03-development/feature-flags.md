@@ -243,6 +243,16 @@ Beide **default OFF** → exakt heutiges Verhalten. Rollback = Flag auf `false`.
 >
 > **Sichtbarkeit:** wird ein Bestandsprodukt wiederverwendet, zeigt der Prüfschritt der Erfassung ein bleibendes Hinweisfeld ([utils/reuseNotice.ts](../../../utils/reuseNotice.ts), [components/capture/StepReview.tsx](../../../components/capture/StepReview.tsx)). Ohne diesen Hinweis hielte der Bediener die Bestandsdaten für das Ergebnis der frischen Erkennung — die Datenverlust-Klasse aus [CLAUDE.md](../../../CLAUDE.md) Punkt 16.
 
+## Vollständiger eBay-Listing-Abgleich (18.09.2026, lokal vorbereitet)
+
+| ENV | Default | Wirkung | Anker |
+|-----|---------|---------|-------|
+| `EBAY_LISTING_PAGINATION` | `off` | `shadow`: vollständiger zusätzlicher Read, protokolliert große Kandidatenmengen; bisherige Entscheidungen bleiben. `on`: alle SKU-Spiegelseiten vor eBay-Mutationen lesen; Wiederverwendung für Auflösung, Relist-Duplikatschutz und Länderangebote. Read-Fehler/Limit → retryable Failure, keine eBay-Mutation aus unvollständigen Daten. | `backend/lib/ebay-listing-pages.js`, `backend/services/stock-sync-dispatcher.js` |
+
+Seiten mit 100 Dokumenten, maximal 50 Seiten. Ein voller letzter Budgetblock zählt als unvollständig, niemals als erfolgreicher Ausschnitt. Jeder andere Mandant wird im Query und am Dokument abgegrenzt. Der bestehende Default-Spiegel aus `ebay-direct.js` hat historisch kein `tenantId`: ausschließlich für `default` bleibt die vorhandene SKU-Abfrage bestehen; fremd markierte Zeilen werden verworfen. Das ist ein begrenzter Altbestandsadapter, kein Muster für neue Collections.
+
+Vor `on`: Shadow-Lauf und benötigte Firestore-Indizes je Mandant prüfen, aktive/historische Relists und Länderangebote vergleichen. Weder Aktivierung noch Datenmigration ist Teil der lokalen Codeänderung. Rücknahme mit `off` stellt die alte Begrenzung wieder her und ist deshalb nur eine technische Notbremse. Es wurde kein Listing verändert.
+
 ## Hinweise
 
 - **ENV-Var-Rename** ist verboten, wenn sie in CI/CD referenziert wird (Punkt 4 [CLAUDE.md](../../../CLAUDE.md)).

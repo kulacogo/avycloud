@@ -102,6 +102,14 @@ require.cache[require.resolve('../lib/ebay-trading-api')] = {
   paths: [],
 };
 
+// These tests exercise marketplace failures, not an unavailable reservation DB.
+// The old fail-open path hid this missing fixture by assuming reserved=0.
+const reservationPath = require.resolve('../services/stock-reservation');
+require.cache[reservationPath] = {
+  id: reservationPath, filename: reservationPath, loaded: true,
+  exports: { getReservedQuantity: async () => 0 }, children: [], paths: [],
+};
+
 const { syncStockWithRetry } = require('../services/stock-sync-dispatcher');
 const { MARKETPLACE_ERROR_CLASSES } = require('../lib/marketplace-error-classifier');
 

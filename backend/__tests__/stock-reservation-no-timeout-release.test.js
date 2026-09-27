@@ -1,0 +1,10 @@
+let rows=[];const updates=[];
+const chain={where(){return this},limit(){return this},async get(){return {empty:!rows.length,docs:rows}}};
+const firestore={collection:()=>chain,batch:()=>({update:(ref,data)=>updates.push({id:ref.id,...data}),commit:async()=>{}})};
+const path=require.resolve('../lib/firestore');require.cache[path]={id:path,filename:path,loaded:true,exports:{firestore}};
+const {getReservedQuantity,expireStaleReservations}=require('../services/stock-reservation');
+const row=(id,data)=>({id,ref:{id},data:()=>({status:'reserved',tenantId:'default',quantity:1,expiresAt:'2020-01-01T00:00:00Z',...data})});
+beforeEach(()=>{rows=[];updates.length=0});
+it('keeps an open order reserved past 72 hours',async()=>{rows=[row('a',{orderId:'ebay__order'})];expect(await getReservedQuantity({tenantId:'default',sku:'SKU-A'})).toBe(1)});
+it('cleanup never expires an order reservation by age alone',async()=>{rows=[row('a',{orderId:'ebay__order'})];expect(await expireStaleReservations({tenantId:'default'})).toEqual({expired:0});expect(updates).toHaveLength(0)});
+it('still expires abandoned reservations without an order',async()=>{rows=[row('a',{})];expect(await getReservedQuantity({tenantId:'default',sku:'SKU-A'})).toBe(0);expect(await expireStaleReservations({tenantId:'default'})).toEqual({expired:1})});
