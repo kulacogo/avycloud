@@ -149,6 +149,7 @@ describe('createUnit EAN rejection', () => {
   it('surfaces KAUFLAND_EAN_INVALID (not the cryptic [item] error) when Kaufland rejects the EAN on lookup', async () => {
     // EAN is structurally valid (passes pre-flight) but unregistered →
     // Kaufland's /products/ean lookup returns "Invalid EAN provided".
+    responseQueue.push({ ok: true, status: 200, text: async () => JSON.stringify({ data: [] }), headers: { get: () => null } });
     responseQueue.push(mockErr(400, { message: 'Invalid EAN provided' }));
 
     let thrown = null;
@@ -160,9 +161,9 @@ describe('createUnit EAN rejection', () => {
     expect(thrown).toBeTruthy();
     expect(thrown.code).toBe('KAUFLAND_EAN_INVALID');
     expect(thrown.message).not.toMatch(/\[item\]/);
-    // POST /units must never be attempted — only the lookup fetch happened.
-    expect(fetchCalls).toHaveLength(1);
-    expect(fetchCalls[0].url).toContain('/products/ean/');
+    // Existing-unit lookup first; no POST when catalog EAN is invalid.
+    expect(fetchCalls).toHaveLength(2);
+    expect(fetchCalls[1].url).toContain('/products/ean/');
     expect(fetchCalls.some((c) => c.opts?.method === 'POST' && c.url.includes('/units'))).toBe(false);
   });
 });

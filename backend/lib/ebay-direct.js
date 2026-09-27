@@ -5005,30 +5005,27 @@ async function resolveItemIsActive(itemId, { timeoutMs = 12000 } = {}) {
 
   const localStatus = safeString(local?.listingStatus) || null;
   const localActiveFlag = local?.active === true;
-  const localInactiveFlag = local?.active === false;
-
-  // Fast path: if we already know it's inactive locally, don't block relisting.
-  if (localInactiveFlag || isEbayListingStatusInactive(localStatus)) {
-    return { itemId: id, isActive: false, listingStatus: localStatus, source: 'firestore', uncertain: false };
-  }
-
-  // If local snapshot says active (or we don't have one), confirm with Trading API GetItem.
+  // A cached inactive flag is not authoritative at manual publish time.
   try {
     const live = await getItemDetails(id, { timeoutMs });
     const liveStatus = safeString(live?.item?.listingStatus) || null;
     const liveIsActive = isEbayListingStatusActive(liveStatus);
+    if (!liveIsActive && !isEbayListingStatusInactive(liveStatus)) {
+      return { itemId: id, isActive: true, listingStatus: liveStatus, source: 'ebay', uncertain: true };
+    }
 
-    // Heal stale local snapshots: item is no longer active on eBay.
-    if (!liveIsActive && localActiveFlag) {
+    // Heal both fields together from the authoritative marketplace response.
+    if (local?.active !== liveIsActive || localStatus !== liveStatus) {
       await firestore
         .collection(EBAY_LISTINGS_COLLECTION)
         .doc(id)
         .set(
           cleanUndefined({
-            active: false,
-            inactiveAt: FieldValue.serverTimestamp(),
-            inactiveAtIso: new Date().toISOString(),
-            deactivation: {
+            active: liveIsActive,
+            listingStatus: liveStatus,
+            inactiveAt: liveIsActive ? null : FieldValue.serverTimestamp(),
+            inactiveAtIso: liveIsActive ? null : new Date().toISOString(),
+            deactivation: liveIsActive ? null : {
               reason: 'verified_not_active',
               actor: 'publish_guard',
               at: new Date().toISOString(),
@@ -5041,14 +5038,12 @@ async function resolveItemIsActive(itemId, { timeoutMs = 12000 } = {}) {
 
     return { itemId: id, isActive: liveIsActive, listingStatus: liveStatus, source: 'ebay', uncertain: false };
   } catch (error) {
-    // Nur bei GENUIN transienten Fehlern (Netz/Quota/5xx) konservativ blocken.
-    if (isTransientItemProbeError(error)) {
+    const ebayCode = safeString(error?.details?.errors?.[0]?.code || error?.details?.errors?.[0]?.errorCode) || null;
+    // Only a documented removed/not-owned item response proves absence.
+    // Auth, unknown business errors and unreadable responses must not allow duplicates.
+    if (isTransientItemProbeError(error) || !['17', '21920397'].includes(ebayCode)) {
       return { itemId: id, isActive: true, listingStatus: localStatus, source: local ? 'firestore' : 'unknown', uncertain: true, error };
     }
-    // Definitive eBay-Antwort (entfernt / nicht der Verkäufer / ungültige ID /
-    // beendet / Policy): der Artikel ist auf diesem Konto NICHT aktiv → Relisten
-    // erlauben. Lokalen Spiegel heilen, falls er fälschlich "active" sagte.
-    const ebayCode = safeString(error?.details?.errors?.[0]?.code || error?.details?.errors?.[0]?.errorCode) || null;
     if (localActiveFlag) {
       await firestore
         .collection(EBAY_LISTINGS_COLLECTION)
@@ -5088,41 +5083,34 @@ async function checkCategoryIsLeaf(product, overrides) {
   }
 }
 
-async function checkExistingEbayLink(productId) {
-  const snap = await firestore
-    .collection(EBAY_LINKS_COLLECTION)
-    .where('productId', '==', productId)
-    .where('status', '==', 'matched')
-    .limit(10)
-    .get();
-  if (snap.empty) return null;
-
-  const itemIds = snap.docs
-    .map((doc) => safeString(doc.data()?.itemId) || safeString(doc.id))
-    .filter(Boolean);
-  if (!itemIds.length) return null;
-
-  // Prefer local "active" evidence to avoid unnecessary API calls.
-  const listingSnaps = await firestore.getAll(
-    ...itemIds.map((id) => firestore.collection(EBAY_LISTINGS_COLLECTION).doc(String(id)))
-  );
-  const localActiveIds = [];
-  listingSnaps.forEach((docSnap) => {
-    if (!docSnap.exists) return;
-    const data = docSnap.data() || {};
-    if (data?.active === true && safeString(docSnap.id)) {
-      localActiveIds.push(String(docSnap.id));
-    }
-  });
-
-  // If we have one locally-active candidate, confirm it against eBay before blocking.
-  if (localActiveIds.length) {
-    const check = await resolveItemIsActive(localActiveIds[0]);
-    if (check.isActive) return check.itemId;
-    return null;
+async function checkExistingEbayLink(productId, product = {}) {
+  const tenantId = product.tenantId || 'default';
+  // Legacy default-account links predate tenantId; gate every returned row.
+  let query = firestore.collection(EBAY_LINKS_COLLECTION)
+    .where('productId', '==', productId).where('status', '==', 'matched');
+  if (tenantId !== 'default') query = query.where('tenantId', '==', tenantId);
+  const snap = await query.get();
+  const itemIds = new Set(snap.docs
+    .filter(doc => (doc.data()?.tenantId || 'default') === tenantId)
+    .map(doc => safeString(doc.data()?.itemId) || safeString(doc.id)).filter(Boolean));
+  for (const pointer of [product?.marketplace?.ebay?.itemId, product?.ops?.ebay?.itemId]) {
+    if (safeString(pointer)) itemIds.add(safeString(pointer));
   }
-
-  // No local evidence of an active listing → allow relisting.
+  const sku = safeString(product?.identification?.sku || product?.details?.identifiers?.sku);
+  if (sku) {
+    const { readEbayListingPages } = require('./ebay-listing-pages');
+    const mirror = await readEbayListingPages({ firestore, sku, tenantId });
+    for (const doc of mirror.docs) {
+      // Completed/Ended are terminal for an eBay item ID (relist gets a NEW ID).
+      // Boolean-only inactive rows still need a live probe.
+      if (!isEbayListingStatusInactive(doc.data()?.listingStatus)) itemIds.add(safeString(doc.data()?.itemId) || doc.id);
+    }
+  }
+  for (const itemId of itemIds) {
+    const check = await resolveItemIsActive(itemId);
+    if (check.uncertain) throw Object.assign(new Error(`eBay-Status für ${itemId} konnte nicht sicher geprüft werden. Bitte erneut versuchen.`), { code: 'EBAY_LISTING_STATUS_UNCERTAIN' });
+    if (check.isActive) return check.itemId;
+  }
   return null;
 }
 
@@ -5158,7 +5146,7 @@ async function verifyPublishProduct(productId, overrides = {}) {
   if (!doc.exists) throw Object.assign(new Error(`Produkt ${id} nicht gefunden`), { code: 'EBAY_PUBLISH_PRODUCT_NOT_FOUND' });
   const product = { id: doc.id, ...doc.data() };
 
-  const existingItemId = safeString(product?.marketplace?.ebay?.itemId);
+  const existingItemId = safeString(product?.marketplace?.ebay?.itemId || product?.ops?.ebay?.itemId);
   if (existingItemId) {
     const state = await resolveItemIsActive(existingItemId);
     if (state.isActive) {
@@ -5174,7 +5162,7 @@ async function verifyPublishProduct(productId, overrides = {}) {
     if (!state.uncertain) await clearStaleEbayPointer(id, existingItemId, state.ebayCode ? `ebay_error_${state.ebayCode}` : 'not_active');
   }
 
-  const linkedItemId = await checkExistingEbayLink(id);
+  const linkedItemId = await checkExistingEbayLink(id, product);
   if (linkedItemId) {
     return {
       productId: id,
@@ -5289,8 +5277,8 @@ async function publishProduct(productId, overrides = {}, { actor = null } = {}) 
   if (!doc.exists) throw Object.assign(new Error(`Produkt ${id} nicht gefunden`), { code: 'EBAY_PUBLISH_PRODUCT_NOT_FOUND' });
   const product = { id: doc.id, ...doc.data() };
 
-  // Check Firestore link first (free, no API call)
-  const linkedItemId = await checkExistingEbayLink(id);
+  // Live duplicate guard includes links, both product pointers and SKU mirrors.
+  const linkedItemId = await checkExistingEbayLink(id, product);
   if (linkedItemId) {
     return {
       productId: id,
@@ -5301,7 +5289,7 @@ async function publishProduct(productId, overrides = {}, { actor = null } = {}) 
   }
 
   // Only call eBay API as fallback when product has a stored itemId but no Firestore link
-  const existingItemId = safeString(product?.marketplace?.ebay?.itemId);
+  const existingItemId = safeString(product?.marketplace?.ebay?.itemId || product?.ops?.ebay?.itemId);
   if (existingItemId) {
     const state = await resolveItemIsActive(existingItemId);
     if (state.isActive) {
@@ -5898,6 +5886,8 @@ module.exports = {
   deactivateListingsMissingFromActiveSet,
   resolveCategoryNameFromId,
   isTransientItemProbeError,
+  resolveItemIsActive,
+  checkExistingEbayLink,
   // Additiv exportiert fuer Regressionstests der Vorlagen-Erkennung (2026-07-29).
   extractTrendOceanDescriptionParts,
   buildTrendOceanDescriptionTemplate,

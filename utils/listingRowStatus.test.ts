@@ -39,9 +39,9 @@ test("beendete/unbekannte Status zaehlen nicht", () => {
   assert.strictEqual(isListingRowActive({ status: "   " }), false);
 });
 
-test("explizites active:false schlaegt einen (veralteten) Status-String NICHT — Status gewinnt, wenn er Existenz belegt", () => {
-  // Kaufland-Ghost-Fix: active-Flag stammt vom Sync; ein Status wie LIVE
-  // heisst, die Unit existiert beim Marktplatz. Fuer den AUSSCHLUSS im
-  // Publish-Modal ist Existenz das Kriterium (Duplikat-Gefahr), daher OR.
-  assert.strictEqual(isListingRowActive({ active: false, status: "LIVE" }), true);
+test("explizit inaktive Flags und beendete/pausierte Status gewinnen gegen veraltete Aktiv-Signale", () => {
+  assert.strictEqual(isListingRowActive({ active: false, status: "LIVE" }), false);
+  assert.strictEqual(isListingRowActive({ active: true, status: "ONHOLD" }), false);
+  assert.strictEqual(isListingRowActive({ active: true, listingStatus: "Completed" }), false);
+  assert.strictEqual(isListingRowActive({ active: true, status: "AVAILABLE", quantity: 0 }), false);
 });

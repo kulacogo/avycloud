@@ -225,8 +225,8 @@ function formatRelativeTime(iso?: string | null): string {
 }
 
 function normalizeEbayStatus(row: EbayListingRow): ListingStatus {
-  if (row.active === false || row.listingStatus === "Completed" || row.listingStatus === "Ended") return "inactive";
-  if (row.active === true || row.listingStatus === "Active") return "active";
+  if (row.active === false || ["completed", "ended"].includes(String(row.listingStatus || "").toLowerCase())) return "inactive";
+  if (row.active === true || String(row.listingStatus || "").toLowerCase() === "active") return "active";
   return "unknown";
 }
 
@@ -327,7 +327,12 @@ function normalizeKauflandRow(row: KauflandListingRow, productMaster?: ProductMa
     : [];
   const hasInvalidReasons = invalidMissingAttributes.length > 0 || invalidDeclined.length > 0;
 
-  if (row.active === true) {
+  if (rawStatus === "ONHOLD") status = "paused";
+  else if (rawStatus === "DEACTIVATED") status = "deactivated";
+  else if (rawStatus === "BLOCKED") status = "blocked";
+  else if (rawStatus === "IN_REVIEW") status = "in_review";
+  else if (rawStatus === "STALE" || row.quantity === 0) status = "inactive";
+  else if (row.active === true) {
     if (row.productValid === true) status = "live";
     // productValid=false + concrete Kaufland reasons → Portal "Inaktiv/Ungültig".
     // Without synced reasons we cannot distinguish from fresh indexing (<24h),
@@ -673,6 +678,7 @@ export function MarketplaceListingsView({ marketplace, products }: MarketplaceLi
         if (getProductAvailableQuantity(p) <= 0) return false;
         if (marketplace === "kaufland") {
           const raw = (p as any)?.identification?.ean
+            || p.details?.identifiers?.ean
             || ((p as any)?.identification?.barcodes || []).find?.((b: any) =>
               /^\d{13,14}$/.test(String(b || "").replace(/\D+/g, ""))
             );
@@ -705,9 +711,8 @@ export function MarketplaceListingsView({ marketplace, products }: MarketplaceLi
           .map((l) => String(l.ean).toLowerCase())
       );
       const notYetListed = inStockProducts.filter((p) => {
-        // Check ops.listingStatus for current marketplace
-        const mpStatus = p.ops?.listingStatus?.[marketplace];
-        if (mpStatus === "active") return false;
+        // Product-level ops badges may lag a manual pause/end. Fresh listing
+        // rows decide eligibility; the publish API verifies the live market again.
         // Check SKU match against active listings
         const sku = String(p.identification?.sku || p.details?.identifiers?.sku || "").toLowerCase();
         if (sku && listedSkus.has(sku)) return false;

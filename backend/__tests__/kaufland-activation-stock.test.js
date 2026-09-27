@@ -8,5 +8,5 @@ patch('../lib/marketplace-stock-quantity',{readMarketplaceQuantity:async()=>stoc
 const {setUnitStatus}=require('../lib/kaufland-api');
 beforeEach(()=>{calls.length=0;stock=0});
 it('blocks direct activation without BIN-backed available stock',async()=>{await expect(setUnitStatus('1234','AVAILABLE')).rejects.toThrow(/Lagerplatz/);expect(calls.filter(c=>c.method==='PATCH')).toHaveLength(0)});
-it('sets the verified quantity on activation rather than reviving an old amount',async()=>{stock=2;await setUnitStatus('1234','AVAILABLE');expect(calls.find(c=>c.method==='PATCH').body).toEqual({status:'AVAILABLE',amount:2})});
+it('sets the verified quantity on activation rather than reviving an old amount',async()=>{stock=2;expect(await setUnitStatus('1234','AVAILABLE')).toMatchObject({status:'AVAILABLE',amount:2});expect(calls.find(c=>c.method==='PATCH').body).toEqual({status:'AVAILABLE',amount:2})});
 it('zero-stock shutdown never depends on a successful stock lookup',async()=>{await setUnitStatus('1234','ONHOLD');expect(calls).toHaveLength(1);expect(calls[0].body).toEqual({status:'ONHOLD',amount:0})});

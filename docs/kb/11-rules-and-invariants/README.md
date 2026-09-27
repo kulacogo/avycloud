@@ -112,3 +112,8 @@ Aus [13-personas/for-coding-agents.md](../13-personas/for-coding-agents.md):
 - Single-Source-of-Truth: [CLAUDE.md](../../../CLAUDE.md).
 - Aktive Tasks und Bugs: [TASKS.md](../../../TASKS.md).
 - Agent-Manifest: [AGENTS.md](../../../AGENTS.md).
+
+
+## 27.09.2026 — Wiederaktivierung ausschließlich manuell
+
+Bestandsrückkehr darf kein Angebot automatisch reaktivieren. eBay-Relist aus Stock-Sync und Cron ist entfernt; `zeroStockEnd` dokumentiert nur die Beendigung. Kaufland-Stock-/Content-Updates lassen inaktive/pausierte und ausverkaufte Units unverändert. Manuelles Listen prüft den aktuellen Marktplatzstatus und verfügbare Menge auf tatsächlichen BINs; Kaufland verwendet eine vorhandene inaktive Unit wieder, eBay blockiert echte aktive Duplikate und unklare Statusantworten. Eine alte `ops.listingStatus`-Markierung darf die manuelle Auswahl eines inaktiven Angebots nicht sperren. Verbindlicher Volltext: CLAUDE.md, Regel 15.

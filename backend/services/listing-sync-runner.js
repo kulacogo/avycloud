@@ -1,3 +1,4 @@
+const { isActiveKauflandUnit } = require('../lib/kaufland-unit-status');
 /**
  * Listing Sync Runner
  *
@@ -58,7 +59,7 @@ async function propagateEbayStatusToProducts() {
     // für Alt-Docs, die das boolean-Feld noch nie geschrieben bekamen.
     const isActive = data?.active === false
       ? false
-      : (data?.active === true || status === 'active');
+      : (!['ended', 'completed'].includes(status) && (data?.active === true || status === 'active'));
     listingStatusByItemId.set(doc.id, isActive ? 'active' : 'inactive');
   }
 
@@ -164,7 +165,7 @@ async function propagateKauflandStatusToProducts() {
     const status = String(data?.status || '').toUpperCase();
     // If product already has an 'active' entry, keep it
     if (!offerStatusMap.has(idOffer) || offerStatusMap.get(idOffer) !== 'active') {
-      offerStatusMap.set(idOffer, status === 'AVAILABLE' ? 'active' : 'inactive');
+      offerStatusMap.set(idOffer, isActiveKauflandUnit(data) ? 'active' : 'inactive');
     }
   }
   if (offerStatusMap.size === 0) return { units: 0, updated: 0 };
@@ -277,7 +278,7 @@ async function syncKauflandUnitsToCache() {
       amount: Number.isFinite(Number(unit?.amount)) ? Number(unit.amount) : null,
       status: String(unit?.status || '').trim() || null,
       storefront: 'de',
-      active: String(unit?.status || '').trim().toUpperCase() === 'AVAILABLE',
+      active: isActiveKauflandUnit(unit),
       updatedAt: now,
       source: 'listing-sync-runner',
     };
@@ -463,67 +464,10 @@ async function autoHealStockDiscrepancies() {
   }
 }
 
-// Safety-Net-Detektor (Incident 2026-07-19, SKU-6656556112): findet Produkte,
-// deren eBay-Listing der Stock-Sync selbst beendet hat (ops.ebay.zeroStockEnd-
-// Marker) und die wieder verkäuflichen Bestand haben — und stößt den
-// Dispatcher an, der über den Marker relistet. Produkte OHNE Marker (manuell/
-// eBay-seitig beendet) werden hier bewusst NIE angefasst.
-const ENDED_HEAL_MAX_PER_CYCLE = 10;
-
+// Compatibility entry point for existing operational callers. Operator decision
+// 2026-09-27: stock restoration NEVER grants permission to publish again.
 async function healEndedListingsWithStock() {
-  const { syncStockWithRetry, computeAvailableQuantity } = require('./stock-sync-dispatcher');
-
-  // Single-Field-Range auf dem Marker-Zeitstempel (automatischer Index).
-  // Kein tenantId-Composite nötig: alle Prod-Daten sind tenantId='default'
-  // (siehe decisions.md) — in-code gefiltert. Nach erfolgreichem Relist setzt
-  // der Dispatcher zeroStockEnd auf null → Doc fällt aus dem Index.
-  // NEUESTE Marker zuerst (Review-Finding 2/11): ohne orderBy liefert die
-  // Range-Query aufsteigend — hätten sich ≥50 dauerhaft ausverkaufte Alt-
-  // Marker angesammelt, käme ein FRISCHER Incident-Marker nie ins Fenster.
-  const snap = await firestore.collection(PRODUCTS_COLLECTION)
-    .where('ops.ebay.zeroStockEnd.at', '>', '')
-    .orderBy('ops.ebay.zeroStockEnd.at', 'desc')
-    .limit(50)
-    .get();
-  if (snap.empty) return;
-
-  const RELIST_WINDOW_MS = 90 * 24 * 60 * 60 * 1000;
-  let healed = 0;
-  for (const doc of snap.docs) {
-    if (healed >= ENDED_HEAL_MAX_PER_CYCLE) break;
-    const product = { id: doc.id, ...doc.data() };
-    if ((product.tenantId || 'default') !== 'default') continue;
-    try {
-      const { availableQty } = await computeAvailableQuantity(product, 'default');
-      if (availableQty <= 0) {
-        // Legitim beendet — Marker bleibt für später. AUSSER er ist älter als
-        // das 90-Tage-Relist-Fenster: dann kann er nie mehr heilen und würde
-        // die Query nur zumüllen → verfallen lassen (Audit-Feld bleibt).
-        const at = Date.parse(product?.ops?.ebay?.zeroStockEnd?.at || '');
-        if (Number.isFinite(at) && Date.now() - at > RELIST_WINDOW_MS) {
-          await firestore.collection(PRODUCTS_COLLECTION).doc(product.id)
-            .update({
-              'ops.ebay.zeroStockEnd': null,
-              'ops.ebay.zeroStockEndExpiredAt': new Date().toISOString(),
-            })
-            .catch(() => {});
-        }
-        continue;
-      }
-      const sku = String(product?.identification?.sku || product?.details?.identifiers?.sku || '').trim();
-      console.log(
-        `[ListingSyncRunner] Ended-with-stock heal: ${sku || product.id} available=${availableQty} → Relist via stock-sync`
-      );
-      await syncStockWithRetry({ tenantId: 'default', product, reason: 'ended-with-stock-heal', onlyChannels: ['ebay'] });
-      healed++;
-    } catch (err) {
-      console.warn(`[ListingSyncRunner] Ended-with-stock heal failed for ${product.id}: ${err.message}`);
-    }
-  }
-
-  if (healed > 0) {
-    console.log(`[ListingSyncRunner] Ended-with-stock heal: triggered relist for ${healed} product(s)`);
-  }
+  return { disabled: true, reason: 'manual_reactivation_required' };
 }
 
 // ─── Sync Cycle ───────────────────────────────────────────────────────────────
@@ -612,16 +556,6 @@ async function runListingSyncCycle() {
     // Auto-heal: detect stock discrepancies and push corrections
     await autoHealStockDiscrepancies().catch(err => {
       console.warn(`[ListingSyncRunner] Auto-heal failed: ${err.message}`);
-    });
-
-    // Safety-Net (Incident 2026-07-19): Produkte, deren eBay-Listing der
-    // Stock-Sync selbst wegen Null-Bestand beendet hat (zeroStockEnd-Marker),
-    // aber die inzwischen wieder Bestand haben → Relist anstoßen. Fängt Fälle,
-    // in denen der eventgetriebene Selbstheilungs-Pfad nicht lief (Worker-
-    // Restart, Event verpasst). Beendete Listings sind für den normalen
-    // Auto-Heal unsichtbar (der iteriert nur über active==true-Mirror-Docs).
-    await healEndedListingsWithStock().catch(err => {
-      console.warn(`[ListingSyncRunner] Ended-with-stock heal failed: ${err.message}`);
     });
 
     // Emit SSE event so frontend React Query caches get invalidated

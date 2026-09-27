@@ -35,7 +35,13 @@ function isRetiredKauflandUnit(doc = {}) {
   return RETIRED_KAUFLAND_STATUSES.has(normalizeKauflandStatus(doc && doc.status));
 }
 
+function isActiveKauflandUnit(doc = {}) {
+  return doc.active !== false && normalizeKauflandStatus(doc.status) === 'AVAILABLE'
+    && Number.isFinite(Number(doc.amount)) && Number(doc.amount) > 0;
+}
+
 module.exports = {
+  isActiveKauflandUnit,
   RETIRED_KAUFLAND_STATUSES,
   normalizeKauflandStatus,
   isRetiredKauflandUnit,
