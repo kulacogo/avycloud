@@ -868,9 +868,14 @@ async function createUnit(product, { storefront = 'de', autoCreateProductData = 
   }
 
   // Fresh location/reservation guard after slow catalog preparation.
+  // The status is reported to the caller only — POST /units rejects it as an
+  // "excess property" (HTTP 400 "Validation Failed", measured 2026-09-27) and
+  // then no unit can be created at all. The verified amount alone governs
+  // sellability; amount 0 stays sold out until a manual activation.
+  let createdStatus;
   if (createData.amount > 0) {
     createData.amount = await require('./marketplace-stock-quantity').readMarketplaceQuantity(product, createData.amount);
-    createData.status = createData.amount > 0 ? 'AVAILABLE' : 'ONHOLD';
+    createdStatus = createData.amount > 0 ? 'AVAILABLE' : 'ONHOLD';
   }
 
   // Step 3: Create the unit — Kaufland accepts EAN without id_product
@@ -886,7 +891,7 @@ async function createUnit(product, { storefront = 'de', autoCreateProductData = 
     return {
       created: true,
       amount: createData.amount,
-      status: createData.status,
+      status: createdStatus,
       productDataSubmitted,
       data: res.data,
       location: location || null,
@@ -908,6 +913,24 @@ async function createUnit(product, { storefront = 'de', autoCreateProductData = 
     if (message.includes('invalid ean') || message.includes('ean') && message.includes('not valid')) {
       const err = new Error(`EAN "${picked.ean}" is not valid`);
       err.code = 'KAUFLAND_EAN_INVALID';
+      throw err;
+    }
+    // Kaufland's schema rejections carry the reason per field in `errors`, the
+    // top-level message is only "Validation Failed". Surface the reasons —
+    // otherwise the operator sees nothing actionable (incident 2026-09-27).
+    // Only here, not in kauflandRequest: stock-sync classifies by message text.
+    const fieldErrors = Array.isArray(unitErr?.payload?.errors) ? unitErr.payload.errors : [];
+    if (fieldErrors.length) {
+      const reasons = fieldErrors.slice(0, 5).map((e) => {
+        const field = safeString(e?.field).replace(/^parameters\./, '');
+        const reason = safeString(e?.message);
+        return field ? `${field}: ${reason}` : reason;
+      }).filter(Boolean);
+      const err = new Error(`${safeString(unitErr.message) || 'Validation Failed'} — ${reasons.join('; ')}`);
+      err.code = 'KAUFLAND_UNIT_VALIDATION_FAILED';
+      err.status = unitErr.status;
+      err.payload = unitErr.payload;
+      console.warn(`[createUnit] POST /units rejected for ${picked.idOffer}: ${err.message}`);
       throw err;
     }
     throw unitErr;
