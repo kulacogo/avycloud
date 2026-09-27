@@ -30,7 +30,8 @@ const {
   updateJob,
   Timestamp,
 } = require('../lib/improve-jobs');
-const { uploadBase64Image, deleteProductImages } = require('../lib/storage');
+const { uploadBase64Image, uploadPhotoEditorAsset, deleteProductImages } = require('../lib/storage');
+const { preparePhotoEditorImage, validatePhotoEditorImages } = require('../lib/photo-editor-assets');
 const { isProductImageFolderReferenced } = require('../lib/firestore');
 
 /**
@@ -1330,6 +1331,18 @@ router.post('/generate-images', requirePermission('products', 'write'), async (r
   }
 });
 
+// Hosting and Cloud Run deploy independently. The frontend checks this before
+// sending nested editor assets, which older save handlers cannot make durable.
+router.get('/images/editor-capabilities', requirePermission('products', 'write'), async (req, res) => {
+  try {
+    res.set('Cache-Control', 'no-store');
+    return res.json({ ok: true, data: { version: 1 } });
+  } catch (error) {
+    console.error(`[GET /api/images/editor-capabilities] ${error.message}`, error);
+    return res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: 'Bildbearbeitung ist vorübergehend nicht verfügbar.' } });
+  }
+});
+
 // --- Studio-Foto (Bild verbessern → Studio-Packshot) ---
 router.post('/images/studio', requirePermission('products', 'write'), async (req, res) => {
   try {
@@ -2049,8 +2062,25 @@ router.post('/save', requirePermission('products', 'write'), async (req, res) =>
     if (product.details && product.details.images) {
       const processedImages = [];
 
+      // Validate the complete edit payload before uploads; originals/masks must
+      // be durable before the product write. An upload failure is not a save.
+      try {
+        validatePhotoEditorImages(product.details.images);
+      } catch (error) {
+        return res.status(error.status || 422).json({ ok: false, error: { code: error.code || 'INVALID_PHOTO_EDITOR', message: error.message } });
+      }
+
       for (let i = 0; i < product.details.images.length; i++) {
         const image = product.details.images[i];
+
+        if (image?.photoEditor != null) {
+          try {
+            processedImages.push(await preparePhotoEditorImage(image, product.id, uploadPhotoEditorAsset));
+          } catch (error) {
+            return res.status(error.status || 503).json({ ok: false, error: { code: error.code || 'PHOTO_EDITOR_UPLOAD_FAILED', message: error.message } });
+          }
+          continue;
+        }
 
         // Only process base64 images
         if (typeof image.url_or_base64 === 'string' && image.url_or_base64.startsWith('data:')) {

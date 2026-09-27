@@ -167,6 +167,15 @@ export interface ProductImage {
   width?: number | null;
   height?: number | null;
   mimeType?: string | null;
+  /** Reversible local photo edits. Original and mask are immutable storage assets after save. */
+  photoEditor?: {
+    version: 1;
+    originalUrl: string;
+    originalMimeType?: string;
+    maskUrl?: string;
+    recipe: import("./utils/photoEditor").PhotoRecipe;
+    updatedAt: string;
+  };
   /** Von der Bilderzeugung gesetzt — alle additiv, Altbestände haben sie nicht. */
   generatedByAi?: boolean;
   /** 'studio' = Packshot, 'lifestyle' = Anwendungsszene. */

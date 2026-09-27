@@ -37,6 +37,7 @@ import {
   PriceHistoryEntry,
   ShippingMethod,
 } from '../types';
+import { assertPhotoEditorBackend } from "../utils/photoEditorSession";
 
 // Backend URL configuration - single source of truth
 // Use import.meta.env for Vite compatibility
@@ -3706,6 +3707,15 @@ export const saveProduct = async (product: Product, context?: { activity: "captu
   let response: Response | undefined;
 
   try {
+    await assertPhotoEditorBackend(product.details?.images || [], async () => {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
+      try {
+        const capability = await fetchApi(`${BACKEND_URL}/api/images/editor-capabilities`, { method: "GET", cache: "no-store", signal: controller.signal });
+        const body = await capability.json().catch(() => null);
+        return { ok: capability.ok && body?.ok === true, version: body?.data?.version };
+      } finally { clearTimeout(timeout); }
+    });
     if (import.meta.env.DEV) {
       console.log('API CALL: /api/save', { id: product.id, name: product.identification.name });
     }

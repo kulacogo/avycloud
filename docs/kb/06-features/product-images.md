@@ -1,10 +1,24 @@
 ---
 title: Produktbilder — Studio und Varianten
 for: [agent, dev, admin]
-lastReviewed: 2026-09-20
+lastReviewed: 2026-09-27
 ---
 
 # Produktbilder: Studio und Varianten
+
+## Bildwerkstatt — 27.09.2026
+
+Im Datenblatt **Bearbeiten → Bilder → Bild bearbeiten** öffnet sich der lokale Bildarbeitsplatz. Die bisherigen einzelnen Auto-/Heller-/Drehen-/Freistellknöpfe sind ersetzt. KI-Studio und KI-Galerie bleiben getrennt erreichbar und in ihrer Generierung unverändert.
+
+- Sofortige Vorschau; Licht/Farbe, Pipette, Schärfe, Zuschnitt, Drehung, Spiegelung, Geraderücken, Formate/Ränder und automatische Zentrierung nach Freistellung.
+- Rückgängig/Wiederholen (Strg/⌘ Z, Umschalt Z), Verlauf, Originalvergleich und Originalwiederherstellung. Beim Wechsel zwischen Bildern bleiben die Entwürfe erhalten. „Ins Datenblatt übernehmen“ übernimmt alle bearbeiteten Fotos; **Produkt speichern** sichert sie dauerhaft.
+- Freisteller läuft im Worker, mit Fortschritt/Abbruch und wiederverwendetem Modell/Masken. Erster Download bleibt nötig. Transparenz wird nur einmal angewandt. Pinsel und „Schrift / Innenfläche retten“ korrigieren Fehlmaskierungen unmittelbar und reversibel.
+- „Bildstil auf weitere Fotos“ überträgt Licht/Format auf die ausgewählten Fotos; Fotoausschnitt und individuelle Maske bleiben getrennt. Serienfreistellung arbeitet nacheinander und ist abbrechbar.
+- Original, reine Maske und Export werden unveränderlich unter eigenen Storage-Adressen gespeichert, Rezept additiv in `details.images[].photoEditor`. Uploadfehler verhindern den Produktsave. Alte Bilder bleiben kompatibel. Maximal 4096 px, keine Motivvergrößerung; 30 Pinselzüge mit je 60 Punkten. UI begrenzt die gesamte vorbereitete Bilderliste auf 35 MiB, einzelne Dateien auf 20 MiB, um vor dem bestehenden 50-MB-Requestlimit verständlich zu stoppen.
+
+Keine Garantie perfekter Freistellung: Im echten SAKK-Foto verlieren beide Modellgrößen helle Schrift. Die gezielte Innenflächenrettung repariert das nach Auswahl, ohne andere eingeschlossene Gurtöffnungen automatisch zu füllen. Originalvergleich verwenden; größere Modellpräzision ersetzt diese Prüfung nicht. Bereits vor Einführung destruktiv überschriebene Originale lassen sich dadurch nicht nachträglich rekonstruieren.
+
+Quellen, Architektur und Abnahme: [IMG-001](../../features/IMG-001-image-enhancement/spec.md), [Persistenz](../../features/IMG-001-image-enhancement/persistence.md). Runtime: `components/PhotoEditor.tsx`, `utils/photoEditor*.ts`, `utils/photoBackground*.ts`, `backend/lib/photo-editor-assets.js`. Rückweg: betroffenen Code-Release zurücknehmen; bestehende alte Produktbilder und APIs unverändert. Ein älteres Frontend kennt das Rezept nicht und darf bearbeitete Bilder nicht wieder mit seinen destruktiven Werkzeugen überschreiben.
 
 Betreiberanforderung vom 18.09.2026: professionelle Belichtung, Weißabgleich, informationshaltige Schatten und plausible Reflexionen verbessern; tatsächlichen Artikel einschließlich Schäden, Vergilbung, Verpackung, Material, Farbe, Text und Zubehör erhalten. Fehlende Bildinformation niemals als erfundene Details ersetzen.
 

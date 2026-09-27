@@ -263,3 +263,7 @@ Beide **default OFF** → exakt heutiges Verhalten. Rollback = Flag auf `false`.
 ### Kartonbasierte Bildrecherche (20.09.2026)
 
 - `PACKAGING_IMAGE_RESEARCH`: standardmäßig aktiv; ausschließlich `off` deaktiviert die automatische Web-Recherche vor KI-Galerievarianten bei ausschließlich verpackten Artikeln. Bestehende Studio-/Identitätsprüfungen bleiben unverändert. Maximal sechs Suchaufrufe, acht Seiten, acht Vision-Bildprüfungen und 90 s pro Recherche; kein neuer Hintergrundlauf. [Feature und Grenzen](../06-features/product-images.md#automatische-kartonrecherche--20092026).
+
+### Lokale Bildwerkstatt (27.09.2026)
+
+- `VITE_BG_REMOVAL_MODEL` (bereits bestehende Build-Variable): optionaler Pin `isnet_fp16`, `isnet` oder `isnet_quint8`; Aliase `medium`, `large`, `small`. Ohne Pin verwendet „Schnell & fein“ fp16, „Höchste Präzision“ fp32. Der Pin hat Vorrang vor der Auswahl. Kein Produktionswert wurde geändert. Beide Modelle können Schrift/Innenflächen fehlerhaft entfernen; größere Präzision ist keine Garantie besserer Masken. Details und Korrekturwerkzeuge: [Produktbilder](../06-features/product-images.md#bildwerkstatt--27092026).

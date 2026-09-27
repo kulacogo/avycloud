@@ -11,6 +11,30 @@ const fs = require('fs');
 const path = require('path');
 
 describe('Bildordner-Referenz-Guard (Incident 2026-07-09)', () => {
+  it.each(['originalUrl', 'maskUrl'])('schützt den Ordner auch wenn nur photoEditor.%s darauf verweist', async (field) => {
+    const module = require('../lib/firestore');
+    const collection = vi.spyOn(module.firestore, 'collection').mockReturnValue({ select: () => ({ get: async () => ({ docs: [
+      { id: 'other', get: () => [{ url_or_base64: 'https://storage.googleapis.com/prodsandjobs/products/other/result.png',
+        photoEditor: { [field]: 'https://storage.googleapis.com/prodsandjobs/products/original/source.png' } }] },
+    ] }) }) });
+    try {
+      expect(await module.isProductImageFolderReferenced('original', 'original')).toBe(true);
+      expect(await module.isProductImageFolderReferenced('unreferenced', 'original')).toBe(false);
+      expect(await module.isProductImageFolderReferenced('original', 'other')).toBe(false);
+    } finally { collection.mockRestore(); }
+  });
+  it('schützt URL-kodierte Bildordner mit gültigen Sonderzeichen in der Produktkennung', async () => {
+    const folderId = 'SKU: A#B?C%20';
+    const module = require('../lib/firestore');
+    const collection = vi.spyOn(module.firestore, 'collection').mockReturnValue({ select: () => ({ get: async () => ({ docs: [
+      { id: 'other', get: () => [{ url_or_base64: 'https://storage.googleapis.com/prodsandjobs/products/other/result.png',
+        photoEditor: { originalUrl: `https://storage.googleapis.com/prodsandjobs/products/${encodeURIComponent(folderId)}/original.png` } }] },
+    ] }) }) });
+    try {
+      expect(await module.isProductImageFolderReferenced(folderId, folderId)).toBe(true);
+      expect(await module.isProductImageFolderReferenced('SKU: A#B?C', folderId)).toBe(false);
+    } finally { collection.mockRestore(); }
+  });
   it('isProductImageFolderReferenced findet fremde Referenz auf denselben Ordner', () => {
     // In-Memory-Firestore-Stub: zwei Docs teilen products/SKU-A/
     const docs = [

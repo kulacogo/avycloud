@@ -250,6 +250,57 @@ async function uploadBase64Image(base64Data, productId, variant = 'main') {
   return uploadImage(imageBuffer, mimeType, productId, variant);
 }
 
+/** Separate from legacy 1200/2000px normalization: editor assets are immutable,
+ * never enlarged and retain up to 4096px. Masks stay lossless alpha PNG. */
+async function preparePhotoEditorBuffer(base64Data, role) {
+  const { MAX_ASSET_BYTES, editorError } = require('./photo-editor-assets');
+  if (!['original', 'mask', 'render'].includes(role)) throw editorError('Ungültige Bilddateirolle.');
+  if (typeof base64Data !== 'string' || base64Data.length > Math.ceil(MAX_ASSET_BYTES * 4 / 3) + 64) throw editorError('Bilddatei ist zu groß (maximal 20 MB).');
+  const match = base64Data.match(/^data:image\/(png|jpeg|webp);base64,([A-Za-z0-9+/]+={0,2})$/);
+  if (!match) throw editorError('Ungültiges Bildformat.');
+  const input = Buffer.from(match[2], 'base64');
+  if (!input.length || input.length > MAX_ASSET_BYTES) throw editorError('Bilddatei ist zu groß oder leer.');
+  try {
+    const image = sharp(input, { limitInputPixels: 64 * 1024 * 1024, failOn: 'error' });
+    const meta = await image.metadata();
+    if (!['png', 'jpeg', 'webp'].includes(meta.format) || !meta.width || !meta.height || (meta.pages || 1) !== 1 ||
+      (role === 'mask' && meta.format !== 'png')) throw new Error('Unsupported raster image');
+    const needsNormalization = Math.max(meta.width, meta.height) > 4096 || (meta.orientation && meta.orientation !== 1);
+    // Do not re-encode an already prepared source/result. In particular, repeated
+    // editing must never successively recompress the immutable JPEG original.
+    if (!needsNormalization) return { buffer: input, mimeType: `image/${meta.format}`, width: meta.width, height: meta.height };
+    const { data, info } = await image.rotate().resize({ width: 4096, height: 4096, fit: 'inside', withoutEnlargement: true })
+      .png({ compressionLevel: 6 }).toBuffer({ resolveWithObject: true });
+    if (data.length > MAX_ASSET_BYTES) throw editorError('Bilddatei ist nach der Vorbereitung zu groß (maximal 20 MB). Bitte ein kleineres Original verwenden.');
+    return { buffer: data, mimeType: 'image/png', width: info.width, height: info.height };
+  } catch (error) {
+    if (error?.code === 'INVALID_PHOTO_EDITOR') throw error;
+    throw editorError('Bilddatei konnte nicht gelesen werden (maximal 64 Megapixel).');
+  }
+}
+
+async function uploadPhotoEditorAsset(base64Data, productId, role) {
+  const { editorError } = require('./photo-editor-assets');
+  if (typeof productId !== 'string' || !productId || productId.length > 200 || /[\\/\x00-\x1f]/.test(productId) || productId === '.' || productId === '..') throw editorError('Ungültige Produktkennung.');
+  const prepared = await preparePhotoEditorBuffer(base64Data, role);
+  await ensureBucket();
+  const hash = crypto.createHash('sha256').update(prepared.buffer).digest('hex');
+  const filename = `products/${productId}/photo-editor-${role}_${hash}.${prepared.mimeType.split('/')[1]}`;
+  try {
+    await bucket.file(filename).save(prepared.buffer, {
+      metadata: { contentType: prepared.mimeType, cacheControl: 'public, max-age=31536000, immutable' },
+      public: false, validation: 'crc32c', preconditionOpts: { ifGenerationMatch: 0 },
+    });
+  } catch (error) {
+    // The identical content is already stored. Never overwrite an original.
+    if (Number(error?.code) !== 412) throw error;
+  }
+  // Firestore IDs may contain spaces, #, ? or %. The object name stays literal;
+  // only its public URL is encoded, otherwise these characters change the URL.
+  const objectUrlPath = filename.split('/').map(encodeURIComponent).join('/');
+  return { url: `https://storage.googleapis.com/${BUCKET_NAME}/${objectUrlPath}`, mimeType: prepared.mimeType, width: prepared.width, height: prepared.height };
+}
+
 /**
  * Upload a company/tenant logo from a base64 data URL. Tenant-scoped path so
  * every tenant keeps its own logo. Returns { url, width, height, mimeType }.
@@ -399,6 +450,7 @@ async function downloadFile(filePath) {
 module.exports = {
   uploadImage,
   uploadBase64Image,
+  uploadPhotoEditorAsset,
   uploadLogoImage,
   deleteProductImages,
   uploadJobFile,
@@ -406,5 +458,6 @@ module.exports = {
   downloadFile,
   // additiv exportiert (Tests + Diagnose) — kein Verhaltenswechsel
   normalizeImageBuffer,
+  preparePhotoEditorBuffer,
   resolveEdgeTargets,
 };
