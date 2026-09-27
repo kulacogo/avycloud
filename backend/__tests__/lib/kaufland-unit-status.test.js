@@ -46,3 +46,17 @@ describe('isRetiredKauflandUnit', () => {
     expect(normalizeKauflandStatus(null)).toBe('');
   });
 });
+
+describe('active requires actual sellable marketplace state', () => {
+  const { isActiveKauflandUnit } = require('../../lib/kaufland-unit-status');
+  it.each([
+    [{ status: 'AVAILABLE', amount: 1 }, true],
+    [{ status: 'AVAILABLE', amount: 0 }, false],
+    [{ status: 'AVAILABLE', amount: 1, active: false }, false],
+    [{ status: 'ONHOLD', amount: 5, active: true }, false],
+    [{ status: 'DEACTIVATED', amount: 5 }, false],
+    [{ status: 'UNKNOWN', amount: 5 }, false],
+  ])('classifies %j as active=%s', (unit, expected) => {
+    expect(isActiveKauflandUnit(unit)).toBe(expected);
+  });
+});

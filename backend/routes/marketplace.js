@@ -12,7 +12,7 @@ const {
 const { parseKTypeEbayCsvToSkuMap } = require('../lib/ktype');
 const { FieldValue } = require('../lib/jobs');
 const { isBannedEbayBreadcrumb } = require('../lib/ebay-category-governance');
-const { isRetiredKauflandUnit } = require('../lib/kaufland-unit-status');
+const { isRetiredKauflandUnit, isActiveKauflandUnit } = require('../lib/kaufland-unit-status');
 const { getCategoryAspectCatalog } = require('../lib/ebay-taxonomy');
 
 const router = express.Router();
@@ -96,8 +96,8 @@ async function optimisticUpsertKauflandUnit({ product, createResult, storefront 
       ?? binStock
       ?? product?.storage?.quantity
       ?? 0;
-    const amount = Math.max(0, Number(qtyRaw) || 0);
-    const status = amount > 0 ? 'AVAILABLE' : 'ONHOLD';
+    const amount = Math.max(0, Number(createResult.amount ?? qtyRaw) || 0);
+    const status = createResult.status || (amount > 0 ? 'AVAILABLE' : 'ONHOLD');
     const active = status === 'AVAILABLE';
 
     // Pricing in cents (Kaufland API contract — matches pickUnitData output).
@@ -1063,7 +1063,7 @@ router.get('/kaufland/sku-index', requirePermission('products', 'read'), async (
         // (status === 'AVAILABLE' || active === true) coerced ghost docs
         // (active=false with stale status='AVAILABLE') back to active=true,
         // producing false-positive "gelistet" badges in the Inventory table.
-        active: d.active === true,
+        active: isActiveKauflandUnit(d),
         // product.is_valid as cached by the validity-refresh phase of the
         // listings-sync. true = Kaufland Portal "Aktiv", false = "Indexierung
         // läuft" (typically <24h after first publish), null = legacy doc or
@@ -1233,7 +1233,7 @@ router.get('/kaufland/listings', requirePermission('products', 'read'), async (r
       const normalizedStatus = String(d.status || '').trim().toUpperCase();
       // Trust the `active` flag set by the sync — see comment in the
       // /kaufland/sku-index route above for the rationale.
-      const isActive = d.active === true;
+      const isActive = isActiveKauflandUnit(d);
       rows.push({
         idUnit: doc.id,
         sku: unitSku || null,
@@ -1455,7 +1455,7 @@ router.post('/kaufland/publish', requirePermission('products', 'write'), async (
       return res.status(404).json({ ok: false, error: { code: 'PRODUCT_NOT_FOUND', message: `Product ${productId} not found` } });
     }
     const { createUnit } = require('../lib/kaufland-api');
-    const result = await createUnit(product, { storefront });
+    const result = await createUnit(product, { storefront, manualActivation: true });
     // Realtime: optimistic upsert into kauflandUnitsLive so UI listeners see
     // the row immediately, no wait for next periodic sync.
     await optimisticUpsertKauflandUnit({ product, createResult: result, storefront });
@@ -1664,7 +1664,7 @@ router.post('/kaufland/publish/bulk', requirePermission('products', 'write'), as
         }
 
         try {
-          const result = await createUnit(fixedProduct, { storefront });
+          const result = await createUnit(fixedProduct, { storefront, manualActivation: true });
           perProductIdUnit = result?.id_unit || null;
           perProductOk = true;
           perProductStatus = result.productDataSubmitted
@@ -1900,11 +1900,11 @@ router.post('/kaufland/units/bulk-status', requirePermission('products', 'write'
     const results = [];
     for (const unitId of unitIds.slice(0, 100)) {
       try {
-        await setUnitStatus(unitId, status, { storefront: 'de', tenantId: req.user?.tenantId || 'default' });
+        const activation = await setUnitStatus(unitId, status, { storefront: 'de', tenantId: req.user?.tenantId || 'default' });
         results.push({ unitId, ok: true });
         // Update local status in kauflandUnitsLive
         await firestore.collection('kauflandUnitsLive').doc(String(unitId)).set(
-          { status, active: status === 'AVAILABLE', updatedAt: new Date().toISOString() },
+          { status, amount: activation.amount, active: status === 'AVAILABLE' && activation.amount > 0, updatedAt: new Date().toISOString() },
           { merge: true }
         ).catch(() => {});
       } catch (err) {

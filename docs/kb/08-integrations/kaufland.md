@@ -104,13 +104,10 @@ Unit-Status:
 
 | Code | Bedeutung |
 |------|-----------|
-| `AVAILABLE` | Aktiv, verkaufbar |
+| `AVAILABLE` + amount > 0 | Aktiv; Produktvalidierung entscheidet zusätzlich über Kaufbarkeit |
 | `ONHOLD` | Pausiert (wird gesetzt sobald `amount <= 0`) |
 
-`pickUnitData()` mappt unsere `inventory.availableQuantity → patchData.status`:
-
-- `amount > 0` → `AVAILABLE`
-- `amount === 0` → `ONHOLD`
+**Betreiberregel 27.09.2026:** Keine automatische Wiederaktivierung bei Bestandsrückkehr. `updateUnit()` prüft vor positiven Mengenupdates den Live-Status; pausierte/inaktive sowie AVAILABLE-Einheiten mit Menge 0 bleiben unverändert. Preisupdates setzen weder Menge noch Status. Nur explizites manuelles Publish (`manualActivation: true`) oder die manuelle Statusaktion darf `AVAILABLE` setzen, nach aktueller Lagerplatz-/Reservierungsprüfung. `createUnit()` prüft vorher die SKU: vorhandene Unit manuell wiederverwenden; automatische Pending-Publish-Retries dürfen sie nicht reaktivieren. `amount === 0` bleibt ONHOLD. API- und Produktstatus berücksichtigen Status, aktive Markierung und positive Menge gemeinsam.
 
 Condition-Mapping (Kaufland-Codes → API-Strings) in `CONDITION_CODE_MAP`:
 

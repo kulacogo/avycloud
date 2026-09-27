@@ -76,7 +76,8 @@ describe('Dispatcher-Delegation (Source-Gate)', () => {
 
   it('stock-sync-dispatcher fuehrt KEINE eigene Domain-Map mehr — eine Quelle (lib/ebay-sites)', () => {
     const source = fs.readFileSync(path.join(__dirname, '..', 'services', 'stock-sync-dispatcher.js'), 'utf8');
-    expect(source).toContain("require('../lib/ebay-sites')");
+    // No automatic relist remains in the stock dispatcher (operator decision 27.09.).
+    expect(source).not.toMatch(/relistFixedPriceItem\s*\(/);
     // Die Map darf dort nicht mehr als Literal definiert sein:
     expect(source).not.toMatch(/EBAY_DOMAIN_TO_SITE_ID\s*=\s*\{/);
   });

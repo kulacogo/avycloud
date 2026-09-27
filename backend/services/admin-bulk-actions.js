@@ -1994,7 +1994,7 @@ async function runBulkKauflandSync({
         continue;
       }
 
-      if (existingUnit && opMode === 'create_only') {
+      if (existingUnit && opMode === 'create_only' && existingUnit.status === 'AVAILABLE' && Number(existingUnit.amount) > 0) {
         summary.skipped += 1;
         if (samples.length < 40) {
           samples.push({ id, sku, status: 'skipped', message: `Unit already exists (${existingUnit.id_unit})` });
@@ -2012,9 +2012,9 @@ async function runBulkKauflandSync({
 
       let result = null;
       if (existingUnit) {
-        result = await updateUnit(existingUnit.id_unit, cur, { storefront: summary.storefront });
+        result = await updateUnit(existingUnit.id_unit, cur, { storefront: summary.storefront, manualActivation: opMode !== 'update_only' });
       } else {
-        result = await createUnit(cur, { storefront: summary.storefront });
+        result = await createUnit(cur, { storefront: summary.storefront, manualActivation: true });
       }
       const resolvedUnitId = existingUnit
         ? Number(existingUnit.id_unit || 0) || null

@@ -1,3 +1,7 @@
+## 27.09.2026 — Neue Betreiberregel: keine automatische Wiederaktivierung
+
+Positiver Lagerbestand ist KEINE Erlaubnis zum erneuten Listen. Stock-Sync/Cron/Drain dürfen auf eBay und Kaufland kein pausiertes, inaktives, beendetes oder ausverkauftes Angebot wieder aktivieren. Manuelle Aktivierung bleibt nach tatsächlicher BIN-/Reservierungs- und Live-Statusprüfung möglich. Diese Anweisung ersetzt die frühere Relist-Selbstheilung aus CLAUDE.md Regel 15. [Arbeits-/Release-Nachweis](CODEX_MANUAL_REACTIVATION_20260927.md). Deployment folgt nach finaler CI; nicht vorzeitig als produktiv melden.
+
 ---
 title: Erfassungsqualität — Arbeitsstand für Codex
 lastReviewed: 2026-09-27

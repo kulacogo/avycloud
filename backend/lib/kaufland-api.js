@@ -439,7 +439,7 @@ async function findUnit({ storefront = 'de', idOffer, ean }) {
     limit: 1,
     offset: 0,
     id_offer: idOffer || undefined,
-    ean: ean || undefined,
+    ean: idOffer ? undefined : ean || undefined,
   };
   const res = await kauflandRequest('GET', '/units', { query });
   const list = Array.isArray(res?.data?.data) ? res.data.data : [];
@@ -685,7 +685,7 @@ function isItemNotIndexedUnitError(lowercasedMessage) {
   );
 }
 
-async function createUnit(product, { storefront = 'de', autoCreateProductData = true } = {}) {
+async function createUnit(product, { storefront = 'de', autoCreateProductData = true, manualActivation = false } = {}) {
   const picked = pickUnitData(product, { mode: 'create', storefront });
   const createData = { ...(picked.unitData || {}) };
   let productDataSubmitted = false;
@@ -723,6 +723,16 @@ async function createUnit(product, { storefront = 'de', autoCreateProductData = 
       err.code = 'KAUFLAND_SELLPRICE_NOT_CONFIRMED';
       throw err;
     }
+  }
+
+  // POST /units can merge by id_offer: it is NOT a safe create-only operation.
+  // Resolve by SKU, independently of an edited EAN, before touching the catalog.
+  const existing = await findUnit({ storefront: picked.storefront, idOffer: picked.idOffer, ean: picked.ean });
+  if (existing) {
+    if (!manualActivation) {
+      throw Object.assign(new Error('Angebot existiert bereits. Wiederaktivierung ist ausschließlich manuell erlaubt.'), { code: 'KAUFLAND_MANUAL_ACTIVATION_REQUIRED' });
+    }
+    return updateUnit(existing.id_unit, product, { storefront: picked.storefront, manualActivation: true });
   }
 
   if (picked.ean) {
@@ -851,6 +861,12 @@ async function createUnit(product, { storefront = 'de', autoCreateProductData = 
     throw err;
   }
 
+  // Catalog preparation can take time. An automatic retry must not overwrite
+  // a unit that was created/paused in the meantime via POST's upsert semantics.
+  if (!manualActivation && await findUnit({ storefront: picked.storefront, idOffer: picked.idOffer, ean: picked.ean })) {
+    throw Object.assign(new Error('Angebot existiert inzwischen. Wiederaktivierung ist ausschließlich manuell erlaubt.'), { code: 'KAUFLAND_MANUAL_ACTIVATION_REQUIRED' });
+  }
+
   // Fresh location/reservation guard after slow catalog preparation.
   if (createData.amount > 0) {
     createData.amount = await require('./marketplace-stock-quantity').readMarketplaceQuantity(product, createData.amount);
@@ -869,6 +885,8 @@ async function createUnit(product, { storefront = 'de', autoCreateProductData = 
     const idFromLocation = extractUnitIdFromLocation(location);
     return {
       created: true,
+      amount: createData.amount,
+      status: createData.status,
       productDataSubmitted,
       data: res.data,
       location: location || null,
@@ -896,11 +914,23 @@ async function createUnit(product, { storefront = 'de', autoCreateProductData = 
   }
 }
 
-async function updateUnit(unitId, product, { storefront = 'de', priceOnly = false } = {}) {
+async function updateUnit(unitId, product, { storefront = 'de', priceOnly = false, manualActivation = false } = {}) {
   const picked = pickUnitData(product, { mode: 'update', storefront });
   if (!priceOnly && picked.patchData.amount > 0) {
     picked.patchData.amount = await require('./marketplace-stock-quantity').readMarketplaceQuantity(product, picked.patchData.amount);
     picked.patchData.status = picked.patchData.amount > 0 ? 'AVAILABLE' : 'ONHOLD';
+  }
+  if (!priceOnly && picked.patchData.amount > 0 && !manualActivation) {
+    const live = await getUnit(unitId, { storefront: picked.storefront });
+    if (!require('./kaufland-unit-status').isActiveKauflandUnit(live)) {
+      return { updated: false, skipped: true, reason: 'manual_reactivation_required', id_unit: Number(unitId), status: live?.status || null };
+    }
+    // Never send AVAILABLE from a stock/content update. An external pause must
+    // survive even if it races the read above.
+    delete picked.patchData.status;
+    // The status GET may be slow; stock can disappear while it is in flight.
+    picked.patchData.amount = await require('./marketplace-stock-quantity').readMarketplaceQuantity(product, picked.patchData.amount);
+    if (picked.patchData.amount <= 0) picked.patchData.status = 'ONHOLD';
   }
   const res = await kauflandRequest('PATCH', `/units/${encodeURIComponent(String(unitId))}`, {
     query: { storefront: picked.storefront },
@@ -911,6 +941,8 @@ async function updateUnit(unitId, product, { storefront = 'de', priceOnly = fals
   const parsedUnitId = Number(unitId);
   return {
     updated: true,
+    amount: picked.patchData.amount,
+    status: picked.patchData.status || 'AVAILABLE',
     data: res.data,
     id_unit: Number.isFinite(parsedUnitId) && parsedUnitId > 0 ? parsedUnitId : null,
   };
@@ -949,7 +981,7 @@ async function setUnitStatus(unitId, status, { storefront = 'de', tenantId = 'de
     query: { storefront },
     body,
   });
-  return { updated: true, status: normalizedStatus, data: res.data };
+  return { updated: true, status: normalizedStatus, amount: body.amount, data: res.data };
 }
 
 /**

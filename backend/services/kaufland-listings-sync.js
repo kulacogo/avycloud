@@ -1,3 +1,4 @@
+const { isActiveKauflandUnit } = require('../lib/kaufland-unit-status');
 'use strict';
 
 /**
@@ -108,7 +109,7 @@ async function syncKauflandListingsCache({ tenantId, storefront = 'de' } = {}) {
       amount: Number.isFinite(Number(unit?.amount)) ? Number(unit.amount) : null,
       status: String(unit?.status || '').trim() || null,
       storefront: String(unit?.storefront || sf || 'de').trim().toLowerCase(),
-      active: String(unit?.status || '').trim().toUpperCase() === 'AVAILABLE',
+      active: isActiveKauflandUnit(unit),
       title: klTitle,
       listing_price: klListingPrice,
       current_price: klCurrentPrice,
