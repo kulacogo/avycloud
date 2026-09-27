@@ -1,7 +1,7 @@
 ---
 title: Pricing Engine
 for: [dev, agent, admin, manager]
-lastReviewed: 2026-05-18
+lastReviewed: 2026-09-27
 ---
 
 # Pricing Engine
@@ -59,6 +59,17 @@ Multi-Source-Lookup:
 3. BrightData-backed Web-Search + HTML-Scraping (`fetchWithUnlocker`)
 
 Pflicht-Marketplaces: `ebay.de, kaufland.de, hood.de, amazon.de, idealo.de, zalando.de`. Used-Hint-Regex filtert Refurbed/B-Ware automatisch raus.
+
+### Preis bei V3-Erfassung
+
+Die Korrektur vom 27.09.2026 nutzt `enrichPriceParallel(product, { capture: true })` mit einem separaten, insgesamt auf 45 Sekunden begrenzten Recherchelauf. Normale Refresh-/Chat-Aufrufe behalten ihren bisherigen Pfad.
+
+1. Browse und eine Websuche nach Marke, Modell und MPN starten parallel. Die Suche wartet höchstens vier Sekunden; ihre echten Treffer-URLs werden wiederverwendet.
+2. Maximal drei Händlerseiten werden gelesen, optional je ein gleichursprünglicher statischer Produktlink mit passender Kennung. Der deterministische Leser akzeptiert nur den EUR-Preis im eigenen `Offer` eines passenden JSON-LD-`Product`. Versandkosten, andere Produkte, explizite Gebrauchtware und nicht verfügbare Angebote werden ausgeschlossen.
+3. Liegt nach dem kurzen Vorlauf kein Ergebnis vor, startet höchstens ein bestehender Gemini-Rechercheaufruf mit verbleibendem Budget und echten Referenz-URLs. Eine vorhandene JSON-Reparatur kann einen zweiten Formatierungsaufruf benötigen. Bekannte EAN/MPN muss auf der geladenen Seite vorkommen; Preis und Quelle werden geprüft. Such-/Bild-URLs, Fremdwährungen und unbelegte Angebote werden verworfen.
+4. Erfolgreiche Ergebnisse bleiben erhalten, auch wenn eine andere Quelle ausfällt. Händler-/Grounding-Angebote verwenden den Median ihrer bestätigten Quellen. Das gewählte Ergebnis landet samt Quellen in `details.pricing.lowest_price`, **nicht** in `sellPrice`.
+
+Ein Preis ohne belastbare Quelle bleibt leer. Direkte Webabfragen können bestehende Such-/Unlocker-Dienste kostenpflichtig verwenden; „kein KI-Aufruf“ bedeutet nicht „kostenlos“. Laufende Netzwerkrequests werden durch den äußeren Budgetablauf nicht sämtlich abgebrochen, können aber anschließend keine Produktänderung auslösen. [Messungen, Grenzen und Tests](../../reports/capture-quality-2026-09-27.md).
 
 ### Pricing-Rules (`pricingRules` Collection)
 

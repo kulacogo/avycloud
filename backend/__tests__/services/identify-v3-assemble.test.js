@@ -56,6 +56,22 @@ const baseStage3 = () => ({
 
 const opts = { locale: 'de-DE', lotCode: 'L-072604', inventoryId: null };
 
+it('preserves full GPSR including EU representative and structured address data', () => {
+  const stage2 = baseStage2();
+  stage2.gpsr = { found: true, data: { manufacturer_name: 'Example Co', manufacturer_city: 'Shenzhen', manufacturer_postalcode: '518000', eu_responsible_name: 'Example EU GmbH', eu_responsible_city: 'Berlin', eu_responsible_email: 'eu@example.com' } };
+  const stage3 = baseStage3();
+  stage3.gpsr = { eu_responsible_address: 'Beispielweg 1', url: 'https://example.com' };
+  const product = _assembleProduct('id', baseStage1(), stage2, stage3, opts);
+  expect(product.details.gpsr).toMatchObject({ ...stage2.gpsr.data, ...stage3.gpsr });
+});
+
+it('preserves a safety datasheet URL through the last assembly step', () => {
+  const stage3 = baseStage3();
+  const url = 'https://manufacturer.example/documents/safety/a-very-long-document-name-and-model-reference.pdf';
+  stage3.item_specifics.push({ key: 'Sicherheitsdatenblatt', value: url });
+  expect(_assembleProduct('id', baseStage1(), baseStage2(), stage3, opts).details.attributes.Sicherheitsdatenblatt).toBe(url);
+});
+
 describe('V3 assembleProduct — weight web fallback', () => {
   it('uses Stage 1 weight when present (most authoritative)', () => {
     const stage1 = baseStage1();

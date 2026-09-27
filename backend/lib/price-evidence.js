@@ -221,6 +221,7 @@ async function verifyPriceSources({
   maxPages = 3,
   timeoutMs = 15_000,
   fetchPage,
+  matchPage,
 } = {}) {
   const fetcher = fetchPage || fetchPageForVerification;
   const verified = [];
@@ -239,6 +240,10 @@ async function verifyPriceSources({
           infra: isInfraFetchFailure(page && page.status),
           via: (page && page.via) || null,
         });
+        return;
+      }
+      if (typeof matchPage === 'function' && !matchPage({ page, product })) {
+        failed.push({ source: src, reason: 'product_identity_not_verified' });
         return;
       }
       const check = evaluatePageEvidence({ text: page.text, html: page.html, product, claimedPrice });

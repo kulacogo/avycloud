@@ -14,7 +14,9 @@ describe('Erfassen-Sicherheitsnetze', () => {
   it('Preis-Netz: gecappt gegen remainingMs, nur bei Preis 0', () => {
     expect(src).toMatch(/identify-safety-net/);
     expect(src).toMatch(/const priceBudget = Math\.min\(15000, remainingMs\(\) - 5000\)/);
-    expect(src).toMatch(/if \(currentPrice <= 0 && priceBudget > 5000\)/);
+    // V3 already joined its one bounded price task before assembly. Other
+    // pipelines retain the safety net; no second paid lookup for V3 failures.
+    expect(src).toMatch(/if \(currentPrice <= 0 && priceBudget > 5000 && !v3Meta\?\.stages\?\.stage2\?\.pricingComplete\)/);
     // enrichPriceParallel läuft im ehrlichen Budget-Race (seit 2026-08-04:
     // raceEnrichmentWithTracking statt nacktem Promise.race — spät fertige
     // Ergebnisse werden via lateEnrichments nachpersistiert statt verloren).

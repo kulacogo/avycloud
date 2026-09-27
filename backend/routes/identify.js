@@ -561,7 +561,7 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
         // Cap V3 by whichever is smaller: its own budget or the remaining wall-clock budget.
         const v3Cap = Math.min(V3_TIMEOUT_MS, remainingMs());
         const v3Result = await Promise.race([
-          identifyProductV3({ files, barcodes, locale, hint, lotCode, inventoryId }),
+          identifyProductV3({ files, barcodes, locale, hint, lotCode, inventoryId, tenantId: tenantIdForMetric }),
           new Promise((_, reject) =>
             setTimeout(() => reject(new Error(`V3 pipeline timeout after ${v3Cap}ms`)), v3Cap)
           ),
@@ -983,7 +983,7 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
       try {
         const currentPrice = Number(product?.details?.pricing?.lowest_price?.amount) || 0;
         const priceBudget = Math.min(15000, remainingMs() - 5000);
-        if (currentPrice <= 0 && priceBudget > 5000) {
+        if (currentPrice <= 0 && priceBudget > 5000 && !v3Meta?.stages?.stage2?.pricingComplete) {
           const pricePromise = enrichPriceParallel(product, {
             force: false,
             reason: `identify-safety-net:${pipelineUsed || 'unknown'}`,

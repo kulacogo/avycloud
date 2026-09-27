@@ -1,10 +1,11 @@
 'use strict';
 
 // Mock all enrichment dependencies via require.cache patching
+const realAspectCatalog = require('../../lib/ebay-taxonomy').getCategoryAspectCatalog('9355');
 
 const findEbayCategoryMock = vi.fn(() => ({ id: '112529', breadcrumb: 'TV, Video & Audio > Kopfhoerer' }));
 const getCategoryAspectCatalogMock = vi.fn(() => ({
-  required: [{ name: 'Marke' }, { name: 'Herstellernummer' }, { name: 'Produktart' }],
+  requiredAspects: ['Marke', 'Herstellernummer', 'Produktart'],
 }));
 // Realer Contract (lib/price-enrichment.js enrichPriceParallel): die Funktion
 // MUTIERT das übergebene Produkt und returned nur { ok, updated, serpTrace } —
@@ -198,6 +199,13 @@ describe('runStage2Enrichment', () => {
   it('returns required aspects from catalog', async () => {
     const result = await runStage2Enrichment(makeStage1());
     expect(result.requiredAspects).toEqual(['Marke', 'Herstellernummer', 'Produktart']);
+  });
+
+  it('consumes the real taxonomy return shape, not a separately invented mock schema', async () => {
+    getCategoryAspectCatalogMock.mockReturnValueOnce(realAspectCatalog);
+    const result = await runStage2Enrichment(makeStage1());
+    expect(realAspectCatalog.requiredAspects.length).toBeGreaterThan(0);
+    expect(result.requiredAspects).toEqual(realAspectCatalog.requiredAspects);
   });
 
   it('returns pricing data', async () => {

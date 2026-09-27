@@ -12,7 +12,7 @@
  */
 
 const findEbayCategoryMock = vi.fn(() => ({ id: '112529', breadcrumb: 'TV, Video & Audio > Kopfhoerer' }));
-const getCategoryAspectCatalogMock = vi.fn(() => ({ required: [{ name: 'Marke' }] }));
+const getCategoryAspectCatalogMock = vi.fn(() => ({ requiredAspects: ['Marke'] }));
 
 // Realer Contract: MUTIERT das übergebene Produkt, Return nur { ok, updated, serpTrace }.
 const enrichPriceParallelMock = vi.fn(async (product) => {
@@ -140,6 +140,25 @@ beforeEach(() => {
 });
 
 describe('runStage2Enrichment — Pricing aus mutiertem tempProduct (Fix 2026-07-11)', () => {
+  it('keeps a price finishing after 15 seconds available for assembly instead of discarding it', async () => {
+    vi.useFakeTimers();
+    try {
+      enrichPriceParallelMock.mockImplementationOnce(async (product) => {
+        await new Promise(resolve => setTimeout(resolve, 20000));
+        product.details.pricing = { lowest_price: { amount: 59.99, currency: 'EUR', sources: [{ url: 'https://shop.example/caso' }] }, price_confidence: 0.8 };
+        return { ok: true, updated: true };
+      });
+      const pending = runStage2Enrichment(makeStage1());
+      await vi.advanceTimersByTimeAsync(15001);
+      const stage2 = await pending;
+      expect(stage2.pricing).toBeNull();
+      expect(stage2._pendingPricing).toBeInstanceOf(Promise);
+      expect(JSON.stringify(stage2)).not.toContain('_pendingPricing');
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(await stage2._pendingPricing).toMatchObject({ amount: 59.99, confidence: 0.8 });
+      expect(enrichPriceParallelMock).toHaveBeenCalledTimes(1);
+    } finally { vi.useRealTimers(); }
+  });
   it('übernimmt amount/sources/confidence aus tempProduct.details.pricing, nicht vom Return-Wert', async () => {
     const result = await runStage2Enrichment(makeStage1());
 

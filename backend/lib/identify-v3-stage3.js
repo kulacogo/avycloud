@@ -65,7 +65,7 @@ function capSpecificValue(value) {
   return s.slice(0, 60);
 }
 
-async function runStage3ContentGeneration(stage1, stage2, locale = 'de-DE') {
+async function runStage3ContentGeneration(stage1, stage2, locale = 'de-DE', { tenantId = null } = {}) {
   const startTime = Date.now();
   const identity = stage1.identity || {};
 
@@ -90,8 +90,10 @@ async function runStage3ContentGeneration(stage1, stage2, locale = 'de-DE') {
   // Build enrichment context for generateProductContent()
   const enrichment = {
     requiredAspects: enforcementEnabled ? promptAspects : (stage2.requiredAspects || []),
+    recommendedAspects: stage2.recommendedAspects || [],
     titleInsights: stage2.titleInsights || {},
     pricing: stage2.pricing || {},
+    priceResearchManaged: Boolean(stage2._pendingPricing),
     gpsr: stage2.gpsr || { found: false, data: null },
     category: stage2.category || {},
   };
@@ -113,6 +115,7 @@ async function runStage3ContentGeneration(stage1, stage2, locale = 'de-DE') {
       : [];
 
     const generationInput = {
+      tenantId,
       identity: {
         brand: identity.brand,
         model: identity.model,
@@ -220,7 +223,7 @@ async function runStage3ContentGeneration(stage1, stage2, locale = 'de-DE') {
   if (Array.isArray(result.key_features)) {
     try {
       const dummyProduct = {
-        identification: { brand: identity.brand },
+        identification: { brand: identity.brand, category: stage2.category?.ebayBreadcrumb || identity.internalCategory || '' },
         details: { key_features: result.key_features },
       };
       // normalizeHighlightsStrict returns { ok, highlights, issues } — use the

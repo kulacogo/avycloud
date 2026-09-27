@@ -661,7 +661,7 @@ async function enrichPriceForProductBestEffort(product, { force = false, reason 
  * @param {object} product
  * @param {{ force?: boolean, reason?: string }} opts
  */
-async function enrichPriceParallel(product, { force = false, reason = 'identify' } = {}) {
+async function enrichPriceParallel(product, { force = false, reason = 'identify', capture = false } = {}) {
   if (!product) return { ok: false, updated: false, error: 'product_missing' };
   product.details = product.details || {};
   product.details.pricing = product.details.pricing || {};
@@ -669,6 +669,21 @@ async function enrichPriceParallel(product, { force = false, reason = 'identify'
   const existing = product.details?.pricing?.lowest_price;
   if (!force && hasValidPriceEvidence(existing)) {
     return { ok: true, updated: false };
+  }
+
+  if (capture) {
+    const { lookupCapturePrice } = require('./capture-price');
+    const price = await lookupCapturePrice(product);
+    if (!price) return { ok: false, updated: false, error: 'no_verified_price', serpTrace: [] };
+    product.details.pricing.lowest_price = {
+      amount: price.amount, currency: price.currency, sources: price.sources,
+      last_checked_iso: new Date().toISOString(),
+    };
+    product.details.pricing.price_confidence = price.confidence;
+    product.ops = product.ops || {};
+    product.ops.data_quality = product.ops.data_quality || {};
+    product.ops.data_quality.price_enrich_v1 = { at_iso: new Date().toISOString(), via: price.via, reason };
+    return { ok: true, updated: true, serpTrace: [] };
   }
 
   const serpTrace = [];

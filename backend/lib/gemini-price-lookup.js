@@ -7,7 +7,7 @@
 // recherchierten Marktpreis (lowest_price), NIE sellPrice.
 // Kill-Switch: PRICE_GEMINI_LOOKUP=off.
 
-const { resolveModel } = require('./model-select');
+const { resolveModel, supportsToolContextCirculation } = require('./model-select');
 
 const OFFER_SCHEMA = {
   type: 'object',
@@ -36,7 +36,7 @@ function _enabled() {
   return !(raw === 'off' || raw === 'false' || raw === '0');
 }
 
-function _buildPrompt({ brand, name, mpn, barcode }) {
+function _buildPrompt({ brand, name, mpn, barcode, referencePages = [] }) {
   return [
     'Finde AKTUELLE Verkaufspreise (Neuware) für dieses Produkt bei deutschen Online-Händlern.',
     'Nutze Google Search. Produkt:',
@@ -44,6 +44,11 @@ function _buildPrompt({ brand, name, mpn, barcode }) {
     `- Name: ${name || 'unbekannt'}`,
     mpn ? `- Herstellernummer (MPN): ${mpn}` : null,
     barcode ? `- EAN/Barcode: ${barcode}` : null,
+    ...(referencePages.length ? [
+      'TATSAECHLICH GEFUNDENE SEITEN (Suchtreffer, noch kein Preisbeleg):',
+      ...referencePages.map(page => `- ${page.title || ''}: ${page.url}`),
+      'Oeffne passende Seiten per urlContext. Uebernimm Angebots-URLs exakt; keine Slugs oder Artikelnummern in URLs erfinden.',
+    ] : []),
     '',
     'REGELN:',
     '- 3 bis 6 Angebote, nur ECHTE Produktseiten-URLs (keine Suchseiten, keine Kategorieseiten).',
@@ -79,26 +84,31 @@ async function lookupPricesViaGemini(product, opts = {}) {
   const ai = opts.ai || (await gemini3.getGenAIClient());
   const modelName = resolveModel(null, 'PRICE_GEMINI_MODEL', 'gemini-2.5-flash');
   const timeoutMs = Number.isFinite(opts.timeoutMs) ? opts.timeoutMs : 45000;
+  const remainingMs = () => Number.isFinite(opts.deadline) ? Math.min(timeoutMs, opts.deadline - Date.now()) : timeoutMs;
+  // Secrets/client initialization can outlive the capture budget. Do not
+  // start a paid request (or a JSON repair) after that budget has expired.
+  if (remainingMs() <= 0) return [];
 
   let parsed;
   try {
     const response = await ai.models.generateContent({
       model: modelName,
-      contents: [{ role: 'user', parts: [{ text: _buildPrompt({ brand, name, mpn, barcode }) }] }],
+      contents: [{ role: 'user', parts: [{ text: _buildPrompt({ brand, name, mpn, barcode, referencePages: opts.referencePages }) }] }],
       config: {
-        tools: [{ googleSearch: {} }],
+        tools: [{ googleSearch: {} }, ...(opts.referencePages?.length && supportsToolContextCirculation(modelName) ? [{ urlContext: {} }] : [])],
         temperature: 0.2,
         maxOutputTokens: 4096,
         thinkingConfig: { thinkingBudget: 1024, includeThoughts: false },
-        httpOptions: { timeout: timeoutMs },
+        httpOptions: { timeout: remainingMs() },
       },
     });
     require('./grounding-usage').trackGroundingQueries(response, 'price.gemini_lookup');
     const rawText = (response.text || '').trim();
     if (!rawText) return [];
+    if (remainingMs() <= 0) return [];
     parsed = await gemini3._parseGroundedJson({
       ai, modelName, responseText: rawText, schema: OFFER_SCHEMA,
-      timeoutMs, maxOutputTokens: 2048, label: 'price-lookup',
+      timeoutMs: remainingMs(), maxOutputTokens: 2048, label: 'price-lookup',
     });
   } catch (err) {
     console.warn(`[gemini-price-lookup] fehlgeschlagen für ${product?.id || '?'}: ${err?.message || err}`);

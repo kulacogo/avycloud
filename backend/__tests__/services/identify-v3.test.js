@@ -105,6 +105,21 @@ beforeEach(() => {
 });
 
 describe('identifyProductV3', () => {
+  it('joins delayed price research before quality scoring and the returned datasheet', async () => {
+    let finishPrice;
+    const delayedPrice = new Promise(resolve => { finishPrice = resolve; });
+    runStage2Mock.mockResolvedValueOnce({ ...mockStage2Result, pricing: null, _pendingPricing: delayedPrice });
+    runStage3Mock.mockImplementationOnce(async () => {
+      finishPrice({ amount: 59.99, currency: 'EUR', sources: [{ url: 'https://shop.example/model' }], confidence: 0.8 });
+      return { ...mockStage3Result };
+    });
+    const { product, meta } = await identifyProductV3({ tenantId: 'tenant-a' });
+    expect(product.details.pricing.lowest_price.amount).toBe(59.99);
+    expect(runStage4Mock.mock.calls[0][1].pricing.amount).toBe(59.99);
+    expect(meta.stages.stage2.pricingComplete).toBe(true);
+    expect(runStage2Mock.mock.calls[0][2]).toEqual({ tenantId: 'tenant-a' });
+    expect(runStage3Mock.mock.calls[0][3]).toEqual({ tenantId: 'tenant-a' });
+  });
   it('runs all 4 stages in sequence', async () => {
     const { product, meta } = await identifyProductV3({
       files: [{ buffer: Buffer.from('img'), mimetype: 'image/jpeg' }],
