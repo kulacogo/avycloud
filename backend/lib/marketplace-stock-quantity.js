@@ -48,7 +48,41 @@ async function readMarketplaceQuantity(product, requested, deps = {}) {
     ...(sku ? [getReservedQuantity({ tenantId, sku })] : []),
   ]);
   if (reservations.some(n => !Number.isFinite(Number(n)) || Number(n) < 0)) throw new Error('Invalid reserved stock');
-  const availableQuantity = Math.max(0, resolveMarketplaceQuantity({ ...fresh, inventory: { quantity: fresh.inventory?.quantity } }) - Math.max(...reservations));
+  const verifiedLocated = await readLocatedQuantity(fresh, firestore);
+  const availableQuantity = Math.max(0, Math.min(verifiedLocated, resolveMarketplaceQuantity({ ...fresh, inventory: { quantity: fresh.inventory?.quantity } })) - Math.max(...reservations));
   return resolveMarketplaceQuantity({ ...fresh, inventory: { ...fresh.inventory, availableQuantity } }, requested);
 }
 module.exports.readMarketplaceQuantity = readMarketplaceQuantity;
+
+// Product locations are a projection. Verify actual BIN membership before any
+// marketplace stock increase, sync or automatic relist. Read errors propagate.
+async function readLocatedQuantity(product, firestore) {
+  if (!Array.isArray(product?.storageBins)) return 0;
+  const { buildProductKeySet, binEntryMatchesKeySet } = require('./warehouse-product-keys');
+  const keys = buildProductKeySet(product);
+  const tenantId = product.tenantId || 'default';
+  const allocations = new Map();
+  for (const bin of product.storageBins) {
+    const code = String(bin?.code || bin?.binCode || '').trim();
+    const qty = Number(bin?.quantity);
+    if (!code || !Number.isFinite(qty) || qty <= 0) continue;
+    allocations.set(code, Math.min(allocations.get(code) ?? Infinity, Math.floor(qty)));
+  }
+  const quantities = await Promise.all([...allocations].map(async ([code, cap]) => {
+    const snap = await firestore.collection('warehouseBins').doc(code).get();
+    if (!snap.exists) return 0;
+    const bin = snap.data();
+    // Legacy warehouse BINs without tenantId belong only to the default tenant.
+    if ((bin?.tenantId || 'default') !== tenantId) throw new Error('BIN tenant mismatch');
+    const actual = (Array.isArray(bin.products) ? bin.products : [])
+      .filter(entry => binEntryMatchesKeySet(entry, keys))
+      .reduce((sum, entry) => {
+        const n = Number(entry.quantity);
+        if (!Number.isFinite(n) || n < 0) throw new Error('Invalid BIN quantity');
+        return sum + Math.floor(n);
+      }, 0);
+    return Math.min(cap, actual);
+  }));
+  return quantities.reduce((sum, qty) => sum + qty, 0);
+}
+module.exports.readLocatedQuantity = readLocatedQuantity;

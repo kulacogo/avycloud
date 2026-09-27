@@ -1,3 +1,5 @@
+const stockQuantities = require('../lib/marketplace-stock-quantity');
+stockQuantities.readLocatedQuantity = async product => stockQuantities.locatedQuantity(product);
 // globals: true in vitest.config.js — describe/it/expect/vi are global
 
 let stockSyncFailuresAdds = [];

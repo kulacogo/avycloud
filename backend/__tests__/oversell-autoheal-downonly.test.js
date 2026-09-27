@@ -1,3 +1,5 @@
+const stockQuantities = require('../lib/marketplace-stock-quantity');
+stockQuantities.readLocatedQuantity = async product => stockQuantities.locatedQuantity(product);
 // globals: true in vitest.config.js — describe/it/expect/vi are global
 //
 // REGRESSION GUARD — Oversell-Incident 2026-07-11 (SKU-2510094553):

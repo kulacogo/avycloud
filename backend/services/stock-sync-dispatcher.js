@@ -517,8 +517,9 @@ async function findProductsBySkuChunk(skuChunk) {
 async function computeAvailableQuantity(product, tenantId = 'default') {
   const rawQuantity = Number(product?.inventory?.quantity ?? 0);
   if (!Number.isFinite(rawQuantity) || rawQuantity < 0) throw new Error('invalid physical stock');
-  const { resolveMarketplaceQuantity } = require('../lib/marketplace-stock-quantity');
-  const physicalQty = resolveMarketplaceQuantity({ ...product, inventory: { quantity: product?.inventory?.quantity } });
+  const { resolveMarketplaceQuantity, readLocatedQuantity } = require('../lib/marketplace-stock-quantity');
+  const verifiedLocated = await readLocatedQuantity(product, firestore);
+  const physicalQty = Math.min(verifiedLocated, resolveMarketplaceQuantity({ ...product, inventory: { quantity: product?.inventory?.quantity } }));
   const sku = String(product?.identification?.sku || product?.details?.identifiers?.sku || '').trim();
   const productId = String(product?.id || '');
 

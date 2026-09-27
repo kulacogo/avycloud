@@ -1,3 +1,5 @@
+const stockQuantities = require('../lib/marketplace-stock-quantity');
+stockQuantities.readLocatedQuantity = async product => stockQuantities.locatedQuantity(product);
 // globals: true in vitest.config.js — describe/it/expect/vi are global
 //
 // QUOTA-FRESSER-GUARD (2026-07-21): 4 Produkte trugen 389…-Alt-Konto-ItemIDs;
