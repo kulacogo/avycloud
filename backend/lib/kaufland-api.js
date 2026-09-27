@@ -922,6 +922,9 @@ async function updateUnit(unitId, product, { storefront = 'de', priceOnly = fals
     // Never send AVAILABLE from a stock/content update. An external pause must
     // survive even if it races the read above.
     delete picked.patchData.status;
+    // The status GET may be slow; stock can disappear while it is in flight.
+    picked.patchData.amount = await require('./marketplace-stock-quantity').readMarketplaceQuantity(product, picked.patchData.amount);
+    if (picked.patchData.amount <= 0) picked.patchData.status = 'ONHOLD';
   }
   const res = await kauflandRequest('PATCH', `/units/${encodeURIComponent(String(unitId))}`, {
     query: { storefront: picked.storefront },

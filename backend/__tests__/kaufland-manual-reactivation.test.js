@@ -38,3 +38,12 @@ it('automatic pending-publish retry cannot reactivate an existing unit', async (
   await expect(createUnit(product)).rejects.toMatchObject({ code: 'KAUFLAND_MANUAL_ACTIVATION_REQUIRED' });
   expect(calls.filter(c => c.method === 'POST' || c.method === 'PATCH')).toHaveLength(0);
 });
+
+it('rechecks BIN stock after the live status lookup before sending quantity', async () => {
+  liveUnit.status = 'AVAILABLE'; liveUnit.amount = 1;
+  const spy = vi.spyOn(require('../lib/marketplace-stock-quantity'), 'readMarketplaceQuantity').mockResolvedValueOnce(2).mockResolvedValueOnce(0);
+  try {
+    await updateUnit(1234, product);
+    expect(calls.find(c => c.method === 'PATCH').body).toMatchObject({ amount: 0, status: 'ONHOLD' });
+  } finally { spy.mockRestore(); }
+});
