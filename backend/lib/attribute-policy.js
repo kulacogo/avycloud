@@ -58,6 +58,9 @@ function truncateToMaxChars(text = '', maxLen = DEFAULT_ATTRIBUTE_VALUE_MAX_LEN)
 function coerceAttributeValueToPolicy(key, value, { maxLen = DEFAULT_ATTRIBUTE_VALUE_MAX_LEN } = {}) {
   const v = normVal(value);
   if (!v) return '';
+  // URLs are references, not free text. Truncation corrupts safety-document
+  // links, including at firestore.js's final save normalization.
+  if (/^https?:\/\//i.test(v)) return v;
   if (isKTypAttributeKey(key)) return v;
   return truncateToMaxChars(v, maxLen);
 }

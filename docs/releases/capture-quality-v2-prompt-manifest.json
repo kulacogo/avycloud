@@ -1,0 +1,15 @@
+{
+  "scopeId": "identify.v2",
+  "versionId": "capture-v2-20260927",
+  "parentVersionId": "NTRx6DzmgKcGcBtnIwl0",
+  "captureContractVersion": 2,
+  "promptAppend": "Erfassungsvertrag v2 (27.09.2026): Kategoriepflichtmerkmale und belegbare empfohlene Merkmale vollstaendig verarbeiten. Fuer Highlights gelten die vom Aufrufer genannten Kategoriegrenzen fuer Anzahl und Zeichenlaenge. Vollstaendige kanonische GPSR-Felder einschliesslich separat belegtem EU-Verantwortlichen erhalten; unbekannte Werte nicht erfinden. Dokument-URLs vollstaendig erhalten. Wenn der Aufrufer separate Preisrecherche meldet, keine zweite Preisrecherche starten. Preisquellen muessen zum exakten Produkt und zur Variante passen.",
+  "sourceFiles": {
+    "backend/lib/capture-content-contract.js": "ad4fb82e98c242f7d7662c980d0801ad2ad3bef7c5397ba149f97abddf66340b",
+    "backend/lib/gemini3-client.js": "caf33379029205a98f6e3f6b41f491ee42802e707569e820f3f6c8323c961cc2",
+    "backend/lib/identify-v3-stage3-agentic.js": "5384fec160c9a1643f39eee4c098fbb46e0b4fcc46e3e3d42e51622dd3b1297c",
+    "backend/lib/gemini-price-lookup.js": "3045913efd61d619e32141f479cea7d1e64d8ab4874503ac078f1b9b6aef9a28"
+  },
+  "activation": "After the matching application release is healthy; preserve all previous version fields and tenant overrides.",
+  "rollback": "Restore parentVersionId with compare-and-set against this version; coordinate with previous application revision."
+}

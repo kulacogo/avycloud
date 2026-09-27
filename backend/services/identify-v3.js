@@ -8,6 +8,7 @@ const { runStage4Validation } = require('../lib/identify-v3-stage4');
 const { resolveIdentificationConfidence } = require('../lib/identify-v3-confidence');
 const { runStage4CrossReference } = require('../lib/identify-v3-evidence');
 const { resolveConsensus } = require('../lib/cross-reference');
+const { GPSR_FIELDS } = require('../lib/chat-datasheet-contract');
 
 // GPSR-Consensus Feature-Flag (task D.3)
 // Modi:
@@ -126,17 +127,21 @@ function _stage4CrossRefEnabled() {
  *
  * Returns a canonical Product + confidence metadata.
  */
-async function identifyProductV3({ files = [], barcodes = '', locale = 'de-DE', hint = null, lotCode = null, inventoryId = null } = {}) {
+async function identifyProductV3({ files = [], barcodes = '', locale = 'de-DE', hint = null, lotCode = null, inventoryId = null, tenantId = null } = {}) {
   const startTime = Date.now();
 
   // Stage 1: Recognition
   const stage1 = await runStage1Recognition({ files, barcodes, hint, locale });
 
   // Stage 2: Enrichment (parallel)
-  const stage2 = await runStage2Enrichment(stage1, locale);
+  const stage2 = await runStage2Enrichment(stage1, locale, { tenantId });
 
   // Stage 3: Content Generation
-  const stage3 = await runStage3ContentGeneration(stage1, stage2, locale);
+  const stage3 = await runStage3ContentGeneration(stage1, stage2, locale, { tenantId });
+
+  // Join the original research task BEFORE validation/save/response. It ran
+  // alongside content generation, so late-but-valid prices are not discarded.
+  if (stage2._pendingPricing) stage2.pricing = await stage2._pendingPricing;
 
   // Assemble product in canonical format (matches types.ts Product interface)
   const productId = crypto.randomUUID();
@@ -180,7 +185,17 @@ async function identifyProductV3({ files = [], barcodes = '', locale = 'de-DE', 
   product.ops = product.ops || {};
   product.ops.data_quality = product.ops.data_quality || {};
   product.ops.data_quality.identify_v3 = {
+    capture_contract_version: 2,
     checked_at_iso: new Date().toISOString(),
+    price_research: {
+      completed: Boolean(stage2._pendingPricing),
+      found: Boolean(stage2.pricing?.amount > 0),
+      source: stage2.pricing?.via || null,
+    },
+    content_generation: {
+      agentic: Boolean(stage3._meta?.agenticUsed),
+      fallback: stage3._meta?.fallbackUsed !== false,
+    },
     overall_score: stage4.overallScore,
     field_confidence: stage4.fieldConfidence,
     aspect_coverage: stage4.requiredAspectsCoverage,
@@ -228,7 +243,7 @@ async function identifyProductV3({ files = [], barcodes = '', locale = 'de-DE', 
       totalDurationMs,
       stages: {
         stage1: { durationMs: stage1._meta?.durationMs, groundingUsed: stage1._meta?.groundingUsed },
-        stage2: { durationMs: stage2._meta?.durationMs, enrichmentResults: stage2._meta?.enrichmentResults },
+        stage2: { durationMs: stage2._meta?.durationMs, enrichmentResults: stage2._meta?.enrichmentResults, pricingComplete: Boolean(stage2._pendingPricing) },
         stage3: { durationMs: stage3._meta?.durationMs },
       },
       confidence: stage4,
@@ -293,7 +308,7 @@ function assembleProduct(id, stage1, stage2, stage3, opts) {
   if (Array.isArray(stage3.item_specifics)) {
     for (const spec of stage3.item_specifics) {
       if (spec?.key && spec?.value) {
-        attributes[spec.key] = String(spec.value).slice(0, 60);
+        attributes[spec.key] = /^https?:\/\//i.test(String(spec.value).trim()) ? String(spec.value) : String(spec.value).slice(0, 60);
       }
     }
   }
@@ -370,19 +385,19 @@ function assembleProduct(id, stage1, stage2, stage3, opts) {
     const manufacturer_name = _pickGpsrField(
       'gpsr_manufacturer_name',
       registryData?.manufacturer_name,
-      stage3.gpsr_manufacturer_name,
+      _pickFromFallback(stage3.gpsr?.manufacturer_name, stage3.gpsr_manufacturer_name),
       wf?.manufacturer_name,
     );
     const manufacturer_address = _pickGpsrField(
       'gpsr_manufacturer_address',
       registryData?.manufacturer_address,
-      stage3.gpsr_manufacturer_address,
+      _pickFromFallback(stage3.gpsr?.manufacturer_address, stage3.gpsr_manufacturer_address),
       wf?.manufacturer_address,
     );
     const email = _pickGpsrField(
       'gpsr_manufacturer_email',
       registryData?.email,
-      stage3.gpsr_manufacturer_email,
+      _pickFromFallback(stage3.gpsr?.email, stage3.gpsr_manufacturer_email),
       wf?.manufacturer_email,
       {
         registryEmailAlias: registryData?.manufacturer_email,
@@ -392,16 +407,22 @@ function assembleProduct(id, stage1, stage2, stage3, opts) {
     const manufacturer_phone = _pickGpsrField(
       'gpsr_manufacturer_phone',
       registryData?.manufacturer_phone,
-      stage3.gpsr_manufacturer_phone,
+      _pickFromFallback(stage3.gpsr?.manufacturer_phone, stage3.gpsr_manufacturer_phone),
       wf?.manufacturer_phone,
     );
     const entity_country = _pickGpsrField(
       'gpsr_manufacturer_country',
       registryData?.entity_country,
-      stage3.gpsr_manufacturer_country,
+      _pickFromFallback(stage3.gpsr?.entity_country, stage3.gpsr_manufacturer_country),
       wf?.entity_country,
     );
+    const fullGpsr = {};
+    for (const field of GPSR_FIELDS) {
+      const value = _pickGpsrField(field, registryData?.[field], stage3.gpsr?.[field], wf?.[field]);
+      if (value) fullGpsr[field] = value;
+    }
     if (
+      !Object.keys(fullGpsr).length &&
       !manufacturer_name &&
       !manufacturer_address &&
       !email &&
@@ -410,7 +431,13 @@ function assembleProduct(id, stage1, stage2, stage3, opts) {
     ) {
       return undefined;
     }
-    return { manufacturer_name, manufacturer_address, email, manufacturer_phone, entity_country };
+    const legacy = { manufacturer_name, manufacturer_address, email, manufacturer_phone, entity_country };
+    // Canonical Stage-3 fields are additive; retain the existing precedence
+    // and legacy flat fields for old models/fixtures.
+    for (const [field, value] of Object.entries(legacy)) {
+      if (value) fullGpsr[field] = value;
+    }
+    return fullGpsr;
   })();
 
   return {

@@ -931,6 +931,7 @@ REGELN:
 
 // ─── IDENTIFY V3: Content Generation Schema ───
 
+const { GPSR_CONTENT_SCHEMA, buildCaptureRequirements } = require('./capture-content-contract');
 const CONTENT_SCHEMA = {
   type: 'object',
   properties: {
@@ -938,7 +939,7 @@ const CONTENT_SCHEMA = {
     title_kaufland: { type: 'string', description: 'Kaufland Titel, bis 100 Zeichen' },
     description_ebay: { type: 'string', description: 'eBay Beschreibung als Fließtext in 2-3 <p>-Absaetzen, 180-240 Woerter, KEINE Aufzählung/<ul>' },
     description_kaufland: { type: 'string', description: 'Kaufland Beschreibung in HTML' },
-    key_features: { type: 'array', items: { type: 'string' }, description: '5-7 Bulletpoints' },
+    key_features: { type: 'array', items: { type: 'string' }, description: 'Kategorie-Regeln im Erfassungsvertrag: Anzahl, Laenge und Nutzen – Eigenschaft' },
     item_specifics: {
       type: 'array',
       items: { type: 'object', properties: { key: { type: 'string' }, value: { type: 'string' } }, required: ['key', 'value'] },
@@ -950,6 +951,7 @@ const CONTENT_SCHEMA = {
     gpsr_manufacturer_email: { type: 'string' },
     gpsr_manufacturer_phone: { type: 'string' },
     gpsr_manufacturer_country: { type: 'string' },
+    gpsr: GPSR_CONTENT_SCHEMA,
   },
   required: ['title_ebay', 'title_kaufland', 'description_ebay', 'item_specifics'],
 };
@@ -1123,6 +1125,7 @@ async function generateProductContent({
     existingProduct: null,
     titleInsights: enrichment.titleInsights || {},
   }));
+  sections.push(buildCaptureRequirements(enrichment, gpsrWebFallback));
 
   parts.push({
     text: `Du bist ein professioneller Produktdaten-Kurator fuer eBay.de und Kaufland.de.

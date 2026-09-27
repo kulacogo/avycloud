@@ -47,15 +47,16 @@ const STAGE2_FALLBACK_TIMEOUT_MS = parseInt(process.env.STAGE2_FALLBACK_TIMEOUT_
 // Race a promise against a timeout. The source promise is wrapped so that a late rejection
 // cannot escape as an unhandled rejection (which previously caused stack overflows in the
 // V4 pricing-worker — same pattern reused here defensively).
-function withTimeout(promise, ms, label) {
-  const guarded = Promise.resolve(promise);
-  guarded.catch(() => {});
-  return Promise.race([
-    guarded,
-    new Promise((_, reject) =>
-      setTimeout(() => reject(new Error(`${label} timeout after ${ms}ms`)), ms),
-    ),
-  ]);
+async function withTimeout(promise, ms, label) {
+  let timer;
+  try {
+    return await Promise.race([
+      Promise.resolve(promise),
+      new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(`${label} timeout after ${ms}ms`)), ms); }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 function hasMeaningfulGpsr(gpsr) {
@@ -82,15 +83,16 @@ function hasMeaningfulGpsr(gpsr) {
  *
  * Individual failures are isolated and don't block other enrichments.
  */
-async function runStage2Enrichment(stage1, locale = 'de-DE') {
+async function runStage2Enrichment(stage1, locale = 'de-DE', { tenantId = null } = {}) {
   const startTime = Date.now();
   const identity = stage1.identity || {};
   const barcodes = stage1.barcodes || {};
 
   // Build temporary product for enrichment functions that expect Product shape
   const tempProduct = {
+    tenantId,
     identification: {
-      name: `${identity.brand} ${identity.model}`.trim(),
+      name: [identity.brand, identity.model, identity.variant].filter(Boolean).join(' ').trim(),
       brand: identity.brand || '',
       category: identity.internalCategory || '',
       barcodes: barcodes.ranked?.map((r) => r.code).filter(Boolean) || [],
@@ -102,7 +104,7 @@ async function runStage2Enrichment(stage1, locale = 'de-DE') {
         upc: barcodes.upc || '',
         mpn: identity.mpn || '',
       },
-      attributes: {},
+      attributes: identity.model ? { Modell: identity.model } : {},
       images: (stage1.uploadedImages || []).map((img) => ({
         url_or_base64: img.url,
         source: 'upload',
@@ -188,6 +190,24 @@ async function runStage2Enrichment(stage1, locale = 'de-DE') {
     }
   }
 
+  const pricingTask = (async () => {
+    try {
+      const result = await enrichPriceParallel(tempProduct, { force: true, reason: 'identify-v3', capture: true });
+      const written = tempProduct.details?.pricing || {};
+      if (!result || result.ok === false || !(Number(written.lowest_price?.amount) > 0)) return null;
+      return {
+        amount: written.lowest_price.amount,
+        currency: written.lowest_price.currency || 'EUR',
+        sources: written.lowest_price.sources || [],
+        confidence: written.price_confidence ?? 0,
+        via: tempProduct.ops?.data_quality?.price_enrich_v1?.via || 'enrichPriceParallel',
+      };
+    } catch (err) {
+      console.warn('[stage2] Price enrichment failed:', err?.message);
+      return null;
+    }
+  })();
+
   // Run all 6 enrichments in parallel
   const enrichmentResults = {};
   const [
@@ -202,36 +222,13 @@ async function runStage2Enrichment(stage1, locale = 'de-DE') {
     (async () => {
       if (!categoryId) return { requiredAspects: [], catalog: null };
       const catalog = getCategoryAspectCatalog(categoryId);
-      const requiredAspects = catalog?.required?.map((a) => a.name || a) || [];
+      const requiredAspects = catalog?.requiredAspects || [];
       return { requiredAspects, catalog };
     })(),
 
-    // 2. Price Enrichment (capped at 15s — non-blocking, can be enriched later)
-    (async () => {
-      try {
-        const priceResult = await Promise.race([
-          enrichPriceParallel(tempProduct, { force: true, reason: 'identify-v3' }),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('Price enrichment timeout (15s)')), 15000)),
-        ]);
-        // PROD-BUG-FIX (2026-07-11): enrichPriceParallel MUTIERT das übergebene
-        // Produkt und returned nur { ok, updated, serpTrace } — die Preisdaten
-        // standen nie im Return-Wert. Der alte Code las lowest_price vom Return
-        // → stage2.pricing.amount war IMMER 0 und V3-erfasste Produkte
-        // starteten ohne Preis. Jetzt: aus dem mutierten tempProduct lesen.
-        if (!priceResult || priceResult.ok === false) return null;
-        const written = tempProduct.details?.pricing || {};
-        const lowest = written.lowest_price;
-        if (!lowest || !(Number(lowest.amount) > 0)) return null;
-        return {
-          lowest_price: lowest,
-          price_confidence: written.price_confidence,
-          via: tempProduct.ops?.data_quality?.price_enrich_v1?.via || 'enrichPriceParallel',
-        };
-      } catch (err) {
-        console.warn('[stage2] Price enrichment failed:', err?.message);
-        return null;
-      }
-    })(),
+    // Give content generation a head start; the same bounded price task is
+    // joined before assembly. A 15-second observation limit is NOT a failure.
+    withTimeout(pricingTask, 15000, 'Capture price preview').catch(() => null),
 
     // 3. GPSR Registry
     (async () => {
@@ -388,7 +385,7 @@ async function runStage2Enrichment(stage1, locale = 'de-DE') {
     await Promise.allSettled(fallbackJobs);
   }
 
-  return {
+  const result = {
     category: {
       ebayId: categoryId,
       ebayBreadcrumb: categoryMatch?.breadcrumb || identity.internalCategory || '',
@@ -396,14 +393,9 @@ async function runStage2Enrichment(stage1, locale = 'de-DE') {
       resolver: categoryResolveMeta,
     },
     requiredAspects: aspects.requiredAspects || [],
+    recommendedAspects: aspects.catalog?.recommendedAspects || [],
     aspectCatalog: aspects.catalog || null,
-    pricing: pricing ? {
-      amount: pricing.lowest_price?.amount || pricing.amount || 0,
-      currency: pricing.lowest_price?.currency || pricing.currency || 'EUR',
-      sources: pricing.lowest_price?.sources || pricing.sources || [],
-      confidence: pricing.price_confidence || pricing.confidence || 0.7,
-      via: pricing.via || 'enrichPriceParallel',
-    } : null,
+    pricing,
     gpsr,
     gpsrWebFallback,
     titleInsights,
@@ -418,6 +410,8 @@ async function runStage2Enrichment(stage1, locale = 'de-DE') {
       },
     },
   };
+  Object.defineProperty(result, '_pendingPricing', { value: pricingTask, enumerable: false });
+  return result;
 }
 
 module.exports = {

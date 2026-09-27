@@ -34,6 +34,7 @@
 const atomicTools = require('../services/atomic-tools');
 const { resolveModel } = require('./model-select');
 const { trackGroundingQueries } = require('./grounding-usage');
+const { GPSR_CONTENT_SCHEMA, sanitizeCaptureGpsr, buildCaptureRequirements } = require('./capture-content-contract');
 const { getGeminiApiKey } = require('./gemini-client');
 const {
   defaultThinkingConfig,
@@ -158,7 +159,7 @@ const WRITE_DATASHEET_DECLARATION = {
       key_features: {
         type: 'array',
         items: { type: 'string' },
-        description: '5-7 bullet points "Benefit – Spec".',
+        description: 'Kategorie-Regeln im Erfassungsvertrag beachten: Anzahl, Laenge und "Nutzen – Eigenschaft".',
       },
       item_specifics: {
         type: 'array',
@@ -182,6 +183,7 @@ const WRITE_DATASHEET_DECLARATION = {
       gpsr_manufacturer_email: { type: 'string' },
       gpsr_manufacturer_phone: { type: 'string' },
       gpsr_manufacturer_country: { type: 'string' },
+      gpsr: GPSR_CONTENT_SCHEMA,
     },
     required: ['title_ebay', 'title_kaufland', 'description_ebay', 'item_specifics'],
   },
@@ -204,13 +206,16 @@ const ALLOWED_WRITE_KEYS = new Set([
   'gpsr_manufacturer_email',
   'gpsr_manufacturer_phone',
   'gpsr_manufacturer_country',
+  'gpsr',
 ]);
 
 function _sanitizeWriteArgs(rawArgs = {}) {
   const out = {};
   for (const [k, v] of Object.entries(rawArgs)) {
     if (!ALLOWED_WRITE_KEYS.has(k)) continue;
-    if (k === 'key_features') {
+    if (k === 'gpsr') {
+      out[k] = sanitizeCaptureGpsr(v);
+    } else if (k === 'key_features') {
       if (Array.isArray(v)) {
         out[k] = v.map((s) => String(s == null ? '' : s)).filter(Boolean).slice(0, 12);
       }
@@ -218,7 +223,7 @@ function _sanitizeWriteArgs(rawArgs = {}) {
       if (Array.isArray(v)) {
         out[k] = v
           .filter((it) => it && typeof it === 'object' && it.key && it.value != null)
-          .map((it) => ({ key: String(it.key).slice(0, 80), value: String(it.value).slice(0, 200) }))
+          .map((it) => ({ key: String(it.key).slice(0, 80), value: /^https?:\/\//i.test(String(it.value).trim()) ? String(it.value) : String(it.value).slice(0, 200) }))
           .slice(0, 60);
       }
     } else if (typeof v === 'string') {
@@ -376,6 +381,7 @@ function _buildSystemPrompt({
     sections.push('');
   }
 
+  sections.push(buildCaptureRequirements(enrichment, gpsrWebFallback));
   return sections.join('\n');
 }
 
@@ -420,6 +426,7 @@ async function generateProductContentAgentic({
   weightFallback = null,
   gpsrWebFallback = null,
   barcodeConfirmation = null,
+  tenantId = null,
   // Optional DI for tests.
   aiClient = null,
   modelOverride = null,
@@ -434,13 +441,13 @@ async function generateProductContentAgentic({
   const _envBackedTemperature = _envFloat('STAGE3_AGENTIC_TEMPERATURE', DEFAULT_CHAT_TEMPERATURE);
   const _envBackedMaxTokens = _envInt('STAGE3_AGENTIC_MAX_TOKENS', 12000);
   const _envBackedThinking = defaultThinkingConfig({ level: 'high', includeThoughts: false });
-  let scopeConfig = await _tryResolveScopeConfig('identify.v2-agentic', null, {
+  let scopeConfig = await _tryResolveScopeConfig('identify.v2-agentic', tenantId, {
     temperature: _envBackedTemperature,
     maxOutputTokens: _envBackedMaxTokens,
     thinkingConfig: _envBackedThinking,
   });
   if (!scopeConfig) {
-    scopeConfig = await _tryResolveScopeConfig('identify.v2', null, {
+    scopeConfig = await _tryResolveScopeConfig('identify.v2', tenantId, {
       temperature: _envBackedTemperature,
       maxOutputTokens: _envBackedMaxTokens,
       thinkingConfig: _envBackedThinking,

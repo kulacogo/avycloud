@@ -31,6 +31,20 @@ function fakeAiReturning(text) {
 describe('lookupPricesViaGemini', () => {
   beforeEach(() => { delete process.env.PRICE_GEMINI_LOOKUP; });
 
+  it('supplies discovered URLs as research evidence with URL context on capable models', async () => {
+    const ai = fakeAiReturning('{"offers":[]}');
+    const url = 'https://shop.example/real-product-id-123';
+    await lookupPricesViaGemini(PRODUCT, { ai, referencePages: [{ title: 'Ninja K32006EU', url }] });
+    expect(ai.calls[0].contents[0].parts[0].text).toContain(url);
+    expect(ai.calls[0].config.tools).toContainEqual({ urlContext: {} });
+  });
+
+  it('never starts a paid request after the capture deadline', async () => {
+    const ai = fakeAiReturning('{}');
+    expect(await lookupPricesViaGemini(PRODUCT, { ai, deadline: Date.now() - 1 })).toEqual([]);
+    expect(ai.calls).toHaveLength(0);
+  });
+
   it('maps grounded offers into price candidates (candidate shape for pickBestPriceCandidate)', async () => {
     const ai = fakeAiReturning(JSON.stringify({
       offers: [

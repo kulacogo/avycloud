@@ -1,7 +1,7 @@
 ---
 title: Identify Pipeline (V3 + V4)
 for: [dev, agent, admin, manager]
-lastReviewed: 2026-05-18
+lastReviewed: 2026-09-27
 ---
 
 # Identify Pipeline (V3 + V4)
@@ -41,6 +41,19 @@ flowchart TD
 | Stage 4 | `backend/lib/identify-v3-stage4.js` + `identify-v3-evidence.js` | Validation, Cross-Reference, Quality-Score |
 
 GPSR-Merge erfolgt in `services/identify-v3.js#assembleProduct()` mit Drei-Modi-Flag `IDENTIFY_V3_GPSR_CONSENSUS` (`false|shadow|true`).
+
+### V3-Erfassungsvertrag v2 — Korrektur vom 27.09.2026
+
+Produktionsauslieferung vom Betreiber nach Abnahme freigegeben; Prompt-Version `identify.v2/capture-v2-20260927`. Revisionsnachweis im Projektgedächtnis. Befunde und Abnahme: [Erfassungsqualität](../../reports/capture-quality-2026-09-27.md).
+
+- Stage 2 liest `requiredAspects` und `recommendedAspects` aus dem tatsächlichen Taxonomie-Vertrag. Das frühere Feld `required` existiert dort nicht; dadurch fehlten Pflichtmerkmale auch in der Qualitätsbewertung.
+- Ein begrenzter Preisrecherchelauf beginnt in Stage 2 und läuft während Stage 3 weiter. Die interne, nicht serialisierte Promise `_pendingPricing` wird **vor Assembly, Bewertung, Save und Response** abgewartet. Die 15 Sekunden in Stage 2 begrenzen nur das anfängliche Warten; Recherchebudget insgesamt 45 Sekunden. Kein zweiter breiter Preisrecherchelauf für abgeschlossene V3-Erfassungen in der Route.
+- `capture-price.js` und `capture-web-price.js` bevorzugen vorhandene Browse-/Händlerangebote. Ein begrenzter Gemini-Rückfallweg läuft nur, wenn nach dem kurzen Vorlauf noch kein Preis vorhanden ist. Quellen und Grenzen: [Pricing Engine](pricing-engine.md#preis-bei-v3-erfassung).
+- Agentic und Single-Shot erhalten denselben `capture-content-contract.js`: kategoriegerechte Highlight-Anzahl und Zeichenlängen entsprechend der tatsächlichen Prüfung, empfohlene Merkmale und vollständiges kanonisches GPSR-Schema. Registry-Vorrang und alte flache GPSR-Felder bleiben kompatibel. Unbelegte Angaben weglassen.
+- HTTP(S)-Referenzen bleiben auch bei der finalen Attributnormalisierung vollständig erhalten. Normale Textwerte behalten ihre bisherigen Grenzen.
+- Additive Diagnose: `ops.data_quality.identify_v3.capture_contract_version = 2`, `price_research.{completed,found,source}` und `content_generation.{agentic,fallback}`. `completed` bedeutet abgeschlossener Versuch, keine Garantie auf einen Preis.
+
+Tenant-ID wird von der Route an Stage 2/3 weitergereicht; Stage 3 verwendet sie bei der bestehenden Scope-Konfiguration. Kein automatischer Statuswechsel zu „Bereit“, kein automatisches Setzen von `sellPrice`, kein Nachbearbeiten alter Produkte. Die Code-Vertragsversion ersetzt nicht die Scope-Versionierung nach der LLM-Charta; deren Release-Schritt ist im Abnahmebericht festgehalten.
 
 ### V4 — Orchestrator-Worker-Swarm (Dark-Deployed)
 

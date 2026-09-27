@@ -1,3 +1,41 @@
+---
+title: Erfassungsqualität — Arbeitsstand für Codex
+lastReviewed: 2026-09-27
+---
+
+## Produktionsauftrag vom 27.09.2026, 20:30 MESZ
+
+Der Betreiber hat ausdrücklich klargestellt: Die Lösung soll nach den Tests auf Produktion. **Commit, PR/Merge und Deployment sind für diese Korrektur autorisiert; nicht erneut fragen.** Frühere Hinweise auf fehlende Freigabe weiter unten beschreiben nur den vorigen Stand.
+
+- Aktuellen Oversell-Fix PR24 übernommen: Release-Basis `0c801ab6`, vorher produktiv Web `01820-lnj` / Worker `00275-gf2`. Nicht auf ältere Releases zurückrollen.
+- Neue integrierte Abnahme: **5.639 Backendtests / 487 Dateien, 527 Frontendtests, TypeScript und Produktionsbuild grün**.
+- Scope `identify.v2`, neue unveränderliche Version `capture-v2-20260927`, Vorgänger `NTRx6DzmgKcGcBtnIwl0`; exakte Prompt-/Schema-Quellen über [Release-Manifest](docs/releases/capture-quality-v2-prompt-manifest.json) festgehalten. Neue Version zunächst inaktiv vorbereitet; Aktivierung nach erfolgreichem Image-Rollout. Alte Felder, Modelle und Tenant-Konfiguration bleiben erhalten. Direkte SDK-Transaktion mit Vergleich des aktiven Vorgängers: bestehender `createScopeVersion()`-Helper aktiviert entgegen der Charta sofort und verliert zusätzliche Versionsfelder, deshalb nicht dafür verwenden.
+- Zusätzlich echte Stage 1→4 mit Originalfotos und realen APIs lokal ausgeführt, Produkt-/Cache-Writes gesperrt, Uploads auf bereits vorhandene Quellbilder abgebildet. Ergebnis im privaten Nachweis. Produktions-Erfassungsroute besitzt keinen Dry-run; Duplicate-Reuse verändert Wareneingangsmenge. Niemals vorhandene Produkt-EAN zu Testzwecken erneut gegen die produktive Erfassungsroute senden.
+- Release-/Revisionsnachweise werden nach Abschluss in `/Users/oguz/Dev/avycloud/CODEX_RELEASE_CAPTURE_QUALITY_20260927.md` und dem umfassenden Projektgedächtnis nachgeführt.
+
+# Erfassung: Produktdatenblatt und Preis
+
+Dieser Worktree gehört zum Auftrag, mangelhafte neue Datenblätter und fehlende Preise zu beheben. **Lokal implementiert und geprüft, kein eigener Commit, Push oder Deployment.** Das umfassende Projektgedächtnis liegt in `/Users/oguz/Dev/avycloud/CODEX_MEMORY.md`. Pflichtlektüre `AGENTS.md`, KB-Index, Agenten-Persona, `CLAUDE.md` und `TASKS.md` bleibt bindend.
+
+- Worktree `/Users/oguz/Dev/avycloud-capture-quality-20260927`, Branch `codex/capture-datasheet-quality-20260927`, aktuelle Basis Main `810a0d76948271747086f97df0b72c06401f3c5d`. Ausgangsbasis `c2abecab`; den separat veröffentlichten Bildwerkstatt-Release konfliktfrei per Fast-forward übernommen. Fremde Änderungen im Hauptcheckout nicht übernommen.
+- **[Vollständiger Befund, Proben und Release-Grenzen](docs/reports/capture-quality-2026-09-27.md)**. Reale Stichprobe seit 20.09.: 91 Erfassungen, davon 86 ursprünglich ohne Preis; alle 28 aktuell ausstehenden Produkte ohne Preis bei Erfassung. Alle 91 hatten fälschlich null Kategoriepflichtmerkmale im V3-Score.
+- Taxonomie-Vertrag `requiredAspects` statt nicht existierendem `required`; reale Katalog-Fixture sichert das ab. `recommendedAspects` ebenfalls an Stage 3.
+- Preisrecherche einmal pro V3-Erfassung, 45-Sekunden-Budget, parallel zur Textgenerierung; `_pendingPricing` vor Assembly/Bewertung/Save abwarten. Route überspringt erneute breite Recherche, wenn `meta.stages.stage2.pricingComplete`. Niemals einen späten alten Produktsnapshot als Preisnachlauf speichern.
+- `capture-price.js` / `capture-web-price.js`: schneller Browse-/Händlerpfad, höchstens eine gemeinsame Suche und ein Gemini-Recherche-Rückfallweg. Direkte Händlerpreise ausschließlich aus passend identifiziertem JSON-LD-Product/Offer. Keine Versandpreise/fremden Produkte, kein unbelegter Fantasiepreis. Modellquellen zusätzlich laden und prüfen. Bestehende Refresh-/Chat-Preislogik bleibt Standard außerhalb `capture: true`.
+- `capture-content-contract.js` v2: beide Textgeneratoren bekommen dieselben kategoriegerechten Highlight-Anzahl/-Längen, GPSR-Felder aus kanonischem `chat-datasheet-contract`, Variantenbindung und belegbare Empfehlungen. Vollständiger GPSR-Merge mit bisherigem Registry-Vorrang. URL-Attribute bis zum finalen Save ungekürzt; sonstige Text-/Attributregeln unverändert.
+- Additive Diagnose in `ops.data_quality.identify_v3`: `capture_contract_version: 2`, `price_research.{completed,found,source}`, `content_generation.{agentic,fallback}`. Kein automatisches `sellPrice`, kein Status „Bereit“, keine Bestands-/OMS-/Listing-Mutation, kein Altprodukt-Backfill.
+- Reale Proben: Träumeland Carefor Midi 46,99 € mit passender EAN/MPN und fünf gültigen Highlights; Steinel L 605 S final 102,32 € aus Lightkontor-Produktangebot in 2,94 s ohne Gemini-Preisaufruf. Content mit echten Fotos, aber Stage-1-Identität rekonstruiert; kein vollständiger Upload-/Save-End-to-End-Test. Keine Garantie vollständiger Preisabdeckung oder aller generierten Fakten.
+- **Endabnahme: 5.596 Backendtests / 481 Dateien, 527 Frontendtests, Produktionsbuild und Diff-Prüfung grün.** Baseline vor eigenen Änderungen: 5.531 Backendtests. Letzter kompletter Lauf nach Integration von Main `810a0d76`. Test-/Probenbelege privat unter `/Users/oguz/Dev/avycloud-local-backups/capture-quality/20260927/`.
+- Kein Produkt bei Proben gespeichert. Firestore-Schreibmethoden gesperrt; Telemetrieversuche abgefangen. **Storage-Import-Fußangel:** erste Probe speicherte bestehende Bucket-IAM-Policy erneut, Audit 27.09. 02:08:34 UTC mit leerem `policyDelta`, keine Berechtigungsänderung. Danach `lib/storage` vor allen App-Imports gesperrt. Probe-Script im privaten Archiv nicht unbedacht ohne diese Sperre ausführen.
+- Neue Code-Prompt-/Schemaänderung ist noch nicht als Firestore-Scope-Version aktiviert. Vor späterem Release zusätzlich die verbindliche Scope-Versionierung nach `docs/standards/llm-quality-parity.md` abschließen; Code-Vertragsnummer ist kein Ersatz. Keine vollständige Migration der älteren Preis-LLM-Konfiguration behaupten. Aktuelle Produktion vor jedem Eingriff erneut prüfen.
+- Installationen wurden nicht verändert. Für lokale Prüfungen waren die unveränderten vorhandenen `node_modules` temporär verlinkt; diese beiden Verweise werden nach der Prüfung wieder entfernt. Beim Fortsetzen Dependencies anhand der unveränderten Lockfiles bereitstellen.
+
+Nur bei explizitem Commit-/Merge-Auftrag committen. Push auf Main löst Produktion aus. Frühere Freigaben anderer Features gelten nicht automatisch für diese Korrektur.
+
+---
+
+## Vorheriger versionierter Arbeitsstand (unverändert erhalten)
+
 # Codex — AvyCloud Projektgedächtnis
 
 Stand 20.09.2026. Pflichtlektüre aus AGENTS.md/CLAUDE.md bleibt maßgeblich. Die ausführliche Projektanalyse, Architektur und Claude-Historie liegt unter `/Users/oguz/Dev/avycloud/CODEX_MEMORY.md`; diese Datei hält den aktuellen isolierten Arbeitsstand fest. Produktionsänderungen haben direkten Einfluss auf den Betrieb von TrendOcean.
