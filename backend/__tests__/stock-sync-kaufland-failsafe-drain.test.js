@@ -11,9 +11,8 @@ stockQuantities.readLocatedQuantity = async product => stockQuantities.locatedQu
 // Listing blieb unbegrenzt ONHOLD/unverkäuflich. Exakt das Fake-Success-Muster
 // aus dem eBay-Incident 2026-06-16 (c339184), das im Kaufland-Zweig weiterlebte.
 //
-// Erwartung seit Fix: ONHOLD bleibt als Oversell-Sicherung, aber das Result ist
-// status:'failed' + retryable:true + error, damit der Drain updateUnit erneut
-// versucht (setzt bei Erfolg automatisch wieder AVAILABLE).
+// Betreiberregel 27.09.: Keine automatische Reaktivierung. Deshalb darf ein
+// transienter Lesefehler erst recht kein gesundes Angebot pausieren; nur Retry.
 
 let updateUnitImpl = async () => ({ updated: true });
 let setUnitStatusImpl = async () => ({ ok: true });
@@ -70,14 +69,14 @@ function kauflandProduct(quantity) {
 
 const kauflandResult = (results) => results.find((r) => r.channel === 'kaufland');
 
-describe('stock-sync: Kaufland fail-safe ONHOLD muss als failed in den Drain', () => {
+describe('stock-sync: Kaufland Fehler gehen ohne Statusmutation in den Drain', () => {
   beforeEach(() => {
     setUnitStatusCalls.length = 0;
     updateUnitImpl = async () => ({ updated: true });
     setUnitStatusImpl = async () => ({ ok: true });
   });
 
-  it('transienter updateUnit-Fehler → ONHOLD gesetzt, aber Result failed + retryable', async () => {
+  it('transienter updateUnit-Fehler → keine Pause, Result failed + retryable', async () => {
     updateUnitImpl = async () => { throw new Error('Kaufland API timeout (504)'); };
 
     const { results } = await syncStockToAllChannels({
@@ -85,15 +84,21 @@ describe('stock-sync: Kaufland fail-safe ONHOLD muss als failed in den Drain', (
     });
     const kaufland = kauflandResult(results);
 
-    // Oversell-Sicherung lief:
-    expect(setUnitStatusCalls.length).toBe(1);
-    expect(setUnitStatusCalls[0][1]).toBe('ONHOLD');
-    expect(kaufland.action).toBe('fail_safe_onhold');
+    // Ein Lesefehler darf kein gesundes Angebot pausieren (CLAUDE Regel 14).
+    expect(setUnitStatusCalls).toHaveLength(0);
+    expect(kaufland.action).toBe('update_failed_deferred');
 
     // …aber der Fehler ist ehrlich klassifiziert → Drain übernimmt:
     expect(kaufland.status).toBe('failed');
     expect(kaufland.retryable).toBe(true);
     expect(kaufland.error).toContain('504');
+  });
+
+  it('inaktive Unit wird ehrlich als skipped gemeldet', async () => {
+    updateUnitImpl = async () => ({ skipped: true, reason: 'manual_reactivation_required' });
+    const { results } = await syncStockToAllChannels({ tenantId: 'default', product: kauflandProduct(5) });
+    expect(kauflandResult(results)).toMatchObject({ status: 'skipped', action: 'manual_reactivation_required', quantityPushed: 0 });
+    expect(setUnitStatusCalls).toHaveLength(0);
   });
 
   it('erfolgreicher updateUnit bleibt success (kein Overblocking)', async () => {

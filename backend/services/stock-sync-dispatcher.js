@@ -743,7 +743,7 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
       }
     } else {
       // Stock > 0: update only a currently live unit; inactive units require manual activation.
-      // If update fails, fail-safe set ONHOLD to avoid oversell.
+      // API errors go to durable retry; they cannot justify pausing a listing.
       try {
         const { updateUnit } = require('../lib/kaufland-api');
         const productWithAvailable = {
@@ -763,47 +763,19 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
           zeroStock: false,
         });
         console.log(
-          `[stock-sync] kaufland product=${productId} unitId=${kauflandUnitId} qty=${availableQuantity} status=success`
+          `[stock-sync] kaufland product=${productId} unitId=${kauflandUnitId} qty=${result?.skipped ? 0 : availableQuantity} status=${result?.skipped ? 'skipped' : result?.updated ? 'success' : 'failed'}`
         );
       } catch (err) {
         const errMsg = err?.message || String(err);
-        try {
-          const { setUnitStatus } = require('../lib/kaufland-api');
-          await setUnitStatus(kauflandUnitId, 'ONHOLD', { storefront: 'de' });
-          // WICHTIG: Das ONHOLD ist nur die Oversell-Sicherung, NICHT der Erfolg.
-          // Der eigentliche updateUnit-Fehler MUSS als 'failed' in den Drain
-          // (stock_operation_failures), sonst bleibt ein lagerndes Produkt nach
-          // einem transienten Kaufland-Fehler unbegrenzt ONHOLD/unverkäuflich —
-          // dasselbe Fake-Success-Muster wie im eBay-Incident 2026-06-16.
-          results.push({
-            channel: 'kaufland',
-            status: 'failed',
-            unitId: kauflandUnitId,
-            quantityPushed: 0,
-            action: 'fail_safe_onhold',
-            note: 'quantity_update_failed_unit_onhold',
-            error: errMsg,
-            retryable: true,
-          });
-          console.warn(
-            `[stock-sync] kaufland FAIL-SAFE ONHOLD product=${productId} unitId=${kauflandUnitId} after update failure (queued for drain retry): ${errMsg}`
-          );
-        } catch (fallbackErr) {
-          const fallbackMsg = fallbackErr?.message || String(fallbackErr);
-          if (isUnitNotFound(errMsg) || isUnitNotFound(fallbackMsg)) {
-            // Unit is gone on Kaufland — retire it and skip (non-retryable): clear
-            // the product unitId AND deactivate the mirror entry so the resolver
-            // stops re-pulling the dead unit. No drain retry, no activity-feed noise.
-            await retireKauflandUnit({ productId, unitId: kauflandUnitId });
-            results.push({ channel: 'kaufland', status: 'skipped', unitId: kauflandUnitId, action: 'unit_retired', error: 'unit_not_found' });
-            console.warn(`[stock-sync] kaufland product=${productId} unitId=${kauflandUnitId}: Unit Not Found → retired (no retry)`);
-          } else {
-            results.push({ channel: 'kaufland', status: 'error', error: `${errMsg}; fail_safe_onhold_failed: ${fallbackMsg}` });
-            console.warn(
-              `[stock-sync] kaufland FAILED product=${productId} unitId=${kauflandUnitId}; fail-safe ONHOLD failed:`,
-              fallbackMsg
-            );
-          }
+        if (isUnitNotFound(errMsg)) {
+          await retireKauflandUnit({ productId, unitId: kauflandUnitId });
+          results.push({ channel: 'kaufland', status: 'skipped', unitId: kauflandUnitId, action: 'unit_retired', error: 'unit_not_found' });
+        } else {
+          // A failed status/stock API call is not evidence of zero stock.
+          // Pausing here would now require a manual recovery and violates rule 14.
+          results.push({ channel: 'kaufland', status: 'failed', unitId: kauflandUnitId, quantityPushed: 0,
+            action: 'update_failed_deferred', error: errMsg, retryable: true });
+          console.warn(`[stock-sync] kaufland update deferred product=${productId} unitId=${kauflandUnitId}: ${errMsg}`);
         }
       }
     }
