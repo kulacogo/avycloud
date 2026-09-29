@@ -31,6 +31,50 @@ export function getPhotoDimensions(width: number, height: number, recipe: Partia
   return { width: result.width, height: result.height };
 }
 
+export type PhotoPoint = { x: number; y: number };
+
+/** Project normalized original coordinates into the normalized rendered canvas.
+ * Uses the renderer's rounded raster dimensions, including its legacy flip-before-rotate order.
+ * Points outside the current crop may project outside the visible photo; useful for crop overlays. */
+export function sourcePointToPhoto(
+  point: PhotoPoint, width: number, height: number, input: Partial<PhotoRecipe>, maxEdge = 1000,
+): PhotoPoint {
+  if (!Number.isFinite(point.x) || !Number.isFinite(point.y)) throw new Error("Der Bildpunkt ist ungültig.");
+  const geometry = layout(width, height, input, maxEdge);
+  const { recipe, cropWidth, cropHeight, scale, radians } = geometry;
+  const rasterWidth = Math.max(1, Math.round(cropWidth * scale));
+  const rasterHeight = Math.max(1, Math.round(cropHeight * scale));
+  const x = ((point.x - recipe.crop.x) * width / cropWidth - 0.5) * rasterWidth * (recipe.flipX ? -1 : 1);
+  const y = ((point.y - recipe.crop.y) * height / cropHeight - 0.5) * rasterHeight * (recipe.flipY ? -1 : 1);
+  const cos = Math.cos(radians), sin = Math.sin(radians);
+  return { x: 0.5 + (cos * x - sin * y) / geometry.width, y: 0.5 + (sin * x + cos * y) / geometry.height };
+}
+
+/** Inverse of sourcePointToPhoto. Padding and empty rotation corners are not source pixels.
+ * Call with the exact recipe and maximum edge used to draw the visible preview. */
+export function photoPointToSource(
+  point: PhotoPoint, width: number, height: number, input: Partial<PhotoRecipe>, maxEdge = 1000,
+): PhotoPoint | null {
+  if (!Number.isFinite(point.x) || !Number.isFinite(point.y) || point.x < 0 || point.x > 1 || point.y < 0 || point.y > 1) return null;
+  const geometry = layout(width, height, input, maxEdge);
+  const { recipe, cropWidth, cropHeight, scale, radians } = geometry;
+  const rasterWidth = Math.max(1, Math.round(cropWidth * scale));
+  const rasterHeight = Math.max(1, Math.round(cropHeight * scale));
+  const x = (point.x - 0.5) * geometry.width, y = (point.y - 0.5) * geometry.height;
+  const cos = Math.cos(radians), sin = Math.sin(radians);
+  const localX = (cos * x + sin * y) * (recipe.flipX ? -1 : 1) / rasterWidth + 0.5;
+  const localY = (-sin * x + cos * y) * (recipe.flipY ? -1 : 1) / rasterHeight + 0.5;
+  // Quarter turns and edge projections have floating-point epsilon; do not reject real edges.
+  const epsilon = 1e-9;
+  if (localX < -epsilon || localX > 1 + epsilon || localY < -epsilon || localY > 1 + epsilon) return null;
+  const sourceX = recipe.crop.x + Math.max(0, Math.min(1, localX)) * cropWidth / width;
+  const sourceY = recipe.crop.y + Math.max(0, Math.min(1, localY)) * cropHeight / height;
+  // The renderer reserves at least one raster pixel even for damaged subpixel crops.
+  // The part extending beyond the decoded source is still empty, not a paint target.
+  if (sourceX < -epsilon || sourceX > 1 + epsilon || sourceY < -epsilon || sourceY > 1 + epsilon) return null;
+  return { x: Math.max(0, Math.min(1, sourceX)), y: Math.max(0, Math.min(1, sourceY)) };
+}
+
 function canvas(width: number, height: number): HTMLCanvasElement {
   const result = document.createElement("canvas");
   result.width = Math.max(1, Math.round(width)); result.height = Math.max(1, Math.round(height));

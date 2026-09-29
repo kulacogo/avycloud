@@ -1,6 +1,7 @@
 import { preload, segmentForeground } from "@imgly/background-removal";
+import type { PhotoBackgroundOrientation } from "./photoBackground";
 
-type Request = { id: number; blob: Blob; quality: "fast" | "best"; forceCpu?: boolean };
+type Request = { id: number; blob: Blob; quality: "fast" | "best"; orientation?: PhotoBackgroundOrientation; forceCpu?: boolean };
 type Model = "isnet" | "isnet_fp16" | "isnet_quint8";
 const scope = self as unknown as {
   onmessage: ((event: MessageEvent<Request>) => void) | null;
@@ -53,10 +54,20 @@ async function processPhoto(request: Request): Promise<void> {
       throw new Error("Dieses Foto ist zu groß zum Freistellen. Bitte eine Version mit höchstens 36 Megapixeln verwenden.");
     }
     const factor = Math.min(1, 2048 / Math.max(width, height));
-    const canvas = new OffscreenCanvas(Math.max(1, Math.round(width * factor)), Math.max(1, Math.round(height * factor)));
+    const orientation = request.orientation || { rotation: 0, flipX: false, flipY: false };
+    const quarterTurn = orientation.rotation === 90 || orientation.rotation === 270;
+    const scaledWidth = Math.max(1, Math.round(width * factor));
+    const scaledHeight = Math.max(1, Math.round(height * factor));
+    const canvas = new OffscreenCanvas(quarterTurn ? scaledHeight : scaledWidth, quarterTurn ? scaledWidth : scaledHeight);
     const context = canvas.getContext("2d");
     if (!context) throw new Error("Die Bildverarbeitung ist in diesem Browser nicht verfügbar.");
-    context.drawImage(original, 0, 0, canvas.width, canvas.height);
+    // Segment the same primary orientation the operator sees. IS-Net is not
+    // rotation invariant: a sideways product can lose complete lids and labels.
+    // Match renderPhoto's transform order: rotation × source-axis flips.
+    context.translate(canvas.width / 2, canvas.height / 2);
+    context.rotate(orientation.rotation * Math.PI / 180);
+    context.scale(orientation.flipX ? -1 : 1, orientation.flipY ? -1 : 1);
+    context.drawImage(original, -scaledWidth / 2, -scaledHeight / 2, scaledWidth, scaledHeight);
     const inferenceImage = await canvas.convertToBlob({ type: "image/png" });
     const device: "gpu" | "cpu" = !request.forceCpu && await supportsGpu() ? "gpu" : "cpu";
     let alphaMask: Blob;
@@ -92,7 +103,14 @@ async function processPhoto(request: Request): Promise<void> {
     context.globalCompositeOperation = "destination-in";
     context.imageSmoothingEnabled = true;
     context.imageSmoothingQuality = "high";
-    context.drawImage(mask, 0, 0, canvas.width, canvas.height);
+    // Mask storage/brush coordinates always refer to the unrotated original.
+    // Inverse(rotation × flips) = flips × inverse(rotation).
+    context.translate(canvas.width / 2, canvas.height / 2);
+    context.scale(orientation.flipX ? -1 : 1, orientation.flipY ? -1 : 1);
+    context.rotate(-orientation.rotation * Math.PI / 180);
+    const orientedWidth = quarterTurn ? canvas.height : canvas.width;
+    const orientedHeight = quarterTurn ? canvas.width : canvas.height;
+    context.drawImage(mask, -orientedWidth / 2, -orientedHeight / 2, orientedWidth, orientedHeight);
     const output = await canvas.convertToBlob({ type: "image/png" });
     scope.postMessage({ id: request.id, type: "result", blob: output });
     canvas.width = 1;

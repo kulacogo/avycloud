@@ -164,6 +164,14 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   latestProductRef.current = localProduct;
   const [isSaving, setIsSaving] = useState(false);
   const isSavingRef = useRef(false);
+  const ownershipSaveRef = useRef<ReturnType<typeof saveProduct> | null>(null);
+  // A save and an asynchronous image result must not replace each other's snapshot.
+  const imageWorkCountRef = useRef(0);
+  const [imageWorkCount, setImageWorkCount] = useState(0);
+  const trackImageWork = useCallback((started: boolean) => {
+    imageWorkCountRef.current = Math.max(0, imageWorkCountRef.current + (started ? 1 : -1));
+    setImageWorkCount(imageWorkCountRef.current);
+  }, []);
   const [isDirty, setIsDirty] = useState(false);
   // Prevent stale external updates from overwriting recent saves (race condition with improve jobs)
   const lastSaveAtRef = useRef(0);
@@ -487,6 +495,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     selectedReferenceIndex >= 0 ? referenceImages[selectedReferenceIndex] : null;
 
   const updateImages = useCallback((mutator: (images: ProductImage[]) => ProductImage[]) => {
+    if (isSavingRef.current) return;
     setLocalProduct(prev => {
       const currentImages = prev.details?.images || [];
       const nextImages = mutator([...currentImages]);
@@ -560,6 +569,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   );
 
   const handleAddImageFromUrl = useCallback(() => {
+    if (isSavingRef.current) return;
     const url = newImageUrl.trim();
     if (!url) return;
     updateImages((images) => [
@@ -579,7 +589,8 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
 
   const handleUploadImage = useCallback(
     async (file: File) => {
-      if (!file) return;
+      if (!file || isSavingRef.current) return;
+      trackImageWork(true);
       try {
         const base64 = await fileToBase64(file);
         updateImages((images) => [
@@ -588,9 +599,11 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
         ]);
       } catch (error) {
         console.error('Failed to read image file', error);
+      } finally {
+        trackImageWork(false);
       }
     },
-    [updateImages]
+    [updateImages, trackImageWork]
   );
 
   const handleUploadImages = useCallback(
@@ -607,6 +620,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
 
   const handleUploadDragOver = useCallback((event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
+    if (isSavingRef.current) return;
     setIsUploadDragActive(true);
   }, []);
 
@@ -619,6 +633,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
     (event: React.DragEvent<HTMLDivElement>) => {
       event.preventDefault();
       setIsUploadDragActive(false);
+      if (isSavingRef.current) return;
       const files = event.dataTransfer?.files;
       if (files?.length) {
         handleUploadImages(files);
@@ -635,12 +650,13 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   // NO AUTO-GENERATION - user must click "Generate Images" button manually
 
   const handleGenerateImages = async () => {
-    if (!localProduct.id) return;
+    if (!localProduct.id || isSavingRef.current || isGeneratingImages) return;
     if (!selectedReferenceImage) {
       showNotification('error', t('sheet.msg.referenceRequired'));
       return;
     }
     setIsGeneratingImages(true);
+    trackImageWork(true);
     setGenerationReport(null);
     showNotification('success', t('sheet.msg.vertexStart'));
 
@@ -703,6 +719,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
       showNotification('error', error?.message || t('sheet.msg.vertexError'));
     } finally {
       setIsGeneratingImages(false);
+      trackImageWork(false);
     }
   };
 
@@ -795,11 +812,18 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
    */
   const performSave = useCallback(async (): Promise<boolean> => {
     if (isSavingRef.current) return false;
+    if (imageWorkCountRef.current > 0) {
+      showNotification('error', 'Die Bilder werden noch verarbeitet. Bitte anschließend speichern.');
+      return false;
+    }
     isSavingRef.current = true;
     setIsSaving(true);
     let saveOk = false;
 
     try {
+      // The initial ownership claim also writes a product snapshot. Finish it
+      // before sending the newer draft so an older request cannot win later.
+      await ownershipSaveRef.current?.catch(() => undefined);
       // Snapshot AFTER blur-based updates have had a chance to commit.
       const baseProduct = latestProductRef.current;
       const parsedBarcodes = parseBarcodes(latestBarcodeInputRef.current);
@@ -1415,7 +1439,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
   // + the editor's initials, persisted immediately (not only on save). A sheet
   // already marked "Bereit" is left untouched (no accidental downgrade).
   const handleToggleEdit = useCallback(async () => {
-    if (!canWriteProduct) return;
+    if (!canWriteProduct || isSavingRef.current) return;
     const entering = !isEditing;
     setIsEditing(entering);
     if (!entering) return;
@@ -1431,16 +1455,35 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
         readiness_set_at: new Date().toISOString(),
       },
     };
+    latestProductRef.current = next;
     setLocalProduct(next);
+    const request = saveProduct(next, { activity: "ownership" });
+    ownershipSaveRef.current = request;
     try {
-      const r = await saveProduct(next, { activity: "ownership" });
+      const r = await request;
       if (r.ok && r.data) {
+        // Editing stays available during the claim. A late acknowledgement
+        // must never replace images or other fields changed in the meantime.
+        const latest = latestProductRef.current;
+        if (latest.id !== next.id) return;
+        if (latest !== next) {
+          // Keep the acknowledgement's revision for the following full save,
+          // without publishing the unsaved draft to the outer product list.
+          const revision = Math.max(latest.ops?.revision || 0, r.data.revision);
+          const acknowledged = { ...latest, ops: { ...latest.ops, revision } };
+          latestProductRef.current = acknowledged;
+          setLocalProduct(acknowledged);
+          return;
+        }
         const merged: Product = { ...next, ops: { ...next.ops, revision: r.data.revision } };
+        latestProductRef.current = merged;
         setLocalProduct(merged);
         onUpdate(merged);
       }
     } catch {
       // best-effort ownership write; full save will persist later
+    } finally {
+      if (ownershipSaveRef.current === request) ownershipSaveRef.current = null;
     }
   }, [isEditing, editorInitials, onUpdate]);
 
@@ -1848,7 +1891,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
               )}
             </div>
             <button
-              disabled={!canWriteProduct}
+              disabled={!canWriteProduct || isSaving}
               id={`btn-edit-${product.id}`}
               onClick={handleToggleEdit}
               aria-pressed={isEditing}
@@ -1860,7 +1903,8 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
             <button
               id={`btn-save-${product.id}`}
               onClick={handleSave}
-              disabled={!canWriteProduct || isSaving}
+              disabled={!canWriteProduct || isSaving || imageWorkCount > 0}
+              title={imageWorkCount > 0 ? 'Bilder werden noch verarbeitet. Anschließend speichern.' : undefined}
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg bg-success/20 text-success hover:bg-success/30 transition-colors disabled:opacity-40"
             >
               <SaveIcon className="w-3.5 h-3.5" />
@@ -2384,6 +2428,8 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
             images={localProduct.details.images}
             resetKey={localProduct.id}
             isEditing={isEditing}
+            mutationsDisabled={isSaving}
+            onProcessingChange={trackImageWork}
             productId={localProduct.id}
             onDeleteImage={isEditing ? handleDeleteImage : undefined}
             onReorder={isEditing ? handleReorderImages : undefined}
@@ -2392,7 +2438,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
             onAddImage={isEditing ? handleInsertImage : undefined}
           />
           {isEditing && (
-            <div className="mt-4 space-y-3">
+            <fieldset disabled={isSaving} className="mt-4 min-w-0 space-y-3 disabled:opacity-60">
               <div className="flex flex-col sm:flex-row gap-3">
                 <input
                   type="text"
@@ -2548,7 +2594,7 @@ const ProductSheet: React.FC<ProductSheetProps> = ({ product, onUpdate, onImprov
                   </div>
                 )}
               </div>
-            </div>
+            </fieldset>
           )}
         </section>
       </TabPanel>

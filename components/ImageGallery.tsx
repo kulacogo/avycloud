@@ -14,6 +14,8 @@ interface ImageGalleryProps {
   images: ProductImage[];
   resetKey?: string;
   isEditing?: boolean;
+  mutationsDisabled?: boolean;
+  onProcessingChange?: (processing: boolean) => void;
   productId?: string | null;
   onDeleteImage?: (index: number) => void;
   onReorder?: (fromIndex: number, toIndex: number) => void;
@@ -28,6 +30,8 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
   images,
   resetKey,
   isEditing = false,
+  mutationsDisabled = false,
+  onProcessingChange,
   productId = null,
   onDeleteImage,
   onReorder,
@@ -45,8 +49,8 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
   const [improveError, setImproveError] = useState<string | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editorImages, setEditorImages] = useState<ProductImage[]>([]);
-  const contextRef = useRef({ productId, resetKey, images, isEditing });
-  contextRef.current = { productId, resetKey, images, isEditing };
+  const contextRef = useRef({ productId, resetKey, images, isEditing, mutationsDisabled });
+  contextRef.current = { productId, resetKey, images, isEditing, mutationsDisabled };
   const aliveRef = useRef(true);
   const studioRequestRef = useRef<AbortController | null>(null);
   useEffect(() => { aliveRef.current = true; return () => { aliveRef.current = false; studioRequestRef.current?.abort(); }; }, []);
@@ -106,12 +110,12 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
   const closeLightbox = () => setLightboxIndex(null);
 
   const handleDragStart = (index: number) => {
-    if (!isEditing || !onReorder || index >= originalCount) return;
+    if (!isEditing || contextRef.current.mutationsDisabled || !onReorder || index >= originalCount) return;
     setDragIndex(index);
   };
 
   const handleDrop = (index: number) => {
-    if (!isEditing || !onReorder) return;
+    if (!isEditing || contextRef.current.mutationsDisabled || !onReorder) { setDragIndex(null); return; }
     if (dragIndex === null) {
       setDragIndex(null);
       return;
@@ -129,11 +133,12 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
   // Kontaktschatten). Das Ergebnis wird als NEUES Bild eingefügt — das Original
   // bleibt erhalten und der User entscheidet beim Speichern.
   const handleStudioPhoto = useCallback(async () => {
-    if (!isEditing || !isActiveReal || !activeRealImage || !productId) return;
+    if (!isEditing || contextRef.current.mutationsDisabled || studioRequestRef.current || !isActiveReal || !activeRealImage || !productId) return;
     const src = resolveSrc(activeRealImage) || '';
     if (!src) return;
 
     setImproving(true);
+    onProcessingChange?.(true);
     setImproveError(null);
     const controller = new AbortController();
     studioRequestRef.current = controller;
@@ -178,14 +183,16 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
     } catch (err: any) {
       if (aliveRef.current && !controller.signal.aborted) setImproveError(err?.message ? String(err.message) : t('sheet.gallery.improve.error.generic'));
     } finally {
+      onProcessingChange?.(false);
       if (studioRequestRef.current === controller) {
         studioRequestRef.current = null;
         if (aliveRef.current) setImproving(false);
       }
     }
-  }, [activeIndex, activeRealImage, isActiveReal, isEditing, onAddImage, onUpdateImage, productId, t]);
+  }, [activeIndex, activeRealImage, isActiveReal, isEditing, onAddImage, onUpdateImage, onProcessingChange, productId, t]);
 
   const applyEditorChanges = (changes: PhotoChange[]) => {
+    if (contextRef.current.mutationsDisabled) throw new Error("Das Produkt wird gerade gespeichert. Bitte danach übernehmen; deine Bildänderungen bleiben geöffnet.");
     if (!contextRef.current.isEditing || !applyPhotoChanges(contextRef.current.images, changes)) {
       throw new Error("Die Bilder wurden zwischenzeitlich geändert. Bildwerkstatt neu öffnen.");
     }
@@ -219,7 +226,8 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
         {isEditing && onDeleteImage && isActiveReal && (
           <button
             aria-label="Delete selected image"
-            onClick={() => onDeleteImage(activeIndex)}
+            disabled={mutationsDisabled}
+            onClick={() => { if (!contextRef.current.mutationsDisabled) onDeleteImage(activeIndex); }}
             className="absolute top-2 left-2 px-2 py-1 text-xs bg-danger text-txt-primary rounded opacity-0 group-hover:opacity-100 transition-opacity"
           >
             Delete
@@ -252,9 +260,9 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
           {typeof onRegenerateImage === 'function' && isActiveReal && (
             <button
               type="button"
-              onClick={() => onRegenerateImage(activeIndex)}
+              onClick={() => { if (!contextRef.current.mutationsDisabled) onRegenerateImage(activeIndex); }}
               className="px-3 py-1 bg-accent text-xs rounded-full text-txt-primary"
-              disabled={regeneratingIndex === activeIndex}
+              disabled={mutationsDisabled || regeneratingIndex === activeIndex}
             >
               {regeneratingIndex === activeIndex ? t('sheet.gallery.rerendering') : t('sheet.gallery.rerender')}
             </button>
@@ -281,10 +289,11 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
       )}
       {isEditing && isActiveReal && onUpdateImage && <div className="mt-3 rounded-xl border border-app-border bg-app-surface p-3">
         <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={() => { setEditorImages([...images]); setEditorOpen(true); }} disabled={improving} className="flex-1 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-white hover:bg-accent/90 disabled:opacity-50">Bild bearbeiten</button>
-          {productId && <button type="button" onClick={handleStudioPhoto} disabled={improving} className="rounded-lg border border-app-border bg-app-elevated px-3 py-2 text-xs font-semibold text-txt-primary disabled:opacity-50">{improving ? "Studio wird erstellt …" : "KI-Studio-Foto"}</button>}
+          <button type="button" onClick={() => { if (contextRef.current.mutationsDisabled) return; setEditorImages([...images]); setEditorOpen(true); }} disabled={improving || mutationsDisabled} className="flex-1 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-white hover:bg-accent/90 disabled:opacity-50">Bild bearbeiten</button>
+          {productId && <button type="button" onClick={handleStudioPhoto} disabled={improving || mutationsDisabled} className="rounded-lg border border-app-border bg-app-elevated px-3 py-2 text-xs font-semibold text-txt-primary disabled:opacity-50">{improving ? "Studio wird erstellt …" : "KI-Studio-Foto"}</button>}
         </div>
         <div className="mt-2 text-[11px] text-txt-muted">Licht · Freistellen · Zuschnitt · Serienbearbeitung · Rückgängig</div>
+        {mutationsDisabled && <p role="status" className="mt-2 text-xs text-txt-muted">Produkt wird gespeichert. Bildbearbeitung ist danach wieder verfügbar.</p>}
         {improving && <div className="mt-2 flex items-center gap-2 text-xs text-txt-muted"><Spinner className="h-4 w-4" />{t('sheet.gallery.improve.status.studio')}</div>}
         {improveError && <div role="alert" className="mt-2 text-xs text-danger">{improveError}</div>}
       </div>}
@@ -303,10 +312,10 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
             className={`relative aspect-square rounded-md overflow-hidden border-2 transition-colors cursor-pointer ${
               index === activeIndex ? 'border-accent' : 'border-transparent hover:border-app-border'
             }`}
-            draggable={isEditing && isReal}
+            draggable={isEditing && isReal && !mutationsDisabled}
             onDragStart={() => handleDragStart(index)}
             onDragOver={(e) => {
-              if (isEditing && isReal) {
+              if (isEditing && isReal && !mutationsDisabled) {
                 e.preventDefault();
               }
             }}
@@ -338,16 +347,17 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
             {isEditing && onDeleteImage && isReal && (
               <span
                 role="button"
-                tabIndex={0}
+                tabIndex={mutationsDisabled ? -1 : 0}
+                aria-disabled={mutationsDisabled}
                 aria-label={t('sheet.gallery.delete')}
                 onClick={(e) => {
                   e.stopPropagation();
-                  onDeleteImage(index);
+                  if (!contextRef.current.mutationsDisabled) onDeleteImage(index);
                 }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.stopPropagation();
-                    onDeleteImage(index);
+                    if (!contextRef.current.mutationsDisabled) onDeleteImage(index);
                   }
                 }}
                 className="absolute top-1 right-1 px-1 py-0.5 text-[10px] bg-danger text-txt-primary rounded opacity-0 hover:opacity-100 transition-opacity"

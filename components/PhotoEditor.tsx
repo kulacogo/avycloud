@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { ProductImage } from "../types";
-import { autoRecipe, defaultRecipe, findAlphaBounds, neutralPointRecipe, normalizeRecipe, recipesEqual, restoreEnclosedMaskRegion, type PhotoRecipe } from "../utils/photoEditor";
-import { renderPhoto } from "../utils/photoEditorCanvas";
+import { autoRecipe, centeredPhotoCrop, defaultRecipe, findAlphaBounds, neutralPointRecipe, normalizeRecipe, recipesEqual, restoreEnclosedMaskRegion, type PhotoRecipe } from "../utils/photoEditor";
+import { photoPointToSource, renderPhoto, sourcePointToPhoto } from "../utils/photoEditorCanvas";
 import { removePhotoBackground } from "../utils/photoBackground";
 import { decodePhoto, encodePhoto, fetchPhotoBlob, photoBlobToDataUrl } from "../utils/photoEditorIO";
 import { createPhotoHistory, pushPhotoHistory, type PhotoChange, type PhotoHistory } from "../utils/photoEditorSession";
@@ -67,7 +67,8 @@ export default function PhotoEditor({ images, initialIndex, onApply, onClose }: 
   const strokeId = useRef(0);
   const repairQueue = useRef(Promise.resolve());
   const pendingRepairs = useRef(0);
-  const gesture = useRef<{ index: number; mode: typeof mode; points: Array<{ x: number; y: number }> } | null>(null);
+  const gesture = useRef<{ index: number; pointerId: number; mode: typeof mode; radius: number; recipe: PhotoRecipe; points: Array<{ x: number; y: number }> } | null>(null);
+  const rendered = useRef<{ index: number; recipe: PhotoRecipe } | null>(null);
   const edit = current(drafts[active]);
   const recipe = liveRecipe || edit.recipe;
   const dirtyCount = drafts.filter(changed).length;
@@ -86,18 +87,45 @@ export default function PhotoEditor({ images, initialIndex, onApply, onClose }: 
   }, [commit]);
   const adjust = (patch: Partial<PhotoRecipe>, label: string) => {
     commitSlider();
-    commit(active, { ...edit, recipe: normalizeRecipe({ ...recipe, ...patch }) }, label);
+    const state = current(draftsRef.current[activeRef.current]);
+    commit(activeRef.current, { ...state, recipe: normalizeRecipe({ ...state.recipe, ...patch }) }, label);
+    setCompare(false);
   };
   const updateSlider = (key: keyof PhotoRecipe, value: number) => {
     const next = normalizeRecipe({ ...(liveRef.current || current(draftsRef.current[activeRef.current]).recipe), [key]: value });
-    liveRef.current = next; setLiveRecipe(next);
+    liveRef.current = next; setLiveRecipe(next); setCompare(false);
   };
   const undo = useCallback((direction: number) => {
-    liveRef.current = null; setLiveRecipe(null); setMode("view"); setCompare(false);
+    const pending = liveRef.current;
+    if (gesture.current && canvasRef.current?.hasPointerCapture(gesture.current.pointerId)) canvasRef.current.releasePointerCapture(gesture.current.pointerId);
+    gesture.current = null; liveRef.current = null; setLiveRecipe(null); setCropBox(null); setMode("view"); setCompare(false);
     const index = activeRef.current;
-    setDrafts(previous => previous.map((draft, i) => i === index ? { ...draft, history: { ...draft.history, position: Math.max(0, Math.min(draft.history.entries.length - 1, draft.history.position + direction)) } } : draft));
+    const next = draftsRef.current.map((draft, i) => {
+      if (i !== index) return draft;
+      // Keep the pending drag as a redoable action, then undo only that action.
+      const history = pending ? pushPhotoHistory(draft.history, { ...current(draft), recipe: pending }, "Werkzeug angepasst") : draft.history;
+      return { ...draft, history: { ...history, position: Math.max(0, Math.min(history.entries.length - 1, history.position + direction)) } };
+    });
+    draftsRef.current = next; setDrafts(next);
   }, []);
-  const select = (index: number) => { commitSlider(); setActive(index); setMode("view"); setCompare(false); setZoom(1); setCropBox(null); setError(null); };
+  const cancelGesture = () => {
+    if (gesture.current && canvasRef.current?.hasPointerCapture(gesture.current.pointerId)) canvasRef.current.releasePointerCapture(gesture.current.pointerId);
+    gesture.current = null; liveRef.current = null; setLiveRecipe(null); setCropBox(null);
+  };
+  const select = (index: number) => { if (gesture.current) cancelGesture(); else commitSlider(); setActive(index); setMode("view"); setCompare(false); setZoom(1); setCropBox(null); setError(null); };
+  const startMaskMode = (next: "erase" | "restore" | "fill") => {
+    commitSlider();
+    if (current(draftsRef.current[active]).recipe.background === "original") adjust({ background: "white" }, "Freistellung anzeigen");
+    setMode(next); setCompare(false);
+  };
+  const mirror = (horizontal: boolean) => {
+    const state = liveRef.current || current(draftsRef.current[active]).recipe;
+    const quarterTurn = state.rotation === 90 || state.rotation === 270;
+    const key = horizontal !== quarterTurn ? "flipX" : "flipY";
+    // Recipes encode flips in source axes. Preserve that persisted contract while
+    // the UI mirrors in the displayed axes, including a reflected straighten angle.
+    adjust({ [key]: !state[key], straighten: -state.straighten }, horizontal ? "Horizontal gespiegelt" : "Vertikal gespiegelt");
+  };
   const requestClose = () => { commitSlider(); if (draftsRef.current.some(changed) || liveRef.current) setDiscard(true); else onClose(); };
 
   const loadResource = useCallback(async (index: number): Promise<Resource> => {
@@ -177,14 +205,14 @@ export default function PhotoEditor({ images, initialIndex, onApply, onClose }: 
         const resource = resources.current.get(active);
         const target = canvasRef.current;
         if (!resource || !target) return;
-        const sourceMode = mode === "crop" || mode === "whitepoint";
-        const maskMode = mode === "erase" || mode === "restore" || mode === "fill";
-        const mask = compare || sourceMode ? null : await loadMask(resource, edit);
+        const mask = compare ? null : await loadMask(resource, edit);
         if (!valid) return;
-        const shown = compare || sourceMode ? defaultRecipe() : maskMode ? { ...defaultRecipe(), background: "transparent" as const, maskStrokes: recipe.maskStrokes } : recipe;
+        const shown = compare ? { ...defaultRecipe(), rotation: recipe.rotation, straighten: recipe.straighten,
+          flipX: recipe.flipX, flipY: recipe.flipY, crop: recipe.crop, frame: recipe.frame, padding: recipe.padding } : recipe;
         const result = renderPhoto(resource.source, resource.width, resource.height, shown, mask, 1000);
         target.width = result.width; target.height = result.height;
         target.getContext("2d")?.drawImage(result, 0, 0);
+        rendered.current = { index: active, recipe: shown };
         setSize({ width: result.width, height: result.height });
       })().catch(reason => { if (valid && reason?.name !== "AbortError") setError(reason.message); });
     });
@@ -192,13 +220,16 @@ export default function PhotoEditor({ images, initialIndex, onApply, onClose }: 
   }, [active, recipe, edit.maskId, edit.maskUrl, compare, loaded, mode, loadMask]);
 
   const auto = async () => {
+    if (operation.current) return;
+    commitSlider();
+    const index = activeRef.current, state = current(draftsRef.current[index]);
     try {
-      commitSlider();
-      const resource = await loadResource(active);
+      const resource = await loadResource(index);
       const canvas = renderPhoto(resource.source, resource.width, resource.height, defaultRecipe(), null, 512);
       const pixels = canvas.getContext("2d")!.getImageData(0, 0, canvas.width, canvas.height);
-      commit(active, { ...edit, recipe: autoRecipe(pixels, recipe) }, "Licht automatisch"); setCompare(false); setMode("view");
-    } catch (reason) { setError((reason as Error).message); }
+      if (!alive.current || current(draftsRef.current[index]) !== state) return;
+      commit(index, { ...state, recipe: autoRecipe(pixels, state.recipe) }, "Licht automatisch"); setCompare(false); setMode("view");
+    } catch (reason) { if (alive.current) setError((reason as Error).message); }
   };
 
   const removeBackground = async (indexes: number[]) => {
@@ -212,12 +243,14 @@ export default function PhotoEditor({ images, initialIndex, onApply, onClose }: 
         setBusy(`Bild ${index + 1} freistellen · ${n + 1}/${indexes.length}`); setPercent(undefined);
         const resource = await loadResource(index);
         if (controller.signal.aborted) break;
-        const maskBlob = await removePhotoBackground(resource.blob, { quality, signal: controller.signal, onProgress: progress => {
+        const before = current(draftsRef.current[index]);
+        const maskBlob = await removePhotoBackground(resource.blob, { quality, rotation: before.recipe.rotation,
+          flipX: before.recipe.flipX, flipY: before.recipe.flipY, signal: controller.signal, onProgress: progress => {
           if (alive.current) { setBusy(`Bild ${index + 1} · ${progress.message}`); setPercent(progress.percent); }
         } });
         if (!alive.current || controller.signal.aborted) break;
         const state = current(draftsRef.current[index]);
-        commit(index, { recipe: { ...state.recipe, background: "white", maskStrokes: [] }, maskBlob, maskId: ++strokeId.current }, "Hintergrund entfernt");
+        commit(index, { recipe: { ...state.recipe, background: state.recipe.background === "original" ? "white" : state.recipe.background, maskStrokes: [] }, maskBlob, maskId: ++strokeId.current }, "Freistellmaske neu erstellt");
       }
     } catch (reason) { if (alive.current && (reason as Error).name !== "AbortError") setError((reason as Error).message); }
     finally { operation.current = null; if (alive.current) { setBusy(null); setPercent(undefined); setLoaded(value => value + 1); } }
@@ -236,15 +269,24 @@ export default function PhotoEditor({ images, initialIndex, onApply, onClose }: 
   };
 
   const centerProduct = async () => {
+    if (operation.current) return;
+    commitSlider();
+    const index = activeRef.current, state = current(draftsRef.current[index]);
     try {
-      const resource = await loadResource(active);
-      const mask = await loadMask(resource, edit);
+      const resource = await loadResource(index);
+      const mask = await loadMask(resource, state);
       if (!mask) return;
-      const canvas = renderPhoto(resource.source, resource.width, resource.height, { ...defaultRecipe(), background: "transparent", maskStrokes: recipe.maskStrokes }, mask, 1000);
+      const canvas = renderPhoto(resource.source, resource.width, resource.height, { ...defaultRecipe(), crop: state.recipe.crop, background: "transparent", maskStrokes: state.recipe.maskStrokes }, mask, 1000);
       const bounds = findAlphaBounds(canvas.getContext("2d")!.getImageData(0, 0, canvas.width, canvas.height));
       if (!bounds) throw new Error("Kein freigestelltes Produkt erkannt. Maske nachbessern.");
-      adjust({ crop: bounds, frame: "square", padding: 0.06, background: recipe.background === "original" ? "white" : recipe.background }, "Produkt zentriert");
-    } catch (reason) { setError((reason as Error).message); }
+      if (!alive.current || current(draftsRef.current[index]) !== state) return;
+      const crop = state.recipe.frame === "original" ? centeredPhotoCrop(bounds, state.recipe.crop) : {
+        x: state.recipe.crop.x + bounds.x * state.recipe.crop.width, y: state.recipe.crop.y + bounds.y * state.recipe.crop.height,
+        width: bounds.width * state.recipe.crop.width, height: bounds.height * state.recipe.crop.height,
+      };
+      commit(index, { ...state, recipe: { ...state.recipe, crop, padding: 0.06, background: state.recipe.background === "original" ? "white" : state.recipe.background } }, "Produkt zentriert");
+      setCompare(false); setMode("view");
+    } catch (reason) { if (alive.current) setError((reason as Error).message); }
   };
 
   const apply = async () => {
@@ -301,7 +343,10 @@ export default function PhotoEditor({ images, initialIndex, onApply, onClose }: 
 
   const point = (event: React.PointerEvent<HTMLCanvasElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
-    return { x: Math.round(Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width)) * 10000) / 10000, y: Math.round(Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height)) * 10000) / 10000 };
+    const displayed = rendered.current;
+    const source = resources.current.get(active);
+    if (!source || !displayed || displayed.index !== active) return null;
+    return photoPointToSource({ x: (event.clientX - rect.left) / rect.width, y: (event.clientY - rect.top) / rect.height }, source.width, source.height, displayed.recipe);
   };
   const restoreRegion = async (p: { x: number; y: number }) => {
     const index = active;
@@ -344,12 +389,17 @@ export default function PhotoEditor({ images, initialIndex, onApply, onClose }: 
   const pointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => {
     if (mode === "view" || (busy && !(mode === "fill" && pendingRepairs.current > 0)) || compare) return;
     const p = point(event);
+    if (!p) return;
     if (mode === "fill") { queueRegionRepair(p); return; }
     if (mode === "whitepoint") {
-      const ctx = event.currentTarget.getContext("2d")!;
-      const x = Math.min(event.currentTarget.width - 1, Math.floor(p.x * event.currentTarget.width));
-      const y = Math.min(event.currentTarget.height - 1, Math.floor(p.y * event.currentTarget.height));
-      const pixels = ctx.getImageData(Math.max(0, x - 2), Math.max(0, y - 2), Math.min(5, event.currentTarget.width - Math.max(0, x - 2)), Math.min(5, event.currentTarget.height - Math.max(0, y - 2))).data;
+      const source = resources.current.get(active)!;
+      const sample = document.createElement("canvas"); sample.width = 5; sample.height = 5;
+      const ctx = sample.getContext("2d", { willReadFrequently: true })!;
+      const x = Math.max(0, Math.min(source.width - 5, Math.round(p.x * source.width) - 2));
+      const y = Math.max(0, Math.min(source.height - 5, Math.round(p.y * source.height) - 2));
+      // Sample original pixels, not already corrected ones or a replacement background.
+      ctx.drawImage(source.source, x, y, Math.min(5, source.width), Math.min(5, source.height), 0, 0, 5, 5);
+      const pixels = ctx.getImageData(0, 0, 5, 5).data;
       let r = 0, g = 0, b = 0, count = 0;
       for (let i = 0; i < pixels.length; i += 4) { if (pixels[i + 3] < 200) continue; r += pixels[i]; g += pixels[i + 1]; b += pixels[i + 2]; count++; }
       if (!count) return;
@@ -359,21 +409,22 @@ export default function PhotoEditor({ images, initialIndex, onApply, onClose }: 
       setMode("view"); return;
     }
     event.currentTarget.setPointerCapture(event.pointerId);
-    gesture.current = { index: active, mode, points: [p] };
+    gesture.current = { index: active, pointerId: event.pointerId, mode, radius: brush, recipe: current(draftsRef.current[active]).recipe, points: [p] };
     if (mode === "crop") setCropBox({ x: p.x, y: p.y, width: 0, height: 0 });
   };
   const pointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => {
     const drag = gesture.current;
-    if (!drag) return;
+    if (!drag || drag.index !== active || drag.mode !== mode) return;
     const p = point(event);
+    if (!p) return;
     if (drag.mode === "crop") {
       const start = drag.points[0];
+      drag.points[1] = p;
       setCropBox({ x: Math.min(start.x, p.x), y: Math.min(start.y, p.y), width: Math.abs(start.x - p.x), height: Math.abs(start.y - p.y) });
     } else {
       drag.points.push(p);
       if (drag.points.length > 60) drag.points = drag.points.filter((_, index) => index % 2 === 0);
-      const state = current(draftsRef.current[active]);
-      const next = { ...state.recipe, maskStrokes: [...state.recipe.maskStrokes, { mode: drag.mode as "erase" | "restore", radius: brush, points: [...drag.points] }] };
+      const next = { ...drag.recipe, maskStrokes: [...drag.recipe.maskStrokes, { mode: drag.mode as "erase" | "restore", radius: drag.radius, points: [...drag.points] }] };
       liveRef.current = next; setLiveRecipe(next);
     }
   };
@@ -382,12 +433,14 @@ export default function PhotoEditor({ images, initialIndex, onApply, onClose }: 
     if (!drag) return;
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
     if (drag.mode === "crop") {
-      if (cropBox && cropBox.width > 0.025 && cropBox.height > 0.025) { adjust({ crop: cropBox }, "Zugeschnitten"); setMode("view"); }
+      const start = drag.points[0], end = point(event) || drag.points[1] || start;
+      const crop = { x: Math.min(start.x, end.x), y: Math.min(start.y, end.y), width: Math.abs(end.x - start.x), height: Math.abs(end.y - start.y) };
+      if (crop.width > 0.005 && crop.height > 0.005) { adjust({ crop }, "Zugeschnitten"); setMode("view"); }
       setCropBox(null);
     } else {
       const state = current(draftsRef.current[drag.index]);
       if (state.recipe.maskStrokes.length >= 30) { liveRef.current = null; setLiveRecipe(null); setError("30 Pinselzüge erreicht. Nicht benötigte Züge im Verlauf zurücknehmen."); return; }
-      const next = { ...state.recipe, maskStrokes: [...state.recipe.maskStrokes, { mode: drag.mode as "erase" | "restore", radius: brush, points: drag.points }] };
+      const next = { ...state.recipe, maskStrokes: [...state.recipe.maskStrokes, { mode: drag.mode as "erase" | "restore", radius: drag.radius, points: drag.points }] };
       liveRef.current = null; setLiveRecipe(null); commit(drag.index, { ...state, recipe: next }, drag.mode === "erase" ? "Hintergrund nachgebessert" : "Bildteil wiederhergestellt");
     }
   };
@@ -400,7 +453,7 @@ export default function PhotoEditor({ images, initialIndex, onApply, onClose }: 
       else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
       return;
     }
-    if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); if (mode !== "view") setMode("view"); else if (!busy) requestClose(); return; }
+    if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); if (gesture.current) cancelGesture(); if (mode !== "view") setMode("view"); else if (!busy) requestClose(); return; }
     if (busy) return;
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z") { event.preventDefault(); undo(event.shiftKey ? 1 : -1); return; }
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "y") { event.preventDefault(); undo(1); return; }
@@ -413,13 +466,18 @@ export default function PhotoEditor({ images, initialIndex, onApply, onClose }: 
   const hasMask = Boolean(edit.maskUrl || edit.maskBlob);
   const resource = resources.current.get(active);
   const fit = Math.min(stageSize.width / size.width, stageSize.height / size.height, 1) * zoom;
+  const cropPolygon = cropBox && resource ? [
+    { x: cropBox.x, y: cropBox.y }, { x: cropBox.x + cropBox.width, y: cropBox.y },
+    { x: cropBox.x + cropBox.width, y: cropBox.y + cropBox.height }, { x: cropBox.x, y: cropBox.y + cropBox.height },
+  ].map(p => sourcePointToPhoto(p, resource.width, resource.height, rendered.current?.recipe || recipe))
+    .map(p => `${p.x * 100},${p.y * 100}`).join(" ") : "";
   return createPortal(<div className="fixed inset-0 z-[100] bg-app-bg/95 p-0 sm:p-3 lg:p-5">
     <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Bildwerkstatt" onKeyDown={keyDown}
       className="flex h-full w-full flex-col overflow-hidden rounded-none sm:rounded-2xl border border-app-border bg-app-bg text-txt-primary shadow-2xl outline-none">
       <header className="flex shrink-0 items-center justify-between gap-3 border-b border-app-border bg-app-surface px-4 py-3">
         <div className="min-w-0"><div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-accent">Produktfotos</div><h2 className="font-semibold text-lg">Bildwerkstatt <span className="ml-2 text-sm font-normal text-txt-muted">{active + 1} / {images.length}</span></h2></div>
         <div className="flex items-center gap-2">
-          <button type="button" className={button} title="Rückgängig (Strg/⌘ Z)" aria-label="Rückgängig" disabled={!!busy || drafts[active].history.position === 0} onClick={() => undo(-1)}>↶ <span className="hidden sm:inline">Rückgängig</span></button>
+          <button type="button" className={button} title="Rückgängig (Strg/⌘ Z)" aria-label="Rückgängig" disabled={!!busy || (drafts[active].history.position === 0 && !liveRecipe)} onClick={() => undo(-1)}>↶ <span className="hidden sm:inline">Rückgängig</span></button>
           <button type="button" className={button} title="Wiederholen (Strg/⌘ Umschalt Z)" aria-label="Wiederholen" disabled={!!busy || drafts[active].history.position === drafts[active].history.entries.length - 1} onClick={() => undo(1)}>↷</button>
           <button type="button" className={button} aria-label="Bildwerkstatt schließen" onClick={requestClose} disabled={!!busy}>✕</button>
         </div>
@@ -427,16 +485,18 @@ export default function PhotoEditor({ images, initialIndex, onApply, onClose }: 
       <div className="flex min-h-0 flex-1 flex-col md:flex-row">
         <main className="flex min-h-0 min-w-0 flex-1 flex-col">
           <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 px-4 py-2 text-xs">
-            <div className="flex items-center gap-2"><button type="button" disabled={!resource} aria-pressed={compare} onClick={() => { commitSlider(); setCompare(!compare); setMode("view"); }} className={`${button} ${compare ? "border-accent text-accent" : ""}`}>{compare ? "Original ansehen" : "Vorher / Nachher"}</button><span className="hidden lg:inline text-txt-muted">{compare ? "Original" : "Vorschau"}</span></div>
+            <div className="flex items-center gap-2"><button type="button" disabled={!resource} aria-pressed={compare} onClick={() => { commitSlider(); setCompare(!compare); setMode("view"); }} className={`${button} ${compare ? "border-accent text-accent" : ""}`}>{compare ? "Zur Bearbeitung" : "Vorher / Nachher"}</button><span className="hidden lg:inline text-txt-muted">{compare ? "Originalfarben · gleicher Ausschnitt" : "Vorschau"}</span></div>
             <div className="flex items-center gap-1"><button type="button" className={button} aria-label="Verkleinern" onClick={() => setZoom(Math.max(1, zoom - 0.5))}>−</button><button type="button" className={button} onClick={() => setZoom(1)}>{Math.round(zoom * 100)} %</button><button type="button" className={button} aria-label="Vergrößern" onClick={() => setZoom(Math.min(3, zoom + 0.5))}>+</button></div>
           </div>
-          <div ref={stageRef} className="relative flex min-h-[200px] min-w-0 flex-1 items-center justify-center overflow-auto bg-app-elevated p-4 sm:p-6">
+          <div ref={stageRef} className="relative min-h-[200px] min-w-0 flex-1 overflow-auto bg-app-elevated p-4 sm:p-6">
+            <div className="flex items-center justify-center" style={{ width: Math.max(stageSize.width, size.width * fit), height: Math.max(stageSize.height, size.height * fit) }}>
             {!resource ? <div className="text-sm text-txt-muted">{error ? "Foto nicht verfügbar" : "Original wird geladen …"}</div> : <div className="relative shrink-0" style={{ width: Math.max(1, size.width * fit), height: Math.max(1, size.height * fit) }}>
-              <canvas ref={canvasRef} aria-label={`Bildvorschau ${active + 1}`} onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={() => { gesture.current = null; liveRef.current = null; setLiveRecipe(null); setCropBox(null); }}
+              <canvas ref={canvasRef} aria-label={`Bildvorschau ${active + 1}`} onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={cancelGesture}
                 className={`block h-full w-full object-contain shadow-lg ${mode !== "view" ? "cursor-crosshair touch-none" : ""}`}
                 style={{ background: "repeating-conic-gradient(#d8dce2 0% 25%, #f3f4f6 0% 50%) 50% / 20px 20px" }} />
-              {mode === "crop" && cropBox && <div className="pointer-events-none absolute border-2 border-accent bg-accent/10" style={{ left: `${cropBox.x * 100}%`, top: `${cropBox.y * 100}%`, width: `${cropBox.width * 100}%`, height: `${cropBox.height * 100}%` }} />}
+              {mode === "crop" && cropBox && <svg className="pointer-events-none absolute inset-0 h-full w-full overflow-visible text-accent" viewBox="0 0 100 100" preserveAspectRatio="none"><polygon points={cropPolygon} fill="currentColor" fillOpacity="0.12" stroke="currentColor" strokeWidth="2" vectorEffect="non-scaling-stroke" /></svg>}
             </div>}
+            </div>
             {mode !== "view" && <div className="absolute left-4 top-3 rounded-lg border border-app-border bg-app-surface/95 px-3 py-2 text-xs shadow-lg">{mode === "crop" ? "Ausschnitt aufziehen" : mode === "whitepoint" ? "Neutrale graue / weiße Stelle anklicken" : mode === "erase" ? "Hintergrund wegradieren" : mode === "fill" ? "Verlorene Schrift oder Innenfläche anklicken" : "Produktteile zurückmalen"}<button type="button" className="ml-3 text-accent" onClick={() => setMode("view")}>Fertig</button></div>}
           </div>
           <div className="shrink-0 px-4 py-2 text-[11px] text-txt-muted">{resource ? `Original · ${resource.width} × ${resource.height} px` : ""}</div>
@@ -455,12 +515,12 @@ export default function PhotoEditor({ images, initialIndex, onApply, onClose }: 
               <Slider label="Schärfe" value={recipe.sharpness} min={0} onChange={v => updateSlider("sharpness", v)} onCommit={commitSlider} />
             </>}
             {tab === "background" && <>
-              <div className="space-y-2"><button type="button" className="w-full rounded-lg bg-accent px-3 py-3 text-sm font-semibold text-white hover:bg-accent/90" onClick={() => void removeBackground([active])}>{hasMask ? "Freistellung neu berechnen" : "Hintergrund entfernen"}</button><select aria-label="Freistellqualität" value={quality} onChange={event => setQuality(event.target.value as typeof quality)} className="w-full rounded-lg border border-app-border bg-app-elevated p-2 text-xs"><option value="fast">Schnell & fein</option><option value="best">Höchste Präzision</option></select><p className="text-[11px] text-txt-muted">Modell wird beim ersten Mal geladen; danach wiederverwendet.</p></div>
+              <div className="space-y-2"><button type="button" className="w-full rounded-lg bg-accent px-3 py-3 text-sm font-semibold text-white hover:bg-accent/90" onClick={() => void removeBackground([active])}>{hasMask ? "Freistellung erneuern" : "Hintergrund entfernen"}</button><select aria-label="Freistellvariante" value={quality} onChange={event => setQuality(event.target.value as typeof quality)} className="w-full rounded-lg border border-app-border bg-app-elevated p-2 text-xs"><option value="fast">Standard · schneller</option><option value="best">Alternative Berechnung</option></select><p className="text-[11px] text-txt-muted">Der erste Start benötigt einen Download. Die Alternative benötigt mehr Zeit und liefert nicht bei jedem Foto ein besseres Ergebnis.</p>{hasMask && <p className="text-[11px] text-txt-muted">Erneuern ersetzt die Maske und manuelle Korrekturen. Rückgängig bleibt möglich.</p>}</div>
               <div><div className="mb-2 text-xs font-medium text-txt-secondary">Hintergrund</div><div className="grid grid-cols-2 gap-2">{([["original", "Original"], ["transparent", "Transparent"], ["white", "Weiß"], ["studio", "Studiograu"]] as const).map(([value, label]) => <button type="button" key={value} disabled={value !== "original" && !hasMask} aria-pressed={recipe.background === value} className={`${button} ${recipe.background === value ? "border-accent text-accent" : ""}`} onClick={() => adjust({ background: value }, `Hintergrund: ${label}`)}>{label}</button>)}</div></div>
-              {hasMask && <><div><div className="mb-2 text-xs font-medium text-txt-secondary">Kanten nachbessern</div><div className="grid grid-cols-2 gap-2"><button type="button" className={`${button} ${mode === "erase" ? "border-accent" : ""}`} onClick={() => { commitSlider(); setMode("erase"); setZoom(1); setCompare(false); }}>Radieren</button><button type="button" className={`${button} ${mode === "restore" ? "border-accent" : ""}`} onClick={() => { commitSlider(); setMode("restore"); setZoom(1); setCompare(false); }}>Zurückmalen</button></div><button type="button" className={`${button} mt-2 w-full ${mode === "fill" ? "border-accent" : ""}`} onClick={() => { commitSlider(); setMode("fill"); setZoom(1); setCompare(false); }}>Schrift / Innenfläche retten</button></div><Slider label="Pinselgröße" value={brush * 100} min={0.3} max={12} step={0.1} suffix=" %" onChange={v => setBrush(v / 100)} onCommit={() => {}} /><Slider label="Schatten" value={recipe.shadow} min={0} onChange={v => updateSlider("shadow", v)} onCommit={commitSlider} /></>}
+              {hasMask && <><div><div className="mb-2 text-xs font-medium text-txt-secondary">Kanten nachbessern</div><div className="grid grid-cols-2 gap-2"><button type="button" className={`${button} ${mode === "erase" ? "border-accent" : ""}`} onClick={() => startMaskMode("erase")}>Radieren</button><button type="button" className={`${button} ${mode === "restore" ? "border-accent" : ""}`} onClick={() => startMaskMode("restore")}>Zurückmalen</button></div><button type="button" className={`${button} mt-2 w-full ${mode === "fill" ? "border-accent" : ""}`} onClick={() => startMaskMode("fill")}>Schrift / Innenfläche retten</button></div><Slider label="Pinselgröße" value={brush * 100} min={0.3} max={12} step={0.1} suffix=" %" onChange={v => setBrush(v / 100)} onCommit={() => {}} /><Slider label="Schatten" value={recipe.shadow} min={0} onChange={v => updateSlider("shadow", v)} onCommit={commitSlider} /></>}
             </>}
             {tab === "geometry" && <>
-              <div className="grid grid-cols-2 gap-2"><button type="button" className={button} onClick={() => adjust({ rotation: ((recipe.rotation + 270) % 360) as PhotoRecipe["rotation"] }, "Links gedreht")}>↶ 90° links</button><button type="button" className={button} onClick={() => adjust({ rotation: ((recipe.rotation + 90) % 360) as PhotoRecipe["rotation"] }, "Rechts gedreht")}>↷ 90° rechts</button><button type="button" className={button} onClick={() => adjust({ flipX: !recipe.flipX }, "Horizontal gespiegelt")}>↔ Spiegeln</button><button type="button" className={button} onClick={() => adjust({ flipY: !recipe.flipY }, "Vertikal gespiegelt")}>↕ Spiegeln</button></div>
+              <div className="grid grid-cols-2 gap-2"><button type="button" className={button} onClick={() => adjust({ rotation: ((recipe.rotation + 270) % 360) as PhotoRecipe["rotation"] }, "Links gedreht")}>↶ 90° links</button><button type="button" className={button} onClick={() => adjust({ rotation: ((recipe.rotation + 90) % 360) as PhotoRecipe["rotation"] }, "Rechts gedreht")}>↷ 90° rechts</button><button type="button" className={button} onClick={() => mirror(true)}>↔ Spiegeln</button><button type="button" className={button} onClick={() => mirror(false)}>↕ Spiegeln</button></div>
               <Slider label="Geraderücken" value={recipe.straighten} min={-15} max={15} step={0.1} suffix="°" onChange={v => updateSlider("straighten", v)} onCommit={commitSlider} />
               <div className="grid grid-cols-2 gap-2"><button type="button" className={button} onClick={() => { commitSlider(); setMode("crop"); setCompare(false); setZoom(1); }}>Zuschneiden</button><button type="button" className={button} onClick={() => adjust({ crop: defaultRecipe().crop }, "Ausschnitt zurückgesetzt")}>Ganzes Foto</button></div>
               {hasMask && <button type="button" className={`${button} w-full`} onClick={() => void centerProduct()}>Produkt automatisch zentrieren</button>}

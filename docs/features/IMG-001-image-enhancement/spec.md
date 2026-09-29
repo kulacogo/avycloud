@@ -7,7 +7,7 @@
 | **Feature ID** | IMG-001 |
 | **Title** | Image Enhancement |
 | **Priority** | P1 |
-| **Status** | Implemented — Bildwerkstatt, 2026-09-27 |
+| **Status** | Implemented — Bildwerkstatt 2026-09-27; reliability correction 2026-09-29 |
 | **Change Level** | L0 (new service, additive) |
 | **Effort** | M |
 | **Source** | competitive-analysis |
@@ -18,6 +18,16 @@
 ---
 
 ## Problem Statement
+
+## Zuverlässigkeitskorrektur — 29.09.2026
+
+Betreiber meldet unzuverlässige Werkzeuge; am realen Vermeille-Rosenkarton verschwinden Deckel und Aufdruck nach Freistellung. Ursachennachweis mit demselben unveränderten Original: seitlich an IS-Net übergeben mittlere Alpha-Werte 7,36 (Deckel) / 136,46 (Schriftbereich); mit Rezeptdrehung 270° vor Inferenz 253,94 / 253,88. Hintergrund weiterhin transparent. fp32 statt fp16 allein behebt den Fehler nicht.
+
+Worker richtet die Modelleingabe nach Vierteldrehung und Quellachsen-Spiegelung aus und rechnet die reine Maske invers in Originalkoordinaten zurück. Maskencache enthält dieselben Orientierungsparameter. Bestehende Rezepte, Masken, Transparenz- und Speicherverträge unverändert; keine automatische Bearbeitung gespeicherter Produkte. Alte Fehlmasken im Editor explizit erneuern.
+
+Gemeinsame vorwärts/rückwärts Koordinatentransformation entspricht den tatsächlich gerundeten Canvas-Abmessungen. Crop, Pipette und Pinsel behalten die sichtbare Geometrie; leere Ränder werden abgewiesen. Pipette misst unveränderte Quellpixel. Sichtbare Spiegelachsen, Format beim Zentrieren und erreichbare Zoomränder korrigiert. Vergleich behält den Ausschnitt; Änderungen beenden den Vergleich. Gestenabbruch und Undo während Live-Reglerbewegung erhalten eine konsistente, wiederholbare Historie.
+
+Datenblatt/Galerie sichern Upload, Studio, Generierung und Save gegeneinander ab. Laufende Bildarbeit verhindert Save; laufender Save sperrt neue Bildmutationen ohne einen offenen Editor auszuhängen. Verspätete Ownership-Antworten ersetzen keine neueren Entwürfe. Reale React-/Canvas-/API-Client-Browserprüfungen unter `tools/photo-editor/` verwenden ausschließlich synthetische Bilder und lokale HTTP-Antworten; echter Modelllauf mit privatem Original separat geprüft. Keine neue Route, Dependency, ENV, Datenmigration oder Backendänderung.
 
 ## Aktueller Auftrag und Umsetzung — 27.09.2026
 

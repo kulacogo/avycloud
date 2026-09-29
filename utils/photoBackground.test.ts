@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { PhotoBackgroundProcessor } from "./photoBackground.ts";
 
 class FakeWorker {
-  sent: Array<{ id: number; blob: Blob; quality: string; forceCpu: boolean }> = [];
+  sent: Array<{ id: number; blob: Blob; quality: string; orientation: { rotation: number; flipX: boolean; flipY: boolean }; forceCpu: boolean }> = [];
   terminated = false;
   onmessage: ((event: { data: unknown }) => void) | null = null;
   onerror: ((event: { preventDefault: () => void }) => void) | null = null;
@@ -154,5 +154,50 @@ test("rejects an already cancelled or empty photo before creating a worker", asy
     await assert.rejects(processor.remove(new Blob(["photo"]), { signal: AbortSignal.abort() }), { name: "AbortError" });
     await assert.rejects(processor.remove(new Blob()), /leer/);
     assert.equal(workers.length, 0);
+  } finally { processor.dispose(); }
+});
+
+test("keeps masks for distinct rotations and flips separate, and sends the displayed orientation", async () => {
+  const { processor, workers } = setup();
+  try {
+    const original = new Blob(["sideways product"]);
+    const saved = [];
+    for (const orientation of [
+      { rotation: 0 as const, flipX: false, flipY: false },
+      { rotation: 270 as const, flipX: false, flipY: false },
+      { rotation: 270 as const, flipX: true, flipY: false },
+      { rotation: 270 as const, flipX: false, flipY: true },
+    ]) {
+      const pending = processor.remove(original, orientation);
+      assert.deepEqual(workers[0].sent.at(-1)?.orientation, orientation);
+      const mask = new Blob([JSON.stringify(orientation)]);
+      workers[0].reply("result", { blob: mask });
+      assert.equal(await pending, mask);
+      saved.push({ orientation, mask });
+    }
+    assert.equal(workers[0].sent.length, 4);
+    for (const { orientation, mask } of saved) assert.equal(await processor.remove(original, orientation), mask);
+    assert.equal(workers[0].sent.length, 4);
+    assert.equal(await processor.remove(original), saved[0].mask);
+  } finally { processor.dispose(); }
+});
+
+test("explicit force bypasses a cached or just-computed mask without discarding the next cache entry", async () => {
+  const { processor, workers } = setup();
+  try {
+    const original = new Blob(["photo"]);
+    const first = processor.remove(original, { rotation: 90 });
+    const forced = processor.remove(original, { rotation: 90, force: true });
+    const oldMask = new Blob(["old mask"]), newMask = new Blob(["new mask"]);
+    workers[0].reply("result", { blob: oldMask });
+    assert.equal(await first, oldMask);
+    assert.equal(workers[0].sent.length, 2);
+    workers[0].reply("result", { blob: newMask });
+    assert.equal(await forced, newMask);
+    assert.equal(await processor.remove(original, { rotation: 90 }), newMask);
+    const again = processor.remove(original, { rotation: 90, force: true });
+    assert.equal(workers[0].sent.length, 3);
+    workers[0].reply("result", { blob: newMask });
+    await again;
   } finally { processor.dispose(); }
 });
