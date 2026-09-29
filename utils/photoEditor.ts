@@ -220,6 +220,19 @@ export function findAlphaBounds(image: { data: ArrayLike<number>; width: number;
   return right < left ? null : { x: left / width, y: top / height, width: (right - left + 1) / width, height: (bottom - top + 1) / height };
 }
 
+/** Bounds are relative to the current crop. Centre without silently changing its aspect ratio. */
+export function centeredPhotoCrop(bounds: PhotoRecipe["crop"], currentCrop: PhotoRecipe["crop"]): PhotoRecipe["crop"] {
+  const fraction = Math.min(1, Math.max(bounds.width, bounds.height));
+  const x = clamp(bounds.x + bounds.width / 2 - fraction / 2, 0, 1 - fraction);
+  const y = clamp(bounds.y + bounds.height / 2 - fraction / 2, 0, 1 - fraction);
+  return {
+    x: currentCrop.x + x * currentCrop.width,
+    y: currentCrop.y + y * currentCrop.height,
+    width: fraction * currentCrop.width,
+    height: fraction * currentCrop.height,
+  };
+}
+
 /** Explicit user-selected repair only: enclosed print and genuine product openings
  * cannot be distinguished reliably by size. Never fill every hole automatically. */
 export function restoreEnclosedMaskRegion(data: Uint8ClampedArray, width: number, height: number, xPixel: number, yPixel: number): number {

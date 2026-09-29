@@ -1,7 +1,10 @@
 export type PhotoBackgroundQuality = "fast" | "best";
 export type PhotoBackgroundProgress = { message: string; percent?: number };
-export type PhotoBackgroundOptions = {
+export type PhotoBackgroundOrientation = { rotation: 0 | 90 | 180 | 270; flipX: boolean; flipY: boolean };
+export type PhotoBackgroundOptions = Partial<PhotoBackgroundOrientation> & {
   quality?: PhotoBackgroundQuality;
+  /** Deliberately run inference again; identical inputs normally reuse their mask. */
+  force?: boolean;
   onProgress?: (progress: PhotoBackgroundProgress) => void;
   signal?: AbortSignal;
 };
@@ -18,6 +21,8 @@ type Job = {
   id: number;
   blob: Blob;
   quality: PhotoBackgroundQuality;
+  orientation: PhotoBackgroundOrientation;
+  cacheKey: string;
   options: PhotoBackgroundOptions;
   resolve: (blob: Blob) => void;
   reject: (error: Error) => void;
@@ -35,7 +40,7 @@ export class PhotoBackgroundProcessor {
   private forceCpu = false;
   private timeout: ReturnType<typeof setTimeout> | undefined;
   private idleTimeout: ReturnType<typeof setTimeout> | undefined;
-  private cache = new WeakMap<Blob, Partial<Record<PhotoBackgroundQuality, Blob>>>();
+  private cache = new WeakMap<Blob, Map<string, Blob>>();
   private readonly createWorker: () => Worker;
 
   constructor(createWorker: () => Worker = () => {
@@ -49,11 +54,17 @@ export class PhotoBackgroundProcessor {
     if (options.signal?.aborted) return Promise.reject(abortError());
     if (!blob.size) return Promise.reject(new Error("Das Bild ist leer. Bitte ein anderes Foto auswählen."));
     const quality = options.quality === "best" ? "best" : "fast";
-    const cached = this.cache.get(blob)?.[quality];
+    const orientation: PhotoBackgroundOrientation = {
+      rotation: options.rotation === 90 || options.rotation === 180 || options.rotation === 270 ? options.rotation : 0,
+      flipX: options.flipX === true,
+      flipY: options.flipY === true,
+    };
+    const cacheKey = `${quality}:${orientation.rotation}:${Number(orientation.flipX)}:${Number(orientation.flipY)}`;
+    const cached = options.force ? undefined : this.cache.get(blob)?.get(cacheKey);
     if (cached) return Promise.resolve(cached);
     return new Promise((resolve, reject) => {
       const job: Job = {
-        id: ++this.sequence, blob, quality, options, resolve, reject,
+        id: ++this.sequence, blob, quality, orientation, cacheKey, options, resolve, reject,
         abort: () => {
           if (this.active === job) {
             this.stopWorker();
@@ -101,7 +112,7 @@ export class PhotoBackgroundProcessor {
       return;
     }
     this.active = job;
-    const cached = this.cache.get(job.blob)?.[job.quality];
+    const cached = job.options.force ? undefined : this.cache.get(job.blob)?.get(job.cacheKey);
     if (cached) { this.finish(cached); return; }
     this.dispatch();
   }
@@ -146,7 +157,7 @@ export class PhotoBackgroundProcessor {
       }, 180_000);
       this.progress(job, { message: "Freistellen vorbereiten …", percent: 0 });
       if (this.active !== job) return;
-      this.worker.postMessage({ id: job.id, blob: job.blob, quality: job.quality, forceCpu: this.forceCpu });
+      this.worker.postMessage({ id: job.id, blob: job.blob, quality: job.quality, orientation: job.orientation, forceCpu: this.forceCpu });
     } catch (error) {
       this.stopWorker();
       this.finish(undefined, error instanceof Error ? error : new Error("Freistellen nicht verfügbar."));
@@ -160,8 +171,8 @@ export class PhotoBackgroundProcessor {
     if (!job) return;
     job.options.signal?.removeEventListener("abort", job.abort);
     if (blob) {
-      const versions = this.cache.get(job.blob) || {};
-      versions[job.quality] = blob;
+      const versions = this.cache.get(job.blob) || new Map<string, Blob>();
+      versions.set(job.cacheKey, blob);
       this.cache.set(job.blob, versions);
       this.progress(job, { message: "Hintergrund entfernt", percent: 100 });
       job.resolve(blob);
@@ -187,6 +198,7 @@ const processor = new PhotoBackgroundProcessor();
  * Returns a pure segmentation mask (white RGB, predicted alpha, PNG, max 4096px).
  * Its aspect matches the photo. Apply it to original pixels ONCE in the renderer;
  * the mask intentionally does not include the photo's existing transparency.
+ * Inference sees the recipe's rotation/flips; its result remains in original coordinates.
  */
 export function removePhotoBackground(blob: Blob, options: PhotoBackgroundOptions = {}): Promise<Blob> {
   return processor.remove(blob, options);

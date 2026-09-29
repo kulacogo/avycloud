@@ -1,10 +1,23 @@
 ---
 title: Produktbilder — Studio und Varianten
 for: [agent, dev, admin]
-lastReviewed: 2026-09-27
+lastReviewed: 2026-09-29
 ---
 
 # Produktbilder: Studio und Varianten
+
+## Bildwerkstatt: Zuverlässigkeitskorrektur — 29.09.2026
+
+Die Freistellung berücksichtigt jetzt die gewählte Drehung und Spiegelung. Der Fehler am Vermeille-Rosenkarton war reproduzierbar: Das seitlich gespeicherte Original wurde trotz aufrechter Vorschau seitlich an das Modell übergeben. Dadurch verschwanden Deckel und Beschriftung teilweise. Mit aufrechter Modelleingabe bleiben diese Bereiche erhalten; die Maske wird anschließend korrekt in die Originalkoordinaten zurückgerechnet. Vorhandene Fotos werden nicht automatisch verändert. Für ein betroffenes Foto **Freistellen → Freistellung erneuern → Ins Datenblatt übernehmen → Produkt speichern** wählen.
+
+- Pinsel, Pipette und Zuschnitt arbeiten in der angezeigten Ausrichtung, einschließlich Spiegelung, Geraderücken, Ausschnitt und Rand. Leere Ränder sind keine Bildpixel. Die Pipette misst Originalpixel, damit wiederholtes Anklicken nicht zwischen Korrekturen pendelt.
+- Spiegeln bezieht sich auf die sichtbare waagerechte/senkrechte Achse. Zentrieren behält das gewählte Format und bei „Original“ das bestehende Seitenverhältnis. Alle Bildränder bleiben bei vergrößerter Ansicht erreichbar.
+- Vorher/Nachher vergleicht Farben und Hintergrund im gleichen Ausschnitt. Eine neue Korrektur zeigt sofort das bearbeitete Bild. Abgebrochene Pinselgesten erzeugen keinen späteren Schritt; Rückgängig während einer Reglerbewegung nimmt genau diese Bewegung zurück und erlaubt Wiederholen.
+- Produktspeichern wartet auf laufende Uploads, Studio- und Galerieerzeugung. Während eines Saves sind neue Bildänderungen gesperrt; ein offener Editor bleibt erhalten. Fehler lassen die Entwürfe weiter bearbeitbar. Die Ownership-Antwort beim Start des Bearbeitens darf zwischenzeitliche Bildentwürfe nicht überschreiben.
+
+„Standard · schneller“ und „Alternative Berechnung“ bezeichnen fp16/fp32 desselben Modells, kein Qualitätsversprechen. Unveränderte Eingaben verwenden den Maskencache; Drehung und Spiegelung sind Teil des Schlüssels. Die nachgewiesene Rosenkarton-Korrektur ist keine allgemeine Garantie für transparente, weiße oder komplexe Produkte. Pinsel und Innenflächenrettung bleiben erforderlich, wenn die automatische Maske Details verfehlt.
+
+Automatisierte Browsernachweise: `tools/photo-editor/{background-worker,interaction,workflow}.browser-test.mjs` (synthetische Bilder, lokale HTTP-Fixtures, keine Produktionswrites). Die echte Rosenkarton-Probe und ihre Pixelmessungen bleiben privat außerhalb Git.
 
 ## Bildwerkstatt — 27.09.2026
 
