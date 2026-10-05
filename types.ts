@@ -616,6 +616,9 @@ export interface OrderItem {
   priceBrutto?: number;
   taxRate?: number;
   currency?: string;
+  /** Fremdwaehrung (kaufland.cz/.pl): Preis in der Marktplatzwaehrung — priceBrutto ist Euro. */
+  originalPrice?: number | null;
+  originalCurrency?: string | null;
   weight?: number | null;
   pickHint?: OrderItemPickHint | null;
   pickCompleted?: boolean;
@@ -655,6 +658,20 @@ export interface Order {
   deliveredAt?: string | null;
   currency?: string;
   totalAmount?: number;
+  /**
+   * Fremdwaehrung (seit 2026-10-05, Vorfall M53KUW5 kaufland.cz): totalAmount ist IMMER
+   * Euro (EZB-Kurs des Bestelltages); das Original bleibt daneben erhalten.
+   */
+  storefront?: string | null;
+  originalCurrency?: string | null;
+  originalTotalAmount?: number | null;
+  /** Fremdwaehrung je 1 EUR (EZB-Quotierung), z. B. 24.47 fuer CZK. */
+  exchangeRate?: number | null;
+  exchangeRateDate?: string | null;
+  exchangeRateSource?: "ecb" | "static_fallback" | "none" | string | null;
+  /** true = Notkurs oder noch nicht umgerechnet; der naechste Abgleich ersetzt ihn. */
+  exchangeRatePending?: boolean;
+  currencyConvertedAt?: string | null;
   customer: OrderCustomer;
   items: OrderItem[];
   notes?: string | null;

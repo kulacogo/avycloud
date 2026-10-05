@@ -16,6 +16,18 @@ const productStore = require('../lib/product-store');
 const { reserveStock } = require('./stock-reservation');
 const { emitSyncEvent } = require('./sync-event-bus');
 const { sendOpsAlert } = require('../lib/ops-alert');
+// Fremdwaehrung (kaufland.cz = CZK, kaufland.pl = PLN): totalAmount/priceBrutto sind IMMER
+// Euro, das Original bleibt additiv — siehe lib/order-currency.js (Vorfall M53KUW5, 2026-10-05).
+const {
+  STOREFRONT_CURRENCY,
+  resolveUnitCurrency,
+  convertOrderToEur,
+  currencyFieldsOf,
+  needsCurrencyHeal,
+  buildCurrencyHealPatch,
+  currencyConversionEnabled,
+} = require('../lib/order-currency');
+const { getDefaultFxResolver } = require('../lib/fx-rates');
 
 const ORDERS_COLLECTION = 'orders';
 
@@ -51,7 +63,7 @@ async function fetchKauflandOrders({
 
   // The list endpoint may return orders without embedded order_units/buyer.
   // Enrich any order that is missing items or buyer by fetching its full detail.
-  const orders = await Promise.all(rawOrders.map(async (klOrder) => {
+  const mapped = await Promise.all(rawOrders.map(async (klOrder) => {
     const hasUnits = Array.isArray(klOrder.order_units) && klOrder.order_units.length > 0;
     const hasBuyer = klOrder.buyer && (klOrder.buyer.email || klOrder.buyer.name
       || klOrder.buyer.shipping_address?.last_name);
@@ -67,7 +79,52 @@ async function fetchKauflandOrders({
     return mapKauflandOrder(klOrder);
   }));
 
+  // Fremdwaehrung (CZK/PLN) in Euro — Euro-Bestellungen laufen unveraendert durch.
+  const orders = await Promise.all(mapped.map((order) => convertOrderCurrency(order)));
+
   return { orders, total };
+}
+
+/**
+ * Rechnet eine zugeordnete Bestellung in Fremdwaehrung in Euro um (EZB-Kurs des
+ * Bestelltages, lib/fx-rates.js). Blockiert NIE: faellt der Kurs aus, kommt der
+ * datierte Notkurs (pending) und der naechste Abgleich ersetzt ihn. Mit
+ * ORDER_CURRENCY_CONVERSION='off' bleiben die Betraege in der Marktplatzwaehrung —
+ * `currency` nennt sie dann ehrlich (CZK), statt sie als Euro auszugeben.
+ *
+ * @param {object} order  Ergebnis von mapKauflandOrder
+ * @param {{ fx?: { getEurRate: Function } }} [opts]
+ */
+async function convertOrderCurrency(order, { fx = null } = {}) {
+  if (!order || String(order.currency || 'EUR').toUpperCase() === 'EUR') return order;
+  if (!currencyConversionEnabled()) return order;
+
+  let rateInfo = null;
+  try {
+    rateInfo = await (fx || getDefaultFxResolver()).getEurRate({ currency: order.currency, date: order.createdAt });
+  } catch (err) {
+    console.warn(`[kaufland-intake] Kurs ${order.currency} fuer ${order.marketplaceOrderId} nicht ermittelbar: ${err.message}`);
+  }
+
+  const converted = convertOrderToEur(order, rateInfo);
+  if (converted.exchangeRateSource === 'none') {
+    // Praktisch unerreichbar (Notkurs deckt CZK und PLN, Kauflands ganze Enum) — wenn
+    // doch, fuehrt der Auftrag Fremdwaehrung, die alle Lesepfade als Euro lesen. Ein
+    // Mensch muss das sehen. Best-effort, blockiert den Intake nie.
+    console.warn(`[kaufland-intake] ${order.marketplaceOrderId}: kein Kurs fuer ${order.currency} — Betraege bleiben in ${order.currency} (pending)`);
+    sendOpsAlert({
+      source: 'order-intake-kaufland',
+      severity: 'warning',
+      message: `Bestellung ${order.marketplaceOrderId}: kein Wechselkurs fuer ${order.currency} — Betrag ${order.totalAmount} ${order.currency} bleibt unumgerechnet (pending)`,
+      context: { marketplaceOrderId: order.marketplaceOrderId, currency: order.currency, totalAmount: order.totalAmount },
+    }).catch(() => {});
+  } else {
+    console.log(
+      `[kaufland-intake] ${order.marketplaceOrderId}: ${order.totalAmount} ${order.currency} → ${converted.totalAmount} EUR `
+      + `(Kurs ${converted.exchangeRate} ${converted.exchangeRateSource} ${converted.exchangeRateDate || ''}${converted.exchangeRatePending ? ', pending' : ''})`
+    );
+  }
+  return converted;
 }
 
 /**
@@ -91,18 +148,26 @@ function mapKauflandOrder(klOrder) {
   const buyer = klOrder.buyer || {};
   const units = klOrder.order_units || [];
 
+  // Storefront + Waehrung: Kaufland liefert je Position `currency` (EUR|CZK|PLN) und
+  // `storefront` (de|cz|sk|pl|at|…). `price` ist in Minor Units DIESER Waehrung —
+  // 53414 auf kaufland.cz sind 534,14 CZK, nicht 534,14 EUR (Vorfall M53KUW5).
+  const storefront = String(klOrder.storefront || units[0]?.storefront || '').trim().toLowerCase() || null;
+
   const items = units.map((unit) => ({
     name: sanitizeText(unit.product?.title) || unit.offer_id || 'Unbekannter Artikel',
     sku: unit.id_offer || null,
     quantity: parseInt(unit.quantity || '1', 10),
-    priceBrutto: parseFloat(unit.price || '0') / 100, // Kaufland prices in cents
-    currency: 'EUR',
+    priceBrutto: parseFloat(unit.price || '0') / 100, // Kaufland prices in minor units of unit.currency
+    currency: resolveUnitCurrency(unit, { storefront }),
     unitId: unit.id_order_unit || null,
     ean: unit.ean || null,
     status: unit.status || null,
   }));
 
   const totalAmount = items.reduce((sum, item) => sum + (item.priceBrutto * item.quantity), 0);
+  const orderCurrency = (items.find((item) => item.currency) || {}).currency
+    || (storefront && STOREFRONT_CURRENCY[storefront])
+    || 'EUR';
 
   const shippingAddr = klOrder.buyer?.shipping_address || klOrder.shipping_address || {};
   const billingAddr = klOrder.buyer?.billing_address || klOrder.billing_address || {};
@@ -133,7 +198,8 @@ function mapKauflandOrder(klOrder) {
     externalOrderId: String(klOrder.id_order || ''),
     createdAt: klOrder.ts_created_iso || klOrder.ts_created || new Date().toISOString(),
     totalAmount,
-    currency: 'EUR',
+    currency: orderCurrency,
+    storefront,
     customer: {
       name: sanitizeText([shippingAddr.first_name, shippingAddr.last_name].filter(Boolean).join(' '))
         || sanitizeText([billingAddr.first_name, billingAddr.last_name].filter(Boolean).join(' '))
@@ -537,10 +603,29 @@ async function saveOrderIfNew({ tenantId, order }) {
             ...item,
           }));
           backfill.totalAmount = order.totalAmount;
+          backfill.currency = order.currency;
+          Object.assign(backfill, currencyFieldsOf(order));
           if (order.billingAddress) backfill.billingAddress = order.billingAddress;
         }
         await existingDoc.ref.update(backfill);
         console.log(`[kaufland-intake] Backfilled customer/items for ${existingData.orderId || existingDoc.id}`);
+      }
+    }
+
+    // Fremdwaehrung nachziehen: ein Altdokument, das CZK/PLN als Euro fuehrt (vor dem
+    // 05.10.2026), oder eines mit Notkurs, sobald der echte EZB-Kurs da ist. Laeuft im
+    // 30-Tage-Abgleich automatisch mit; bereits umgerechnete Betraege bleiben stabil.
+    if (needsCurrencyHeal(existingData, order)) {
+      try {
+        const patch = buildCurrencyHealPatch(existingData, order);
+        await existingDoc.ref.update(patch);
+        console.log(
+          `[kaufland-intake] Waehrung nachgezogen ${existingData.orderId || existingDoc.id}: `
+          + `${existingData.totalAmount} ${existingData.currency || '?'} → ${patch.totalAmount} EUR `
+          + `(${patch.originalTotalAmount} ${patch.originalCurrency}, Kurs ${patch.exchangeRate} ${patch.exchangeRateSource}, ${patch['ops.currencyHeal'].reason})`
+        );
+      } catch (err) {
+        console.warn(`[kaufland-intake] Waehrung nachziehen fehlgeschlagen fuer ${existingDoc.id}: ${err.message}`);
       }
     }
     return false;
@@ -578,6 +663,8 @@ async function saveOrderIfNew({ tenantId, order }) {
     updatedAt: new Date().toISOString(),
     totalAmount: order.totalAmount,
     currency: order.currency,
+    // storefront (immer) + Original/Kurs (nur Fremdwaehrung) — nie undefined (Firestore).
+    ...currencyFieldsOf(order),
     customer: order.customer,
     billingAddress: order.billingAddress || null,
     items: enrichedItems.map((item, idx) => ({
@@ -611,6 +698,7 @@ module.exports = {
   fetchKauflandOrderUnits,
   mapKauflandOrder,
   mapKauflandStatus,
+  convertOrderCurrency,
   syncKauflandOrders,
   saveOrderIfNew,
 };

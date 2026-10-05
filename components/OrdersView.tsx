@@ -15,6 +15,7 @@ import { useOrders } from "../hooks/useOrders";
 import { useQueryClient } from "@tanstack/react-query";
 import { EmptyState } from "./ui/EmptyState";
 import { exportToCsv } from "../utils/csv-export";
+import { orderAmountView, orderAmountCsvCells } from "../utils/orderAmount";
 import { SyncIcon } from "./icons/Icons";
 import { OrderDetail } from "./OrderDetail";
 import { OrderProductButton, type OpenOrderProduct } from "./orders/OrderProductButton";
@@ -528,14 +529,15 @@ const OrdersView: React.FC<{ onOpenProduct?: OpenOrderProduct; productSheetOpen?
           <button
             type="button"
             onClick={() => {
-              const headers = ["Bestellnr", "Datum", "Kunde", "Status", "Marketplace", "Betrag"];
+              // Betrag = Euro (wie bisher); Fremdwaehrung (kaufland.cz/.pl) zusaetzlich hinten.
+              const headers = ["Bestellnr", "Datum", "Kunde", "Status", "Marketplace", "Betrag", "Originalbetrag", "Originalwährung", "Wechselkurs"];
               const rows = filteredOrders.map((o) => [
                 (o as any).marketplaceOrderId || o.number || o.orderId || o.id,
                 o.createdAt ? new Date(o.createdAt).toLocaleDateString("de-DE") : "",
                 typeof o.customer === "object" ? (o.customer?.name || "") : "",
                 getOrderStatus(o),
                 o.marketplace || o.source || "",
-                o.totalAmount != null ? o.totalAmount.toFixed(2) : "",
+                ...orderAmountCsvCells(o),
               ]);
               exportToCsv(`bestellungen-${new Date().toISOString().slice(0, 10)}.csv`, headers, rows);
             }}
@@ -991,13 +993,21 @@ const OrdersView: React.FC<{ onOpenProduct?: OpenOrderProduct; productSheetOpen?
                           <span className="text-xs text-txt-muted">—</span>
                         )}
                       </td>
-                      {/* Total */}
+                      {/* Total — Euro; bei kaufland.cz/.pl das Original (CZK/PLN) darunter */}
                       <td className="px-4 py-3 text-right">
-                        <span className="font-semibold text-txt-primary">
-                          {order.totalAmount != null
-                            ? `${order.totalAmount.toFixed(2)} €`
-                            : "—"}
-                        </span>
+                        {(() => {
+                          const amount = orderAmountView(order);
+                          return (
+                            <span className="inline-flex flex-col items-end" title={amount.hint ?? undefined}>
+                              <span className="font-semibold text-txt-primary">{amount.primary}</span>
+                              {amount.secondary && (
+                                <span className={`text-[11px] ${amount.pending ? "text-warning" : "text-txt-muted"}`}>
+                                  {amount.secondary}
+                                </span>
+                              )}
+                            </span>
+                          );
+                        })()}
                       </td>
                       {/* Source */}
                       <td className="px-4 py-3">

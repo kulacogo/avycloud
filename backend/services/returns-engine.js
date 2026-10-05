@@ -813,18 +813,34 @@ async function syncKauflandReturns({ tenantId = 'default', lookbackDays = 30 } =
         const orderUnitDetail = orderUnitId ? bestellpositionen.get(orderUnitId) || null : null;
 
         const { buildKauflandReturnDetail } = require('../lib/kaufland-return-detail');
-        const retourenDetail = buildKauflandReturnDetail(
+        const rohDetail = buildKauflandReturnDetail(
           { ...(returnDetail || kr), status: kr.status || returnDetail?.status, return_units: returnUnits },
           bestellpositionen,
           erstattungsBuchungen
         );
-
         // Deduplicate
         const existing = await db.collection(RETURNS_COLLECTION)
           .where('marketplaceReturnId', '==', marketplaceReturnId)
           .where('marketplace', '==', 'kaufland')
           .limit(1)
           .get();
+        const existingPeek = existing.empty ? null : (existing.docs[0].data() || {});
+
+        // Den verknuepften Auftrag VOR der Umrechnung aufloesen: eine CZK-Summe, EIN Kurs —
+        // dann ist eine Vollretoure cent-genau der Auftragsbetrag und flippt nie, auch wenn
+        // die EZB fuer den Retouren-Tag einen anderen Kurs fuehrt.
+        const linkedOrder = await findLinkedKauflandOrder({
+          db,
+          orderDocId: existingPeek?.orderId || null,
+          marketplaceOrderId: orderUnitDetail?.id_order || null,
+        });
+
+        // kaufland.cz/.pl: Positionspreise in CZK/PLN → Euro (Original bleibt daneben).
+        const retourenDetail = await convertKauflandReturnCurrency(rohDetail, {
+          date: kr.ts_created_iso || kr.ts_created || null,
+          marketplaceReturnId,
+          order: linkedOrder ? linkedOrder.data : null,
+        });
 
         if (!existing.empty) {
           // Update marketplace status if changed
@@ -832,6 +848,12 @@ async function syncKauflandReturns({ tenantId = 'default', lookbackDays = 30 } =
           const existingData = existingDoc.data();
           const newStatus = kr.status || null;
           const updates = {};
+          // Der Auftrag kann inzwischen geheilt worden sein (CZK als EUR → Euro): orderAmount folgt.
+          if (linkedOrder) {
+            if (!existingData.orderId) updates.orderId = linkedOrder.id;
+            const linkedTotal = typeof linkedOrder.data.totalAmount === 'number' ? linkedOrder.data.totalAmount : 0;
+            if (existingData.orderAmount !== linkedTotal) updates.orderAmount = linkedTotal;
+          }
           if (newStatus && existingData.marketplaceStatus !== newStatus) {
             updates.marketplaceStatus = newStatus;
           }
@@ -846,7 +868,10 @@ async function syncKauflandReturns({ tenantId = 'default', lookbackDays = 30 } =
           }
           if (unitReason && unitReason !== 'OTHER' && unitReason.toLowerCase() !== 'other' && (!existingData.reasonRaw || existingData.reasonRaw === 'OTHER' || existingData.reason === 'sonstiges')) {
             updates.reasonRaw = unitReason;
-            updates.reason = KAUFLAND_REASON_MAP[unitReason] || KAUFLAND_REASON_MAP[unitReason.toLowerCase()] || existingData.reason;
+            // Nie undefined schreiben (ein unbekannter Grund wie "dislike" ohne Alt-Grund
+            // liess sonst das GANZE Update scheitern — Firestore lehnt undefined ab).
+            const mappedReason = KAUFLAND_REASON_MAP[unitReason] || KAUFLAND_REASON_MAP[unitReason.toLowerCase()] || existingData.reason;
+            if (mappedReason) updates.reason = mappedReason;
           }
           // Betrag und Zusatzfelder nachziehen — auch bei bereits angelegten
           // Retouren, sonst behalten die 31 Bestands-Docs fuer immer den
@@ -854,6 +879,24 @@ async function syncKauflandReturns({ tenantId = 'default', lookbackDays = 30 } =
           if (retourenDetail.positionCount > 0) {
             if (retourenDetail.refundAmount !== existingData.refundAmount) {
               updates.refundAmount = retourenDetail.refundAmount;
+            }
+            // Fremdwaehrung: Altbestand, der CZK/PLN als Betrag fuehrt, oder ein
+            // Notkurs, der durch den echten EZB-Kurs ersetzt wurde.
+            if (retourenDetail.originalCurrency && (
+              existingData.currency !== retourenDetail.currency
+              || existingData.originalCurrency !== retourenDetail.originalCurrency
+              || existingData.exchangeRate !== retourenDetail.exchangeRate
+              || existingData.exchangeRateBasis !== retourenDetail.exchangeRateBasis
+            )) {
+              // ALLE Betragsfelder in EINEM Update — nie zwei Waehrungen in einem Dokument.
+              Object.assign(updates, returnCurrencyFieldsOf(retourenDetail));
+              updates.revenueGross = retourenDetail.revenueGross;
+              updates.revenueNet = retourenDetail.revenueNet;
+              updates.positions = retourenDetail.positionen;
+              const erstePosition = retourenDetail.positionen[0] || null;
+              updates['product.price'] = typeof erstePosition?.priceGross === 'number' ? erstePosition.priceGross : null;
+              updates['product.originalPrice'] = typeof erstePosition?.originalPriceGross === 'number' ? erstePosition.originalPriceGross : null;
+              updates['product.originalCurrency'] = retourenDetail.originalCurrency || null;
             }
             if (existingData.amountBasis !== retourenDetail.amountBasis) {
               updates.amountBasis = retourenDetail.amountBasis;
@@ -941,7 +984,15 @@ async function syncKauflandReturns({ tenantId = 'default', lookbackDays = 30 } =
             sku: orderUnitDetail?.id_offer || (kr.id_offer ? String(kr.id_offer) : null),
             quantity: kr.quantity || 1,
             ean: ouProduct.eans?.[0] || null,
-            price: orderUnitDetail?.price ? (orderUnitDetail.price / 100) : null,
+            // Preis der ersten Position am selben Kurs wie alles andere (Euro); bei
+            // Fremdwaehrung das Original daneben — nie zwei Waehrungen in einem Dokument.
+            price: typeof retourenDetail.positionen?.[0]?.priceGross === 'number'
+              ? retourenDetail.positionen[0].priceGross
+              : (orderUnitDetail?.price ? (orderUnitDetail.price / 100) : null),
+            ...(retourenDetail.originalCurrency ? {
+              originalPrice: typeof retourenDetail.positionen?.[0]?.originalPriceGross === 'number' ? retourenDetail.positionen[0].originalPriceGross : null,
+              originalCurrency: retourenDetail.originalCurrency,
+            } : {}),
           },
           reason,
           reasonRaw: unitReason,
@@ -965,6 +1016,8 @@ async function syncKauflandReturns({ tenantId = 'default', lookbackDays = 30 } =
           warePending: retourenDetail.warePendent,
           receivedAt: retourenDetail.receivedAt,
           currency: retourenDetail.currency || 'EUR',
+          // Nur bei Fremdwaehrung: Original + Kurs (nie undefined — Firestore).
+          ...(retourenDetail.originalCurrency ? returnCurrencyFieldsOf(retourenDetail) : {}),
           status: 'eingegangen',
           marketplaceStatus: kr.status || null,
           trackingCode: kr.tracking_code || null,
@@ -973,16 +1026,11 @@ async function syncKauflandReturns({ tenantId = 'default', lookbackDays = 30 } =
           syncedAt: new Date().toISOString(),
         };
 
-        // Link to order via Kaufland order ID (e.g. "MXB5KD5")
-        if (returnDoc.marketplaceOrderId) {
-          const orderSnap = await db.collection(ORDERS_COLLECTION)
-            .where('marketplaceOrderId', '==', returnDoc.marketplaceOrderId)
-            .limit(1)
-            .get();
-          if (!orderSnap.empty) {
-            returnDoc.orderId = orderSnap.docs[0].id;
-            returnDoc.orderAmount = orderSnap.docs[0].data().totalAmount || 0;
-          }
+        // Link to order via Kaufland order ID (e.g. "MXB5KD5") — bereits vor der
+        // Umrechnung aufgeloest (derselbe Kurs fuer Auftrag und Retoure).
+        if (linkedOrder) {
+          returnDoc.orderId = linkedOrder.id;
+          returnDoc.orderAmount = linkedOrder.data.totalAmount || 0;
         }
 
         // Deterministic doc ID prevents duplicates from parallel syncs
@@ -1303,6 +1351,96 @@ async function runRefundPush({ tenantId = 'default', limit = 50 } = {}) {
   }
 
   return { processed, success, errors };
+}
+
+/**
+ * Kaufland-Retoure in Fremdwaehrung (kaufland.cz = CZK, kaufland.pl = PLN) in Euro.
+ *
+ * `refundAmount` kommt aus `order_unit.price` in der Positionswaehrung; der
+ * Finanzbericht summiert refundAmount blind als Euro. Gleiche Regel wie beim
+ * Auftrag (lib/order-currency.js): Euro als Hauptbetrag, Original additiv.
+ * Blockiert nie — ohne Kurs bleibt die Fremdwaehrung sichtbar (pending).
+ */
+async function convertKauflandReturnCurrency(detail, { date = null, marketplaceReturnId = null, order = null } = {}) {
+  const { currencyConversionEnabled, convertReturnDetailToEur } = require('../lib/order-currency');
+  const ccy = String(detail?.currency || 'EUR').toUpperCase();
+  if (!detail || ccy === 'EUR' || !currencyConversionEnabled()) return detail;
+
+  let rateInfo = null;
+  // Vorrang: der Kurs des verknuepften, bereits umgerechneten Auftrags — eine CZK-Summe,
+  // EIN Kurs. Eine Vollretoure ist dann cent-genau der Auftragsbetrag, und der Wert
+  // flippt nicht, wenn die EZB den Kurs des Retouren-Tages nachreicht. Ein Notkurs am
+  // Auftrag wird samt `pending` uebernommen; heilt der Auftrag, folgt die Retoure.
+  if (order && String(order.originalCurrency || '').toUpperCase() === ccy
+    && Number(order.exchangeRate) > 0 && order.exchangeRateSource !== 'none') {
+    rateInfo = {
+      currency: ccy,
+      rate: Number(order.exchangeRate),
+      rateDate: order.exchangeRateDate || null,
+      source: order.exchangeRateSource || 'ecb',
+      pending: order.exchangeRatePending === true,
+      basis: 'order',
+    };
+  } else {
+    try {
+      const { getDefaultFxResolver } = require('../lib/fx-rates');
+      rateInfo = { ...(await getDefaultFxResolver().getEurRate({ currency: ccy, date })), basis: 'return_date' };
+    } catch (err) {
+      console.warn(`[returns-engine] Kurs ${ccy} fuer Retoure ${marketplaceReturnId} nicht ermittelbar: ${err.message}`);
+    }
+  }
+
+  const converted = convertReturnDetailToEur(detail, rateInfo);
+  if (converted.exchangeRateSource === 'none') {
+    console.warn(`[returns-engine] Retoure ${marketplaceReturnId}: kein Kurs fuer ${ccy} — Betrag bleibt in ${ccy} (pending)`);
+  } else {
+    console.log(
+      `[returns-engine] Retoure ${marketplaceReturnId}: ${detail.refundAmount} ${ccy} → ${converted.refundAmount} EUR `
+      + `(Kurs ${converted.exchangeRate} ${converted.exchangeRateSource}${converted.exchangeRatePending ? ', pending' : ''})`
+    );
+  }
+  return converted;
+}
+
+/** Zusatzfelder einer umgerechneten Retoure — nie undefined. */
+function returnCurrencyFieldsOf(detail) {
+  return {
+    currency: detail.currency || 'EUR',
+    originalCurrency: detail.originalCurrency || null,
+    originalRefundAmount: typeof detail.originalRefundAmount === 'number' ? detail.originalRefundAmount : null,
+    exchangeRate: typeof detail.exchangeRate === 'number' ? detail.exchangeRate : null,
+    exchangeRateDate: detail.exchangeRateDate || null,
+    exchangeRateSource: detail.exchangeRateSource || null,
+    exchangeRatePending: Boolean(detail.exchangeRatePending),
+    // 'order' = Kurs des verknuepften Auftrags (Normalfall), 'return_date' = EZB-Kurs des Retouren-Tages (Rueckfall).
+    exchangeRateBasis: detail.exchangeRateBasis || 'return_date',
+  };
+}
+
+/**
+ * Den Auftrag zu einer Kaufland-Retoure finden: zuerst ueber die gespeicherte Verknuepfung
+ * (`orderId`), sonst ueber die Kaufland-Bestellnummer. Lesend, best-effort — ohne Treffer
+ * laeuft die Retoure wie bisher ohne Verknuepfung weiter.
+ *
+ * @returns {Promise<{id: string, data: object}|null>}
+ */
+async function findLinkedKauflandOrder({ db, orderDocId = null, marketplaceOrderId = null }) {
+  try {
+    if (orderDocId) {
+      const snap = await db.collection(ORDERS_COLLECTION).doc(String(orderDocId)).get();
+      if (snap && snap.exists) return { id: snap.id || String(orderDocId), data: snap.data() || {} };
+    }
+    if (marketplaceOrderId) {
+      const snap = await db.collection(ORDERS_COLLECTION)
+        .where('marketplaceOrderId', '==', String(marketplaceOrderId))
+        .limit(1)
+        .get();
+      if (snap && !snap.empty) return { id: snap.docs[0].id, data: snap.docs[0].data() || {} };
+    }
+  } catch (err) {
+    console.warn(`[returns-engine] Auftrag zu Retoure nicht aufloesbar (${marketplaceOrderId || orderDocId}): ${err.message}`);
+  }
+  return null;
 }
 
 module.exports = {
