@@ -104,7 +104,7 @@ async function runStage2Enrichment(stage1, locale = 'de-DE', { tenantId = null }
         upc: barcodes.upc || '',
         mpn: identity.mpn || '',
       },
-      attributes: identity.model ? { Modell: identity.model } : {},
+      attributes: { ...(identity.model ? { Modell: identity.model } : {}), ...(identity.color ? { Farbe: identity.color } : {}), ...(identity.size ? { Größe: identity.size } : {}) },
       images: (stage1.uploadedImages || []).map((img) => ({
         url_or_base64: img.url,
         source: 'upload',
@@ -190,9 +190,10 @@ async function runStage2Enrichment(stage1, locale = 'de-DE', { tenantId = null }
     }
   }
 
+  const pricingDiagnostics = {};
   const pricingTask = (async () => {
     try {
-      const result = await enrichPriceParallel(tempProduct, { force: true, reason: 'identify-v3', capture: true });
+      const result = await enrichPriceParallel(tempProduct, { force: true, reason: 'identify-v3', capture: true, captureDiagnostics: pricingDiagnostics });
       const written = tempProduct.details?.pricing || {};
       if (!result || result.ok === false || !(Number(written.lowest_price?.amount) > 0)) return null;
       return {
@@ -410,6 +411,7 @@ async function runStage2Enrichment(stage1, locale = 'de-DE', { tenantId = null }
       },
     },
   };
+  result.pricingDiagnostics = pricingDiagnostics;
   Object.defineProperty(result, '_pendingPricing', { value: pricingTask, enumerable: false });
   return result;
 }

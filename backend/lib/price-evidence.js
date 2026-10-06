@@ -173,7 +173,7 @@ async function fetchPageForVerification(url, { timeoutMs = 15_000 } = {}) {
     const viaUnlocker = await fetchText(url, { timeoutMs });
     if (viaUnlocker && viaUnlocker.ok && viaUnlocker.body) {
       const html = String(viaUnlocker.body).slice(0, MAX_HTML_BYTES);
-      return { ok: true, status: viaUnlocker.status, text: htmlToText(html), html, via: viaUnlocker.via, url };
+      return { ok: true, status: viaUnlocker.status, text: htmlToText(html), html, via: viaUnlocker.via, url, resolvedUrl: viaUnlocker.resolvedUrl || url };
     }
   } catch { /* fällt auf Direkt-GET zurück */ }
   try {
@@ -189,7 +189,7 @@ async function fetchPageForVerification(url, { timeoutMs = 15_000 } = {}) {
         },
       });
       const html = res.ok ? String(await res.text()).slice(0, MAX_HTML_BYTES) : '';
-      return { ok: res.ok, status: res.status, text: res.ok ? htmlToText(html) : '', html, via: 'direct', url };
+      return { ok: res.ok, status: res.status, text: res.ok ? htmlToText(html) : '', html, via: 'direct', url, resolvedUrl: res.url || url };
     } finally {
       clearTimeout(timer);
     }

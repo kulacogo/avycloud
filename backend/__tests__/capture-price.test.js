@@ -43,12 +43,14 @@ it('returns a completed Browse result despite a hanging second source; never mut
   expect(grounding).not.toHaveBeenCalled();
 });
 
-it('uses grounded offers only after source validation and chooses the median of verified EUR offers', async () => {
+it('uses grounding only to discover URLs and returns the independently read offer price', async () => {
   grounding.mockResolvedValue([49.99, 59.99, 69.99].map(amount => ({ amount, currency: 'EUR', url: source.url, title: 'CASO B 300' })));
+  webPrice.mockImplementation(async (_product, { referencePages }) => referencePages.length
+    ? { amount: 64.99, currency: 'EUR', confidence: 0.85, sources: [{ ...source, price: 64.99 }] } : null);
   const price = await lookupCapturePrice(product());
-  expect(price).toMatchObject({ amount: 59.99, via: 'gemini_grounding', confidence: 0.8 });
-  expect(verify).toHaveBeenCalledTimes(1);
-  expect(price.sources).toHaveLength(3);
+  expect(price).toMatchObject({ amount: 64.99, via: 'gemini_grounding', confidence: 0.85 });
+  expect(verify).not.toHaveBeenCalled();
+  expect(price.sources).toHaveLength(1);
 });
 
 it('does not turn blocked pages, wrong products or missing offers into an invented price', async () => {

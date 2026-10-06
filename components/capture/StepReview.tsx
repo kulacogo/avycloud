@@ -4,6 +4,7 @@ import { Card } from "../ui/Card";
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 import { Badge } from "../ui/Badge";
+import { validateCaptureSellPrice } from "./captureSellPrice";
 
 import type { ReuseNotice } from "../../utils/reuseNotice";
 
@@ -53,6 +54,10 @@ const StepReview: React.FC<StepReviewProps> = ({ product, onComplete, onBack, is
   const [description, setDescription] = useState(
     product.details?.short_description || ""
   );
+  const [sellPrice, setSellPrice] = useState(
+    product.details?.pricing?.sellPrice != null ? String(product.details.pricing.sellPrice) : ""
+  );
+  const { amount: saleAmount, error: priceError } = validateCaptureSellPrice(sellPrice, product.details?.pricing?.sellPrice);
 
   const confidence = product.identification?.confidence ?? 0.5;
 
@@ -64,6 +69,7 @@ const StepReview: React.FC<StepReviewProps> = ({ product, onComplete, onBack, is
   }, [product]);
 
   const handleSubmit = () => {
+    if (priceError) return;
     const edited: Product = {
       ...product,
       identification: {
@@ -75,6 +81,10 @@ const StepReview: React.FC<StepReviewProps> = ({ product, onComplete, onBack, is
       },
       details: {
         ...product.details,
+        pricing: {
+          ...product.details?.pricing,
+          ...(saleAmount !== undefined ? { sellPrice: saleAmount } : {}),
+        },
         short_description: description,
         identifiers: {
           ...product.details?.identifiers,
@@ -202,6 +212,22 @@ const StepReview: React.FC<StepReviewProps> = ({ product, onComplete, onBack, is
               />
             </div>
 
+            <Input
+              label="Verkaufspreis (€)"
+              type="number"
+              min="0.01"
+              step="0.01"
+              value={sellPrice}
+              onChange={(e) => setSellPrice(e.target.value)}
+              placeholder="Preis ergänzen"
+              error={priceError}
+              helpText={reuseNotice && product.details?.pricing?.sellPrice
+                ? "Bisheriger Verkaufspreis des vorhandenen Produkts."
+                : product.details?.pricing?.sellPrice
+                ? "Aus dem Preisvergleich übernommen. Bitte Zustand und Setgröße prüfen."
+                : "Kein passender Preis gefunden. Du kannst ihn direkt hier ergänzen."}
+            />
+
             {/* Key features preview */}
             {product.details?.key_features?.length > 0 && (
               <div>
@@ -229,7 +255,7 @@ const StepReview: React.FC<StepReviewProps> = ({ product, onComplete, onBack, is
         <Button variant="secondary" onClick={onBack}>Zurück</Button>
         <Button
           onClick={handleSubmit}
-          disabled={!name.trim()}
+          disabled={!name.trim() || Boolean(priceError)}
           iconRight={
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <path d="M5 12h14M12 5l7 7-7 7" />

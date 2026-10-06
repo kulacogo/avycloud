@@ -1,3 +1,15 @@
+## 06.10.2026 — Initialer Verkaufspreis: Korrektur und Abnahme
+
+Betreiberauftrag „nach deinen Tests auf Prod“ gilt für diesen Erfassungsfix einschließlich Commit, PR/Merge und Deploy. Nicht erneut fragen; ältere Freigabevorbehalte unten sind historisch.
+
+- [Audit, Änderung und Grenzen](docs/reports/capture-price-2026-10-06.md). **40/179 seit PR25 waren ursprüngliche Marktpreise, keine belegten ursprünglichen Verkaufspreise.** V3 setzte sellPrice bisher nie. Künftig vor initialem Save plus Snapshot price_research.initial_sell_price; Review mit Preisfeld.
+- Worktree /Users/oguz/.codex/worktrees/capture-price-coverage-20261006/avycloud, Branch codex/capture-price-coverage-20261006, Basis43f30bb6. Fremde Hauptcheckout-Änderungen nicht übernehmen.
+- .com-Shops, strukturierte Händler-/Indexangebote, passende Marke/Kennung/Packung, Neuware/Festpreis, begrenzter zweiter Versuch. Vier Originalfoto-Proben: drei Preisvorschläge, H&M bleibt offen. Keine allgemeine Erfolgsquote; Indexpreis als ungeprüft markiert.
+- Lokal5715 Backendtests/495 Dateien,547 Frontendtests, TypeScript/Build und4 Browserprüfungen grün; zusätzlicher Browse-Adaptertest. Ausgangsproduktion Web01826-ffm/Worker00281-pgg; **neue Korrektur noch nicht deployed**, CI-/Release-Nachweis folgt.
+- Prompt/Schema/Modell/GenerationConfig unverändert, keine neue Scope-Version erforderlich (Charta§3). Diagnoseversion3, Inhaltsvertrag2. Keine Altproduktüberschreibung.
+- Produktive Erfassungsroute nie mit bestehender EAN testen: Duplicate-Reuse erhöht pending intake. Proben nur lesend, Storage vor Import sperren (IAM-Nebeneffekt). Rohdaten außerhalb Git im privaten capture-quality/20261006-Verzeichnis.
+- PR26/28 bleiben zwingend: tatsächlicher BIN-Bestand begrenzt Verkauf; positive Menge erlaubt keine automatische Wiederaktivierung. Kein Rollback vor diese Schutzmechanismen.
+
 ## 27.09.2026 — Neue Betreiberregel: keine automatische Wiederaktivierung
 
 Positiver Lagerbestand ist KEINE Erlaubnis zum erneuten Listen. Stock-Sync/Cron/Drain dürfen auf eBay und Kaufland kein pausiertes, inaktives, beendetes oder ausverkauftes Angebot wieder aktivieren. Manuelle Aktivierung bleibt nach tatsächlicher BIN-/Reservierungs- und Live-Statusprüfung möglich. Diese Anweisung ersetzt die frühere Relist-Selbstheilung aus CLAUDE.md Regel 15. [Arbeits-/Release-Nachweis](CODEX_MANUAL_REACTIVATION_20260927.md). Deployment folgt nach finaler CI; nicht vorzeitig als produktiv melden.
