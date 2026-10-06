@@ -54,3 +54,35 @@ it('accepts exact structured index offers only for infrastructure failures, not 
   expect(await lookup({ ok: true, text: 'Steinel L 605 S 4007841065287 zzgl. MwSt', html: html(node) })).toBeNull();
   expect(await lookup({ ok: true, text: 'Steinel L 605 S 4007841065287 Versand 102,32 €', html: '' })).toBeNull();
 });
+
+it('follows the merchant-declared German product variant when search finds its foreign storefront', async () => {
+  const foreign = 'https://shop.nl/products/065287';
+  const german = 'https://shop.de/produkte/065287';
+  const diagnostics = {};
+  const fetchPage = vi.fn(async url => ({ ok: true, html: url === foreign
+    ? `<link href="${german}" hreflang="de" rel="alternate">${html({ ...node, offers: { price: 99, priceCurrency: 'EUR' } })}`
+    : html(node) }));
+  const result = await lookupCaptureWebPrice(product, { referencePages: [{ url: foreign }], deadline: Date.now() + 1000, matchesIdentity: capturePageMatchesIdentity, fetchPage, diagnostics });
+  expect(result).toMatchObject({ amount: 102.32, sources: [{ url: german, verified: true }] });
+  expect(fetchPage.mock.calls.map(args => args[0])).toEqual([foreign, german]);
+  expect(diagnostics.german_alternates).toBe(1);
+});
+
+it.each([
+  '<link rel="alternate" hreflang="de-AT" href="https://shop.at/p/065287">',
+  '<link rel="alternate" hreflang="de" href="https://another-shop.de/p/065287">',
+  '<link rel="alternate" hreflang="de" href="https://shop.de/cart/065287">',
+])('does not follow a different region, unrelated merchant or action URL: %s', alternate => {
+  const { findGermanProductAlternate } = require('../lib/capture-web-price');
+  expect(findGermanProductAlternate(alternate, 'https://shop.nl/p/065287')).toBeNull();
+});
+
+it('rejects an alternate that contains the wrong product and never follows a second alternate', async () => {
+  const foreign = 'https://shop.nl/products/065287';
+  const german = 'https://shop.de/produkte/065287';
+  const fetchPage = vi.fn(async url => ({ ok: true, html: url === foreign
+    ? `<link rel="alternate" hreflang="de-DE" href="${german}">`
+    : html({ ...node, gtin13: '9999999999999', name: 'Unrelated product' }) + '<link rel="alternate" hreflang="de" href="https://shop.de/another">' }));
+  expect(await lookupCaptureWebPrice(product, { referencePages: [{ url: foreign }], deadline: Date.now() + 1000, matchesIdentity: capturePageMatchesIdentity, fetchPage })).toBeNull();
+  expect(fetchPage).toHaveBeenCalledTimes(2);
+});

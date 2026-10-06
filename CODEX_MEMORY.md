@@ -1,14 +1,10 @@
-## 06.10.2026 — Initialer Verkaufspreis: Korrektur und Abnahme
+## 06.10.2026 — PR30 produktiv; deutscher Händlerverweis als Nachtrag
 
-Betreiberauftrag „nach deinen Tests auf Prod“ gilt für diesen Erfassungsfix einschließlich Commit, PR/Merge und Deploy. Nicht erneut fragen; ältere Freigabevorbehalte unten sind historisch.
-
-- [Audit, Änderung und Grenzen](docs/reports/capture-price-2026-10-06.md). **40/179 seit PR25 waren ursprüngliche Marktpreise, keine belegten ursprünglichen Verkaufspreise.** V3 setzte sellPrice bisher nie. Künftig vor initialem Save plus Snapshot price_research.initial_sell_price; Review mit Preisfeld.
-- Worktree /Users/oguz/.codex/worktrees/capture-price-coverage-20261006/avycloud, Branch codex/capture-price-coverage-20261006, Basis43f30bb6. Fremde Hauptcheckout-Änderungen nicht übernehmen.
-- .com-Shops, strukturierte Händler-/Indexangebote, passende Marke/Kennung/Packung, Neuware/Festpreis, begrenzter zweiter Versuch. Vier Originalfoto-Proben: drei Preisvorschläge, H&M bleibt offen. Keine allgemeine Erfolgsquote; Indexpreis als ungeprüft markiert.
-- Lokal5715 Backendtests/495 Dateien,547 Frontendtests, TypeScript/Build und4 Browserprüfungen grün; zusätzlicher Browse-Adaptertest. Ausgangsproduktion Web01826-ffm/Worker00281-pgg; **neue Korrektur noch nicht deployed**, CI-/Release-Nachweis folgt.
-- Prompt/Schema/Modell/GenerationConfig unverändert, keine neue Scope-Version erforderlich (Charta§3). Diagnoseversion3, Inhaltsvertrag2. Keine Altproduktüberschreibung.
-- Produktive Erfassungsroute nie mit bestehender EAN testen: Duplicate-Reuse erhöht pending intake. Proben nur lesend, Storage vor Import sperren (IAM-Nebeneffekt). Rohdaten außerhalb Git im privaten capture-quality/20261006-Verzeichnis.
-- PR26/28 bleiben zwingend: tatsächlicher BIN-Bestand begrenzt Verkauf; positive Menge erlaubt keine automatische Wiederaktivierung. Kein Rollback vor diese Schutzmechanismen.
+- PR30/Main dc010626 produktiv: Web01827-w22 und Worker00282-qn4 seit11:49MESZ Ready/Healthy/100 %, Hosting887f034b62a671b3. CI final5.716Backendtests/496Dateien;547Frontendtests,TypeScript/Build und4Browserprüfungen grün. Betreiberauftrag Tests→Produktion gilt weiterhin, keine neue Freigabe verlangen.
+- Marktpreis wird initial auch Verkaufspreisvorschlag, aktiver Review-/Summary-Fluss zeigt ihn. Echte Nachmessung14:28MESZ:3/10 neue-Recherche-Datenblätter mit initialem Verkaufspreis; sieben ohne, zwei weitere alte Requests liefen beim Rollout noch aus. **Gesamtproblem weiterhin offen.** Frühere40/179 waren Marktpreise, kein Nachweis initialer Verkaufspreise.
+- Folgebranch codex/capture-german-offers-20261006 im selben managed Worktree: gefundene ausländische Händlerseite darf ihrem expliziten deutschen Produktverweis folgen, maximal ein Sprung, gleiche Händleridentität und Preisprüfung. Stagecaptain PPS-47XL real44,90€ in3,05s ohne Gemini. Fünf Regressionen rot→grün; vollständige Suite5.721Tests. Dieser Nachtrag noch nicht deployed.
+- [Nachweise und Grenzen](docs/reports/capture-price-2026-10-06.md); vollständiges aktuelles Projektgedächtnis im Hauptcheckout /Users/oguz/Dev/avycloud/CODEX_MEMORY.md. Keine Prompt-/Schemaänderung, keine neue Scope-Version. Keine Altprodukte verändert. Produktive Identify-Route nicht als schreibenden Test mit vorhandener EAN verwenden (pending intake).
+- Bekannte separate Fehler: image-proxy502 und forecast/alerts500. Zwei neue Datenblätter beschreiben geschlossene Versandkartons ohne sichtbaren Inhalt; Paket2von4 eines Spielhauses ist kein belegtes Komplettset. Offene Identitäts-/Lieferumfangsprobleme nicht mit Fantasiepreisen verdecken.
 
 ## 27.09.2026 — Neue Betreiberregel: keine automatische Wiederaktivierung
 
