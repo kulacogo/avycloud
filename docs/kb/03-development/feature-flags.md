@@ -277,3 +277,7 @@ Vor `on`: Shadow-Lauf und benötigte Firestore-Indizes je Mandant prüfen, aktiv
 ### Lokale Bildwerkstatt (27.09.2026)
 
 - `VITE_BG_REMOVAL_MODEL` (bereits bestehende Build-Variable): optionaler Pin `isnet_fp16`, `isnet` oder `isnet_quint8`; Aliase `medium`, `large`, `small`. Ohne Pin verwendet „Schnell & fein“ fp16, „Höchste Präzision“ fp32. Der Pin hat Vorrang vor der Auswahl. Kein Produktionswert wurde geändert. Beide Modelle können Schrift/Innenflächen fehlerhaft entfernen; größere Präzision ist keine Garantie besserer Masken. Details und Korrekturwerkzeuge: [Produktbilder](../06-features/product-images.md#bildwerkstatt--27092026).
+
+## Lokale Druckstation — Protokoll 2 (2026-10-07)
+
+`AGENT_SESSION_FILE` ist eine **lokale Agent-Konfiguration**, kein Cloud-Run-Flag. Sie verweist auf `~/Library/Application Support/AvyCloud Print Agent/session.json` (600, Verzeichnis 700) mit erneuerbarem Firebase-Refresh-Token. Der Installer speichert kein Passwort in der LaunchAgent-plist. Bei widerrufener Sitzung erneut lokal anmelden. Bestehende `AGENT_EMAIL`/`AGENT_PASSWORT` werden als manueller Kompatibilitätsweg weiter unterstützt, aber vom neuen Installer nicht dauerhaft abgelegt. Keine Cloud-ENV wurde geändert.

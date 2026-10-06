@@ -67,3 +67,10 @@ Template-Hinweis: schau in die Nachbar-Datei und kopiere die Struktur. Wir haben
 
 **Letzte KB-Review:** 2026-05-18.
 **Verantwortlich für Pflege:** Engineering-Team. Drift-Schutz via CI.
+
+## Handheld Pick / Pack und Druckstation (2026-10-07)
+
+- [Arbeitsablauf, zentrale Zuweisung, Bestands- und Druckvertrag](06-features/handheld-pick-pack.md)
+- [Handheld-Startseite](05-pages/handheld-home.md)
+- [Druckstation-API](09-api/print.md)
+- [Releaseprüfung und noch offene Produktionsvoraussetzungen](../reviews/handheld-team-print-20261007/README.md)

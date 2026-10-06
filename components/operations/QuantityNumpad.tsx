@@ -92,9 +92,9 @@ const QuantityNumpad: React.FC<QuantityNumpadProps> = ({
           : "rounded-xl bg-app-bg/60 border border-app-border p-2.5 space-y-2"
       }
     >
-      <p className="text-[11px] uppercase tracking-widest text-txt-muted">
+      {readOnlyLabel !== '' && <p className="text-[11px] uppercase tracking-widest text-txt-muted">
         {readOnlyLabel || t("ops.mobile.qtyScannerOrPad")}
-      </p>
+      </p>}
       <div className="flex items-center gap-2">
         {/*
           readOnly + inputMode="none": zeigt den Wert an, holt aber NIE die
@@ -109,7 +109,7 @@ const QuantityNumpad: React.FC<QuantityNumpadProps> = ({
           readOnly
           tabIndex={-1}
           value={Math.max(0, Math.floor(safeValue))}
-          className="flex-1 rounded-xl bg-app-surface text-txt-primary border border-app-border text-xl font-semibold px-3 h-10 tabular-nums"
+          className="min-w-0 w-0 flex-1 rounded-xl bg-app-surface text-txt-primary border border-app-border text-xl font-semibold px-3 h-10 tabular-nums"
         />
         <button
           type="button"

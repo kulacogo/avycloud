@@ -37,7 +37,7 @@ describe('POST /api/print/jobs', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data).toMatchObject({
-      jobId: 'job-1',
+      jobId: require('../../lib/print-delivery').printJobKey('default', 'ship-1'),
       printerRole: 'parcel',
       widthMm: 103,
       heightMm: 164,

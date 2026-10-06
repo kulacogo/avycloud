@@ -421,3 +421,49 @@ describe('makeStrictTx: simuliert echte Firestore-Constraint', () => {
     tx.update({ __id: 'a/1' }, { v: 2 });
   });
 });
+
+
+describe('managed pick commits progress atomically with BIN stock', () => {
+  function managed() {
+    seedHappyPath();
+    const order = _docs.get('orders/ORDER-PICK-1').data();
+    order.omsStatus = 'confirmed';
+    order.items[0].id = 'line-1';
+    order.pickWork = { ownerUid: 'alice', token: 'token-a', status: 'active',
+      lines: [{ itemId: 'line-1', required: 1, picked: 0 }], receipts: {} };
+    return { productId: 'PROD-1', binCode: 'XGA0101A', quantity: 1,
+      meta: { orderId: 'ORDER-PICK-1', orderItemId: 'line-1', actor: { uid: 'alice' },
+        tenantId: 'default', pickToken: 'token-a', requestId: 'request-1' } };
+  }
+  function commitCaptured() {
+    for (const call of _capturedTx.__calls) {
+      if (call.op === 'update' || call.op === 'set') {
+        const value = call.op === 'update' ? { ...(_docs.get(call.id)?.data() || {}), ...call.patch } : call.value;
+        _docs.set(call.id, { exists: true, data: () => value });
+      }
+    }
+  }
+  it('a lost response and retry write stock exactly once', async () => {
+    const request = managed();
+    await bookStockOut(request);
+    expect(_capturedTx.__calls.find((call) => call.patch?.pickWork)?.patch.pickWork.lines[0].picked).toBe(1);
+    commitCaptured();
+    const retry = await bookStockOut(request);
+    expect(retry.deduped).toBe(true);
+    expect(_capturedTx.__writes()).toBe(0);
+    expect(_docs.get('warehouseBins/XGA0101A').data().products[0].quantity).toBe(4);
+  });
+  it('another employee cannot book even with the right token', async () => {
+    const request = managed();
+    request.meta.actor = { uid: 'bob' };
+    await expect(bookStockOut(request)).rejects.toThrow(/Mitarbeiter/);
+    expect(_capturedTx.__writes()).toBe(0);
+  });
+  it('a new request cannot exceed the order quantity after a previous pick', async () => {
+    const request = managed();
+    await bookStockOut(request);
+    commitCaptured();
+    await expect(bookStockOut({ ...request, meta: { ...request.meta, requestId: 'request-2' } })).rejects.toThrow(/Menge/);
+    expect(_capturedTx.__writes()).toBe(0);
+  });
+});

@@ -1,8 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { PageTitle } from './ui/PageTitle';
+import { pickProgress, packProgress, mayReprintLabel } from '../utils/handheldProgress';
+import './operations/handheld.css';
 import { Order, Product, getOrderStatus } from '../types';
 import { getProductQuantity } from '../utils/product';
 import {
   fetchOrders as fetchOrdersApi,
+  claimPickWork, fetchPickWork, pausePickWork,
   syncOrders as syncOrdersApi,
   completeOrder,
   packOrder,
@@ -26,7 +30,8 @@ import {
   type TastenBeweis,
 } from '../utils/scannerDetect';
 import { useTastaturHoehe } from '../hooks/useTastaturHoehe';
-import { printLabelBlob } from '../utils/labelPrint';
+import { useAuth } from '../context/AuthContext';
+import { canAccessView } from '../utils/viewPermissions';
 import { fetchPrintStatus, enqueueLabelPrint, waitForPrintJob } from '../api/client';
 
 type OpsMode = 'operations' | 'operations-identify' | 'operations-stow' | 'operations-pick' | 'operations-pack';
@@ -139,6 +144,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
   onProductUpdate,
 }) => {
   const { t } = useI18n();
+  const { user, hasPermission } = useAuth();
 
   const [stowSku, setStowSku] = useState('');
   const [stowBin, setStowBin] = useState('');
@@ -163,7 +169,47 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
   const [packMessage, setPackMessage] = useState<string | null>(null);
   // Fertiges Etikett, das nur noch gedruckt werden muss. Steht als grosser
   // Knopf im Pack-Bildschirm, bis der Mensch gedruckt oder weggetippt hat.
-  const [pendingLabel, setPendingLabel] = useState<{ blob: Blob; orderId: string; orderLabel: string; carrier: string | null } | null>(null);
+  const [assignedOrder, setAssignedOrder] = useState<Order | null>(null);
+  const [assignmentBusy, setAssignmentBusy] = useState(false);
+  const [assignmentError, setAssignmentError] = useState<string | null>(null);
+  const [otherScanner, setOtherScanner] = useState(false);
+  const [pickQuantityOpen, setPickQuantityOpen] = useState(false);
+  const [pickRouteOpen, setPickRouteOpen] = useState(false);
+  const [pickBusy, setPickBusy] = useState(false);
+  const [packVerified, setPackVerified] = useState<Record<string, boolean>>({});
+  const [packScannedKey, setPackScannedKey] = useState<string | null>(null);
+  const [packBusy, setPackBusy] = useState(false);
+  const [labelHandedOver, setLabelHandedOver] = useState(false);
+  const [lastPrintStatus, setLastPrintStatus] = useState<string | null>(null);
+  const printInFlightRef = useRef(false);
+  const shipInFlightRef = useRef(false);
+
+  const assignNextOrder = useCallback(async (takeover = false) => {
+    setAssignmentBusy(true);
+    setAssignmentError(null);
+    setOtherScanner(false);
+    try {
+      const order = await claimPickWork({ takeover });
+      setAssignedOrder(order);
+      setPickedByItemId(Object.fromEntries((order?.pickWork?.lines || []).map((line) => [line.itemId, line.picked])));
+      setPendingPick(null); setActiveBin(''); setActiveSku(''); setPickMessage(null);
+    } catch (error: any) {
+      setAssignmentError(error.message);
+      setOtherScanner(error.code === 'PICK_OTHER_DEVICE');
+    } finally { setAssignmentBusy(false); }
+  }, []);
+  useEffect(() => {
+    if (mode === 'operations-pick') void assignNextOrder();
+  }, [mode, assignNextOrder]);
+
+  const [pendingLabel, setPendingLabel] = useState<{ blob?: Blob; orderId: string; orderLabel: string; carrier: string | null; shipmentId?: string | null; reprintId?: string } | null>(() => {
+    try { return JSON.parse(sessionStorage.getItem(`avycloud:pending-label:${user?.uid}`) || 'null'); } catch { return null; }
+  });
+  useEffect(() => {
+    const key = `avycloud:pending-label:${user?.uid}`;
+    if (pendingLabel) sessionStorage.setItem(key, JSON.stringify({ orderId: pendingLabel.orderId, orderLabel: pendingLabel.orderLabel, carrier: pendingLabel.carrier, shipmentId: pendingLabel.shipmentId, reprintId: pendingLabel.reprintId }));
+    else sessionStorage.removeItem(key);
+  }, [pendingLabel, user?.uid]);
   /**
    * Läuft ein Druck-Agent im Büro-Netz? Solange ja, druckt AvyCloud selbst auf
    * dem richtigen Gerät und der Bediener sieht KEINE Android-Druckauswahl.
@@ -179,7 +225,6 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
   // Mobile pick progress (supports partial picks across bins)
   const [pickedByItemId, setPickedByItemId] = useState<Record<string, number>>({});
   // Local bin deltas to avoid stale product data causing repeated picks from the same BIN
-  const [pickedFromBin, setPickedFromBin] = useState<Record<string, number>>({}); // key: `${productId}::${BIN}` -> pickedQty
   const [pendingPick, setPendingPick] = useState<MobilePickTask | null>(null);
   const [pendingPickQty, setPendingPickQty] = useState<number>(0);
 
@@ -238,6 +283,8 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
   // is rendered is decided by scanCaptureMode (see resolveScanCaptureMode).
   const scanCaptureRef = useRef<HTMLElement | null>(null);
   const scanCaptureTimerRef = useRef<number | null>(null);
+  const scanPausedRef = useRef(false);
+  scanPausedRef.current = shipDecisionStep !== 'idle' || Boolean(pendingLabel) || pickQuantityOpen || pickRouteOpen;
 
   type IdentifySlotImage = { id: string; file: File; previewUrl: string };
   const [identifyImagesBySlot, setIdentifyImagesBySlot] = useState<Record<number, IdentifySlotImage[]>>({});
@@ -541,15 +588,6 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
     [products]
   );
 
-  const getAdjustedBinQty = useCallback(
-    (productId: string, binCode: string, baseQty: number) => {
-      const key = `${productId}::${binCode.toUpperCase()}`;
-      const picked = Number(pickedFromBin[key] || 0) || 0;
-      return Math.max(0, (Number(baseQty) || 0) - picked);
-    },
-    [pickedFromBin]
-  );
-
   const pickTasks = useMemo(() => {
     const taskMap = new Map<string, MobilePickTask>();
 
@@ -566,13 +604,13 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
         .filter((b) => b && b.code && Number(b.quantity || 0) > 0)
         .map((b) => ({
           code: String(b.code).toUpperCase(),
-          quantity: getAdjustedBinQty(product.id, String(b.code), Number(b.quantity || 0) || 0),
+          quantity: Number(b.quantity || 0),
         }))
         .filter((b) => b.quantity > 0);
 
       if (!pool.length && product.storage?.binCode) {
         const base = Number(product.storage.quantity || 0) || 0;
-        const adjusted = getAdjustedBinQty(product.id, String(product.storage.binCode), base);
+        const adjusted = base;
         if (adjusted > 0) {
           pool.push({ code: String(product.storage.binCode).toUpperCase(), quantity: adjusted });
         }
@@ -591,7 +629,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
       return pool.find((b) => b.quantity > 0) || null;
     };
 
-    openOrders.forEach((order) => {
+    (assignedOrder && assignedOrder.pickWork?.status === 'active' && ['confirmed', 'picking'].includes(getOrderStatus(assignedOrder)) ? [assignedOrder] : []).forEach((order) => {
       order.items.forEach((it) => {
         const itemId = it.id;
         const pickedSoFar = Number(pickedByItemId[itemId] || 0) || 0;
@@ -613,7 +651,8 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
           normalizeScan(product?.id) ||
           itemId;
 
-        const allocatedBin = chooseAllocatableBin(product);
+        const stockProduct = hint?.bins ? { ...product, id: hint.productId || product?.id, storageBins: hint.bins, storage: undefined } as Product : product;
+        const allocatedBin = chooseAllocatableBin(stockProduct);
         const fallbackHintBin = hint?.binCode ? String(hint.binCode).toUpperCase() : '';
         const bestBin = allocatedBin || (fallbackHintBin ? { code: fallbackHintBin, quantity: Number(hint.quantityAvailable || 0) || 0 } : null);
 
@@ -691,7 +730,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
 
     tasks.sort((a, b) => compareBinCodesForPickRoute(a.binCode, b.binCode));
     return tasks;
-  }, [openOrders, pickedByItemId, resolveProductForItem, getAdjustedBinQty]);
+  }, [assignedOrder, pickedByItemId, resolveProductForItem]);
 
   const packItems = useMemo(() => {
     const ready = readyToPackOrders;
@@ -748,7 +787,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
 
   useEffect(() => {
     const stillOpenItemIds = new Set<string>();
-    openOrders.forEach((o) => o.items.forEach((it) => stillOpenItemIds.add(it.id)));
+    (assignedOrder ? [assignedOrder] : []).forEach((o) => o.items.forEach((it) => stillOpenItemIds.add(it.id)));
 
     setPickedByItemId((prev) => {
       const next: Record<string, number> = {};
@@ -765,12 +804,12 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
       setActiveBin('');
       setActiveSku('');
     }
-  }, [openOrders]);
+  }, [assignedOrder]);
 
   const submitPick = useCallback(
     async (task: MobilePickTask, qty: number) => {
       const numeric = Number(qty);
-      if (!Number.isFinite(numeric) || numeric <= 0) return;
+      if (!Number.isSafeInteger(numeric) || numeric <= 0) return;
       if (numeric > task.remainingTotal) {
         setPickMessage(
           t('ops.mobile.pick.errorQtyExceedsRemaining', { qty: numeric, remaining: task.remainingTotal })
@@ -786,6 +825,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
 
       if (pickSubmitInFlightRef.current) return;
       pickSubmitInFlightRef.current = true;
+      setPickBusy(true);
       try {
         try {
           let qtyLeftToBook = numeric;
@@ -806,6 +846,8 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
               orderItemId: allocation.orderItemId,
               meta: {
                 flow: 'pick',
+                pickToken: assignedOrder?.pickWork?.token,
+                requestId: `pick:${assignedOrder?.pickWork?.token}:${allocation.itemId}:${allocation.pickedSoFar}:${splitQty}:${task.binCode}`,
                 orderId: task.orderId,
                 orderItemId: allocation.orderItemId,
                 groupedTaskKey: task.taskKey,
@@ -835,15 +877,8 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
             });
             return next;
           });
-          if (task.productId && task.binCode) {
-            const key = `${task.productId}::${task.binCode.toUpperCase()}`;
-            setPickedFromBin((prev) => ({
-              ...prev,
-              [key]: (Number(prev[key] || 0) || 0) + numeric,
-            }));
-          }
 
-          const targetOrder = openOrders.find((o) => o.id === task.orderId) || null;
+          const targetOrder = assignedOrder;
           const projectedPickedByItemId = { ...pickedByItemId };
           task.allocations.forEach((allocation) => {
             const delta = Number(appliedByItemId[allocation.itemId] || 0) || 0;
@@ -861,42 +896,24 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
               })
             : false;
 
-          // UI must stay fluid: never block on status updates or full order refresh.
-          // We update UI immediately and sync order status in background if the order is complete.
-          if (isOrderDone) {
-            setPickMessage(
-              t('ops.mobile.pick.successOrderDone', {
-                bin: task.binCode,
-                sku: task.sku,
-                qty: numeric,
-                order: task.orderNumber || task.orderId,
-              })
-            );
+          const fresh = await fetchPickWork();
+          setAssignedOrder(fresh);
+          if (fresh?.pickWork) setPickedByItemId(Object.fromEntries(fresh.pickWork.lines.map((line) => [line.itemId, line.picked])));
+          if (isOrderDone || (fresh?.pickWork && pickProgress(fresh.pickWork.lines).complete)) {
+            await completeOrder(task.orderId);
+            setAssignedOrder((current) => current ? { ...current, omsStatus: 'picked' } : null);
+            setPickMessage('Auftrag fertig');
             setPickMessageTone('success');
-            void completeOrder(task.orderId)
-              .catch((err: any) => {
-                console.warn('completeOrder failed (background):', err);
-                setPickMessage(
-                  t('ops.mobile.pick.errorGeneric', { message: err?.message || t('common.unknownError') })
-                );
-                setPickMessageTone('error');
-              })
-              .finally(() => {
-                void refreshOrders();
-              });
+            void refreshOrders();
           } else {
-            setPickMessage(
-              t('ops.mobile.pick.success', {
-                bin: task.binCode,
-                sku: task.sku,
-                qty: numeric,
-                remaining: Math.max(0, task.remainingTotal - numeric),
-              })
-            );
-            setPickMessageTone('success');
+            setPickMessage(null);
           }
         } catch (err: any) {
           console.error('Pick failed', err);
+          try {
+            const fresh = await fetchPickWork();
+            if (fresh) { setAssignedOrder(fresh); setPickedByItemId(Object.fromEntries((fresh.pickWork?.lines || []).map((line) => [line.itemId, line.picked]))); }
+          } catch { /* Preserve the error and retry the same booking key. */ }
           setPickMessage(t('ops.mobile.pick.errorGeneric', { message: err?.message || t('common.unknownError') }));
           setPickMessageTone('error');
         }
@@ -907,9 +924,10 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
         setHighlightKey(null);
       } finally {
         pickSubmitInFlightRef.current = false;
+        setPickBusy(false);
       }
     },
-    [openOrders, pickedByItemId, refreshOrders, t]
+    [assignedOrder, pickedByItemId, refreshOrders, t]
   );
   const resolveProductForStow = useCallback(
     (skuValue: string) => {
@@ -1075,6 +1093,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
 
   const handleScannedValue = useCallback(
     (value: string) => {
+      if (scanPausedRef.current) return;
       const rawTrimmed = value.trim();
       if (!rawTrimmed) return;
 
@@ -1114,11 +1133,8 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
           const selectedKey = getOrderCouplingKey(selected);
           setPackScopedOrderKey(selectedKey);
           setPackSelectedKey(null);
-          setPackMessage(
-            t('ops.mobile.pack.scan.orderSelected', {
-              order: selected.number || selected.orderId || selected.id,
-            })
-          );
+          setPackScannedKey(null);
+          setPackMessage(null);
           return;
         }
         if (orderIdentityMatches.length > 1) {
@@ -1153,6 +1169,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
           ambiguousRemaining = candidates.length - 1;
         }
 
+        setPackScannedKey(`${item.orderKey}::${item.sku}::${item.binCode}`);
         setPackScopedOrderKey(item.orderKey);
         setPackSelectedKey(`${item.orderKey}::${item.sku}::${item.binCode}`);
         setPackMessage(
@@ -1180,8 +1197,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
       const skuMatches = pickTasks.filter((it) => equalsSkuScan(it.sku, normalized));
 
       // If a pick task is already active:
-      // - numeric scan updates the pending quantity and confirms immediately.
-      // - scanning the matching SKU confirms the currently shown quantity.
+      // Quantity scans only edit the value; the employee confirms with the button.
       if (pendingPick) {
         const maxQtyByBin =
           typeof pendingPick.availableInBin === 'number'
@@ -1191,9 +1207,11 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
         if (isNumericOnly) {
           const n = Number(normalized);
           if (Number.isFinite(n) && n > 0) {
-            const bounded = Math.max(1, Math.min(maxQtyByBin, n));
-            setPendingPickQty(bounded);
-            void submitPick(pendingPick, bounded);
+            if (!Number.isSafeInteger(n) || n > maxQtyByBin) {
+              setPickMessage(`Höchstens ${maxQtyByBin} Stück möglich.`); setPickMessageTone('error'); return;
+            }
+            setPendingPickQty(n);
+            setPickQuantityOpen(false);
           }
           return;
         }
@@ -1202,7 +1220,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
           setPendingPickQty(confirmQty);
           setPickMessage(t('ops.mobile.pick.scan.ready'));
           setPickMessageTone('info');
-          void submitPick(pendingPick, confirmQty);
+          // Repeated SKU scan does not book stock; the quantity button confirms it.
           return;
         }
         // Any other scan resets the pending pick selection (user started scanning another task)
@@ -1274,6 +1292,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
       setPickMessageTone('error');
     },
     [
+      shipDecisionStep, pendingLabel,
       activeBin,
       activeSku,
       equalsIgnoreCase,
@@ -1440,10 +1459,10 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
   useEffect(() => {
     const isScanMode =
       mode === 'operations-pick' || mode === 'operations-stow' || mode === 'operations-pack';
-    if (!isScanMode) return;
+    if (!isScanMode || scanPausedRef.current) return;
     scanCaptureRef.current?.focus({ preventScroll: true });
     logScanDebug('mode-focus');
-  }, [mode, logScanDebug]);
+  }, [mode, shipDecisionStep, pendingLabel, pickQuantityOpen, pickRouteOpen, logScanDebug]);
 
   /**
    * Fangfeld zurückholen, sobald KEIN Dialog mehr offen ist.
@@ -1467,9 +1486,10 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
   useEffect(() => {
     const isScanMode =
       mode === 'operations-pick' || mode === 'operations-stow' || mode === 'operations-pack';
-    if (!isScanMode || shipDecisionStep !== 'idle') return;
+    if (!isScanMode || scanPausedRef.current) return;
 
     const reclaim = () => {
+      if (scanPausedRef.current) return;
       const active = document.activeElement as HTMLElement | null;
       const isRealEditable =
         !!active &&
@@ -1491,7 +1511,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
       window.clearTimeout(timer);
       window.removeEventListener('focus', reclaim);
     };
-  }, [mode, shipDecisionStep, logScanDebug]);
+  }, [mode, shipDecisionStep, pendingLabel, pickQuantityOpen, pickRouteOpen, logScanDebug]);
 
   // Verify focus survives every scan-step state change (BIN→SKU→confirm, next item).
   useEffect(() => {
@@ -1584,6 +1604,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
     // the mobile keyboard from opening. Only reclaim when focus went to a
     // button / body / a readOnly or inputMode="none" field.
     window.setTimeout(() => {
+      if (scanPausedRef.current) return;
       const active = document.activeElement as HTMLElement | null;
       const isRealEditable =
         !!active &&
@@ -1638,7 +1659,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
     pointerEvents: 'none',
   };
 
-  const renderScanCapture = () => (
+  const renderScanCapture = () => scanPausedRef.current ? null : (
     <>
       {/* Umschalten darf NIE still passieren: der Bediener muss wissen, warum
           die Tastatur plötzlich wegbleibt — und wo er es zurückdreht. */}
@@ -1713,6 +1734,23 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
     const refMap = type === 'camera' ? cameraInputRefs.current : uploadInputRefs.current;
     const input = refMap[slot];
     if (input) input.click();
+  };
+
+  const startLabelPrint = async (label: { orderId: string; shipmentId?: string | null; reprintId?: string }) => {
+    if (printInFlightRef.current) return;
+    printInFlightRef.current = true;
+    setLabelPrinting(true); setDruckFehler(null); setLastPrintStatus(null);
+    try {
+      const status = await fetchPrintStatus();
+      setPrintAgentOnline(Boolean(status.enabled && status.online));
+      if (!status.enabled || !status.online) throw new Error('Druckstation offline. Verbindung am Packtisch prüfen.');
+      const job = await enqueueLabelPrint(label.orderId, { shipmentId: label.shipmentId || undefined, reprintId: label.reprintId });
+      const result = await waitForPrintJob(job.jobId);
+      setLastPrintStatus(result.status);
+      if (result.status === 'done') setLabelHandedOver(true);
+      else setDruckFehler(result.error || 'Druckausgabe unklar. Drucker prüfen.');
+    } catch (error: any) { setDruckFehler(error.message); }
+    finally { printInFlightRef.current = false; setLabelPrinting(false); }
   };
 
   if (mode === 'operations-identify') {
@@ -1984,284 +2022,82 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
   }
 
   if (mode === 'operations-pick') {
-    const nextTask = pickTasks[0] || null;
-    const nextBinGroupCount = nextTask?.binCode
-      ? pickTasks.filter((it) => equalsIgnoreCase(it.binCode, nextTask.binCode)).length
-      : 0;
-    const expectedScan: 'bin' | 'sku' =
-      pendingPick
-        ? 'sku'
-        : !activeBin && !activeSku
-          ? 'bin'
-          : activeBin && !activeSku
-            ? 'sku'
-            : !activeBin && activeSku
-              ? 'bin'
-              : 'sku';
-
-    const scanBoxClass = (kind: 'bin' | 'sku') => {
-      const isExpected = expectedScan === kind;
-      return `rounded-2xl border p-3 ${
-        isExpected ? 'border-accent bg-accent-dim' : 'border-app-border bg-app-bg/40'
-      }`;
+    const task = pendingPick || pickTasks[0] || null;
+    const progress = pickProgress(assignedOrder?.pickWork?.lines || []);
+    const finished = assignedOrder && getOrderStatus(assignedOrder) === 'picked';
+    const pause = async () => {
+      try {
+        if (assignedOrder?.pickWork && !finished) await pausePickWork(assignedOrder);
+        onNavigate('operations');
+      } catch (error: any) { setAssignmentError(error.message); }
     };
-
     return (
-      <div className="max-w-xl mx-auto flex flex-col gap-3">
+      <section className="handheld-screen" aria-label="Picken">
         {renderScanCapture()}
-        <div className="flex items-end justify-between gap-3">
-          <div>
-            <h2 className="text-xl font-semibold text-txt-primary">{t('ops.mode.pick')}</h2>
+        <header className="handheld-heading"><PageTitle>{pickQuantityOpen ? 'Menge' : 'Picken'}</PageTitle>
+          <span className="handheld-counter">{progress.completedItems}/{progress.totalItems} Artikel</span>
+        </header>
+        <p className="handheld-order">{assignedOrder?.marketplaceOrderId || assignedOrder?.number || 'Mein Auftrag'}</p>
+        {(assignmentError || (pickMessageTone === 'error' && pickMessage)) &&
+          <div role="alert" className="handheld-error">{assignmentError || pickMessage}</div>}
+        {pickQuantityOpen && pendingPick ? (
+          <div className="handheld-quantity-page">
+            <p className="handheld-code">{pendingPick.sku}</p>
+            <QuantityNumpad value={pendingPickQty} onChange={setPendingPickQty} min={1} readOnlyLabel=""
+              max={pendingPick.suggestedQty} onConfirm={() => setPickQuantityOpen(false)} confirmLabel="Übernehmen" />
+            <button className="handheld-secondary" onClick={() => setPickQuantityOpen(false)}>Zurück</button>
           </div>
-          <div className="text-right text-xs text-txt-muted">
-            <p className="font-semibold text-txt-secondary tabular-nums">{pickTasks.length}</p>
-            <p>{t('ops.badge.pick')}</p>
+        ) : pickRouteOpen ? (
+          <div className="handheld-route">
+            <h2 className="text-xl font-bold">Artikel im Auftrag</h2>
+            <div className="handheld-route-list">{pickTasks.map((item) => <div key={item.taskKey} className="handheld-route-row">
+              <strong className="handheld-code">{item.binCode || 'Kein BIN'}</strong>
+              <span className="handheld-code">{item.sku}</span><b>{item.remainingTotal} Stück</b>
+            </div>)}</div>
+            <button className="handheld-secondary" onClick={() => setPickRouteOpen(false)}>Zurück</button>
           </div>
-        </div>
-
-        {ordersError ? (
-          <div role="alert" className="rounded-2xl border border-danger/30 bg-danger-dim p-3 text-sm text-danger">
-            <p className="font-semibold">{t('ops.errors.ordersLoad')}</p>
-            <p className="mt-1 text-xs text-danger/90 break-words">{ordersError}</p>
-          </div>
-        ) : null}
-
-        <div className="rounded-2xl border border-app-border bg-app-surface p-3 space-y-2">
-          <div className="grid grid-cols-2 gap-2">
-            <div className={scanBoxClass('bin')}>
-              <p className="text-[11px] uppercase tracking-widest text-txt-muted">{t('common.bin')}</p>
-              <p className={`font-extrabold text-txt-primary tracking-wider break-all ${activeBin ? 'text-2xl' : 'text-base'}`}>
-                {activeBin || 'BIN scannen'}
-              </p>
+        ) : <>
+          {assignmentBusy ? <div className="handheld-empty" role="status">Auftrag wird zugewiesen…</div>
+          : finished ? <div className="handheld-empty"><span className="handheld-check">✓</span><h2>Auftrag fertig</h2><p>{progress.pickedUnits} Stück · bereit zum Packen</p></div>
+          : task ? <>
+            <div className={`handheld-bin ${activeBin ? 'is-checked' : ''}`}>
+              <span>{activeBin ? '✓ Lagerplatz' : 'Lagerplatz scannen'}</span>
+              <strong className="handheld-code">{task.binCode || 'Kein Lagerplatz'}</strong>
             </div>
-            <div className={scanBoxClass('sku')}>
-              <p className="text-[11px] uppercase tracking-widest text-txt-muted">{t('common.sku')}</p>
-              <p className="text-base font-bold text-txt-primary break-all">
-                {activeSku || `${t('ops.actions.scan')} ${t('common.sku')}`}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-start justify-between gap-3">
-            <div />
-            <button
-              type="button"
-              aria-label="Scan-Eingaben zuruecksetzen"
-              className="shrink-0 rounded-xl bg-app-bg/50 border border-app-border px-3 py-2 text-xs font-semibold text-txt-primary"
-              onClick={() => {
-                setActiveBin('');
-                setActiveSku('');
-                setPendingPick(null);
-                setPendingPickQty(0);
-                setHighlightKey(null);
-                setPickMessage(null);
-                setPickMessageTone(null);
-              }}
-            >
-              {t('common.reset')}
-            </button>
-          </div>
-
-          {pickMessage ? (
-            <p
-              role={pickMessageTone === 'error' ? 'alert' : 'status'}
-              aria-live="polite"
-              className={`text-xs ${
-                pickMessageTone === 'error'
-                  ? 'text-danger'
-                  : pickMessageTone === 'success'
-                    ? 'text-success'
-                    : 'text-accent'
-              }`}
-            >
-              {pickMessage}
-            </p>
-          ) : null}
-          {ordersLoading ? <p role="status" aria-live="polite" className="text-xs text-txt-muted">{t('ops.orders.loading')}</p> : null}
-        </div>
-
-        <div className="rounded-2xl border border-app-border bg-app-bg/30 p-3">
-          {pendingPick ? (
-            <div className="space-y-2">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0 flex items-start gap-3">
-                  <div className="w-12 h-12 rounded-xl bg-app-elevated border border-app-border overflow-hidden flex items-center justify-center shrink-0">
-                    {pendingPick.thumbnailUrl ? (
-                      <img src={pendingPick.thumbnailUrl} alt="" className="w-full h-full object-cover" loading="lazy" />
-                    ) : (
-                      <span className="text-[11px] text-txt-secondary">{t('common.noImage')}</span>
-                    )}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-txt-primary line-clamp-2">{pendingPick.name}</p>
-                    <p className="text-xs text-txt-muted mt-1">
-                      {t('common.order')} {pendingPick.orderNumber || pendingPick.orderId}
-                    </p>
-                    <p className="text-[11px] text-txt-muted mt-1 tabular-nums">
-                      {t('ops.mobile.pick.qtyPadHint')}:{' '}
-                      <span className="font-semibold text-txt-secondary">
-                        {Math.max(0, Number(pendingPickQty || 0) || 0)}/{Math.max(
-                          1,
-                          Number(
-                            typeof pendingPick.availableInBin === 'number'
-                              ? Math.min(pendingPick.remainingTotal, pendingPick.availableInBin)
-                              : pendingPick.remainingTotal
-                          ) || 1
-                        )}
-                      </span>
-                    </p>
-                  </div>
-                </div>
-                <StatusBadge label={t('ops.badge.pick')} tone="warn" />
+            <article className="handheld-product">
+              <div className="handheld-product-top">
+                {task.thumbnailUrl && <img src={task.thumbnailUrl} alt="" />}
+                <h2>{task.name}</h2>
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="rounded-xl bg-app-bg/60 border border-app-border p-2">
-                  <p className="text-[11px] uppercase tracking-widest text-txt-muted">{t('common.bin')}</p>
-                  <p className="text-3xl font-extrabold text-txt-primary tracking-wider break-all">
-                    {pendingPick.binCode || '—'}
-                  </p>
-                </div>
-                <div className="rounded-xl bg-app-bg/60 border border-app-border p-2">
-                  <p className="text-[11px] uppercase tracking-widest text-txt-muted">{t('common.sku')}</p>
-                  <p className="text-lg font-bold text-txt-primary break-all">{pendingPick.sku || '—'}</p>
-                </div>
+              <div className="handheld-sku"><span>{activeSku ? '✓ Artikel' : 'Artikel scannen'}</span><strong className="handheld-code">{task.sku}</strong></div>
+              <div className="handheld-amount"><div><span>Menge</span><strong>{pendingPick ? pendingPickQty : task.suggestedQty}<small> Stück</small></strong></div>
+                {pendingPick && <button className="handheld-secondary" onClick={() => setPickQuantityOpen(true)}>Ändern</button>}
               </div>
-              <p className="text-xs text-txt-secondary">
-                <span className="font-semibold text-txt-primary">
-                  {t('ops.labels.openRemaining', { count: pendingPick.remainingTotal })}
-                </span>
-                {typeof pendingPick.availableInBin === 'number' ? (
-                  <>
-                    {' '}
-                    ·{' '}
-                    <span className="font-semibold text-txt-primary">
-                      {t('ops.mobile.availableInBin', { value: pendingPick.availableInBin })}
-                    </span>
-                  </>
-                ) : null}
-              </p>
-              <QuantityNumpad
-                value={pendingPickQty}
-                onChange={setPendingPickQty}
-                min={1}
-                max={
-                  typeof pendingPick.availableInBin === 'number'
-                    ? Math.min(pendingPick.remainingTotal, pendingPick.availableInBin)
-                    : pendingPick.remainingTotal
-                }
-                readOnlyLabel={t('ops.mobile.pick.qtyPadHint')}
-                stickyBottom
-                onConfirm={() => void submitPick(pendingPick, pendingPickQty)}
-                confirmLabel={t('ops.pick.submit')}
-                confirmDisabled={
-                  pickSubmitInFlightRef.current ||
-                  pendingPickQty <= 0 ||
-                  pendingPickQty > pendingPick.remainingTotal ||
-                  (typeof pendingPick.availableInBin === 'number' && pendingPickQty > pendingPick.availableInBin)
-                }
-              />
+            </article>
+          </> : <div className="handheld-empty"><h2>{assignmentError ? 'Auftrag nicht verfügbar' : progress.complete ? 'Alle Artikel gepickt' : 'Keine freie Pick-Arbeit'}</h2></div>}
+          <footer className="handheld-actions">
+            {otherScanner ? <button className="handheld-primary" disabled={assignmentBusy} onClick={() => void assignNextOrder(true)}>Auf diesem Scanner fortsetzen</button>
+            : assignedOrder?.pickWork?.status === 'paused' ? <button className="handheld-primary" disabled={assignmentBusy} onClick={() => void assignNextOrder()}>Auftrag fortsetzen</button>
+            : finished ? <button className="handheld-primary" disabled={assignmentBusy} onClick={() => void assignNextOrder()}>Nächster Auftrag</button>
+            : progress.complete ? <button className="handheld-primary" disabled={pickBusy} onClick={async () => {
+                if (!assignedOrder) return; setPickBusy(true);
+                try { await completeOrder(assignedOrder.id); setAssignedOrder({ ...assignedOrder, omsStatus: 'picked' }); }
+                catch (error: any) { setAssignmentError(error.message); } finally { setPickBusy(false); }
+              }}>Auftrag abschließen</button>
+            : task ? <button className="handheld-primary" disabled={!pendingPick || pickBusy || !pendingPickQty} onClick={() => pendingPick && void submitPick(pendingPick, pendingPickQty)}>
+                {pickBusy ? 'Wird gebucht…' : pendingPick ? `${pendingPickQty} Stück gepickt` : !activeBin ? 'BIN scannen' : 'Artikel scannen'}</button>
+            : <button className="handheld-primary" disabled={assignmentBusy} onClick={() => void assignNextOrder()}>Erneut prüfen</button>}
+            <div className="handheld-secondary-row">
+              <button className="handheld-secondary" disabled={pickBusy || assignmentBusy} onClick={() => void pause()}>{finished ? 'Übersicht' : 'Pause'}</button>
+              <button className="handheld-secondary" disabled={!task || pickBusy} onClick={() => setPickRouteOpen(true)}>Artikel</button>
+              <button className="handheld-secondary" disabled={!assignedOrder || pickBusy || Boolean(finished)} onClick={async () => {
+                try { if (assignedOrder) await pausePickWork(assignedOrder); setAssignmentError('Auftrag pausiert. Fehlmenge am Packtisch klären.'); setPendingPick(null); setAssignedOrder((o) => o?.pickWork ? { ...o, pickWork: { ...o.pickWork, status: 'paused' } } : o); }
+                catch (error: any) { setAssignmentError(error.message); }
+              }}>Problem</button>
             </div>
-          ) : pickTasks.length === 0 && !ordersLoading ? (
-            <p className="text-sm text-txt-secondary">{t('ops.orders.none')}</p>
-          ) : nextTask ? (
-            <div className="space-y-2">
-              <div className="flex items-start gap-3">
-                <div className="w-12 h-12 rounded-xl bg-app-elevated border border-app-border overflow-hidden flex items-center justify-center shrink-0">
-                  {nextTask.thumbnailUrl ? (
-                    <img src={nextTask.thumbnailUrl} alt="" className="w-full h-full object-cover" loading="lazy" />
-                  ) : (
-                    <span className="text-[11px] text-txt-secondary">{t('common.noImage')}</span>
-                  )}
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-txt-primary line-clamp-2">{nextTask.name}</p>
-                  <p className="text-xs text-txt-muted mt-1">
-                    {t('common.order')} {nextTask.orderNumber || nextTask.orderId}
-                  </p>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="rounded-xl bg-app-bg/60 border border-app-border p-2">
-                  <p className="text-[11px] uppercase tracking-widest text-txt-muted">{t('common.bin')}</p>
-                  <p className="text-3xl font-extrabold text-txt-primary tracking-wider break-all">{nextTask.binCode || '—'}</p>
-                  {nextBinGroupCount > 1 ? (
-                    <p className="text-[11px] text-txt-muted mt-1">
-                      {t('ops.mobile.pick.binGroupCount', { count: nextBinGroupCount })}
-                    </p>
-                  ) : null}
-                </div>
-                <div className="rounded-xl bg-app-bg/60 border border-app-border p-2">
-                  <p className="text-[11px] uppercase tracking-widest text-txt-muted">{t('common.sku')}</p>
-                  <p className="text-base font-bold text-txt-primary break-all">{nextTask.sku}</p>
-                  <p className="text-[11px] text-txt-muted mt-1">{t('ops.labels.openRemaining', { count: nextTask.remainingTotal })}</p>
-                </div>
-              </div>
-            </div>
-          ) : null}
-        </div>
-
-        {!pendingPick && pickTasks.length > 0 ? (
-          <details className="rounded-2xl border border-app-border bg-app-surface p-3">
-            <summary className="cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden text-sm font-semibold text-txt-primary flex items-center justify-between">
-              <span>
-                {t('ops.mobile.route')} ({pickTasks.length})
-              </span>
-              <span className="text-txt-muted">▾</span>
-            </summary>
-            <div className="mt-3 space-y-2">
-              {pickTasks.slice(0, 100).map((task) => {
-                const key = task.taskKey;
-                const isHighlighted = highlightKey === key;
-                return (
-                  <button
-                    type="button"
-                    key={key}
-                    onClick={() => {
-                      const maxQtyByBin =
-                        typeof task.availableInBin === 'number'
-                          ? Math.min(task.remainingTotal, task.availableInBin)
-                          : task.remainingTotal;
-                      setPendingPick(task);
-                      setPendingPickQty(Math.max(1, Math.min(maxQtyByBin, Number(task.suggestedQty || 1) || 1)));
-                      setActiveBin(task.binCode || '');
-                      setActiveSku(task.sku || '');
-                      setHighlightKey(key);
-                    }}
-                    aria-label={`Pick-Aufgabe: ${task.name}, BIN ${task.binCode || 'unbekannt'}, SKU ${task.sku}`}
-                    className={`w-full text-left rounded-2xl border p-3 shadow-sm shadow-black/20 ${
-                      isHighlighted ? 'border-accent bg-accent-dim' : 'border-app-border bg-app-bg/50'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-txt-primary line-clamp-2">{task.name}</p>
-                        <p className="text-xs text-txt-muted mt-1">
-                          {t('common.order')} {task.orderNumber || task.orderId}
-                        </p>
-                        <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                          <span className="px-2 py-1 rounded-full border border-app-border bg-white/5 text-txt-secondary">
-                            {t('common.sku')}: <span className="font-semibold text-txt-primary">{task.sku}</span>
-                          </span>
-                          <span className="px-2 py-1 rounded-full border border-app-border bg-white/5 text-txt-secondary">
-                            {t('ops.labels.openRemaining', { count: task.remainingTotal })}
-                          </span>
-                          <span className="px-2 py-1 rounded-full border border-app-border bg-white/5 text-txt-secondary">
-                            {t('ops.pick.quantityHint', { value: task.suggestedQty })}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="shrink-0 text-right">
-                        <p className="text-[11px] uppercase tracking-widest text-txt-muted">{t('common.bin')}</p>
-                        <p className="text-xl font-extrabold text-txt-primary tracking-wider">{task.binCode || '—'}</p>
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </details>
-        ) : null}
-      </div>
+          </footer>
+        </>}
+      </section>
     );
   }
 
@@ -2272,7 +2108,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
     const scopedItems = packScopedOrderKey ? packItems.filter((item) => item.orderKey === packScopedOrderKey) : packItems;
     const selectedItem = packSelectedKey
       ? packItems.find((item) => `${item.orderKey}::${item.sku}::${item.binCode}` === packSelectedKey) || null
-      : null;
+      : packScopedOrderKey ? scopedItems[0] || null : null;
 
     const cycleSelection = (direction: 1 | -1) => {
       const list = scopedItems.length ? scopedItems : packItems;
@@ -2300,6 +2136,12 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
       shippingMethodId: number | null,
       shippingOptionCode?: string
     ) => {
+      // Persist the order before the request: after a lost response, only
+      // retrieve/print its existing shipment, never create another blindly.
+      if (shipInFlightRef.current) return;
+      shipInFlightRef.current = true;
+      const recoveryLabel = { orderId, orderLabel, carrier: null };
+      sessionStorage.setItem(`avycloud:pending-label:${user?.uid}`, JSON.stringify(recoveryLabel));
       try {
         const result = await packAndShip(orderId, {
           weight: weightKg,
@@ -2311,30 +2153,20 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
           labelFormat: printingPrefs.labelFormat || 'a6',
         });
 
-        // Das Etikett wird NICHT mehr in einem Tab angezeigt. Auf dem
-        // Handscanner war Drucken von dort sechs Schritte weit weg (Fenster in
-        // den Hintergrund, wieder öffnen, Drei-Punkte-Menü, Teilen, Drucken,
-        // Druck-Symbol). Stattdessen steht sofort ein großer Druck-Knopf da,
-        // der direkt in Androids Teilen-/Druck-Auswahl führt.
-        if (result.labelBlob) {
-          if (result.labelBlobUrl) URL.revokeObjectURL(result.labelBlobUrl);
-          setPendingLabel({ blob: result.labelBlob, orderId, orderLabel, carrier: result.carrier || null });
-          setPackMessage(`${orderLabel} verpackt & Etikett bereit (${result.carrier || '?'}).`);
-        } else if (result.labelBlobUrl) {
-          setPackMessage(
-            `${orderLabel} verpackt & Label erstellt (${result.carrier || '?'}) — Etikett konnte nicht geladen werden.`
-          );
-        } else {
-          setPackMessage(
-            `${orderLabel} verpackt & versendet — kein Label-PDF verfügbar.${result.labelError ? ` (${result.labelError})` : ''}`
-          );
-        }
-      } catch (err: any) {
-        setPackMessage(t('ops.mobile.pack.scan.error', { message: err?.message || t('common.unknownError') }));
-      } finally {
-        void refreshOrders();
+        if (result.labelBlobUrl) URL.revokeObjectURL(result.labelBlobUrl);
+        setPendingLabel({ orderId, orderLabel, carrier: result.carrier || null, shipmentId: result.shipmentId });
+        setLabelHandedOver(false);
+        setPackMessage(null);
         setPackScopedOrderKey(null);
         setPackSelectedKey(null);
+        await startLabelPrint({ orderId, shipmentId: result.shipmentId });
+      } catch (err: any) {
+        setPendingLabel(recoveryLabel);
+        setDruckFehler(`Versandantwort fehlt: ${err?.message || 'Auftrag am Packtisch prüfen.'}`);
+        setShipDecisionStep('idle');
+      } finally {
+        shipInFlightRef.current = false;
+        void refreshOrders();
       }
     };
 
@@ -2381,30 +2213,19 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
     };
 
     const submitPack = () => {
-      if (!selectedItem?.orderId) return;
+      if (!selectedItem?.orderId || packBusy || !packProgress(scopedItems.map((it) => `${it.orderKey}::${it.sku}::${it.binCode}`), packVerified).complete) return;
+      setPackBusy(true);
       setPackMessage(null);
 
       const order = readyToPackOrders.find((o) => o.id === selectedItem.orderId);
       const orderLabel = selectedItem.orderNumber || selectedItem.orderId;
 
-      // No address → pack only, never attempt a label (avoids a guaranteed SendCloud 400).
+      // Keep the order in packing until its address is usable.
       const cust = order?.customer;
       const hasAddress = cust?.street && cust?.city && cust?.zip;
       if (!hasAddress) {
-        void (async () => {
-          try {
-            await packOrder(selectedItem.orderId);
-            setPackMessage(
-              `${orderLabel} verpackt — Versandlabel nicht möglich (Adresse unvollständig).`
-            );
-          } catch (err: any) {
-            setPackMessage(t('ops.mobile.pack.scan.error', { message: err?.message || t('common.unknownError') }));
-          } finally {
-            void refreshOrders();
-            setPackScopedOrderKey(null);
-            setPackSelectedKey(null);
-          }
-        })();
+        setPackMessage('Lieferadresse unvollständig. Auftrag am Packtisch prüfen.');
+        setPackBusy(false);
         return;
       }
 
@@ -2438,7 +2259,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
           );
         } catch (err: any) {
           setPackMessage(t('ops.mobile.pack.scan.error', { message: err?.message || t('common.unknownError') }));
-        }
+        } finally { setPackBusy(false); }
       })();
     };
 
@@ -2541,222 +2362,57 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
       setCuratedThreshold(null);
       setCuratedValueKnown(true);
     };
+    const packKeys = scopedItems.map((item) => `${item.orderKey}::${item.sku}::${item.binCode}`);
+    const checked = packProgress(packKeys, packVerified);
+    const selectedKey = selectedItem ? `${selectedItem.orderKey}::${selectedItem.sku}::${selectedItem.binCode}` : null;
+    const printPending = async (reprintId?: string) => {
+      if (!pendingLabel || labelPrinting) return;
+      await startLabelPrint({ ...pendingLabel, reprintId: reprintId || pendingLabel.reprintId });
+    };
     return (
-      <div className="max-w-xl mx-auto flex flex-col gap-3">
+      <div className="handheld-screen" aria-label="Packen">
         {renderScanCapture()}
-        <div className="flex items-end justify-between gap-3">
-          <div>
-            <h2 className="text-xl font-semibold text-txt-primary">{t('ops.mode.pack')}</h2>
+        <header className="handheld-heading"><PageTitle>Packen</PageTitle>
+          <span className="handheld-counter">{packScopedOrderKey ? `${checked.completed}/${checked.total} Artikel` : `${readyToPackOrders.length} ${readyToPackOrders.length === 1 ? 'Auftrag' : 'Aufträge'}`}</span>
+        </header>
+        <p className="handheld-order">{pendingLabel?.orderLabel || selectedItem?.orderNumber || 'Auftrag oder Artikel scannen'}</p>
+        {pendingLabel ? <>
+          <div className="handheld-empty"><span className="handheld-check">{labelHandedOver ? '✓' : '▤'}</span>
+            <h2>{labelHandedOver ? 'An Druckstation übergeben' : 'Versandlabel bereit'}</h2>
+            <p>{pendingLabel.carrier || 'Versandlabel'}</p>
           </div>
-          <div className="text-right text-xs text-txt-muted">
-            <p className="font-semibold text-txt-secondary tabular-nums">{packScopedOrderKey ? scopedItems.length : packItems.length}</p>
-            <p>{t('ops.badge.pack')}</p>
-          </div>
-        </div>
-
-        {/* Zustand des Druckwegs — sichtbar BEVOR jemand packt. Ein toter
-            Agent faellt sonst erst auf, wenn das Paket fertig verpackt ist. */}
-        {printAgentOnline === false ? (
-          <div role="status" className="rounded-2xl border border-warning/40 bg-warning-dim p-2.5 text-xs text-warning">
-            Druck-Agent offline — Etiketten koennen gerade nicht aus AvyCloud gedruckt werden.
-          </div>
-        ) : null}
-
-        {pendingLabel ? (
-          <div className="rounded-2xl border-2 border-success bg-success-dim p-3 space-y-2">
-            <p className="text-sm font-semibold text-success">
-              {pendingLabel.orderLabel} — Etikett bereit{pendingLabel.carrier ? ` (${pendingLabel.carrier})` : ''}
-            </p>
-            <button
-              type="button"
-              disabled={labelPrinting}
-              onClick={async () => {
-                setLabelPrinting(true);
-                setDruckFehler(null);
-                try {
-                  // IMMER über AvyCloud drucken — der Agent im Büro-Netz gibt
-                  // das Etikett an das Gerät, das zum Transporteur passt
-                  // (DHL/DPD 103x164 mm, Deutsche Post 62x100 mm).
-                  //
-                  // BEWUSST KEIN automatisches Ausweichen auf Androids
-                  // Teilen-/Druckauswahl (Betreiber-Anweisung 2026-08-31): die
-                  // AvyCloud-Oberfläche darf für einen Druckauftrag nicht
-                  // verlassen werden. Klemmt etwas, wird das HIER gemeldet —
-                  // der Ausweichweg ist ein eigener, ausdrücklich beschrifteter
-                  // Knopf, den nur ein Mensch antippt.
-                  // Erst nachsehen, ob der Agent lebt. Ohne diese Pruefung
-                  // wird der Auftrag eingereiht und der Bediener wartet 30 s
-                  // auf eine Rueckmeldung, die nie kommt.
-                  const stand = await fetchPrintStatus();
-                  setPrintAgentOnline(Boolean(stand.enabled && stand.online));
-                  if (!stand.enabled || !stand.online) {
-                    setDruckFehler('Druck-Agent nicht erreichbar — es wurde NICHTS gedruckt.');
-                    return;
-                  }
-
-                  const job = await enqueueLabelPrint(pendingLabel.orderId);
-                  const fertig = await waitForPrintJob(job.jobId);
-                  if (fertig.status === 'done') {
-                    setPackMessage(`${pendingLabel.orderLabel} — Etikett gedruckt.`);
-                    setPendingLabel(null);
-                    return;
-                  }
-                  setDruckFehler(`Drucker meldet einen Fehler: ${fertig.error || 'unbekannt'}`);
-                } catch (err: any) {
-                  setDruckFehler(err?.message || 'Druck über AvyCloud fehlgeschlagen');
-                } finally {
-                  setLabelPrinting(false);
-                }
-              }}
-              className="w-full rounded-xl bg-success text-white font-bold h-14 text-base disabled:opacity-50"
-            >
-              {labelPrinting ? 'Drucke…' : 'Etikett drucken'}
-            </button>
-
-            {/* Fehler bleibt stehen, bis er behoben oder weggetippt wird. Ein
-                Etikett, das nicht kam, darf nicht stillschweigend verschwinden. */}
-            {druckFehler ? (
-              <div role="alert" className="rounded-xl border border-danger/40 bg-danger-dim p-2.5 space-y-2">
-                <p className="text-xs text-danger">{druckFehler}</p>
-                <p className="text-[11px] text-txt-muted">
-                  {printAgentOnline === false
-                    ? 'Der Druck-Agent im Büro meldet sich nicht. Läuft er auf dem Büro-Rechner?'
-                    : 'Drucker prüfen (Papier, Deckel, Netzwerk) und erneut versuchen.'}
-                </p>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    // Notausgang, NUR auf ausdrückliches Antippen. Öffnet
-                    // Androids Auswahl — deshalb klar benannt.
-                    const res = await printLabelBlob(pendingLabel.blob, `label-${pendingLabel.orderLabel}.pdf`);
-                    if (res.ok) { setPendingLabel(null); setDruckFehler(null); }
-                    else if (!res.cancelled && res.error) setDruckFehler(res.error);
-                  }}
-                  className="w-full rounded-lg bg-app-surface border border-app-border text-txt-primary text-xs font-semibold py-2"
-                >
-                  Notweg: über Android teilen
-                </button>
-              </div>
-            ) : null}
-
-            <button
-              type="button"
-              onClick={() => { setPendingLabel(null); setDruckFehler(null); }}
-              className="w-full text-xs text-txt-muted underline"
-            >
-              Ohne Druck weiter
-            </button>
-          </div>
-        ) : null}
-
-        {packMessage ? (
-          <div role="status" aria-live="polite" className="rounded-2xl border border-app-border bg-app-bg/40 p-3 text-sm text-txt-secondary">{packMessage}</div>
-        ) : null}
-
-        <div className="rounded-2xl border border-app-border bg-app-surface p-3 space-y-2">
-          <div className="grid grid-cols-2 gap-2">
-            <div className="rounded-2xl border border-app-border bg-app-bg/40 p-3">
-              <p className="text-[11px] uppercase tracking-widest text-txt-muted">{t('common.order')}</p>
-              <p className="text-base font-bold text-txt-primary break-all">
-                {scopedOrderPreview?.orderNumber ||
-                  (packScopedOrderKey ? packScopedOrderKey : `${t('ops.actions.scan')} ${t('common.order')}`)}
-              </p>
+          {druckFehler && <div role="alert" className="handheld-error">{druckFehler}</div>}
+          <footer className="handheld-actions">
+            {labelHandedOver ? <button className="handheld-primary" onClick={() => { setPendingLabel(null); setLabelHandedOver(false); setDruckFehler(null); }}>Label angebracht · fertig</button>
+              : <button className="handheld-primary" disabled={labelPrinting} onClick={() => void printPending()}>{labelPrinting ? 'Warte auf Druckstation…' : druckFehler ? 'Druckstatus erneut prüfen' : 'Label drucken'}</button>}
+            {mayReprintLabel(lastPrintStatus) && <button className="handheld-secondary" disabled={labelPrinting} onClick={() => {
+              if (window.confirm('Nur bestätigen, wenn ein weiterer Ausdruck benötigt wird. Dasselbe Label erneut drucken?')) { const id = crypto.randomUUID(); setPendingLabel({ ...pendingLabel, reprintId: id }); setLabelHandedOver(false); void printPending(id); }
+            }}>Label erneut drucken</button>}
+          </footer>
+        </> : <>
+          {printAgentOnline === false && <p className="text-warning text-sm" role="status">Druckstation offline</p>}
+          {(ordersError || packMessage) && <div role="status" className="handheld-error">{ordersError || packMessage}</div>}
+          {selectedItem ? <article className="handheld-product">
+            <div className="handheld-product-top">{selectedItem.thumbnailUrl && <img src={selectedItem.thumbnailUrl} alt="" />}<h2>{selectedItem.name}</h2></div>
+            <div className="handheld-sku"><span>{packScannedKey === selectedKey ? '✓ Artikel' : 'Artikel scannen'}</span><strong className="handheld-code">{selectedItem.sku}</strong></div>
+            <div className="handheld-amount"><div><span>In dieses Paket</span><strong>{selectedItem.qty}<small> Stück</small></strong></div></div>
+          </article> : <div className="handheld-empty"><h2>{ordersLoading ? 'Aufträge werden geladen…' : packItems.length ? 'Bereit zum Packen' : 'Alles gepackt'}</h2></div>}
+          <footer className="handheld-actions">
+            {selectedItem ? checked.complete ? <button className="handheld-primary" disabled={packBusy || shipDecisionBusy} onClick={submitPack}>{packBusy ? 'Versand wird vorbereitet…' : 'Paket fertig · Versand'}</button>
+              : <button className="handheld-primary" disabled={packScannedKey !== selectedKey} onClick={() => {
+                if (!selectedKey || packScannedKey !== selectedKey) return;
+                const verified = { ...packVerified, [selectedKey]: true }; setPackVerified(verified);
+                const next = scopedItems.find((item) => !verified[`${item.orderKey}::${item.sku}::${item.binCode}`]);
+                if (next) { setPackSelectedKey(`${next.orderKey}::${next.sku}::${next.binCode}`); setPackScannedKey(null); }
+              }}>{packScannedKey === selectedKey ? `${selectedItem.qty} Stück im Paket` : 'Artikel scannen'}</button>
+              : packItems.length > 0 && <button className="handheld-primary" onClick={() => { setPackScannedKey(null); cycleSelection(1); }}>Nächster Auftrag</button>}
+            <div className="handheld-secondary-row">
+              <button className="handheld-secondary" disabled={packBusy} onClick={() => onNavigate('operations')}>Übersicht</button>
+              <button className="handheld-secondary" disabled={!selectedItem || packBusy} onClick={() => { setPackScannedKey(null); cycleSelection(1); }}>Artikel</button>
+              <button className="handheld-secondary" disabled={!selectedItem || packBusy} onClick={() => { setPackSelectedKey(null); setPackScopedOrderKey(null); setPackScannedKey(null); setPackMessage(null); }}>Zurück</button>
             </div>
-            <div className="rounded-2xl border border-app-border bg-app-bg/40 p-3">
-              <p className="text-[11px] uppercase tracking-widest text-txt-muted">{t('common.sku')}</p>
-              <p className="text-base font-bold text-txt-primary break-all">
-                {selectedItem?.sku || `${t('ops.actions.scan')} ${t('common.sku')}`}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-start justify-end gap-3">
-            <button
-              type="button"
-              aria-label="Verpackungs-Auswahl zuruecksetzen"
-              className="shrink-0 rounded-xl bg-app-bg/50 border border-app-border px-3 py-2 text-xs font-semibold text-txt-primary"
-              onClick={() => {
-                setPackMessage(null);
-                setPackScopedOrderKey(null);
-                setPackSelectedKey(null);
-              }}
-            >
-              {t('common.reset')}
-            </button>
-          </div>
-
-          {ordersLoading ? <p role="status" aria-live="polite" className="text-xs text-txt-muted">{t('ops.orders.loading')}</p> : null}
-        </div>
-
-        {ordersError ? ordersErrorBlock : null}
-        {packItems.length === 0 && !ordersLoading && !ordersError ? (
-          <p className="text-sm text-txt-muted">{t('ops.mobile.pack.none')}</p>
-        ) : null}
-
-        {selectedItem ? (
-          <div className="rounded-2xl border border-app-border bg-app-bg/30 p-3 space-y-3">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex-1 min-w-0 flex items-start gap-3">
-                <div className="w-12 h-12 rounded-xl bg-app-elevated border border-app-border overflow-hidden flex items-center justify-center shrink-0">
-                  {selectedItem.thumbnailUrl ? (
-                    <img src={selectedItem.thumbnailUrl} alt="" className="w-full h-full object-cover" loading="lazy" />
-                  ) : (
-                    <span className="text-[11px] text-txt-secondary">{t('common.noImage')}</span>
-                  )}
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-txt-primary line-clamp-2">{selectedItem.name}</p>
-                  <p className="text-xs text-txt-muted mt-1">
-                    {t('common.order')} {selectedItem.orderNumber || selectedItem.orderId}
-                  </p>
-                </div>
-              </div>
-              <StatusBadge label={t('ops.badge.pack')} tone="warn" />
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              <div className="rounded-xl bg-app-bg/60 border border-app-border p-2">
-                <p className="text-[11px] uppercase tracking-widest text-txt-muted">{t('common.bin')}</p>
-                <p className="text-lg font-bold text-txt-primary break-all">{selectedItem.binCode || '—'}</p>
-              </div>
-              <div className="rounded-xl bg-app-bg/60 border border-app-border p-2">
-                <p className="text-[11px] uppercase tracking-widest text-txt-muted">{t('common.qty')}</p>
-                <p className="text-lg font-extrabold text-txt-primary tabular-nums">{selectedItem.qty}</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                aria-label="Als verpackt markieren"
-                className="h-14 rounded-2xl bg-success-dim text-success font-extrabold text-lg"
-                onClick={submitPack}
-              >
-                Verpackt
-              </button>
-              <button
-                type="button"
-                aria-label="Naechstes Produkt anzeigen"
-                className="h-14 rounded-2xl bg-app-surface text-txt-primary font-semibold text-lg border border-app-border"
-                onClick={() => cycleSelection(1)}
-              >
-                Nächstes
-              </button>
-            </div>
-          </div>
-        ) : packItems.length > 0 ? (
-          <div className="rounded-2xl border border-app-border bg-app-bg/30 p-3 space-y-3">
-            <p className="text-sm text-txt-secondary">Scan Auftrag oder SKU, um zu starten.</p>
-            <button
-              type="button"
-              aria-label="Produkte durchgehen"
-              className="h-14 rounded-2xl bg-app-surface text-txt-primary font-semibold text-lg border border-app-border"
-              onClick={() => cycleSelection(1)}
-            >
-              Produkte durchgehen
-            </button>
-          </div>
-        ) : null}
+          </footer>
+        </>}
 
         {shipDecisionStep === 'weight' && shipDecisionTarget ? (
           <WeightPromptModal
@@ -2785,6 +2441,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
           <ShippingOptionModal
             weightKg={shipDecisionWeight}
             products={curatedProducts}
+            confirmLabel="Label drucken"
             warn={curatedWarn}
             trackedOnly={curatedTrackedOnly}
             trackedOnlyThresholdEur={curatedThreshold}
@@ -2846,22 +2503,22 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
   ];
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 max-w-xl mx-auto w-full">
-      <h1 className="text-2xl font-semibold text-txt-primary mb-3 shrink-0">{t('ops.title')}</h1>
-      <div className="flex-1 flex flex-col gap-3 min-h-0">
-        {hubActions.map((action) => (
+    <div className="handheld-hub flex flex-col min-h-0 max-w-xl mx-auto w-full">
+      <PageTitle className="text-2xl font-semibold mb-3">Operationen</PageTitle>
+      <div className="handheld-hub-grid">
+        {hubActions.filter((action) => canAccessView(action.mode, hasPermission)).map((action) => (
           <button
             key={action.mode}
             type="button"
-            aria-label={t(action.labelKey)}
-            className={`flex-1 min-h-[76px] w-full rounded-2xl border px-6 flex items-center gap-4 font-semibold text-xl transition active:scale-[0.99] ${action.cardClass}`}
+            aria-label={action.mode === 'operations-pick' ? 'Picken' : t(action.labelKey)}
+            className={`min-h-0 w-full rounded-2xl border p-4 flex flex-col items-start justify-between gap-3 font-semibold text-base transition active:scale-[0.99] ${action.cardClass}`}
             onClick={() => onNavigate(action.mode)}
           >
-            <span className="shrink-0">{action.icon}</span>
-            <span className="flex-1 text-left">{t(action.labelKey)}</span>
-            {action.count != null && action.count > 0 && (
-              <span className={`text-base font-bold px-3 py-1 rounded-full ${action.badgeClass}`}>{action.count}</span>
-            )}
+            <span className="w-full flex items-center justify-between gap-2">
+              {action.icon}
+              {action.count != null && <span className={`text-base font-bold px-2 py-1 rounded-full ${action.badgeClass}`}>{action.count}</span>}
+            </span>
+            <span className="text-left">{action.mode === 'operations-pick' ? 'Picken' : t(action.labelKey)}</span>
           </button>
         ))}
       </div>
@@ -2913,16 +2570,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
               </button>
             ))}
           </div>
-          <p className="text-[11px] text-txt-muted">
-            Wird automatisch auf „Tastatur aus" gestellt, sobald ein Scan als
-            echte Tastenanschläge ankommt — dann ist bewiesen, dass dieses Gerät
-            ohne Tastatur auskommt.
-            Gilt nur für dieses Gerät. „Tastatur aus" schaltet auch den
-            IME-Scanner ab — erst umstellen, wenn ein Scan noch ankommt.
-            Dauerhaft ohne Tastatur geht nur über die Android-Einstellungen des
-            Geräts (MUNBYN: „FeatureSettings", NETUM: Null-Tastatur als
-            Standard).
-          </p>
+
         </div>
       </details>
     </div>

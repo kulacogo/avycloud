@@ -604,6 +604,7 @@ export interface OrderItemPickHint {
   binCode?: string | null;
   quantityAvailable?: number | null;
   image?: string | null;
+  bins?: Array<{ code: string; quantity: number }>;
 }
 
 export interface OrderItem {
@@ -633,7 +634,19 @@ export interface OrderCustomer {
   postNumber?: string | null;
 }
 
+export interface PickWork {
+  version: number;
+  ownerUid: string;
+  ownerName: string;
+  sessionId: string;
+  token: string;
+  status: 'active' | 'paused';
+  updatedAt: string;
+  lines: Array<{ itemId: string; required: number; picked: number }>;
+}
+
 export interface Order {
+  pickWork?: PickWork;
   id: string;
   orderId?: string;
   orderSource?: string | null;

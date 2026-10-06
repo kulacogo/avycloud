@@ -46,6 +46,7 @@ import { useSSE } from './hooks/useSSE';
  */
 const Dashboard = lazy(() => import('./components/Dashboard'));
 const DashboardMobile = lazy(() => import('./components/DashboardMobile'));
+const HandheldHome = lazy(() => import('./components/HandheldHome'));
 const AdminPanel = lazy(() => import('./components/admin/AdminPanel').then((m) => ({ default: m.AdminPanel })));
 const AdminTable = lazy(() => import('./components/AdminTable'));
 const ApiSettings = lazy(() => import('./components/settings/ApiSettings').then((m) => ({ default: m.ApiSettings })));
@@ -978,7 +979,7 @@ const AppInner: React.FC = () => {
     switch (view) {
       case 'home':
         return isMobile ? (
-          <DashboardMobile
+          hasPermission('orders', 'pick') || hasPermission('orders', 'pack') ? <HandheldHome onNavigate={(next) => setView(next as View)} /> : <DashboardMobile
             products={products}
             onRefreshProducts={loadProducts}
             onNavigate={(next) => setView(next as View)}

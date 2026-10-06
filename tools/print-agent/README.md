@@ -36,15 +36,15 @@ liegen.
 bash tools/print-agent/einrichten.sh
 ```
 
-Fragt **nur** E-Mail und Passwort. Alles andere ist vorausgefüllt. Das Skript
+Fragt E-Mail und Passwort **lokal im Terminal**, Passwort verdeckt. Voraussetzungen: macOS mit CUPS und Node.js ≥20, Rechner im Drucker-LAN, beide Drucker eingerichtet, Konto mit `orders:read` und `orders:ship`.
 
-1. prüft, dass beide Drucker existieren,
-2. prüft die Anmeldung **und** das Schreibrecht, bevor es irgendetwas einrichtet,
-3. schreibt `~/Library/LaunchAgents/de.trendocean.print-agent.plist` (`chmod 600`,
-   enthält das Passwort),
-4. startet den Agenten und wartet auf die erste Lebendmeldung.
+1. Drucker und Rollenformate prüfen.
+2. Bei Firebase anmelden und bestehende Berechtigungen prüfen; keine Rollen ändern.
+3. Laufzeit unabhängig vom Git-Checkout nach `~/Library/Application Support/AvyCloud Print Agent/current` kopieren.
+4. Nur eine erneuerbare Sitzung in `session.json` speichern (600, Verzeichnis 700). Kein Kontopasswort in plist oder Logs.
+5. LaunchAgent installieren/starten und den Heartbeat **dieser Station** abwarten.
 
-Bricht einer der Schritte ab, wird nichts halb eingerichtet zurückgelassen.
+Bei Fehlern nach Installation Logs prüfen; ein erfolgreicher Login allein bedeutet keinen erfolgreichen Druck. Erneutes Ausführen aktualisiert dieselbe Station. Mac muss angemeldet, wach und im Drucker-LAN bleiben. Nach Ende dieser Bedingung wird die Station offline.
 
 ### Am Gerät gemessen (2026-08-24)
 
@@ -65,19 +65,14 @@ Briefrolle reicht das Maß allein nicht (`DP_Label` und `SKU_Label` führen beid
 Hintergrund: Am 2026-08-24 wurde `Versandlabel` in `DHL_DPD_Label` umbenannt und
 die Einrichtung brach ab, weil der Name fest eingetragen war.
 
-### Manueller Betrieb (ohne launchd)
+### Prüfung ohne Produktionsaufträge
 
 ```bash
-export AVYCLOUD_URL="https://product-hub-backend-79205549235.europe-west3.run.app"
-export FIREBASE_API_KEY="…"   # steht in .env.local als VITE_FIREBASE_API_KEY
-export AGENT_EMAIL="…@trendocean.de"
-export AGENT_PASSWORT="…"
-export PRINTER_PARCEL="DHL_DPD_Label"   # nur noetig, wenn die Erkennung nicht eindeutig ist
-export PRINTER_LETTER="DP_Label"
-
-npm run dry-run   # holt Aufträge, druckt aber nichts
-npm start         # Dauerbetrieb
+node tools/print-agent/index.js --list-printers
+node tools/print-agent/index.js --dry-run
 ```
+
+`--dry-run` prüft die Druckerkonfiguration, holt **keine** Aufträge ab und druckt nichts. Für manuellen Dauerbetrieb die vom Installer erzeugte `AGENT_SESSION_FILE` sowie Backend-URL und öffentlichen Firebase-Key setzen; keine Passwörter in Shell-Historien ablegen.
 
 ## Warum `103x164mm` und nicht `Custom.103x164mm`
 
@@ -111,50 +106,27 @@ Rollenmaß, aber jeder Drucker hat einen nicht bedruckbaren Rand. Ohne Einpassen
 schneidet genau dieser Rand den Barcode an. Das Einpassen behält das
 Seitenverhältnis bei, es verzerrt nichts.
 
-## Dauerbetrieb einrichten (launchd, macOS)
+## Dauerbetrieb und Wiederanlauf
 
-`~/Library/LaunchAgents/de.trendocean.print-agent.plist`:
+Der Installer verwaltet `~/Library/LaunchAgents/de.trendocean.print-agent.plist`. Laufzeit, private Sitzung und Logs liegen unter `~/Library/Application Support/AvyCloud Print Agent/`. Das Verzeichnis `journal/` enthält die dauerhaften Druckquittungen und darf bei Updates nicht entfernt werden.
 
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
-  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0"><dict>
-  <key>Label</key><string>de.trendocean.print-agent</string>
-  <key>ProgramArguments</key>
-  <array>
-    <string>/usr/local/bin/node</string>
-    <string>/Users/oguz/Dev/avycloud/tools/print-agent/index.js</string>
-  </array>
-  <key>EnvironmentVariables</key><dict>
-    <key>AVYCLOUD_URL</key><string>…</string>
-    <key>FIREBASE_API_KEY</key><string>…</string>
-    <key>AGENT_EMAIL</key><string>…</string>
-    <key>AGENT_PASSWORT</key><string>…</string>
-    <key>PRINTER_PARCEL</key><string>…</string>  <!-- optional, Erkennung reicht -->
-    <key>PRINTER_LETTER</key><string>…</string>
-  </dict>
-  <key>RunAtLoad</key><true/>
-  <key>KeepAlive</key><true/>
-  <key>StandardOutPath</key><string>/tmp/avycloud-print-agent.log</string>
-  <key>StandardErrorPath</key><string>/tmp/avycloud-print-agent.err</string>
-</dict></plist>
-```
+Gegen ein altes Backend wartet der Agent vor dem Claim auf dessen Protokoll-2-Update. Nach dem Rollout müssen neue Heartbeats und Druckquittungen geprüft werden.
 
-```bash
-launchctl load ~/Library/LaunchAgents/de.trendocean.print-agent.plist
-```
+Protokoll 2 setzt vor CUPS `dispatching`. Nach Annahme durch `lp` wird die Quittung vor der HTTP-Erfolgsmeldung gespeichert. Nach einer verlorenen Antwort sendet der Agent nur die Quittung erneut. Ein Absturz ohne sichere Quittung führt zu `uncertain`: Drucker prüfen und bei Bedarf ausdrücklich dasselbe Label erneut ausgeben. Keine automatische Doppelkopie.
 
-## Wenn der Agent nicht läuft
+`done` belegt CUPS-Annahme, keinen Papierauswurf. Daher bestätigt der Mitarbeiter in AvyCloud abschließend „Label angebracht · fertig“.
 
-AvyCloud merkt das (der Agent meldet sich alle 30 s) und **fällt automatisch auf
-den alten Teilen-Weg zurück**. Der Bediener kann weiterarbeiten — er sieht dann
-wieder Androids Druckauswahl, aber nichts bleibt liegen. Ein Auftrag bei totem
-Agenten stumm einzureihen wäre schlimmer: das Paket bliebe unfrankiert stehen,
-ohne dass es jemand merkt.
+## Offline und Inbetriebnahme
+
+Die neue Handheld-Packansicht zeigt eine fehlende Station offen an und bleibt bei der Labelaufgabe. Sie wechselt nicht still in Androids Druckdialog. Deshalb diese Oberfläche erst produktiv schalten, wenn die Station eingerichtet und geprüft ist.
+
+Abnahme: frische Protokoll-2-Heartbeats, korrekte Zuordnung beider Rollen, je ein als TEST gekennzeichneter Ausdruck auf 103×164 und 62×100 mm, Maße/Ränder/Barcode am Gerät prüfen. Keine echten Versandlabels allein zu Testzwecken kaufen. Ein lokaler Mock ersetzt diese Prüfung nicht.
 
 ## Tests
 
 ```bash
-npm test    # 19 Tests, laufen auch im Wurzel-`npm test` mit
+cd tools/print-agent
+npm test
 ```
+
+Die Agent-Tests laufen zusätzlich im Wurzel-`npm test` mit. Sie prüfen Medienwahl, Quittungswiederholung, unklare Übergabe und die passwortfreie Installation.

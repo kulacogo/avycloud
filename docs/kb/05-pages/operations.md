@@ -65,3 +65,7 @@ Pro-Endpunkt-Doku: `docs/kb/09-api/orders.md`, `docs/kb/09-api/warehouse.md`, `d
 - [TASKS.md](../../../TASKS.md) — **BUG-077** Mobile UI: Kommissionieren + Operationen (✅ gefixt, P2).
 - **CLAUDE.md §13** Stock-Single-Writer-Invariant: `bookStockOut` mit `meta.orderId` MUSS `claimOrderStockDecrementInTx()` aufrufen, sonst Doppel-Decrement-Risiko (siehe Incident SKU-0000108900). Frontend ruft nur die High-Level-Endpoints, die das serverseitig schon korrekt sequencen.
 - **CLAUDE.md §11** Order-State-Übergänge AUSSCHLIESSLICH über `transitionOrder()`. Frontend-Calls `completeOrder`, `packOrder`, `packAndShip` triggern das im Backend; nie `omsStatus` direkt schreiben.
+
+## Handheld-Release 2026-10-07
+
+Der neue Pick-/Pack-Arbeitsablauf und die abweichende Desktop-Zuweisung sind in [Handheld Pick/Pack](../06-features/handheld-pick-pack.md) dokumentiert. Diese Implementierung ersetzt die frühere lokale Pick-Fortschrittsführung. Zum tatsächlichen Produktionsstatus siehe den dort verlinkten Releasebericht.

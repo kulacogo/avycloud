@@ -6,6 +6,8 @@ import {
   fetchWarehouseBinDetail,
   stockInProduct,
   stockOutProduct,
+  claimPickWork,
+  fetchPickWork,
   buildImageProxyUrl,
   fetchOrders as fetchOrdersApi,
   syncOrders as syncOrdersApi,
@@ -110,6 +112,24 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
   // "Skip" list for route building (does NOT mark as picked, only hides from the current route)
   const [skippedPickItemIds, setSkippedPickItemIds] = useState<string[]>([]);
 
+  const [assignedPick, setAssignedPick] = useState<Order | null>(null);
+  const [assignmentBusy, setAssignmentBusy] = useState(false);
+  const [assignmentError, setAssignmentError] = useState<string | null>(null);
+  const [otherPickDevice, setOtherPickDevice] = useState(false);
+  const desktopPickInFlight = useRef(false);
+  const acceptAssignment = useCallback((order: Order | null) => {
+    setAssignedPick(order);
+    setPickedByItemId(Object.fromEntries((order?.pickWork?.lines || []).map((line) => [line.itemId, line.picked])));
+    setSkippedPickItemIds([]);
+  }, []);
+  const assignPick = useCallback(async (takeover = false) => {
+    setAssignmentBusy(true); setAssignmentError(null); setOtherPickDevice(false);
+    try { acceptAssignment(await claimPickWork({ takeover })); }
+    catch (error: any) { setAssignmentError(error.message); setOtherPickDevice(error.code === 'PICK_OTHER_DEVICE'); }
+    finally { setAssignmentBusy(false); }
+  }, [acceptAssignment]);
+  useEffect(() => { if (workflow === 'pick') void assignPick(); }, [workflow, assignPick]);
+
   const [orders, setOrders] = useState<Order[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [ordersError, setOrdersError] = useState<string | null>(null);
@@ -204,8 +224,8 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
 
   const skippedPickItemSet = useMemo(() => new Set(skippedPickItemIds), [skippedPickItemIds]);
 
-  // Keep behavior consistent with Mobile: only "new" orders are considered open/pickable.
-  const openOrders = useMemo(() => orders.filter((order) => order.status === 'new'), [orders]);
+  // List active OMS work; only the assigned order is offered for picking.
+  const openOrders = useMemo(() => orders.filter((order) => ['confirmed', 'picking'].includes(order.omsStatus || '') || order.status === 'new'), [orders]);
   const visibleOrders = useMemo(
     () => (showAllOpenOrders ? openOrders : openOrders.slice(0, 5)),
     [openOrders, showAllOpenOrders]
@@ -238,21 +258,6 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
     }
   }, [openOrders.length, showAllOpenOrders]);
 
-  useEffect(() => {
-    const stillOpenIds = new Set<string>();
-    openOrders.forEach((order) => order.items.forEach((item) => stillOpenIds.add(item.id)));
-
-    setSkippedPickItemIds((prev) => prev.filter((id) => stillOpenIds.has(id)));
-    setPickedByItemId((prev) => {
-      const next: Record<string, number> = {};
-      Object.entries(prev).forEach(([id, qty]) => {
-        if (stillOpenIds.has(id)) {
-          next[id] = qty;
-    }
-      });
-      return next;
-    });
-  }, [openOrders]);
 
   const orderSummary = useMemo(() => {
     const total = orders.length;
@@ -344,7 +349,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
       return pool.find((b) => b.quantity > 0) || null;
     };
 
-    openOrders.forEach((order) => {
+    (assignedPick && ['confirmed', 'picking'].includes(assignedPick.omsStatus || '') ? [assignedPick] : []).forEach((order) => {
       order.items.forEach((item) => {
         if (skippedPickItemSet.has(item.id)) return;
 
@@ -369,7 +374,8 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
 
         if (!skuCandidate) return;
 
-        const allocatedBin = chooseAllocatableBin(product);
+        const stockProduct = hint?.bins ? { ...product, id: hint.productId || product?.id, storageBins: hint.bins, storage: undefined } as Product : product;
+        const allocatedBin = chooseAllocatableBin(stockProduct);
         const fallbackHintBin = hint?.binCode ? String(hint.binCode).toUpperCase() : '';
         const bestBin = allocatedBin || (fallbackHintBin ? { code: fallbackHintBin, quantity: Number(hint?.quantityAvailable || 0) || 0 } : null);
 
@@ -417,7 +423,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
     });
 
     return tasks;
-  }, [openOrders, resolveProductForItem, skippedPickItemSet, pickedByItemId]);
+  }, [assignedPick, resolveProductForItem, skippedPickItemSet, pickedByItemId]);
 
   const nextPickTask = pickRouteTasks[0] || null;
 
@@ -761,7 +767,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
   };
 
   const handlePick = async () => {
-    if (workflow !== 'pick') {
+    if (workflow !== 'pick' || desktopPickInFlight.current || assignmentBusy) {
       return;
     }
     const activeTask = nextPickTask;
@@ -786,10 +792,11 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
     }
     const numericQuantity =
       typeof pickQuantity === 'number' ? pickQuantity : Number(pickQuantity) || 0;
-    if (!numericQuantity || numericQuantity <= 0) {
+    if (!Number.isSafeInteger(numericQuantity) || numericQuantity <= 0) {
       setErrorMessage(t('ops.errors.pickValidation'));
       return;
     }
+    desktopPickInFlight.current = true;
     try {
       setIsSubmitting(true);
       setErrorMessage(null);
@@ -808,11 +815,12 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
         orderItemId: activeTask.itemId,
         meta: {
           flow: 'pick',
+          pickToken: assignedPick?.pickWork?.token,
+          requestId: `pick:${assignedPick?.pickWork?.token}:${activeTask.itemId}:${activeTask.pickedSoFar}:${numericQuantity}:${pickBin.toUpperCase()}`,
           orderId: activeTask.orderId,
           orderItemId: activeTask.itemId,
         },
       };
-      const activeTaskId = activeTask.itemId;
       const result = await stockOutProduct(payload);
       if (!result.ok || !result.data) {
         throw new Error(result.error?.message || t('ops.errors.pick'));
@@ -825,66 +833,22 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
         })
       );
       loadBinDetail(pickBin.toUpperCase());
-      if (activeTaskId) {
-        const pickedNow = (Number(pickedByItemId[activeTaskId] || 0) || 0) + numericQuantity;
-        const clampedPicked = Math.min(activeTask.itemTotal, pickedNow);
-        setPickedByItemId((prev) => ({
-          ...prev,
-          [activeTaskId]: Math.min(activeTask.itemTotal, (Number(prev[activeTaskId] || 0) || 0) + numericQuantity),
-        }));
-
-        // Update UI state for pickCompleted flags (best-effort, derived from pickedByItemId)
-        setOrders((prev) =>
-          prev.map((order) => {
-            if (order.id !== activeTask.orderId) return order;
-            return {
-                ...order,
-              items: order.items.map((it) => {
-                const qtyPicked =
-                  it.id === activeTaskId ? clampedPicked : Number(pickedByItemId[it.id] || 0) || 0;
-                const done = (it.pickCompleted === true) || (qtyPicked >= Number(it.quantity || 0));
-                return done ? { ...it, pickCompleted: true } : it;
-              }),
-            };
-          })
-        );
-
-        const targetOrder = openOrders.find((o) => o.id === activeTask.orderId) || null;
-        const isOrderDone = targetOrder
-          ? targetOrder.items.every((it) => {
-            const qtyPicked =
-              it.id === activeTaskId ? clampedPicked : Number(pickedByItemId[it.id] || 0) || 0;
-            return (it.pickCompleted === true) || (qtyPicked >= Number(it.quantity || 0));
-          })
-          : false;
-
-        try {
-          if (isOrderDone) {
+      const updatedOrder = await fetchPickWork();
+      const central = updatedOrder?.pickWork || result.data.pickWork;
+      if (central && assignedPick) {
+        acceptAssignment(updatedOrder || { ...assignedPick, pickWork: central });
+        if (central.lines.length && central.lines.every((line) => line.picked === line.required)) {
           await completeOrderApi(activeTask.orderId);
-          setOrders((prev) =>
-            prev.map((order) =>
-              order.id === activeTask.orderId
-                ? {
-                  ...order,
-                  status: 'picked',
-                  statusLabel: t('ops.orders.complete'),
-                  pickedAt: new Date().toISOString(),
-                }
-                : order
-            )
-          );
-          }
-        } catch (error) {
-          console.warn('Order completion failed:', error);
-          setOrderErrorMessage(
-            error instanceof Error ? error.message : t('ops.errors.pick')
-          );
+          acceptAssignment({ ...assignedPick, pickWork: central, omsStatus: 'picked', status: 'picked' });
+          setOrders((previous) => previous.map((order) => order.id === activeTask.orderId ? { ...order, omsStatus: 'picked', status: 'picked' } : order));
         }
       }
       resetPickForm();
     } catch (error: any) {
       setErrorMessage(error?.message || t('ops.errors.pick'));
+      try { acceptAssignment(await fetchPickWork()); } catch { /* retry keeps the same request key */ }
     } finally {
+      desktopPickInFlight.current = false;
       setIsSubmitting(false);
     }
   };
@@ -1215,6 +1179,16 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
               }
             }}
           >
+            <div className="flex items-center justify-between gap-3">
+              <strong>{assignmentBusy ? 'Auftrag wird zugewiesen…' : assignedPick ? `Mein Auftrag · ${assignedPick.number || assignedPick.id}` : 'Keine freie Pick-Arbeit'}</strong>
+              <button type="button" className="rounded-xl bg-accent px-4 py-3 text-white" disabled={assignmentBusy || isSubmitting} onClick={async () => {
+                if (assignedPick?.pickWork?.lines.length && assignedPick.omsStatus !== 'picked' && assignedPick.pickWork.lines.every((line) => line.picked === line.required)) {
+                  try { await completeOrderApi(assignedPick.id); } catch (error: any) { setAssignmentError(error.message); return; }
+                }
+                await assignPick(otherPickDevice);
+              }}>{otherPickDevice ? 'Hier fortsetzen' : assignedPick?.omsStatus === 'picked' ? 'Nächster Auftrag' : 'Auftrag fortsetzen'}</button>
+            </div>
+            {assignmentError && <p role="alert" className="text-danger">{assignmentError}</p>}
             <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4">
               {nextPickTask ? (
                 <div className="space-y-3">

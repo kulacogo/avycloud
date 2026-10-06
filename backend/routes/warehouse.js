@@ -672,6 +672,8 @@ router.post('/stock-out', requirePermission('warehouse', 'write'), async (req, r
       quantity: amount,
       meta: {
         ...(meta && typeof meta === 'object' ? meta : {}),
+        tenantId: req.user?.tenantId || 'default',
+        actor: { uid: req.user?.uid, email: req.user?.email || null },
         source: 'api',
         action: 'stock-out',
         orderId: orderId || null,
@@ -696,9 +698,9 @@ router.post('/stock-out', requirePermission('warehouse', 'write'), async (req, r
     res.json({ ok: true, data: result });
   } catch (error) {
     console.error('Pick workflow failed:', error);
-    res.status(400).json({
+    res.status(error.status || 400).json({
       ok: false,
-      error: { code: 400, message: error.message || 'Auslagerung fehlgeschlagen.' },
+      error: { code: error.code || 400, message: error.message || 'Auslagerung fehlgeschlagen.' },
     });
   }
 });

@@ -5,6 +5,10 @@
 >
 > **Aktueller Gesamt-/Fundament-Plan (Stand 2026-06-17):** `docs/superpowers/avycloud-master-plan.md`. Umsetzung beginnt mit **Track 1** (Teil K) nach `docs/superpowers/avycloud-execution-guide.md`. Die Oversell-/Single-Writer-Items unten sind darin als F0/F1/F2 aufgegangen; ältere Plan-Pfade unter `~/.claude/plans/` sind historisch.
 
+## Handheld / Team-Pick / Labeldruck — Release 2026-10-07
+
+Implementiert und lokal geprüft im Branch `codex/handheld-team-print-20261006`. **Noch nicht produktiv:** Zielrechner/Konto der Druckstation sowie physische Abnahme beider Rollen fehlen. Backend 5.758 Tests, Frontend/Agent 556 Tests, Typprüfung und Build erfolgreich. Keine produktiven Orders/Bestände für Tests verändert. [Vertrag](docs/kb/06-features/handheld-pick-pack.md), [Releasebelege und Auslieferungscheck](docs/reviews/handheld-team-print-20261007/README.md).
+
 ## 🔴 [KRITISCH] Oversell-Prevention (seit 2026-04-23)
 
 **Trigger-Incident:** SKU-9871561937 (TrendOcean) — Kaufland verkauft, lokaler Bestand = 0, aber eBay-Angebot blieb aktiv mit positivem Bestand → Oversell-Risiko.

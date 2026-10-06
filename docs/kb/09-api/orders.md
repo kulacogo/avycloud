@@ -463,3 +463,15 @@ Adresslabels (62×29 mm, Dymo/Brother-format).
 
 - [returns.md](returns.md), [invoices.md](invoices.md), [marketplace.md](marketplace.md), [webhooks.md](webhooks.md).
 - CLAUDE.md Punkt 11 — kein `omsStatus`-Direct-Write außerhalb von `transitionOrder()`.
+
+## Exklusive Pick-Arbeit
+
+Stand 2026-10-07, alle drei Endpunkte benötigen `orders:pick`, Tenant und Mitarbeiter ausschließlich aus `req.user`:
+
+| Endpunkt | Eingabe / Ausgabe |
+|---|---|
+| GET `/api/orders/pick-work` | Eigener zuletzt zugewiesener Auftrag oder `null`; `Cache-Control: no-store`; aktuelle Pick-Hints einschließlich aller BIN-Mengen. |
+| POST `/api/orders/pick-work/claim` | `{sessionId, takeover?:boolean, orderId?:string}`. Ganzen Auftrag atomar vergeben oder eigenen fortsetzen. `orderId` für gezielte Desktop-Kompatibilität; kein Überspringen eines eigenen offenen Auftrags. |
+| POST `/api/orders/pick-work/pause` | `{orderId, token}`. Eigene Arbeit pausieren, Zuordnung und Fortschritt bleiben erhalten. |
+
+Konflikte HTTP 409, `error.code=PICK_OTHER_DEVICE` bei anderem Scanner desselben Kontos. Clients müssen ausdrücklich übernehmen. `warehouse/stock-out` übergibt `meta.pickToken` und stabile `meta.requestId`, ergänzt um bestehende `orderId` und `orderItemId`. Serverseitig prüfen und speichern Fortschritt und Lagerbuchung atomar. [Vollständiger Vertrag](../06-features/handheld-pick-pack.md).

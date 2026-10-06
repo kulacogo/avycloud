@@ -15,16 +15,27 @@ const AUTH_URL = 'https://identitytoolkit.googleapis.com/v1/accounts:signInWithP
 const REFRESH_URL = 'https://securetoken.googleapis.com/v1/token';
 const TOKEN_PUFFER_MS = 5 * 60 * 1000;
 
-function erstelleApi({ basisUrl, firebaseApiKey, email, passwort, fetchImpl = globalThis.fetch }) {
+function erstelleApi({ basisUrl, firebaseApiKey, email, passwort, sessionFile, fetchImpl = globalThis.fetch }) {
   if (!basisUrl) throw new Error('AVYCLOUD_URL fehlt.');
   if (!firebaseApiKey) throw new Error('FIREBASE_API_KEY fehlt.');
-  if (!email || !passwort) throw new Error('AGENT_EMAIL / AGENT_PASSWORT fehlen.');
+  if (!sessionFile && (!email || !passwort)) throw new Error('AGENT_EMAIL / AGENT_PASSWORT fehlen.');
 
   let token = null;
-  let refreshToken = null;
+  let refreshToken = sessionFile ? JSON.parse(require('node:fs').readFileSync(sessionFile, 'utf8')).refreshToken : null;
+  const persistSession = () => {
+    if (!sessionFile) return;
+    const fs = require('node:fs');
+    const temporary = `${sessionFile}.tmp`;
+    const fd = fs.openSync(temporary, 'w', 0o600);
+    try { fs.writeFileSync(fd, JSON.stringify({ refreshToken })); fs.fsyncSync(fd); }
+    finally { fs.closeSync(fd); }
+    fs.renameSync(temporary, sessionFile);
+  };
   let gueltigBis = 0;
+  let protocolVerifiedUntil = 0;
 
   async function anmelden() {
+    if (!email || !passwort) throw new Error('Druckstation erneut anmelden.');
     const antwort = await fetchImpl(`${AUTH_URL}?key=${encodeURIComponent(firebaseApiKey)}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -34,6 +45,7 @@ function erstelleApi({ basisUrl, firebaseApiKey, email, passwort, fetchImpl = gl
     if (!antwort.ok) throw new Error(`Anmeldung fehlgeschlagen: ${daten?.error?.message || antwort.status}`);
     token = daten.idToken;
     refreshToken = daten.refreshToken;
+    persistSession();
     gueltigBis = Date.now() + Number(daten.expiresIn || 3600) * 1000;
   }
 
@@ -48,11 +60,12 @@ function erstelleApi({ basisUrl, firebaseApiKey, email, passwort, fetchImpl = gl
     if (!antwort.ok) return anmelden();
     token = daten.id_token;
     refreshToken = daten.refresh_token || refreshToken;
+    persistSession();
     gueltigBis = Date.now() + Number(daten.expires_in || 3600) * 1000;
   }
 
   async function holeToken() {
-    if (!token) await anmelden();
+    if (!token) await erneuern();
     else if (Date.now() > gueltigBis - TOKEN_PUFFER_MS) await erneuern();
     return token;
   }
@@ -87,14 +100,21 @@ function erstelleApi({ basisUrl, firebaseApiKey, email, passwort, fetchImpl = gl
     async melde({ agentId, drucker }) {
       return ruf('/api/print/agent/heartbeat', {
         method: 'POST',
-        body: { agentId, printers: drucker },
+        body: { agentId, printers: drucker, protocolVersion: 2 },
       });
     },
 
     /** Naechsten Auftrag zuweisen lassen (oder null). */
     async holeAuftrag({ agentId }) {
-      const daten = await ruf('/api/print/agent/claim', { method: 'POST', body: { agentId } });
-      return daten?.data?.job || null;
+      if (Date.now() >= protocolVerifiedUntil) {
+        const status = await ruf('/api/print/status');
+        if (status?.data?.protocolVersion !== 2) throw new Error('Backend unterstützt noch kein Druck-Protokoll 2. Station wartet auf das Update.');
+        protocolVerifiedUntil = Date.now() + 30000;
+      }
+      const daten = await ruf('/api/print/agent/claim', { method: 'POST', body: { agentId, protocolVersion: 2 } });
+      const job = daten?.data?.job || null;
+      if (job && (!job.claimToken || !job.claimedByUid)) throw new Error('Druckauftrag ohne Protokoll-2-Quittung abgelehnt.');
+      return job;
     },
 
     /** Das fertig skalierte Etikett-PDF laden. */
@@ -114,10 +134,10 @@ function erstelleApi({ basisUrl, firebaseApiKey, email, passwort, fetchImpl = gl
     },
 
     /** Ergebnis zurueckmelden. */
-    async melderErgebnis(jobId, { ok, fehler }) {
+    async melderErgebnis(jobId, { ok, fehler, error, action, spoolId, agentId, claimToken }) {
       return ruf(`/api/print/jobs/${encodeURIComponent(jobId)}/result`, {
         method: 'POST',
-        body: { ok, error: fehler || undefined },
+        body: { ok, error: error || fehler || undefined, action, spoolId, agentId, claimToken },
       });
     },
   };

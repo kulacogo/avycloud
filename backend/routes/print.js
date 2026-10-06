@@ -16,6 +16,8 @@
  */
 
 const express = require('express');
+const { randomUUID } = require('node:crypto');
+const { printJobKey, deliveryUpdate } = require('../lib/print-delivery');
 const router = express.Router();
 const { firestore } = require('../lib/firestore');
 const { requirePermission } = require('../lib/rbac');
@@ -26,8 +28,6 @@ const {
   buildPrintJob,
   isAgentOnline,
   isClaimable,
-  shouldRetry,
-  computeRetryDelayMs,
   printQueueEnabled,
 } = require('../lib/print-queue');
 const { resolveLabelFormat, labelExactSizeEnabled } = require('../lib/label-format');
@@ -43,29 +43,35 @@ function getTenantId(req) {
  * Zusatz-Label darf der Haupt-Druckknopf nicht still das Zusatz-Etikett
  * erwischen (Review-Befund 2026-08-21).
  */
-async function resolveShipment({ orderId, shipmentId }) {
+const printableShipment = (shipment) => !shipment.cancelledAt && !['cancelled', 'canceled', 'storniert', 'problem'].includes(
+  require('../lib/shipment-status').normalizeShipmentStatus(shipment.status)
+);
+async function resolveShipment({ orderId, shipmentId, tenantId }) {
   if (shipmentId) {
     const snap = await firestore.collection('shipments').doc(shipmentId).get();
-    if (!snap.exists || snap.data().orderId !== orderId) return null;
-    return { id: snap.id, ...snap.data() };
+    if (!snap.exists || !printableShipment(snap.data()) || snap.data().orderId !== orderId || (snap.data().tenantId || 'default') !== tenantId) return null;
+    return { ...snap.data(), id: snap.id || shipmentId };
   }
 
   const orderSnap = await firestore.collection('orders').doc(orderId).get();
+  if (!orderSnap.exists || (orderSnap.data().tenantId || 'default') !== tenantId) return null;
   const primary = orderSnap.exists ? String(orderSnap.data().shipmentId || '') : '';
   if (primary) {
     const primSnap = await firestore.collection('shipments').doc(primary).get();
-    if (primSnap.exists && primSnap.data().orderId === orderId) {
+    if (primSnap.exists && printableShipment(primSnap.data()) && primSnap.data().orderId === orderId && (primSnap.data().tenantId || 'default') === tenantId) {
       return { id: primSnap.id, ...primSnap.data() };
     }
   }
 
   const snap = await firestore.collection('shipments')
+    .where('tenantId', '==', tenantId)
     .where('orderId', '==', orderId)
-    .orderBy('createdAt', 'desc')
-    .limit(5)
+    .limit(50)
     .get();
   if (snap.empty) return null;
-  const best = snap.docs.find((d) => d.data().additionalLabel !== true) || snap.docs[0];
+  const best = snap.docs.filter((d) => d.data().additionalLabel !== true && printableShipment(d.data()))
+    .sort((a, b) => String(b.data().createdAt).localeCompare(String(a.data().createdAt)))[0];
+  if (!best) return null;
   return { id: best.id, ...best.data() };
 }
 
@@ -83,7 +89,7 @@ router.get('/print/status', requirePermission('orders', 'read'), async (req, res
   try {
     const tenantId = getTenantId(req);
     if (!printQueueEnabled()) {
-      return res.json({ ok: true, data: { enabled: false, online: false, agents: [] } });
+      return res.json({ ok: true, data: { enabled: false, online: false, agents: [], protocolVersion: 2 } });
     }
 
     const snap = await firestore.collection(PRINT_AGENTS_COLLECTION)
@@ -95,9 +101,9 @@ router.get('/print/status', requirePermission('orders', 'read'), async (req, res
     const agents = snap.docs.map((d) => {
       const a = d.data();
       return {
-        agentId: d.id,
+        agentId: a.agentId || d.id,
         lastSeenAt: a.lastSeenAt || null,
-        online: isAgentOnline(a.lastSeenAt, now),
+        online: a.protocolVersion === 2 && isAgentOnline(a.lastSeenAt, now),
         printers: a.printers || {},
       };
     });
@@ -106,13 +112,14 @@ router.get('/print/status', requirePermission('orders', 'read'), async (req, res
       ok: true,
       data: {
         enabled: true,
+        protocolVersion: 2,
         online: agents.some((a) => a.online),
         agents,
       },
     });
   } catch (err) {
     console.error(`[GET /api/print/status] ${err.message}`, err);
-    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+    res.status(err.status || 500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
   }
 });
 
@@ -130,12 +137,12 @@ router.post('/print/jobs', requirePermission('orders', 'ship'), async (req, res)
     }
 
     const tenantId = getTenantId(req);
-    const { orderId, shipmentId = null, copies = 1 } = req.body || {};
+    const { orderId, shipmentId = null, copies = 1, reprintId = '' } = req.body || {};
     if (!orderId) {
       return res.status(400).json({ ok: false, error: { code: 'INVALID_INPUT', message: 'orderId erforderlich' } });
     }
 
-    const shipment = await resolveShipment({ orderId, shipmentId });
+    const shipment = await resolveShipment({ orderId, shipmentId, tenantId });
     if (!shipment) {
       return res.status(404).json({
         ok: false,
@@ -172,11 +179,20 @@ router.post('/print/jobs', requirePermission('orders', 'ship'), async (req, res)
       createdBy: req.user?.email || req.user?.uid || null,
     });
 
-    const ref = await firestore.collection(PRINT_JOBS_COLLECTION).add(job);
-    res.json({ ok: true, data: { jobId: ref.id, ...job } });
+    if (typeof reprintId !== 'string' || reprintId.length > 150) return res.status(400).json({ ok: false, error: { message: 'Ungültige Nachdruckkennung.' } });
+    const jobId = printJobKey(tenantId, shipment.id, reprintId);
+    const ref = firestore.collection(PRINT_JOBS_COLLECTION).doc(jobId);
+    const saved = await firestore.runTransaction(async (tx) => {
+      const existing = await tx.get(ref);
+      if (existing.exists) return existing.data();
+      const next = { ...job, protocolVersion: 2, reprint: Boolean(reprintId) };
+      tx.set(ref, next);
+      return next;
+    });
+    res.json({ ok: true, data: { ...saved, jobId } });
   } catch (err) {
     console.error(`[POST /api/print/jobs] ${err.message}`, err);
-    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+    res.status(err.status || 500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
   }
 });
 
@@ -193,7 +209,7 @@ router.get('/print/jobs/:jobId', requirePermission('orders', 'read'), async (req
     res.json({ ok: true, data: { jobId: snap.id, ...snap.data() } });
   } catch (err) {
     console.error(`[GET /api/print/jobs/:jobId] ${err.message}`, err);
-    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+    res.status(err.status || 500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
   }
 });
 
@@ -210,16 +226,18 @@ router.post('/print/agent/heartbeat', requirePermission('orders', 'ship'), async
     if (!agentId) {
       return res.status(400).json({ ok: false, error: { code: 'INVALID_INPUT', message: 'agentId erforderlich' } });
     }
-    await firestore.collection(PRINT_AGENTS_COLLECTION).doc(String(agentId)).set({
+    await firestore.collection(PRINT_AGENTS_COLLECTION).doc(printJobKey(tenantId, String(agentId))).set({
       tenantId,
       agentId: String(agentId),
       printers,
+      protocolVersion: req.body?.protocolVersion || 1,
+      ownerUid: req.user?.uid || null,
       lastSeenAt: new Date().toISOString(),
     }, { merge: true });
     res.json({ ok: true, data: { agentId } });
   } catch (err) {
     console.error(`[POST /api/print/agent/heartbeat] ${err.message}`, err);
-    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+    res.status(err.status || 500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
   }
 });
 
@@ -233,6 +251,7 @@ router.post('/print/agent/heartbeat', requirePermission('orders', 'ship'), async
 router.post('/print/agent/claim', requirePermission('orders', 'ship'), async (req, res) => {
   try {
     const tenantId = getTenantId(req);
+    if (req.body?.protocolVersion !== 2) return res.status(426).json({ ok: false, error: { message: 'Druckstation aktualisieren.' } });
     const agentId = String(req.body?.agentId || '').trim();
     if (!agentId) {
       return res.status(400).json({ ok: false, error: { code: 'INVALID_INPUT', message: 'agentId erforderlich' } });
@@ -240,13 +259,13 @@ router.post('/print/agent/claim', requirePermission('orders', 'ship'), async (re
 
     const snap = await firestore.collection(PRINT_JOBS_COLLECTION)
       .where('tenantId', '==', tenantId)
-      .where('status', 'in', [JOB_STATUS.QUEUED, JOB_STATUS.CLAIMED])
+      .where('status', 'in', [JOB_STATUS.QUEUED, JOB_STATUS.CLAIMED, 'dispatching'])
       .orderBy('createdAt', 'asc')
-      .limit(10)
-      .get();
+      .get(); // Only unresolved jobs; a stalled station must not hide newer work.
 
     const now = Date.now();
-    const candidate = snap.docs.find((d) => isClaimable(d.data(), now));
+    const owns = (job) => job.claimedBy === agentId && job.claimedByUid === req.user?.uid;
+    const candidate = snap.docs.find((d) => (d.data().status === 'dispatching' && owns(d.data())) || isClaimable(d.data(), now));
     if (!candidate) return res.json({ ok: true, data: { job: null } });
 
     const nowIso = new Date().toISOString();
@@ -257,20 +276,24 @@ router.post('/print/agent/claim', requirePermission('orders', 'ship'), async (re
       const job = fresh.data();
       // Erneut pruefen — zwischen Abfrage und Transaktion kann ein anderer
       // Agent zugegriffen haben.
+      if (job.tenantId !== tenantId) return null;
+      if (job.status === 'dispatching') return owns(job) ? { ...job, jobId: ref.id } : null;
       if (!isClaimable(job, Date.now())) return null;
+      const claimToken = randomUUID();
       tx.update(ref, {
+        claimToken, claimedByUid: req.user.uid,
         status: JOB_STATUS.CLAIMED,
         claimedAt: nowIso,
         claimedBy: agentId,
         attempts: (Number(job.attempts) || 0) + 1,
       });
-      return { jobId: ref.id, ...job, status: JOB_STATUS.CLAIMED, claimedAt: nowIso, claimedBy: agentId };
+      return { ...job, jobId: ref.id, claimToken, claimedByUid: req.user.uid, status: JOB_STATUS.CLAIMED, claimedAt: nowIso, claimedBy: agentId };
     });
 
     res.json({ ok: true, data: { job: claimed } });
   } catch (err) {
     console.error(`[POST /api/print/agent/claim] ${err.message}`, err);
-    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+    res.status(err.status || 500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
   }
 });
 
@@ -289,7 +312,7 @@ router.get('/print/jobs/:jobId/document', requirePermission('orders', 'read'), a
     }
     const job = jobSnap.data();
 
-    const shipment = await resolveShipment({ orderId: job.orderId, shipmentId: job.shipmentId });
+    const shipment = await resolveShipment({ orderId: job.orderId, shipmentId: job.shipmentId, tenantId });
     if (!shipment?.sendcloudParcelId && !shipment?.labelUrl) {
       return res.status(404).json({ ok: false, error: { code: 'NO_LABEL', message: 'Kein Etikett zu dieser Sendung.' } });
     }
@@ -320,7 +343,7 @@ router.get('/print/jobs/:jobId/document', requirePermission('orders', 'read'), a
     res.send(outBuffer);
   } catch (err) {
     console.error(`[GET /api/print/jobs/:jobId/document] ${err.message}`, err);
-    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+    res.status(err.status || 500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
   }
 });
 
@@ -332,39 +355,18 @@ router.post('/print/jobs/:jobId/result', requirePermission('orders', 'ship'), as
   try {
     const tenantId = getTenantId(req);
     const ref = firestore.collection(PRINT_JOBS_COLLECTION).doc(req.params.jobId);
-    const snap = await ref.get();
-    if (!snap.exists || snap.data().tenantId !== tenantId) {
-      return res.status(404).json({ ok: false, error: { code: 'NOT_FOUND', message: 'Druckauftrag nicht gefunden.' } });
-    }
-
-    const job = snap.data();
-    const nowIso = new Date().toISOString();
-    const success = req.body?.ok === true;
-
-    if (success) {
-      await ref.update({ status: JOB_STATUS.DONE, finishedAt: nowIso, error: null });
-      return res.json({ ok: true, data: { status: JOB_STATUS.DONE } });
-    }
-
-    const message = String(req.body?.error || 'Druck fehlgeschlagen').slice(0, 500);
-    if (shouldRetry(job)) {
-      // Zurueck in die Warteschlange, aber nicht sofort — sonst dreht ein
-      // defekter Drucker die Schleife mit voller Geschwindigkeit.
-      await ref.update({
-        status: JOB_STATUS.QUEUED,
-        claimedAt: null,
-        claimedBy: null,
-        error: message,
-        notBefore: new Date(Date.now() + computeRetryDelayMs(job.attempts)).toISOString(),
-      });
-      return res.json({ ok: true, data: { status: JOB_STATUS.QUEUED, retry: true } });
-    }
-
-    await ref.update({ status: JOB_STATUS.FAILED, finishedAt: nowIso, error: message });
-    res.json({ ok: true, data: { status: JOB_STATUS.FAILED } });
+    const result = await firestore.runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      if (!snap.exists || snap.data().tenantId !== tenantId) { const error = new Error('Druckauftrag nicht gefunden.'); error.status = 404; throw error; }
+      const patch = deliveryUpdate(snap.data(), { tenantId, uid: req.user.uid,
+        agentId: req.body?.agentId, claimToken: req.body?.claimToken }, req.body || {});
+      if (Object.keys(patch).length) tx.update(ref, patch);
+      return { status: patch.status || snap.data().status };
+    });
+    res.json({ ok: true, data: result });
   } catch (err) {
     console.error(`[POST /api/print/jobs/:jobId/result] ${err.message}`, err);
-    res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
+    res.status(err.status || 500).json({ ok: false, error: { code: 'INTERNAL', message: err.message } });
   }
 });
 

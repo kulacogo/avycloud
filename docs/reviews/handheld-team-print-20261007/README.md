@@ -1,0 +1,67 @@
+# Handheld / Team-Pick / Druck — Releaseprüfung
+
+Stand: 2026-10-07, ca. 00:50 Europe/Berlin. **Implementiert und lokal geprüft, noch nicht produktiv.** Branch `codex/handheld-team-print-20261006`, Basis `0e89b058555d950442f54f2d4ab948601f2fd3ba`. Auftrag: neue übersichtliche Handheld-UI, integrierter Labeldruck und paralleles Picken durch Mitarbeiter auf Produktion bringen.
+
+## Produktionsvoraussetzung noch offen
+
+Die echte Druckstation ist nicht eingerichtet. Lesend am 07.10. bestätigt: `print_agents` im Tenant `default` leer; keine offenen Druckjobs. Zielrechner und verwendetes AvyCloud-Konto wurden beim Betreiber angefragt. Keine Zugangsdaten in Chat oder Git speichern. Vor Produktivschaltung: Rechner/Konto einrichten und beide Rollen physisch mit TEST-Druck prüfen. Der neue Agent wartet vor dem Claim auf ein Backend mit Protokoll 2; gegen das alte Backend holt er keine Jobs ab. Erst nach dieser Vorbereitung kontrolliert Merge/Deploy; unmittelbar danach mindestens zwei frische Protokoll-2-Heartbeats und die neue Warteschlange prüfen. Eine produktive Offline-Packstation wäre keine Erfüllung des Auftrags.
+
+## Änderung und Grenzen
+
+- Handheld-Home mit Arbeitsaktionen; Operationsauswahl als vier Karten; Pick/Pack im ganzen Viewport, klare Stückzahl, einzeilige Codes, Hauptaktion unten.
+- Ein ganzer Auftrag pro Mitarbeiter, atomare serverseitige Zuweisung, zentraler Mengenfortschritt, stabile Buchungsquittungen. Pause und Verbindungsverlust geben Teilware nicht automatisch frei. Wechsel auf ein anderes Gerät desselben Kontos muss ausdrücklich bestätigt werden.
+- Desktop-Pick nutzt denselben Vertrag. Frische BIN-Mengen vermeiden einen zweiten lokalen Abzug bereits gebuchter Ware.
+- Alle Packpositionen bestätigen; Gewicht/Versandwahl; vorhandenes Label direkt an passende Druckstation. Kein Android-Druckdialog in diesem Ablauf.
+- Initiale Druckjobs werden pro Sendung dedupliziert; lokale CUPS-Quittungen überleben Neustarts. Unklare Ausgabe erfordert Prüfung und ausdrücklichen Nachdruck. Nachdruck erstellt keinen neuen Versand.
+- `done` bedeutet CUPS-Annahme. Sichtbarer Abschluss verlangt „Label angebracht · fertig“. Kein physischer Drucknachweis aus den Softwaretests ableiten.
+- Eine Übergabe teilgepickter Aufträge an **andere Benutzer** sowie eine automatische Fehlmengen-/Rücklagerungsbuchung sind nicht Bestandteil dieser Version. „Problem“ pausiert, korrigiert keinen Bestand.
+- Verlorene Versandantwort: offene Aufgabe bleibt gespeichert; vorhandene Sendung erneut abrufen, nicht blind Porto neu kaufen. Fehlt tatsächlich eine Sendung, ist Prüfung am Packtisch erforderlich.
+
+## Prüfung
+
+| Prüfung | Ergebnis |
+|---|---|
+| Unveränderte Basis | Backend 5.721 Tests / 496 Dateien; Frontend 547 Tests; Build erfolgreich |
+| Aktueller Backend-Gesamtlauf | **5.758 Tests / 502 Dateien erfolgreich**, `npm test -- --maxWorkers=4` |
+| Frontend einschließlich Agent | **556 Tests erfolgreich**, `npm test` |
+| TypeScript | `npx tsc --noEmit` erfolgreich |
+| Frontend-Build | `npm run build` erfolgreich |
+| Schutz der Testläufe | Fiktives GCP-Projekt `avycloud-local-test`, `FIRESTORE_EMULATOR_HOST=127.0.0.1:1`, Credentials `/dev/null`; keine Tests gegen Produktion |
+| Konkurrenz / Eigentümer | Parallele Service- und HTTP-Claims ergeben verschiedene Aufträge; Body kann Actor/Tenant nicht überschreiben; falscher Besitzer/Scanner/Token abgelehnt |
+| Bestand | Echte Stock-out-Funktion gegen transaktionale Mocks: verlorene Antwort führt zu nur einer BIN-Abbuchung; fremder Mitarbeiter und Übermenge vor Schreiben blockiert |
+| Abschluss / Versand | Teilpick und geänderte Positionen blockieren Abschluss; Versandprüfung vor SendCloud-Zugriff; fehlgeschlagener Pack-Status wird nicht als Erfolg behandelt |
+| Druck | Doppelte initiale Requests erzeugen einen Job; fremde/stale Quittungen abgelehnt; alte Agenten HTTP 426; verlorene Antwort druckt keine zweite Kopie; stornierte Labels abgelehnt |
+| Installation | Laufzeit unabhängig vom Worktree, Refresh-Sitzung statt gespeichertem Passwort, korrekte Rechte/Medienauswahl |
+| Browser | Tatsächliche React-Komponenten mit isolierten Fixtures, 320×568 und 360×640; Pick, Teilfortschritt, Pause/Fortsetzen, Pack 2 Positionen/3 Stück, Gewicht, Versand, simulierte Druckquittung, offene Labelaufgabe nach Reload; Desktop-Zuweisung bei 1024×800 |
+
+Der erste volle Lauf unter gleichzeitig hoher lokaler CPU-Last enthielt vier 10-s-Timeouts in unveränderten Tests; gezielt und mit begrenzten Workern erneut grün. Ein Helper wurde zunächst als Testdatei eingesammelt und danach gemäß bestehendem `_*.js`-Ausschluss umbenannt. Keine Timeout-Grenzen oder Tests abgeschwächt. Neu hinzugefügte Regressionsfälle wurden vor den jeweiligen Korrekturen rot ausgeführt.
+
+Bei 320×568: Dokumentbreite/Höhe genau Viewport, BIN/SKU `nowrap` ohne Überlauf. Hauptaktion 56 px, Sekundäraktionen 48 px, letzte Aktion endet bei y=554. Im Gewichtsmodal übernimmt „Schließen“ den Fokus; der versteckte Scanner-Eingang wird während Modal/Mengeneingabe entfernt, damit er den Fokus nicht stiehlt. Außerhalb bleibt der IME-Eingang für Android-Scanner erhalten. Echte PDA-Hardware, Handschuhbedienung und physische Ausgabe bleiben Teil der Inbetriebnahme; Browseremulation ersetzt sie nicht.
+
+## Lesender Produktionsstand vor Freigabe
+
+- Main unverändert `0e89b058…`.
+- Web `product-hub-backend-01828-2bh`, Worker `product-hub-worker-00283-frq`, jeweils Ready und 100 % Traffic.
+- 20 offene `confirmed`/`picking`-Aufträge im Tenant `default`; keine unklaren alten Teilpicks, keine ungültigen Positionen, keine neuen `pickWork`-Zuordnungen.
+- Neue Order- und Druckabfragen funktionieren gegen vorhandene Indizes; kein Indexdeploy erforderlich.
+- Keine Produktionsbestände, Auftragsstatus, Labels oder Rollen für Tests geändert. Geschützte Auth-/Infra-Dateien unberührt.
+
+## Auslieferung und Rückweg
+
+1. Druckrechner/Konto klären, lokale Sitzung im Terminal einrichten. Hardware/Medien prüfen. Auf dem alten Backend darf der Agent „wartet auf Protokoll 2“ melden; er übernimmt dort keine Aufträge.
+2. Main und offene/teilgepickte Aufträge erneut lesen; keine unbekannte laufende Pickarbeit still übernehmen. PDAs nach Rollout neu laden.
+3. PR erst nach Stationsvorbereitung und physischer Medienprüfung mergen. Bestehende Pipelines deployen Hosting, Web und Worker. Beide Cloud-Run-Revisions, CI, Hosting-Asset-Version, `/health`, `/ready` und Fehlerlogs prüfen. Anschließend neue Stations-Heartbeats und tatsächliche Queue-Übergabe abnehmen. Die Pipelines sind unabhängig: während des Versionswechsels keine laufende Pickarbeit; alte Clients müssen neu laden, da Buchungen ohne Zuordnung abgelehnt werden.
+4. Gegenbeweis bei Fehlern: neue Arbeitsstarts stoppen. Bereits verwaltete Teilpicks nicht durch alte Clients buchen lassen. Alte Version kennt zentrale Pick-Quittungen nicht; deshalb kein unbedachter Backend-Rollback bei aktiven `pickWork`-Aufträgen. Additive Felder/Quittungen erhalten, Ware prüfen, gezielten Fix oder abgesprochenen kontrollierten Rückweg wählen. Allgemeine Mechanik: [Rollback](../../kb/04-deployment/rollback.md).
+5. Station-Update erhält `journal/`; alte Protokoll-1-Agenten werden nicht weiterverwendet.
+
+## Lokale Vorschau
+
+```bash
+npx vite --config tools/handheld-preview/vite.config.ts
+```
+
+`http://127.0.0.1:4180/`, nur Fixtures. `?reset=1` setzt die lokalen Testdaten zurück; `?offline=1` simuliert fehlende Station. Keine Verbindung zu echten Orders/Auth/Print-Jobs. Nicht als Produktionsfrontend ausliefern.
+
+![Picken 320×568](pick-320.png)
+![Packabschluss 320×568 — simulierter Druck](pack-320.png)
+![Home 320×568](home-320.png)
