@@ -1,12 +1,14 @@
 ---
 title: Capture (Produkt-Erfassung / Identify)
 for: [user, dev, admin]
-lastReviewed: 2026-09-18
+lastReviewed: 2026-10-06
 ---
 
 ## Zweck
 
-Multi-Step-Wizard zur Produkt-Erfassung über Foto-Upload, Barcode-Scan oder beides. Triggert die `IDENTIFY`-Pipeline (V3 / V4) im Backend, gruppiert hochgeladene Bilder zu Produkten, zeigt das Analyse-Ergebnis, lässt den User pre-publish reviewen und finalisiert via Autosave (`saveProductV2`) bei `ebay_ready_score ≥ 0.6` (sub-flag `IDENTIFY_V4_AUTOSAVE`).
+Produkt-Erfassung über Foto-Upload und Barcode. Aktiver Ablauf: Upload → Gruppierung → Analyse → Ergebnisse prüfen → Zusammenfassung. `/api/v2/identify` speichert neue Datenblätter bereits vor seiner Antwort über `saveProductV2`; `StepSummary` speichert anschließend die geprüften Änderungen. Ein Qualitätswert allein setzt kein Produkt auf „Bereit“ und veröffentlicht kein Angebot.
+
+Seit 06.10.2026 zeigt `StepReview` den initialen Verkaufspreis und erlaubt dessen Korrektur direkt im Erfassungsablauf. Fehlt ein Angebot, kann der Preis dort ergänzt werden; der Chat ist dafür nicht nötig. Ungültige oder geleerte vorhandene Preise blockieren Weiter, anstatt still den alten Wert zu speichern. Ohne gefundenen Preis ist Speichern weiterhin möglich, die Zusammenfassung nennt das ausdrücklich. Bei wiederverwendeten Produkten wird der bisherige Verkaufspreis gezeigt. [Browserprüfung](../../../tools/capture/sale-price.browser-test.mjs).
 
 ## Komponente(n)
 
@@ -15,30 +17,24 @@ Multi-Step-Wizard zur Produkt-Erfassung über Foto-Upload, Barcode-Scan oder bei
 - [components/capture/StepGrouping.tsx](../../../components/capture/StepGrouping.tsx) — Image-Gruppierung pro Produkt (mit Backend-Hilfe; siehe BUG-090).
 - [components/capture/StepAnalysis.tsx](../../../components/capture/StepAnalysis.tsx) — Identify-Lauf inkl. Phase-Progress.
 - [components/capture/StepReview.tsx](../../../components/capture/StepReview.tsx) — Pre-Publish-Review der Identify-Ergebnisse.
-- [components/capture/StepChannels.tsx](../../../components/capture/StepChannels.tsx) — Auswahl Marketplaces (eBay/Kaufland).
-- [components/capture/StepPricing.tsx](../../../components/capture/StepPricing.tsx) — Preisvorschlag / Override (`useSweetSpotPricer` server-side).
+- [components/capture/StepChannels.tsx](../../../components/capture/StepChannels.tsx) — vorhandene Komponente, aktuell nicht im CaptureView-Schrittfluss eingebunden.
+- [components/capture/StepPricing.tsx](../../../components/capture/StepPricing.tsx) — vorhandene Komponente, aktuell nicht eingebunden; Verkaufspreis im aktiven `StepReview`.
 - [components/capture/StepSummary.tsx](../../../components/capture/StepSummary.tsx) — Abschluss & Save.
 - [components/capture/LotSelector.tsx](../../../components/capture/LotSelector.tsx) — Pflicht: Los-Auswahl (Einkaufs-Zugehörigkeit, `L-MMYYNN`/`NL-MMYY`; Lose werden unter Lager → Los-Struktur angelegt).
 
 ## API-Calls
 
-Indirekt über Hooks (kein direkter `fetchApi`-Call im CaptureView.tsx):
-- `useIdentification()` (`hooks/useIdentification.ts`) — orchestriert Multi-Step-Upload → `/api/identify` Pipeline. Lieferst `UploadGroupPayload`.
-- `useImproveQueue()` (`hooks/useImproveQueue.ts`) — falls Re-Identify aus dem Backlog gestartet wird.
-
-Backend-Endpunkte (indirekt):
-- `POST /api/identify` — Master-Pipeline. Master-Timeout `IDENTIFY_TOTAL_TIMEOUT_MS=360000` (siehe CLAUDE.md Feature-Flags).
-- `POST /api/identify/grouping` — Stage-1-Vorgruppierung.
-- `POST /api/identify/improve` — Re-Identify eines existierenden Produkts.
-
-Pro-Endpunkt-Doku: `docs/kb/09-api/identify.md` (TBD).
+- `StepGrouping` ruft `groupImages`, `StepAnalysis` ruft `identifyProductV2` aus `api/client.ts`.
+- `POST /api/v2/group-images` gruppiert Fotos.
+- `POST /api/v2/identify` erkennt und speichert ein Datenblatt, mit verpflichtendem Los für neue Ware.
+- `StepSummary` verwendet `saveProduct(product, { activity: "capture" })` für geprüfte Änderungen.
+- [API-Vertrag](../09-api/identify.md).
 
 ## Datenquellen
 
-- `useIdentification` als Single-Source-of-Truth während des Wizard-Flows. Liefert Progress-Phase, Ergebnisse, Errors.
-- `useImproveQueue` für Re-Identify-Trigger.
-- StepUpload nutzt `File`-Objekte lokal, Upload geht Multipart über `useIdentification.uploadAndIdentify()`.
-- I18n via `useI18n()`.
+`components/capture/captureSellPrice.ts` prüft leere, ungültige und manuell korrigierte Preise.
+
+`CaptureView` hält Gruppen und Produktantworten im lokalen React-State. Die Verarbeitung erfolgt gruppenweise mit Fortschrittsanzeige. Ergebnisprüfung aktualisiert den lokalen Produktdatensatz; die Zusammenfassung speichert ihn über den regulären API-Client.
 
 ## Wichtige Edge-Cases
 
@@ -48,7 +44,7 @@ Pro-Endpunkt-Doku: `docs/kb/09-api/identify.md` (TBD).
 - **Multi-Identify hängt**: bei vielen Produkten ohne Timeout-Progress (BUG-091 ✅ gefixt: Concurrency 3, Phase-Progress, Cloud-Run-Timeout 600s).
 - **Loading**: Step-Progress über Stepper-Komponente; pro Step lokaler Spinner.
 - **Error pro Phase**: Fehlt z. B. die Image-Quality-Analyse (`STAGE1_IMAGE_QUALITY_GATE`), läuft die Pipeline trotzdem weiter (nur Metadata fehlt).
-- **Autosave-Threshold**: bei `ebay_ready_score < 0.6` wird **nicht** autosaved; User muss in StepReview manuell freigeben (`saveProduct` über ProductSheet-Embed oder direkt aus StepSummary).
+- **Speicherung**: Die Erfassungsroute speichert vor der Antwort; „Produkt speichern“ übernimmt anschließend manuelle Korrekturen. Der V4-Service wird von dieser Route mit `autosave: false` aufgerufen, damit nur die gemeinsame Route initial schreibt.
 - **V4-Fallback**: bei Pipeline-Error in V4 fällt der Backend automatisch auf V3 zurück; im Frontend nicht sichtbar außer in `IdentifyV4Badge` (siehe ProductSheet).
 - **Mobile**: CaptureView ist responsiv; Kamera-Upload auf Mobile bevorzugt; sehr große Step-Anzahl auf kleinen Screens unhandlich.
 

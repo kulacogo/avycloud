@@ -13,8 +13,8 @@ it.each([{ priceCurrency: 'USD' }, { availability: 'https://schema.org/OutOfStoc
   expect(extractProductOffer(html({ ...node, offers: [{ ...node.offers[0], ...change }] }), product, capturePageMatchesIdentity)).toBeNull();
 });
 it('follows one actual product link from a catalog, never a cart/action URL', async () => {
-  const root = 'https://shop.example/lighting.html';
-  const child = 'https://shop.example/STEINEL_065287.html';
+  const root = 'https://shop.de/lighting.html';
+  const child = 'https://shop.de/STEINEL_065287.html';
   const catalog = '<a href="cart_065287.html">Cart</a><a href="s01.php?bnr=065287&wk=4">Add</a><a href="STEINEL_065287.html">L605</a>';
   const fetchPage = vi.fn(async url => ({ ok: true, html: url === root ? catalog : html(node) }));
   const result = await lookupCaptureWebPrice(product, { referencePages: [{ url: root }], deadline: Date.now() + 1000, matchesIdentity: capturePageMatchesIdentity, fetchPage });
@@ -26,4 +26,31 @@ it('does not follow cross-origin links or issue requests after the deadline', as
   const fetchPage = vi.fn();
   expect(await lookupCaptureWebPrice(product, { referencePages: [{ url: 'https://shop.example/item.html' }], deadline: Date.now() - 1, matchesIdentity: capturePageMatchesIdentity, fetchPage })).toBeNull();
   expect(fetchPage).not.toHaveBeenCalled();
+});
+
+it('rejects mismatched bundles even when their barcode matches', () => {
+  const bundle = { ...product, identification: { ...product.identification, name: 'Steinel L 605 S 4 Stück' } };
+  expect(extractProductOffer(html({ ...node, name: 'Steinel L 605 S 8 Stück' }), bundle, capturePageMatchesIdentity)).toBeNull();
+  expect(extractProductOffer(html({ ...node, name: 'Steinel L 605 S 4 Stück' }), bundle, capturePageMatchesIdentity)).toBe(102.32);
+});
+
+it.each(['https://shop.pt/p/l605', 'https://shop.com/sk/p/l605'])('rejects foreign storefront %s even with a matching EUR offer', async url => {
+  expect(await lookupCaptureWebPrice(product, { referencePages: [{ url }], deadline: Date.now() + 1000, matchesIdentity: capturePageMatchesIdentity, fetchPage: async () => ({ ok: true, html: html(node) }) })).toBeNull();
+});
+
+it('records the actual redirected merchant URL and deduplicates the offer', async () => {
+  const resolvedUrl = 'https://shop.de/p/l605';
+  const result = await lookupCaptureWebPrice(product, { referencePages: [{ url: 'https://vertexaisearch.cloud.google.com/redirect/a' }, { url: resolvedUrl }], deadline: Date.now() + 1000, matchesIdentity: capturePageMatchesIdentity, fetchPage: async () => ({ ok: true, resolvedUrl, html: html(node) }) });
+  expect(result.sources).toHaveLength(1);
+  expect(result.sources[0].url).toBe(resolvedUrl);
+});
+
+it('accepts exact structured index offers only for infrastructure failures, not 404 or contradictory live pages', async () => {
+  const row = { url: 'https://shop.de/p/l605', title: 'Steinel L 605 S 4007841065287', richSnippet: { bottom: { extensions: ['102,32 €', 'Auf Lager'] } } };
+  const lookup = page => lookupCaptureWebPrice(product, { referencePages: [row], deadline: Date.now() + 1000, matchesIdentity: capturePageMatchesIdentity, fetchPage: async () => page });
+  expect(await lookup({ ok: false, status: 403 })).toMatchObject({ amount: 102.32, sources: [{ verified: false, evidence_type: 'search_index' }] });
+  expect(await lookup({ ok: false, status: 404 })).toBeNull();
+  expect(await lookup({ ok: true, html: html({ ...node, offers: { price: 102.32, priceCurrency: 'EUR', availability: 'OutOfStock' } }) })).toBeNull();
+  expect(await lookup({ ok: true, text: 'Steinel L 605 S 4007841065287 zzgl. MwSt', html: html(node) })).toBeNull();
+  expect(await lookup({ ok: true, text: 'Steinel L 605 S 4007841065287 Versand 102,32 €', html: '' })).toBeNull();
 });

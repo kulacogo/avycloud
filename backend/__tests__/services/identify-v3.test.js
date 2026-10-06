@@ -95,16 +95,48 @@ require.cache[stage4Path] = {
   },
 };
 
+const priceLookupMock = vi.fn().mockResolvedValue(null);
+const priceLookupPath = require.resolve('../../lib/capture-price');
+require.cache[priceLookupPath] = { id: priceLookupPath, filename: priceLookupPath, loaded: true, exports: { lookupCapturePrice: priceLookupMock } };
 const { identifyProductV3 } = require('../../services/identify-v3');
 
 beforeEach(() => {
   vi.clearAllMocks();
+  priceLookupMock.mockReset().mockResolvedValue(null);
   runStage1Mock.mockImplementation(async () => JSON.parse(JSON.stringify(mockStage1Result)));
   runStage2Mock.mockImplementation(async () => JSON.parse(JSON.stringify(mockStage2Result)));
   runStage3Mock.mockImplementation(async () => JSON.parse(JSON.stringify(mockStage3Result)));
 });
 
 describe('identifyProductV3', () => {
+  it('discards an early unit price when the completed datasheet identifies a multi-pack', async () => {
+    runStage3Mock.mockResolvedValueOnce({ ...mockStage3Result, title_ebay: 'Sony WH-1000XM5 4 Stück', _meta: { fallbackUsed: false } });
+    const { product } = await identifyProductV3({ tenantId: 'tenant-a' });
+    expect(product.details.pricing.sellPrice).toBeUndefined();
+    expect(product.details.pricing.lowest_price).toBeUndefined();
+    expect(product.ops.data_quality.identify_v3.price_research.diagnostics.discarded).toBe('pack_quantity_changed');
+  });
+  it('researches a missing price with the completed datasheet before scoring and returning it', async () => {
+    runStage2Mock.mockResolvedValueOnce({ ...mockStage2Result, pricing: null, _pendingPricing: Promise.resolve(null) });
+    runStage3Mock.mockResolvedValueOnce({ ...mockStage3Result, _meta: { fallbackUsed: false } });
+    priceLookupMock.mockResolvedValueOnce({ amount: 59.99, currency: 'EUR', sources: [{ url: 'https://shop.de/product', price: 59.99 }], confidence: 0.85, via: 'web_product_offer' });
+    const { product } = await identifyProductV3({ tenantId:'tenant-a' });
+    expect(priceLookupMock).toHaveBeenCalledTimes(1);
+    expect(priceLookupMock.mock.calls[0][0]).toMatchObject({tenantId:'tenant-a',identification:{name:product.identification.name}});
+    expect(product.details.pricing.lowest_price.amount).toBe(59.99);
+    expect(product.details.pricing.sellPrice).toBe(59.99);
+    expect(product.ops.data_quality.identify_v3.price_research.initial_sell_price).toBe(59.99);
+    expect(runStage4Mock.mock.calls[0][1].pricing.amount).toBe(59.99);
+  });
+  it('does not repeat successful research or research an unrecognized fallback stub', async () => {
+    await identifyProductV3({ tenantId:'tenant-a' });
+    expect(priceLookupMock).not.toHaveBeenCalled();
+    runStage2Mock.mockResolvedValueOnce({ ...mockStage2Result, pricing: null, _pendingPricing: Promise.resolve(null) });
+    runStage3Mock.mockResolvedValueOnce({ ...mockStage3Result, _meta:{fallbackUsed:true} });
+    const { product } = await identifyProductV3({ tenantId:'tenant-a' });
+    expect(product.details.pricing.sellPrice).toBeUndefined();
+    expect(priceLookupMock).not.toHaveBeenCalled();
+  });
   it('joins delayed price research before quality scoring and the returned datasheet', async () => {
     let finishPrice;
     const delayedPrice = new Promise(resolve => { finishPrice = resolve; });

@@ -72,7 +72,7 @@ async function fetchTextDirect(url, { timeoutMs = 20_000 } = {}) {
     });
     const text = await res.text();
     const ok = res.ok && res.status !== 202;
-    return { ok, status: res.status, body: text, via: 'direct' };
+    return { ok, status: res.status, body: text, via: 'direct', resolvedUrl: res.url || url };
   } catch (e) {
     return { ok: false, status: 0, body: '', error: e.message, via: 'direct' };
   } finally {
@@ -258,6 +258,8 @@ async function searchGoogleViaSerpApi(query, { limit = 6, locale = 'de-DE' } = {
         title: entry.title || '',
         url: outUrl,
         snippet: entry.snippet || '',
+        source: entry.source || '',
+        richSnippet: entry.rich_snippet || null,
       });
     }
     return { query: trimmedQuery, ok: results.length > 0, url: '', via: 'serpapi', status: 200, results };
@@ -294,4 +296,3 @@ module.exports = {
   safeString,
   DOMAIN_BLOCKLIST,
 };
-

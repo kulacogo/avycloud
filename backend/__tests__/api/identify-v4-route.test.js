@@ -250,6 +250,35 @@ describe('POST /api/v2/identify — V4 branch routing', () => {
     expect(res.body.meta?.pipeline).toBe('v3');
   });
 
+  it('persists the initial sale price and research snapshot before returning the saved V3 datasheet', async () => {
+    v4EnabledSpy.mockReturnValue(false);
+    process.env.IDENTIFY_V3 = 'true';
+    const result = structuredClone(V3_RESULT);
+    result.meta.stages = { stage2: { pricingComplete: true } };
+    result.product.details.pricing = { sellPrice: 59.99, suggestedPrice: 59.99, lowest_price: { amount: 59.99, currency: 'EUR', sources: [{ url: 'https://shop.de/p/1', price: 59.99 }] } };
+    result.product.ops.data_quality = { identify_v3: { price_research: { initial_sell_price: 59.99 } } };
+    v3Spy.mockResolvedValue(result);
+    const stored = new Map();
+    localSpies.saveProductV2.mockImplementation(async product => { stored.set(product.id, structuredClone(product)); });
+    firebaseSpies.getProduct.mockImplementation(async id => stored.get(id) || null);
+    const res = await postIdentify();
+    expect(res.status).toBe(200);
+    expect(localSpies.saveProductV2).toHaveBeenCalledTimes(1);
+    expect(res.body.data.details.pricing).toEqual(stored.get('V3-SKU-1').details.pricing);
+    expect(res.body.data.details.pricing.sellPrice).toBe(59.99);
+    expect(res.body.data.ops.data_quality.identify_v3.price_research.initial_sell_price).toBe(59.99);
+  });
+
+  it('does not report a successful priced capture when persistence fails', async () => {
+    v4EnabledSpy.mockReturnValue(false);
+    process.env.IDENTIFY_V3 = 'true';
+    v3Spy.mockResolvedValue({ ...structuredClone(V3_RESULT), meta: { stages: { stage2: { pricingComplete: true } } } });
+    localSpies.saveProductV2.mockRejectedValue(new Error('storage unavailable'));
+    const res = await postIdentify();
+    expect(res.status).toBe(500);
+    expect(res.body.ok).toBe(false);
+  });
+
   it('IDENTIFY_V4=true + V4 ok:true → meta.pipeline=v4, V3 not called', async () => {
     v4EnabledSpy.mockReturnValue(true);
     v4Spy.mockResolvedValue({

@@ -66,6 +66,22 @@ beforeEach(() => {
 });
 
 describe('findEbayBrowsePriceForProductV1 — product-match gate (BUG-089/093)', () => {
+  it('capture accepts one exact new fixed-price offer, while refresh still requires three', async () => {
+    const p = noGtinProduct();
+    p.details.identifiers.ean = '5702016367492';
+    mockFetchBrowsePriceSamples.mockResolvedValue({ total: 1, samples: [{ title: 'LEGO 75257', url: 'https://www.ebay.de/itm/1', value: 129.99, currency: 'EUR', conditionId: '1000', buyingOptions: ['FIXED_PRICE'] }] });
+    expect(await findEbayBrowsePriceForProductV1(p)).toMatchObject({ ok: false });
+    expect(await findEbayBrowsePriceForProductV1(p, { capture: true })).toMatchObject({ ok: true, amount: 129.99 });
+    expect(mockFetchBrowsePriceSamples.mock.calls.at(-1)[0].newFixedPriceOnly).toBe(true);
+  });
+  it('capture rejects used, auction-only and another variant despite a broad title match', async () => {
+    mockFetchBrowsePriceSamples.mockResolvedValue({ samples: [
+      { title: 'LEGO Star Wars Millennium Falcon 75257', url: 'https://www.ebay.de/itm/1', value: 10, currency: 'EUR', conditionId: '3000', buyingOptions: ['FIXED_PRICE'] },
+      { title: 'LEGO Star Wars Millennium Falcon 75257', url: 'https://www.ebay.de/itm/2', value: 10, currency: 'EUR', conditionId: '1000', buyingOptions: ['AUCTION'] },
+      { title: 'LEGO Star Wars Millennium Falcon 75192', url: 'https://www.ebay.de/itm/3', value: 10, currency: 'EUR', conditionId: '1000', buyingOptions: ['FIXED_PRICE'] },
+    ] });
+    expect(await findEbayBrowsePriceForProductV1(noGtinProduct(), { capture: true })).toMatchObject({ ok: false });
+  });
   it('exists as an exported function', () => {
     expect(typeof findEbayBrowsePriceForProductV1).toBe('function');
   });
