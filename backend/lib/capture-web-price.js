@@ -12,6 +12,24 @@ function isGermanOfferPage(url, html = '') {
   } catch { return false; }
 }
 
+function findGermanProductAlternate(html, pageUrl) {
+  const { classifyPriceSourceUrl } = require('./price-evidence');
+  const base = new URL(pageUrl);
+  const merchant = host => host.toLowerCase().replace(/^www\./, '').replace(/\.[^.]+$/, '');
+  for (const tag of String(html || '').matchAll(/<link\b[^>]*>/gi)) {
+    const attrs = Object.fromEntries([...tag[0].matchAll(/([a-z-]+)\s*=\s*["']([^"']*)["']/gi)].map(match => [match[1].toLowerCase(), match[2]]));
+    if (!String(attrs.rel || '').toLowerCase().split(/\s+/).includes('alternate') || !/^de(?:-de)?$/i.test(attrs.hreflang || '')) continue;
+    try {
+      const target = new URL(String(attrs.href || '').replace(/&amp;/g, '&'), base);
+      if (target.href === base.href || classifyPriceSourceUrl(target.href).kind !== 'candidate' || !isGermanOfferPage(target.href)) continue;
+      if (target.hostname !== base.hostname && merchant(target.hostname) !== merchant(base.hostname)) continue;
+      if (/cart|warenkorb|checkout|wishlist|delete|remove|logout|add[-_]/i.test(target.pathname)) continue;
+      return target.href;
+    } catch { /* Ignore malformed alternate URLs. */ }
+  }
+  return null;
+}
+
 // Read prices from the matched Product's own Offer, never from shipping fees,
 // crossed-out prices, recommendation cards or a search snippet.
 function extractProductOffer(html, product, matchesIdentity) {
@@ -91,7 +109,16 @@ async function lookupCaptureWebPrice(product, { referencePages = [], deadline, m
         return null;
       }
       const resolvedUrl = page.resolvedUrl || url;
-      if (classifyPriceSourceUrl(resolvedUrl).kind !== 'candidate' || !isGermanOfferPage(resolvedUrl, page.html)) return null;
+      if (classifyPriceSourceUrl(resolvedUrl).kind !== 'candidate') return null;
+      if (!isGermanOfferPage(resolvedUrl, page.html)) {
+        // Search may find a merchant's foreign storefront for the exact MPN.
+        // Follow only its explicit German alternate, with one hop and the
+        // same deadline. Never transform or guess the merchant's URL.
+        const alternate = follow && findGermanProductAlternate(page.html, resolvedUrl);
+        if (!alternate) return null;
+        diagnostics.german_alternates = (diagnostics.german_alternates || 0) + 1;
+        return read(alternate, false);
+      }
       // Do not mistake an explicitly advertised net price for a gross price.
       if (/(?:zzgl\.?|exkl\.?)\s*(?:der\s*)?(?:MwSt|Mehrwertsteuer)/i.test(page.text || '')) return null;
       const amount = extractProductOffer(page.html, product, matchesIdentity);
@@ -113,4 +140,4 @@ async function lookupCaptureWebPrice(product, { referencePages = [], deadline, m
   return { amount: Math.round(amount * 100) / 100, currency: 'EUR', sources: chosen, confidence: directSources.length ? 0.85 : 0.65, via: directSources.length ? 'web_product_offer' : 'search_index_offer' };
 }
 
-module.exports = { extractProductOffer, findProductLink, lookupCaptureWebPrice, isGermanOfferPage };
+module.exports = { extractProductOffer, findProductLink, lookupCaptureWebPrice, isGermanOfferPage, findGermanProductAlternate };

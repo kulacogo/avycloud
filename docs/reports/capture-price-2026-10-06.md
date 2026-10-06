@@ -43,3 +43,16 @@ Die erste IKEA/H&M-Probe hatte lokal keine nutzbare Vision-Quota-Zuordnung; Bild
 Offen: H&M und weitere Händler-/Identitätslücken; bestehender Scope identify.v2-agentic fehlt (Rückfall auf Code-Defaults); eBay Catalog liefert in Proben403. Tokens/Berechtigungen unverändert. Preisvorschlag ist Marktvergleich ohne automatische Zustands-/Margenanpassung. Keine Garantie für Vollständigkeit, Profitabilität oder100-%-Abdeckung.
 
 Rohdaten privat: /Users/oguz/Dev/avycloud-local-backups/capture-quality/20261006/. Firestore-Schreibmethoden und Storage-Import vor App-Imports gesperrt; keine Testprodukte oder Bestands-/OMS-/Listingmutation. Produktive Erfassungsroute niemals mit vorhandener EAN als Smoke-Test aufrufen: Duplicate-Reuse verändert Wareneingangsmengen. Produktionsrevisionen und erste natürliche Erfassungen im Projektgedächtnis nachführen. Dieser Bericht beschreibt zunächst den geprüften Stand vor Auslieferung.
+
+
+# Produktionsnachweis PR30 und Folgebefund
+
+PR30 ist produktiv: Main `dc01062640e0d7fa7370edf2736b1859394da972`, Web01827-w22 / Worker00282-qn4 seit 06.10.2026 ca.11:49 MESZ Ready/Healthy/100 %. Images gegen erfolgreiche Builds geprüft; Hosting887f034b62a671b3. PR-/Main-CI und Hosting grün; /health, /ready, Hosting HTTP200. Finaler PR-CI-Teststand: 5.716 Tests / 496 Dateien.
+
+Lesende Nachmessung um14:28 MESZ: zwölf Dokumente nach Web-Ready neu angelegt, davon drei mit initialem Verkaufspreis. Zwei davon stammen noch aus Requests ohne neue Recherchediagnose. Für den neuen Code sind damit **3/10 mit initialem Verkaufspreis** belegt, sieben ohne. Keine repräsentative Langzeitquote; insbesondere keine erfolgreiche Gesamtlösung. Zwei Datenblätter benennen fotografierte geschlossene Versandkartons als Produkt; der tatsächliche Inhalt ist auf diesen Bildern nicht sichtbar. Ein weiteres zeigt Paket2von4 eines Spielhauses. Diese Fälle benötigen eine belastbare Identität bzw. Klärung des Lieferumfangs, keinen erfundenen Komplettpreis.
+
+In den neuen Revisionslogs bis12:28 UTC: fünfzehn HTTP502 auf image-proxy und ein HTTP500 auf forecast/alerts; kein Erfassungs-5xx in dieser Abfrage. Die Fehler sind separat zu behandeln; kein allgemeiner fehlerfreier Betrieb behauptet.
+
+Konkrete zusätzliche Recherchelücke: Stagecaptain PPS-47XL wird über die niederländische Kirstein-Seite gefunden. Diese enthält einen expliziten deutschen Sprachverweis; dessen eigenes Product/Offer mit passender Artikelnummer00086301 weist44,90€ aus. [Deutsche Angebotsseite](https://www.kirstein.de/Absperrsysteme-Personenleitsysteme/Stagecaptain-PPS-47XL-Parkplatzschloss.html). Der Leser folgt nun diesem Händlerverweis genau einmal und prüft das deutsche Angebot regulär. Keine Ausweitung auf Fremdwährungen, andere Händler, Aktionslinks oder ungeprüfte Modellpreise.
+
+Fünf Regressionen vor Fix rot, danach grün; vollständige Backend-Suite **5.721 Tests / 496 Dateien grün**. Lesende Wiederholung mit dem echten Erfassungsdatensatz:44,90€ nach3,05s, eine Suche, kein Gemini-Aufruf. Keine Produktionsprodukte nachbearbeitet. Branch `codex/capture-german-offers-20261006`; Auslieferungsnachweis des Nachtrags folgt im lokalen Projektgedächtnis.
