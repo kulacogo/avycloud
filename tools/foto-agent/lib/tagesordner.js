@@ -21,7 +21,9 @@
 
 // Spiegelt backend/lib/warehouse-lots.js — hier nur, um frueh und mit klarer
 // Meldung abzulehnen, statt den Server einen 400er schicken zu lassen.
-const L_CODE_REGEX = /^L-(0[1-9]|1[0-2])(\d{2})(0[1-9]|[1-9]\d|1\d\d|200)$/;
+// Seit 2026-10-08 EIN Los je Art und Monat (L-MMYY / NL-MMYY). Das Altformat
+// L-MMYYNN wird noch angenommen — der Server entscheidet, ob es das Los gibt.
+const L_CODE_REGEX = /^L-(0[1-9]|1[0-2])(\d{2})(0[1-9]|[1-9]\d|1\d\d|200)?$/;
 const NL_CODE_REGEX = /^NL-(0[1-9]|1[0-2])(\d{2})$/;
 
 const DEFAULT_RUHEZEIT_MINUTEN = 30;
@@ -61,7 +63,7 @@ function pruefeOrdner({ neuesteAufnahme, losInhalt, jetzt = new Date(), ruhezeit
     return {
       bereit: false,
       grund: 'los_fehlt',
-      meldung: `Kein gueltiges Los. Bitte eine Datei ${LOS_DATEINAME} in den Tagesordner legen, die genau einen Code enthaelt (z. B. L-081703 oder NL-0826).`,
+      meldung: `Kein gueltiges Los. Bitte eine Datei ${LOS_DATEINAME} in den Tagesordner legen, die genau einen Code enthaelt (z. B. L-0826 oder NL-0826).`,
     };
   }
 
