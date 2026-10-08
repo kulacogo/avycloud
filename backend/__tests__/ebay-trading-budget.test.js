@@ -402,6 +402,25 @@ describe('createBudgetStore — instanzuebergreifender Zaehler in Firestore', ()
     expect(d.reason).toBe('disabled');
   });
 
+  it("EBAY_TRADING_BUDGET_STORE='off' (Tests): der Prozess-Store ist inert — kein Firestore-Read, kein Write, alles erlaubt", async () => {
+    const { getEbayTradingBudget, _resetForTests } = require('../lib/ebay-trading-budget');
+    const prev = process.env.EBAY_TRADING_BUDGET_STORE;
+    process.env.EBAY_TRADING_BUDGET_STORE = 'off';
+    _resetForTests();
+    try {
+      const store = getEbayTradingBudget();
+      expect(await store.decide({ callName: 'GetOrders', priority: 'P2' })).toMatchObject({ allow: true, reason: 'store_off' });
+      expect(await store.getState()).toMatchObject({ unknown: true, remaining: null, level: 'unknown' });
+      store.record({ callName: 'GetOrders', priority: 'P0' });
+      expect(store.pendingCount()).toBe(0);
+      await expect(store.flush()).resolves.toBeUndefined();
+      await expect(store.applyProbe({ remaining: 1, limit: 5000 })).resolves.toBeNull();
+    } finally {
+      if (prev === undefined) delete process.env.EBAY_TRADING_BUDGET_STORE; else process.env.EBAY_TRADING_BUDGET_STORE = prev;
+      _resetForTests();
+    }
+  });
+
   it('exportiert ein sinnvolles Tageslimit als Voreinstellung', () => {
     expect(DEFAULT_DAILY_LIMIT).toBe(5000);
   });

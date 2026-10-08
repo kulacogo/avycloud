@@ -44,3 +44,15 @@ process.env.GPSR_GATE_SELF_SEARCH = 'off';
  * (llm-config-store-off.test.js), schalten ihn explizit wieder ein.
  */
 process.env.LLM_CONFIG_STORE = 'off';
+
+/**
+ * EBAY_TRADING_BUDGET_STORE=off: Seit 2026-10-08 fragt JEDER eBay-Trading-
+ * Aufruf das Tagesbudget in Firestore (lib/ebay-trading-budget.js) und zaehlt
+ * sich dort. In Tests waere das ein echter Firestore-Client — lokal die
+ * PRODUKTIONS-Datenbank (Projekt-Fallback avycloud), auf dem GitHub-Runner
+ * ohne Anmeldedaten 10 s Wartezeit (ebay-trading-oauth-token.test.js fiel so
+ * im ersten Lauf). Mit `off` ist der Prozess-Store inert: alles erlaubt,
+ * nichts gelesen, nichts geschrieben. Tests des Budgets selbst bauen ihren
+ * Store mit createBudgetStore({ db }) und sind davon unberuehrt.
+ */
+process.env.EBAY_TRADING_BUDGET_STORE = 'off';

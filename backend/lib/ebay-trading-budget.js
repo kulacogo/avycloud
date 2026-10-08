@@ -442,9 +442,35 @@ function createBudgetStore({
 
 // ── Prozessweiter Store (Produktion) ────────────────────────────────────────
 
+// EBAY_TRADING_BUDGET_STORE='off' (vitest.setup.js): kein Firestore-Zugriff
+// ueberhaupt. Ohne den Schalter lasen Tests, die callTradingApi durchlaufen,
+// die PRODUKTIONS-Datenbank (lib/firestore.js faellt auf Projekt avycloud
+// zurueck) und hingen auf dem GitHub-Runner ohne Anmeldedaten 10 s.
+function createInertStore() {
+  const unknown = () => ({
+    unknown: true, enabled: false, windowKey: null, windowStartIso: null, resetAtIso: null,
+    limit: DEFAULT_DAILY_LIMIT, used: null, remaining: null, level: 'unknown', source: 'unknown',
+    reserves: { ...DEFAULT_RESERVES },
+  });
+  return {
+    record() {},
+    async flush() {},
+    async getState() { return unknown(); },
+    async decide({ priority } = {}) { return { allow: true, reason: 'store_off', priority: normalizePriority(priority), remaining: null, reserve: null }; },
+    async applyProbe() { return null; },
+    pendingCount() { return 0; },
+    reserves: { ...DEFAULT_RESERVES },
+    limit: DEFAULT_DAILY_LIMIT,
+  };
+}
+
 let _store = null;
 function getEbayTradingBudget() {
-  if (!_store) _store = createBudgetStore({});
+  if (!_store) {
+    _store = String(process.env.EBAY_TRADING_BUDGET_STORE || '').trim().toLowerCase() === 'off'
+      ? createInertStore()
+      : createBudgetStore({});
+  }
   return _store;
 }
 function _resetForTests() { _store = null; }
