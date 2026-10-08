@@ -9,6 +9,7 @@ import {
 } from "../api/client";
 import { AdminSystemHealth } from "./admin/AdminSystemHealth";
 import { PageTitle } from "./ui/PageTitle";
+import { describeEbayListingSync } from "../utils/ebaySyncBanner";
 
 /**
  * Shop-Gesundheit — Operations-Dashboard (Status · KPIs · Service-Metriken).
@@ -176,20 +177,22 @@ export const ShopGesundheit: React.FC = () => {
         </div>
       )}
 
-      {/* eBay-Angebots-Abgleich gestört (z. B. Token ungültig) */}
-      {ebayListingSync && ebayListingSync.healthy === false && (
-        <div className="rounded-xl border border-danger/30 bg-danger-dim px-4 py-3 text-sm">
-          <span className="font-semibold text-danger">eBay-Angebots-Abgleich gestört:</span>{" "}
-          <span className="text-txt-primary">
-            {ebayListingSync.lastSuccessAtIso
-              ? `Letzter erfolgreicher Abruf am ${new Date(ebayListingSync.lastSuccessAtIso).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}.`
-              : "Noch nie erfolgreich abgerufen."}{" "}
-            Angezeigte eBay-Angebote können veraltet sein.
-            {ebayListingSync.lastError?.message ? ` Fehler: ${ebayListingSync.lastError.message}` : ""}
-            {" "}Prüfe die eBay-Verbindung unter Integrationen.
-          </span>
-        </div>
-      )}
+      {/* eBay-Angebots-Abgleich gestört — Fehlertyp-bewusst (2026-10-08):
+          leeres Tageskontingent heißt warten, nicht „Verbindung prüfen". */}
+      {(() => {
+        const banner = describeEbayListingSync(ebayListingSync);
+        if (banner.kind === "none") return null;
+        const quota = banner.kind === "quota";
+        return (
+          <div className={`rounded-xl border px-4 py-3 text-sm ${quota ? "border-warning/30 bg-warning-dim" : "border-danger/30 bg-danger-dim"}`}>
+            <span className={`font-semibold ${quota ? "text-warning" : "text-danger"}`}>{banner.title}:</span>{" "}
+            <span className="text-txt-primary">
+              {banner.lines.join(" ")}
+              {banner.showReconnect ? " Prüfe die eBay-Verbindung unter Integrationen." : ""}
+            </span>
+          </div>
+        );
+      })()}
 
       {/* KPI-Reihe */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">

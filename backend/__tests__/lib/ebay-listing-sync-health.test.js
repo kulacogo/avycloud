@@ -105,4 +105,68 @@ describe('getEbayListingSyncHealth — ehrlicher Sync-Zustand', () => {
     expect(h.blockedReason).toBe('awaiting_second_complete_ingest_confirmation');
     expect(h.pendingConfirmation).toBe(true);
   });
+
+  // ── Fehlertyp (2026-10-08): Kontingent ≠ Verbindungsproblem ────────────
+  it('errorKind quota: Kontingent-Skip als letzter Fehler → quota (kein „neu verbinden")', async () => {
+    installLockDoc({
+      lastCompletedAtIso: minutesAgoIso(120),
+      lastError: { message: 'eBay Trading skipped for GetMyeBaySelling: exceeded usage limit (shared quota cooldown 152s)', atIso: minutesAgoIso(3) },
+    });
+    const h = await getEbayListingSyncHealth();
+    expect(h.healthy).toBe(false);
+    expect(h.errorKind).toBe('quota');
+  });
+
+  it('errorKind auth: deutscher Token-Fehler → auth', async () => {
+    installLockDoc({
+      lastCompletedAtIso: minutesAgoIso(120),
+      lastError: { message: 'Die Validierung des Authentifizierungs-Tokens in der API-Anforderung ist fehlgeschlagen.', atIso: minutesAgoIso(3) },
+    });
+    const h = await getEbayListingSyncHealth();
+    expect(h.errorKind).toBe('auth');
+  });
+
+  it('gesund → errorKind null', async () => {
+    installLockDoc({ lastCompletedAtIso: minutesAgoIso(10), lastError: null });
+    const h = await getEbayListingSyncHealth();
+    expect(h.errorKind).toBeNull();
+  });
+
+  it('Spiegel vom Budget PAUSIERT (lastSkip budget_reserve nach dem letzten Erfolg) → unhealthy, aber quota mit ehrlichem Text', async () => {
+    installLockDoc({
+      lastCompletedAtIso: minutesAgoIso(150),
+      lastError: null,
+      lastSkip: { reason: 'budget_reserve', atIso: minutesAgoIso(14), remaining: 1400, resetAtIso: '2026-10-09T07:00:00.000Z' },
+    });
+    const h = await getEbayListingSyncHealth();
+    expect(h.healthy).toBe(false);
+    expect(h.errorKind).toBe('quota');
+    expect(h.lastError.message).toContain('Tagesbudget');
+    expect(h.lastError.message).toContain('1400');
+    expect(h.failingSinceIso).toBeTruthy();
+  });
+
+  it('ein UNGELOESTER echter Fehler gewinnt gegen eine juengere Budget-Pause (Gegenlese: sonst verdeckt „pausiert" einen Token-Ausfall)', async () => {
+    installLockDoc({
+      lastCompletedAtIso: minutesAgoIso(180),
+      lastError: { message: 'Die Validierung des Authentifizierungs-Tokens in der API-Anforderung ist fehlgeschlagen.', atIso: minutesAgoIso(60) },
+      lastSkip: { reason: 'budget_reserve', atIso: minutesAgoIso(5), remaining: 300, resetAtIso: '2026-10-09T07:00:00.000Z' },
+    });
+    const h = await getEbayListingSyncHealth();
+    expect(h.healthy).toBe(false);
+    expect(h.errorKind).toBe('auth');
+    expect(h.lastError.message).toContain('Authentifizierungs-Tokens');
+    expect(h.pausedByBudget).toMatchObject({ remaining: 300, resetAtIso: '2026-10-09T07:00:00.000Z' });
+  });
+
+  it('alter lastSkip VOR dem letzten Erfolg zaehlt nicht', async () => {
+    installLockDoc({
+      lastCompletedAtIso: minutesAgoIso(10),
+      lastError: null,
+      lastSkip: { reason: 'budget_reserve', atIso: minutesAgoIso(60), remaining: 1400, resetAtIso: '2026-10-09T07:00:00.000Z' },
+    });
+    const h = await getEbayListingSyncHealth();
+    expect(h.healthy).toBe(true);
+    expect(h.errorKind).toBeNull();
+  });
 });

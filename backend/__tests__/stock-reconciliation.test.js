@@ -174,6 +174,77 @@ describe('stock-reconciliation', () => {
       const drift = await checkMarketplaceDrift({ id: 'prod-1' }, 'default');
       expect(drift).toBeNull();
     });
+
+    // Vorfall 2026-10-08: ein DAUERHAFT scheiternder Kanal (eBay lehnt „W34 L34"
+    // als Groesse ab — listing_config, nicht retryable) galt als Drift und wurde
+    // alle 30 min erneut gepusht (1 + 4 Geschwister-Revises ≈ 240 Trading-Aufrufe
+    // am Tag fuer EIN Produkt). Nur RETRYABLE Fehlschlaege (Quota, transient)
+    // sind ein Drift — ein Konfigurationsfehler heilt nicht durch Wiederholung.
+    it('treats a retryable (quota) channel failure in the last sync as drift', async () => {
+      computeAvailableQuantity.mockResolvedValueOnce({ physicalQty: 10, reservedQty: 0, availableQty: 10 });
+      mockSyncLogDocs.push({
+        data: () => ({
+          productId: 'prod-1', availableQuantity: 10, createdAt: new Date().toISOString(),
+          results: [{ channel: 'ebay', status: 'failed', error: 'eBay Trading skipped for ReviseFixedPriceItem: exceeded usage limit (quota cooldown 120s)' }],
+        }),
+      });
+      const drift = await checkMarketplaceDrift({ id: 'prod-1' }, 'default');
+      expect(drift).not.toBeNull();
+      expect(drift.lastSyncFailed).toBe(true);
+    });
+
+    it('does NOT treat a permanent listing_config failure as drift (no re-push loop)', async () => {
+      computeAvailableQuantity.mockResolvedValueOnce({ physicalQty: 10, reservedQty: 0, availableQty: 10 });
+      mockSyncLogDocs.push({
+        data: () => ({
+          productId: 'prod-1', availableQuantity: 10, createdAt: new Date().toISOString(),
+          results: [
+            { channel: 'ebay', status: 'failed', error: '„W34 L34“ ist kein gültiger Wert für Größe. Wählen Sie einen Wert aus den verfügbaren Optionen aus.' },
+            { channel: 'ebay', status: 'failed', error: '"W34 L34" non è un valore valido per Taglia.', action: 'sibling_revise_failed' },
+          ],
+        }),
+      });
+      const drift = await checkMarketplaceDrift({ id: 'prod-1' }, 'default');
+      expect(drift).toBeNull();
+    });
+
+    // Gegenlese 2026-10-08 (HIGH, 4 Pruefer): ein AUTH-Fehlschlag heilt extern
+    // (Token neu verbinden) — die veraltete eBay-Menge MUSS danach nachgezogen
+    // werden. Nur listing_config ist ein Dauerfehler des Listings selbst.
+    it('treats an auth failure in the last sync as drift (heals after reconnect)', async () => {
+      computeAvailableQuantity.mockResolvedValueOnce({ physicalQty: 0, reservedQty: 0, availableQty: 0 });
+      mockSyncLogDocs.push({
+        data: () => ({
+          productId: 'prod-1', availableQuantity: 0, createdAt: new Date().toISOString(),
+          results: [{ channel: 'ebay', status: 'error', error: 'Die Validierung des Authentifizierungs-Tokens in der API-Anforderung ist fehlgeschlagen.' }],
+        }),
+      });
+      const drift = await checkMarketplaceDrift({ id: 'prod-1' }, 'default');
+      expect(drift).not.toBeNull();
+      expect(drift.lastSyncFailed).toBe(true);
+    });
+
+    it('a failure without any error text is still a drift (conservative)', async () => {
+      computeAvailableQuantity.mockResolvedValueOnce({ physicalQty: 10, reservedQty: 0, availableQty: 10 });
+      mockSyncLogDocs.push({
+        data: () => ({ productId: 'prod-1', availableQuantity: 10, createdAt: new Date().toISOString(), results: [{ channel: 'ebay', status: 'failed' }] }),
+      });
+      const drift = await checkMarketplaceDrift({ id: 'prod-1' }, 'default');
+      expect(drift).not.toBeNull();
+    });
+
+    it('a quantity mismatch is still a drift even when the last failure was permanent', async () => {
+      computeAvailableQuantity.mockResolvedValueOnce({ physicalQty: 10, reservedQty: 0, availableQty: 4 });
+      mockSyncLogDocs.push({
+        data: () => ({
+          productId: 'prod-1', availableQuantity: 10, createdAt: new Date().toISOString(),
+          results: [{ channel: 'ebay', status: 'failed', error: '„W34 L34“ ist kein gültiger Wert für Größe.' }],
+        }),
+      });
+      const drift = await checkMarketplaceDrift({ id: 'prod-1' }, 'default');
+      expect(drift).not.toBeNull();
+      expect(drift.delta).toBe(-6);
+    });
   });
 
   describe('reconcileRecentActivity', () => {

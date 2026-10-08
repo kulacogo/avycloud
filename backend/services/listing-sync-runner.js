@@ -470,6 +470,69 @@ async function healEndedListingsWithStock() {
   return { disabled: true, reason: 'manual_reactivation_required' };
 }
 
+// ─── Budget-Takt des eBay-Spiegels (Vorfall 2026-10-08) ──────────────────────
+//
+// GetMyeBaySelling kostet je Zyklus ~14 Trading-Aufrufe (2.678 aktive
+// Listings à 200/Seite); alle 15 min sind das 1.344/Tag = 27 % des 5.000er
+// Tageskontingents — unabhaengig davon, ob das Budget fuer Zero-Stock-Ends,
+// Auftrags-Import und Versandmeldungen noch reicht. Jetzt richtet sich der
+// Takt nach dem Restbudget (lib/ebay-trading-budget.js lightSyncIntervalMs):
+// voll → Basis-Takt, knapper → 2x/4x, unter der P2-Reserve → Pause bis zum
+// Reset. Fail-open: unbekannter Stand → Basis-Takt wie bisher.
+//
+// Rein, exportiert fuer Tests.
+function planEbayLightSync({ budgetState, baseIntervalMs = LISTING_SYNC_INTERVAL_MS } = {}) {
+  const base = Number(baseIntervalMs) > 0 ? Number(baseIntervalMs) : 15 * 60 * 1000;
+  const cushionMs = 60 * 1000; // der Runner tickt im Basis-Takt; Cooldown knapp darunter
+  // Notbremse EBAY_TRADING_BUDGET='off' → Basis-Takt, nie pausieren (Gegenlese:
+  // die Notbremse muss das ALTE Verhalten herstellen, nicht nur decide()).
+  if (budgetState && budgetState.enabled === false) {
+    return { run: true, intervalMs: base, cooldownMs: null, reason: 'budget_disabled', priority: 'P2' };
+  }
+  // null/undefined = unbekannt (Number(null) waere 0 → faelschlich "leer").
+  const rawRemaining = budgetState ? budgetState.remaining : null;
+  const remaining = rawRemaining != null && Number.isFinite(Number(rawRemaining)) ? Number(rawRemaining) : null;
+  if (remaining === null) {
+    return { run: true, intervalMs: base, cooldownMs: null, reason: 'budget_unknown', priority: 'P2' };
+  }
+  const { lightSyncIntervalMs, DEFAULT_RESERVES } = require('../lib/ebay-trading-budget');
+  const reserves = budgetState.reserves || DEFAULT_RESERVES;
+  const intervalMs = lightSyncIntervalMs({
+    remaining,
+    limit: Number(budgetState.limit) > 0 ? Number(budgetState.limit) : undefined,
+    reserves,
+    baseIntervalMs: base,
+  });
+  if (intervalMs === null) {
+    return { run: false, intervalMs: null, cooldownMs: null, reason: 'budget_reserve', remaining, resetAtIso: budgetState.resetAtIso || null };
+  }
+  // Unter der P2-Reserve laeuft der Spiegel als P1 weiter (4x-Takt): ein bis
+  // zum Reset eingefrorener Spiegel kennt fremd angelegte Geschwister-/Relist-
+  // Angebote nicht, und das Zero-Stock-End koennte sie nicht beenden.
+  const belowP2 = remaining <= Number(reserves.reserveP2);
+  // Am Basis-Takt KEIN Cooldown-Override: der ENV-/Default-Cooldown (10 min)
+  // bleibt — ein Override von 14 min haette den Spiegel halbiert, sobald ein
+  // Zyklus laenger als 60 s dauert (Gegenlese).
+  const stretched = intervalMs > base;
+  return {
+    run: true,
+    intervalMs,
+    cooldownMs: stretched ? Math.max(0, intervalMs - cushionMs) : null,
+    reason: belowP2 ? 'budget_stretched_p1' : (stretched ? 'budget_stretched' : 'budget_ok'),
+    priority: belowP2 ? 'P1' : 'P2',
+    remaining,
+  };
+}
+
+async function readBudgetStateSafe() {
+  try {
+    const { getEbayTradingBudget } = require('../lib/ebay-trading-budget');
+    return await getEbayTradingBudget().getState();
+  } catch (err) {
+    return null;
+  }
+}
+
 // ─── Sync Cycle ───────────────────────────────────────────────────────────────
 
 async function runListingSyncCycle() {
@@ -486,13 +549,40 @@ async function runListingSyncCycle() {
     // Incident 2026-07-20: eBay hatte real 3637 aktive (2904 Duplikate),
     // avycloud kannte nur 2000, Oversell-Kachel zeigte 0. Der Pagination-Loop
     // stoppt ohnehin bei totalPages, 50 ist nur die Notbremse (10.000).
-    const ebaySync = await syncLiveListingsLight({
+    const budgetPlan = planEbayLightSync({ budgetState: await readBudgetStateSafe() });
+    const lightSyncOptions = {
       runId: `auto-${Date.now()}`,
       maxPages: 50,
       entriesPerPage: 200,
       timeoutMs: 30000,
       actor: 'listing-sync-runner',
-    }).catch(err => ({ error: err.message }));
+    };
+    if (budgetPlan.run && budgetPlan.cooldownMs != null) lightSyncOptions.cooldownMs = budgetPlan.cooldownMs;
+    if (budgetPlan.run && budgetPlan.priority) lightSyncOptions.priority = budgetPlan.priority;
+    if (budgetPlan.reason === 'budget_stretched' || budgetPlan.reason === 'budget_stretched_p1') {
+      console.log(`[ListingSyncRunner] eBay-Spiegel gestreckt: Rest ${budgetPlan.remaining} Trading-Aufrufe → Takt ${Math.round(budgetPlan.intervalMs / 60000)} min (Prioritaet ${budgetPlan.priority})`);
+    }
+    if (!budgetPlan.run) {
+      // Den Grund im Lock-Doc hinterlassen: getEbayListingSyncHealth zeigt den
+      // alternden Spiegel sonst als „gestoert" mit „neu verbinden" — ehrlich ist
+      // „pausiert, Tagesbudget geschont" (CLAUDE.md 16b: keine Erfolgs- oder
+      // Fehler-Illusion). Best effort, darf den Zyklus nie umwerfen.
+      try {
+        await firestore.collection('ops').doc('ebayLightSync').set({
+          lastSkip: {
+            reason: 'budget_reserve',
+            atIso: new Date().toISOString(),
+            remaining: budgetPlan.remaining,
+            resetAtIso: budgetPlan.resetAtIso || null,
+          },
+        }, { merge: true });
+      } catch (err) {
+        console.warn(`[ListingSyncRunner] lastSkip write failed: ${err.message}`);
+      }
+    }
+    const ebaySync = budgetPlan.run
+      ? await syncLiveListingsLight(lightSyncOptions).catch(err => ({ error: err.message }))
+      : { skipped: true, reason: `budget_reserve (Rest ${budgetPlan.remaining}, Reset ${budgetPlan.resetAtIso || 'unbekannt'})` };
 
     if (ebaySync?.skipped) {
       console.log(`[ListingSyncRunner] eBay sync skipped (${ebaySync.reason})`);
@@ -603,4 +693,4 @@ function stopListingSyncRunner() {
   }
 }
 
-module.exports = { startListingSyncRunner, stopListingSyncRunner, propagateEbayStatusToProducts, decideAutoHealPush, healEndedListingsWithStock };
+module.exports = { startListingSyncRunner, stopListingSyncRunner, runListingSyncCycle, planEbayLightSync, propagateEbayStatusToProducts, decideAutoHealPush, healEndedListingsWithStock };

@@ -653,16 +653,33 @@ export async function saveProfile(profile: ProfileData): Promise<ProfileData> {
   return data?.data || {};
 }
 
+/** Stand des eBay-Trading-Tagesbudgets (seit 2026-10-08, lib/ebay-trading-budget.js). */
+export interface EbayTradingBudgetState {
+  remaining: number | null;
+  limit: number;
+  used: number | null;
+  level: "ok" | "tight" | "critical" | "exhausted" | "unknown";
+  source: "probe" | "counter" | "unknown";
+  resetAtIso: string | null;
+  reserves: { floorP0: number; reserveP1: number; reserveP2: number } | null;
+  enabled: boolean;
+}
+
 /** Ehrlicher Zustand des eBay-Angebots-Abgleichs (aus ops/ebayLightSync). null = unbekannt (nie gelaufen). */
 export interface EbayListingSyncHealth {
   healthy: boolean | null;
   lastSuccessAtIso: string | null;
   staleMinutes: number | null;
   lastError: { message: string; atIso: string | null } | null;
+  /** Fehlertyp (seit 2026-10-08): 'quota' = Tageskontingent leer → warten, 'auth' = neu verbinden. */
+  errorKind?: "quota" | "auth" | "other" | null;
   failingSinceIso: string | null;
   blockedReason: string | null;
   pendingConfirmation: boolean;
   staleLimitMinutes: number;
+  budget?: EbayTradingBudgetState | null;
+  /** Spiegel vom Tagesbudget pausiert (Runner-Marker), auch wenn ein echter Fehler die Anzeige bestimmt. */
+  pausedByBudget?: { atIso: string; remaining: number | null; resetAtIso: string | null } | null;
 }
 
 export interface IntegrationStatusEntry {

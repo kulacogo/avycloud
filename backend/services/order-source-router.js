@@ -43,13 +43,32 @@ async function syncOrders() {
  * Native order sync: pull from eBay + Kaufland APIs.
  * @returns {Promise<any[]>}
  */
+// Web-Dienst (Vorfall 2026-10-08): UI-ausgeloeste Hintergrund-Syncs (bis zu
+// 1.127/Tag, Handscanner alle 30 s) kosteten je 2+ GetOrders, obwohl der
+// Worker alle 5 min ohnehin importiert. Liegt der letzte erfolgreiche Import
+// (geteilter Marker) weniger als ORDER_SYNC_EBAY_FRESH_MS zurueck, macht der
+// Web-Dienst KEINEN eBay-Aufruf. Faellt der Worker aus, wird der Marker alt und
+// das Sicherheitsnetz greift wie bisher. 0 = Schranke aus.
+const ORDER_SYNC_EBAY_FRESH_MS = () => {
+  const n = parseInt(process.env.ORDER_SYNC_EBAY_FRESH_MS || String(6 * 60 * 1000), 10);
+  return Number.isFinite(n) && n >= 0 ? n : 6 * 60 * 1000;
+};
+
 async function syncOrdersNative() {
   const results = [];
 
   // Sync eBay
   try {
     const { syncEbayOrders } = require('./order-intake-ebay');
-    const ebayResult = await syncEbayOrders({ tenantId: 'default', lookbackDays: 7 });
+    const { shouldRunBackgroundJobs } = require('../lib/process-role');
+    const isWeb = !shouldRunBackgroundJobs();
+    const ebayResult = await syncEbayOrders({
+      tenantId: 'default',
+      lookbackDays: 7,
+      // Web: Komfort-Sync (P2) mit Frische-Schranke; Worker-Sicherheitsnetz: P1, ohne Schranke.
+      skipIfFreshMs: isWeb ? ORDER_SYNC_EBAY_FRESH_MS() : 0,
+      priority: isWeb ? 'P2' : 'P1',
+    });
     results.push({ source: 'ebay', ...ebayResult });
   } catch (err) {
     console.error(`[order-source-router] eBay sync failed: ${err.message}`);

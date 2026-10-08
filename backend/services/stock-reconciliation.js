@@ -52,8 +52,19 @@ async function checkMarketplaceDrift(product, tenantId) {
   // geloggt wird aber die berechnete Menge. Quantities-Gleichheit ist dann kein
   // Beleg für Sync-Gesundheit → als Drift behandeln, damit der idempotente
   // Auto-Fix (syncStockToAllChannels) den Zustand repariert.
-  const lastSyncHadFailure = Array.isArray(lastSync.results)
-    && lastSync.results.some((r) => r?.status === 'error' || r?.status === 'failed');
+  //
+  // ABER (2026-10-08): ein KONFIGURATIONSFEHLER des Listings (eBay lehnt
+  // „W34 L34" als Größe ab — listing_config) heilt nicht durch Wiederholung;
+  // vorher wurde das Listing alle 30 min erneut gepusht (1 + 4 Geschwister-
+  // Revises ≈ 240 Trading-Aufrufe/Tag für EIN Produkt), und das Log meldete
+  // „fixed". ALLE anderen Fehlschläge bleiben Drift — ausdrücklich auch
+  // auth (Gegenlese, 4 Prüfer): ein Token-Ausfall heilt EXTERN (neu
+  // verbinden), die veraltete eBay-Menge muss danach nachgezogen werden.
+  const { classifyMarketplaceError } = require('../lib/marketplace-error-classifier');
+  const failedChannels = Array.isArray(lastSync.results)
+    ? lastSync.results.filter((r) => r && (r.status === 'error' || r.status === 'failed'))
+    : [];
+  const lastSyncHadFailure = failedChannels.some((r) => classifyMarketplaceError(r?.error || r?.message || '').class !== 'listing_config');
 
   if (lastPushed === availableQty && !lastSyncHadFailure) return null;
 
