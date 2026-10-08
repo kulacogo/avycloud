@@ -85,6 +85,9 @@ const ProductCard: React.FC<{ product: Product }> = ({ product }) => {
             badge
           />
           <SummaryRow label="SKU" value={product.identification?.sku} />
+          <SummaryRow label="Verkaufspreis" value={Number(product.details?.pricing?.sellPrice) > 0
+            ? new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(Number(product.details.pricing.sellPrice))
+            : "Noch nicht ermittelt"} />
         </div>
       </Card>
     </div>

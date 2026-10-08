@@ -573,16 +573,45 @@ function sharedQuotaBreakerEnabled() {
 }
 function _sharedBreaker() { return require('./ebay-quota-breaker'); }
 
-function openEbayQuotaBreaker() {
-  _quotaExhaustedUntil = Date.now() + EBAY_QUOTA_COOLDOWN_MS;
+function openEbayQuotaBreaker(cooldownMs = EBAY_QUOTA_COOLDOWN_MS) {
+  const ms = Number.isFinite(Number(cooldownMs)) && Number(cooldownMs) > 0 ? Number(cooldownMs) : EBAY_QUOTA_COOLDOWN_MS;
+  _quotaExhaustedUntil = Date.now() + ms;
   if (sharedQuotaBreakerEnabled()) {
-    try { _sharedBreaker().openEbayQuotaBreaker({ cooldownMs: EBAY_QUOTA_COOLDOWN_MS, reason: 'exceeded usage limit' }).catch(() => {}); } catch (_) { /* fire-and-forget */ }
+    try { _sharedBreaker().openEbayQuotaBreaker({ cooldownMs: ms, reason: 'exceeded usage limit' }).catch(() => {}); } catch (_) { /* fire-and-forget */ }
   }
 }
 function closeEbayQuotaBreaker() {
+  // Nur ein OFFENER Breaker wird geschlossen (2026-10-08): vorher schrieb jeder
+  // erfolgreiche Trading-Call `openUntil:null` nach Firestore — bis zu 5.000
+  // Writes am Tag fuer nichts, plus ein Cache-Reset je Call. Der lokale Stand
+  // spiegelt den geteilten (via _consultSharedQuotaBreaker), also reicht er.
+  const wasOpen = _quotaExhaustedUntil !== 0;
   _quotaExhaustedUntil = 0;
-  if (sharedQuotaBreakerEnabled()) {
+  if (wasOpen && sharedQuotaBreakerEnabled()) {
     try { _sharedBreaker().closeEbayQuotaBreaker({}).catch(() => {}); } catch (_) { /* fire-and-forget */ }
+  }
+}
+
+// Breaker-Dauer bei einer ECHTEN eBay-Ablehnung (2026-10-08): bestaetigt das
+// Tagesbudget die Erschoepfung (Stufe exhausted/critical), bleibt der Breaker
+// bis zum Reset (+30 s) zu, statt alle 5 min einen sinnlosen Probe-Aufruf zu
+// verbrennen (gemessen 59-68 je Nacht). Ohne Bestaetigung — Budget unbekannt,
+// Rest vorhanden, Fehler — weiterhin 300 s, damit ein falscher Zaehlerstand nie
+// stundenlang blockiert. Deckel 25 h, Boden 60 s. Notbremse
+// EBAY_QUOTA_BREAKER_UNTIL_RESET='off' (nur exakt dieser Wert).
+const BREAKER_UNTIL_RESET_MAX_MS = 25 * 60 * 60 * 1000;
+async function _resolveQuotaCooldownMs() {
+  if (String(process.env.EBAY_QUOTA_BREAKER_UNTIL_RESET || '').trim().toLowerCase() === 'off') return EBAY_QUOTA_COOLDOWN_MS;
+  try {
+    const state = await _budgetModule().getEbayTradingBudget().getState();
+    // Notbremse EBAY_TRADING_BUDGET='off' → auch hier das alte 300-s-Verhalten.
+    if (!state || state.enabled === false || !(state.level === 'exhausted' || state.level === 'critical')) return EBAY_QUOTA_COOLDOWN_MS;
+    const resetMs = Date.parse(state.resetAtIso || '');
+    if (!Number.isFinite(resetMs)) return EBAY_QUOTA_COOLDOWN_MS;
+    const untilReset = resetMs - Date.now() + 30 * 1000;
+    return Math.max(60 * 1000, Math.min(untilReset, BREAKER_UNTIL_RESET_MAX_MS));
+  } catch (_err) {
+    return EBAY_QUOTA_COOLDOWN_MS;
   }
 }
 
@@ -614,23 +643,99 @@ function isRateLimitError(text, errors) {
   return false;
 }
 
-async function callTradingApi(callName, bodyXml, { timeoutMs = DEFAULT_TIMEOUT_MS, siteId = null } = {}) {
+// ── Tagesbudget mit Prioritaeten (Vorfall 2026-10-08) ───────────────────────
+// Das Trading-Kontingent (5.000/Tag fuer ALLE Calls) war seit 05.10. jeden Tag
+// Stunden vor dem Reset leer — aufgebraucht von Komfort-Aufrufen (UI-Abgleiche,
+// 15-min-Spiegel), waehrend Zero-Stock-Ends, Auftrags-Import und Versand-
+// meldungen danach stundenlang scheiterten. Jetzt traegt jeder Aufruf eine
+// Prioritaet; lib/ebay-trading-budget.js (Firestore-geteilt, Web + Worker)
+// entscheidet VOR dem Aufruf. Voreinstellung je CallName, Aufrufer duerfen
+// ueberstimmen (opts.priority). Unbekannt → P1.
+//   P2: Spiegel/Komfort (GetMyeBaySelling, Profile, Kategorien) — bis Reserve
+//   P1: Wichtig, nachholbar (GetOrders-Abgleich, Revise, GetItem, Publish)
+//   P0: Oversell-Schutz + Versandmeldung (End, CompleteSale) — bis zum Boden
+const DEFAULT_PRIORITY_BY_CALL = Object.freeze({
+  GetMyeBaySelling: 'P2',
+  GetSellerProfiles: 'P2',
+  GetCategories: 'P2',
+  GetCategorySpecifics: 'P2',
+  GeteBayDetails: 'P2',
+  CompleteSale: 'P0',
+  EndFixedPriceItem: 'P0',
+  EndItem: 'P0',
+});
+
+function _budgetModule() { return require('./ebay-trading-budget'); }
+
+function resolveCallPriority(callName, priority) {
+  const explicit = safeString(priority).toUpperCase();
+  if (explicit === 'P0' || explicit === 'P1' || explicit === 'P2') return explicit;
+  return DEFAULT_PRIORITY_BY_CALL[safeString(callName)] || 'P1';
+}
+
+// Fail-open: ein Fehler des Budget-Stores blockiert NIE einen Aufruf. Eine
+// Ablehnung wirft wie ein Breaker-Skip (Marker "exceeded usage limit"), damit
+// jeder bestehende Aufrufer sie als Quota-Klasse behandelt — verschieben, nie
+// destruktiv (CLAUDE.md Regel 14) — aber mit eigenem Code, damit Logs und
+// Oberflaeche „Budget reserviert" von „eBay hat abgelehnt" unterscheiden.
+async function _consultTradingBudget(callName, priority) {
+  let verdict = null;
+  try {
+    verdict = await _budgetModule().getEbayTradingBudget().decide({ callName, priority });
+  } catch (_err) {
+    return; // Budget nicht erreichbar → Aufruf laeuft
+  }
+  if (verdict && verdict.allow === false) {
+    const resetHint = verdict.resetAtIso ? `, Reset ${verdict.resetAtIso}` : '';
+    const err = new Error(
+      `eBay Trading skipped for ${callName}: exceeded usage limit (Tagesbudget reserviert: Prioritaet ${priority}, Rest ${verdict.remaining} ≤ Reserve ${verdict.reserve}${resetHint})`
+    );
+    err.code = 'EBAY_BUDGET_DEFERRED';
+    err.budgetDeferred = true;
+    err.quotaCooldown = true;
+    err.budget = verdict;
+    throw err;
+  }
+}
+
+function _recordTradingCall(callName, priority) {
+  try { _budgetModule().getEbayTradingBudget().record({ callName, priority }); } catch (_err) { /* Zaehlung ist best-effort */ }
+}
+
+async function callTradingApi(callName, bodyXml, { timeoutMs = DEFAULT_TIMEOUT_MS, siteId = null, priority = null } = {}) {
   const { acquireSlot } = require('./ebay-rate-limiter');
+  const callPriority = resolveCallPriority(callName, priority);
 
   // Circuit breaker: while the daily quota is exhausted, fail fast WITHOUT
   // hitting eBay so it can recover instead of staying pinned by a retry storm.
   // Message keeps the "exceeded usage limit" marker so callers' rate-limit
   // detection (stock-sync / marketplace-tracking) still defers correctly.
   if (ebayQuotaCooldownActive()) {
-    const err = new Error(`eBay Trading skipped for ${callName}: exceeded usage limit (quota cooldown ${Math.ceil(ebayQuotaCooldownRemainingMs() / 1000)}s)`);
-    err.code = 'EBAY_QUOTA_COOLDOWN';
-    err.quotaCooldown = true;
-    throw err;
+    // Langzeit-Breaker (bis Reset): den geteilten Zustand erneut pruefen —
+    // schliesst die Messung ihn (angehobenes Limit) oder ein Bediener (Script
+    // close-ebay-quota-breaker.js), darf der lokale Spiegel nicht bis zum
+    // Reset weiterblockieren. 10-s-Cache im geteilten Breaker, fail-safe.
+    let stillOpen = true;
+    if (sharedQuotaBreakerEnabled()) {
+      try {
+        const state = await _sharedBreaker().getEbayQuotaBreakerState({});
+        if (state && state.open === false) { _quotaExhaustedUntil = 0; stillOpen = false; }
+      } catch (_) { /* Lesefehler → lokalen Stand behalten */ }
+    }
+    if (stillOpen) {
+      const err = new Error(`eBay Trading skipped for ${callName}: exceeded usage limit (quota cooldown ${Math.ceil(ebayQuotaCooldownRemainingMs() / 1000)}s)`);
+      err.code = 'EBAY_QUOTA_COOLDOWN';
+      err.quotaCooldown = true;
+      throw err;
+    }
   }
 
   // Cross-instance breaker (flag-gated, cached). Throws EBAY_QUOTA_COOLDOWN when
   // another instance has the shared quota breaker open.
   await _consultSharedQuotaBreaker(callName);
+
+  // Tagesbudget: darf diese Prioritaet das Restkontingent noch benutzen?
+  await _consultTradingBudget(callName, callPriority);
 
   const cfg = await getEbayTradingConfig();
 
@@ -679,6 +784,11 @@ async function callTradingApi(callName, bodyXml, { timeoutMs = DEFAULT_TIMEOUT_M
       timeoutMs
     );
 
+    // Jeder Aufruf, der eBay ERREICHT hat, zaehlt — auch einer, den eBay
+    // ablehnt (4xx/5xx/Ack=Failure). Netzfehler/Timeouts VOR einer Antwort
+    // (fetch wirft) zaehlen nicht: eBay hat sie nie gesehen (Gegenlese).
+    _recordTradingCall(callName, callPriority);
+
     const text = await res.text().catch(() => '');
 
     // Retry on HTTP-level rate limit (429 or similar)
@@ -686,7 +796,7 @@ async function callTradingApi(callName, bodyXml, { timeoutMs = DEFAULT_TIMEOUT_M
       if (text.includes('exceeded usage limit')) {
         // Daily quota exhausted — open the breaker and stop hammering (retrying
         // in 8s is futile and just keeps the quota at zero).
-        openEbayQuotaBreaker();
+        openEbayQuotaBreaker(await _resolveQuotaCooldownMs());
         const error = new Error(`eBay Trading exceeded usage limit for ${callName} (HTTP ${res.status}) — quota breaker opened`);
         error.code = 'EBAY_TRADING_RATE_LIMIT';
         error.quotaExhausted = true;
@@ -711,8 +821,9 @@ async function callTradingApi(callName, bodyXml, { timeoutMs = DEFAULT_TIMEOUT_M
 
     // API-level rate limit (daily quota) — open the breaker, stop hammering.
     if (!isAckSuccess(ack) && isRateLimitError(text, errors)) {
-      openEbayQuotaBreaker();
-      const error = new Error(`eBay Trading exceeded usage limit for ${callName} — quota breaker opened (cooldown ${Math.ceil(EBAY_QUOTA_COOLDOWN_MS / 1000)}s)`);
+      const cooldownMs = await _resolveQuotaCooldownMs();
+      openEbayQuotaBreaker(cooldownMs);
+      const error = new Error(`eBay Trading exceeded usage limit for ${callName} — quota breaker opened (cooldown ${Math.ceil(cooldownMs / 1000)}s)`);
       error.code = 'EBAY_TRADING_RATE_LIMIT';
       error.quotaExhausted = true;
       throw error;
@@ -744,6 +855,7 @@ async function getMyeBaySellingActive({
   pageNumber = 1,
   entriesPerPage = 100,
   timeoutMs = DEFAULT_TIMEOUT_MS,
+  priority = null,
 } = {}) {
   const cfg = await getEbayTradingConfig();
   const requestXml = buildRequestRoot(
@@ -758,7 +870,7 @@ async function getMyeBaySellingActive({
     cfg.userToken,
     cfg.compatibilityLevel
   );
-  const result = await callTradingApi('GetMyeBaySelling', requestXml, { timeoutMs });
+  const result = await callTradingApi('GetMyeBaySelling', requestXml, { timeoutMs, priority: priority || undefined });
   const activeList = result?.response?.ActiveList || {};
   const items = asArray(activeList?.ItemArray?.Item).map(mapActiveListingItem).filter((row) => row.itemId);
   const pagination = activeList?.PaginationResult || {};
@@ -775,7 +887,7 @@ async function getMyeBaySellingActive({
   };
 }
 
-async function getItemDetails(itemId, { timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
+async function getItemDetails(itemId, { timeoutMs = DEFAULT_TIMEOUT_MS, priority = null } = {}) {
   const id = safeString(itemId);
   if (!id) {
     const error = new Error('itemId is required');
@@ -791,7 +903,7 @@ async function getItemDetails(itemId, { timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
     cfg.userToken,
     cfg.compatibilityLevel
   );
-  const result = await callTradingApi('GetItem', requestXml, { timeoutMs });
+  const result = await callTradingApi('GetItem', requestXml, { timeoutMs, priority: priority || undefined });
   const detail = mapListingDetail(result?.response?.Item || {});
   return {
     ack: result.ack,
@@ -932,10 +1044,11 @@ function buildReviseItemRequestXml(callName, patch, cfg) {
   return buildRequestRoot(callName, `<Item>${itemFields.join('')}</Item>`, cfg.userToken, cfg.compatibilityLevel);
 }
 
-async function reviseListing(callName, patch, { timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
+async function reviseListing(callName, patch, { timeoutMs = DEFAULT_TIMEOUT_MS, priority = null } = {}) {
   const cfg = await getEbayTradingConfig();
   const requestXml = buildReviseItemRequestXml(callName, patch, cfg);
-  const result = await callTradingApi(callName, requestXml, { timeoutMs });
+  // priority: Tagesbudget — Mengen-Revise des Stock-Syncs P0, Preis/Inhalt P1/P2.
+  const result = await callTradingApi(callName, requestXml, { timeoutMs, priority: priority || undefined });
   const response = result?.response || {};
   return {
     ack: result.ack,
@@ -1735,4 +1848,6 @@ module.exports = {
   openEbayQuotaBreaker,
   closeEbayQuotaBreaker,
   _consultSharedQuotaBreaker,
+  resolveCallPriority,
+  DEFAULT_PRIORITY_BY_CALL,
 };

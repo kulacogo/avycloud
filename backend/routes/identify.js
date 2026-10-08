@@ -228,6 +228,7 @@ router.post('/v2/enrich', requirePermission('identify', 'run'), identifyLimiter,
 // persists product in SYSTEM mode (so invariants like title policy + condition rules apply),
 // and returns the saved product (already ready for Quality Gate).
 router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimiter, upload.array('images'), async (req, res) => {
+  let metricErrorMessage = null;
   try {
     const files = req.files || [];
     const barcodes = req.body?.barcodes || '';
@@ -313,7 +314,6 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
       .split(/[\n,;]+/)
       .map((s) => s.trim())
       .filter(Boolean).length;
-    let metricErrorMessage = null;
     let metricDuplicateReused = false;
     res.on('finish', () => {
       const code = res.statusCode;

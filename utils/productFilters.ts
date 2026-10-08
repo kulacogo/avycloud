@@ -103,7 +103,11 @@ export interface ProductFilterDef {
   label: string;
   group: string;
   kind: "select" | "multi" | "numberCompare" | "dateRange";
-  adminOnly?: boolean;
+  /**
+   * Recht, das der Filter voraussetzt (Modul, Aktion). Fehlt es, ist der Filter
+   * unsichtbar und ein gespeicherter Eintrag wird ignoriert.
+   */
+  requires?: readonly [moduleName: string, action: string];
   /** Einheit fuer Zahlenfilter-Chips, z. B. "€" oder "%". */
   unit?: string;
   /** Feste Optionen (kind "select"). */
@@ -661,7 +665,10 @@ const DEFS: ProductFilterDef[] = [
     label: "Erfasst von",
     group: GROUP_STATUS,
     kind: "multi",
-    adminOnly: true,
+    // Mitarbeiter, Manager, Administrator (Betreiber 2026-10-08). Dasselbe Recht
+    // verlangt GET /api/products/identified-by — sonst saehe man den Filter, aber
+    // Altprodukte ohne ops.identified_by stuenden alle unter "Ohne Zuordnung".
+    requires: ["products", "write"],
     defaultValue: [],
     isActive: multiActive,
     buildOptions: (products, ctx) =>
@@ -986,8 +993,13 @@ export function filterDefMatchesQuery(def: ProductFilterDef, query: string): boo
   return (def.keywords ?? []).some((k) => k.toLowerCase().includes(q));
 }
 
-export function getFilterDefs(isAdmin: boolean): ProductFilterDef[] {
-  return isAdmin ? DEFS : DEFS.filter((d) => !d.adminOnly);
+/** Rechte-Pruefung wie `hasPermission` aus dem AuthContext. */
+export type PermissionCheck = (moduleName: string, action: string) => boolean;
+
+const ALLOW_ALL: PermissionCheck = () => true;
+
+export function getFilterDefs(can: PermissionCheck): ProductFilterDef[] {
+  return DEFS.filter((d) => !d.requires || can(d.requires[0], d.requires[1]));
 }
 
 export function getFilterDef(id: string): ProductFilterDef | undefined {
@@ -1002,10 +1014,9 @@ export function applyProductFilters(
   products: Product[],
   active: ActiveFilter[],
   ctx: FilterContext,
-  opts: { isAdmin?: boolean } = {}
+  opts: { can?: PermissionCheck } = {}
 ): Product[] {
-  const isAdmin = opts.isAdmin !== false;
-  const defsById = new Map(getFilterDefs(isAdmin).map((d) => [d.id, d]));
+  const defsById = new Map(getFilterDefs(opts.can ?? ALLOW_ALL).map((d) => [d.id, d]));
   const checks: Array<{ def: ProductFilterDef; value: FilterValue }> = [];
   for (const entry of active) {
     const def = defsById.get(entry.id);

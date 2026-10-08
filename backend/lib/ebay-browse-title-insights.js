@@ -266,6 +266,7 @@ async function fetchBrowsePriceSamples({
   gtin = '',
   limit = 80,
   env = DEFAULT_ENV,
+  newFixedPriceOnly = false,
 } = {}) {
   const token = await getAppToken({ env });
   const cappedLimit = Math.max(20, Math.min(200, Number(limit) || 80));
@@ -277,6 +278,7 @@ async function fetchBrowsePriceSamples({
   if (cat) params.set('category_ids', cat);
   params.set('limit', String(cappedLimit));
   params.set('offset', '0');
+  if (newFixedPriceOnly) params.set('filter', 'conditionIds:{1000},buyingOptions:{FIXED_PRICE}');
   if (g) {
     params.set('gtin', g);
   } else if (q) {
@@ -319,6 +321,7 @@ async function fetchBrowsePriceSamples({
         url,
         value: Number.isFinite(value) ? value : null,
         currency: currency || null,
+        ...(newFixedPriceOnly ? { conditionId: String(item?.conditionId || ''), buyingOptions: item?.buyingOptions || [] } : {}),
       };
     })
     .filter((x) => x && x.url && typeof x.value === 'number' && Number.isFinite(x.value));

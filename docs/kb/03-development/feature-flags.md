@@ -185,6 +185,24 @@ Beide **default OFF** → exakt heutiges Verhalten. Rollback = Flag auf `false`.
 
 > Zugehörige reine Libs (additiv, immer aktiv, kein Flag): [lib/marketplace-error-classifier.js](../../../backend/lib/marketplace-error-classifier.js) (5 Klassen, keine destruktiv), [lib/retry-backoff.js](../../../backend/lib/retry-backoff.js) (60/120/240s, Cap 30 min), [lib/ebay-quota-breaker.js](../../../backend/lib/ebay-quota-breaker.js).
 
+## eBay-Trading-Tagesbudget (seit 2026-10-08)
+
+Das Trading-Kontingent (5.000 Aufrufe/Tag für ALLE Calls, Reset Mitternacht US-Pazifik) wird instanzübergreifend gezählt und nach Prioritäten vergeben: P0 (Oversell-Schutz, Auftrags-Import, Versandmeldung) läuft bis zum Boden, P1 bis zur P1-Reserve, P2 (Spiegel/Komfort) bis zur P2-Reserve. Details in `CLAUDE.md` → „eBay-Trading-Tagesbudget". **Alle Schalter default AN; nur der exakte Wert `off` schaltet ab.**
+
+| ENV | Default | Wirkung | Anker |
+|-----|---------|---------|-------|
+| `EBAY_TRADING_BUDGET` | an | `off` → altes Verhalten: keine Call-Sperre, Listing-Spiegel im Basis-Takt, Breaker 300 s; gezählt wird trotzdem weiter. | [lib/ebay-trading-budget.js](../../../backend/lib/ebay-trading-budget.js) (`budgetEnabled`), [lib/ebay-trading-api.js](../../../backend/lib/ebay-trading-api.js) (`_consultTradingBudget`, `_resolveQuotaCooldownMs`), [services/listing-sync-runner.js](../../../backend/services/listing-sync-runner.js) (`planEbayLightSync`) |
+| `EBAY_TRADING_DAILY_LIMIT` | `5000` | Tageslimit des Zählers. Ohne ENV bringt die Analytics-Messung ihr Limit mit (nach einem Application Growth Check automatisch höher); ein explizit gesetzter Wert korrigiert NUR nach unten (Puffer). | [lib/ebay-trading-budget.js](../../../backend/lib/ebay-trading-budget.js) (`resolveDailyLimit`, `explicitDailyLimit`) |
+| `EBAY_QUOTA_BREAKER_UNTIL_RESET` | an | `off` → Breaker nach echter eBay-Ablehnung immer nur 300 s (statt bis zum Reset bei bestätigter Erschöpfung). Einen bereits offenen Breaker schließt `node backend/scripts/close-ebay-quota-breaker.js --apply`. | [lib/ebay-trading-api.js](../../../backend/lib/ebay-trading-api.js) (`_resolveQuotaCooldownMs`) |
+| `EBAY_BUDGET_FLOOR_P0` / `EBAY_BUDGET_RESERVE_P1` / `EBAY_BUDGET_RESERVE_P2` | `10` / `400` / `1500` | Reserven je Prioritätsstufe (Rest, ab dem die Stufe NICHT mehr aufrufen darf). Reihenfolge Boden ≤ P1 ≤ P2 wird erzwungen, Müll → Voreinstellungen. | [lib/ebay-trading-budget.js](../../../backend/lib/ebay-trading-budget.js) (`resolveReserves`) |
+| `EBAY_BUDGET_PROBE` | an | `off` → keine Messung des echten Rests über die Developer-Analytics-API (Worker, alle 15 min); der Zähler bleibt maßgeblich. | [lib/ebay-rate-limit-probe.js](../../../backend/lib/ebay-rate-limit-probe.js) (`runEbayBudgetProbe`), [index.js](../../../backend/index.js) |
+| `EBAY_BUDGET_PROBE_INTERVAL_MS` | `900000` | Takt der Messung (15 min). Untergrenze 60 s, ungültige Werte → 15 min. | [index.js](../../../backend/index.js) |
+| `ORDER_SYNC_EBAY_FRESH_MS` | `360000` | Web-Dienst: UI-ausgelöster Hintergrund-Sync macht KEINEN eBay-Aufruf, wenn irgendein Prozess in den letzten N ms erfolgreich importiert hat (geteilter Marker `ops/ebayOrderIntake__<tenant>`). `0` = Schranke aus. | [services/order-source-router.js](../../../backend/services/order-source-router.js), [services/order-intake-ebay.js](../../../backend/services/order-intake-ebay.js) (`skipIfFreshMs`) |
+| `EVENT_SYNC_EBAY_FRESH_MS` | `360000` | Dasselbe für den Event-Bus-Sync nach eigenen Status-Übergängen. `0` = aus. | [services/sync-event-bus.js](../../../backend/services/sync-event-bus.js) |
+| `DRAIN_QUOTA_AWARE` | an | `off` → Drain zählt Quota-Skips wieder als Versuche (altes Verhalten: Zero-Stock-Ends wurden im Quota-Fenster ABANDONED). | [services/stock-failure-drain.js](../../../backend/services/stock-failure-drain.js) (`quotaAwareDrainEnabled`) |
+
+> Reine Libs ohne Flag: [lib/ebay-sync-error-kind.js](../../../backend/lib/ebay-sync-error-kind.js) (Fehlertyp fürs Banner), `planEbayLightSync` in [services/listing-sync-runner.js](../../../backend/services/listing-sync-runner.js) (Spiegel-Takt nach Restbudget). Read-only Messung von Hand: `node backend/scripts/probe-ebay-quota.js`.
+
 ## F1 — Stock-Ledger Shadow (WP3, sicher)
 
 | ENV | Default | Wirkung | Anker |

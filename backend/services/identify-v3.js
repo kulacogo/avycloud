@@ -149,6 +149,46 @@ async function identifyProductV3({ files = [], barcodes = '', locale = 'de-DE', 
     locale, lotCode, inventoryId,
   });
 
+  const { explicitQuantity } = require('../lib/capture-offer-quantity');
+  const earlyQuantity = explicitQuantity([stage1.identity?.model, stage1.identity?.variant].filter(Boolean).join(' ')) || 1;
+  const finalQuantity = explicitQuantity(product.identification.name) || 1;
+  if (stage2.pricing?.amount > 0 && earlyQuantity !== finalQuantity) {
+    stage2.pricing = null;
+    product.details.pricing = {};
+    stage2.pricingDiagnostics = { ...(stage2.pricingDiagnostics || {}), discarded: 'pack_quantity_changed' };
+  }
+
+  // The early lookup only had Stage 1's short identity. The completed
+  // datasheet now contains product type, variant and pack size. Give failed
+  // research one bounded second pass with that richer input, before any save.
+  if (stage2._pendingPricing && !(stage2.pricing?.amount > 0) && stage3._meta?.fallbackUsed === false) {
+    const budgetMs = Math.min(45000, 300000 - (Date.now() - startTime));
+    if (budgetMs >= 5000) {
+      const diagnostics = {};
+      try {
+        const { lookupCapturePrice } = require('../lib/capture-price');
+        const price = await lookupCapturePrice({ ...product, tenantId }, { budgetMs, diagnostics });
+        stage2.pricingDiagnostics = { initial: stage2.pricingDiagnostics || null, final_datasheet: diagnostics };
+        if (price?.amount > 0) {
+          stage2.pricing = price;
+          product.details.pricing.lowest_price = { amount: price.amount, currency: price.currency, sources: price.sources, last_checked_iso: new Date().toISOString() };
+          product.details.pricing.price_confidence = price.confidence;
+        }
+      } catch (err) {
+        console.warn('[identify-v3] final datasheet price lookup failed:', err?.message);
+      }
+    }
+  }
+
+  // V3 only constructs NEW products. A researched price must also initialize
+  // the editable sale price; previously only the chat populated this field.
+  // Reuse/duplicate paths in the route keep the existing product unchanged.
+  const initialPrice = product.details.pricing.lowest_price;
+  if (initialPrice?.amount > 0 && initialPrice.sources?.length) {
+    product.details.pricing.sellPrice = initialPrice.amount;
+    product.details.pricing.suggestedPrice = initialPrice.amount;
+  }
+
   // Stage 4: Validation (synchronous scoring) — custom per-field scoring with
   // hard-coded SOURCE_BASE_SCORES, kept for backward compat (downstream code
   // and UI read its `overall_score` / `field_confidence` keys).
@@ -191,6 +231,8 @@ async function identifyProductV3({ files = [], barcodes = '', locale = 'de-DE', 
       completed: Boolean(stage2._pendingPricing),
       found: Boolean(stage2.pricing?.amount > 0),
       source: stage2.pricing?.via || null,
+      diagnostics: stage2.pricingDiagnostics || null,
+      initial_sell_price: product.details.pricing.sellPrice || null,
     },
     content_generation: {
       agentic: Boolean(stage3._meta?.agenticUsed),

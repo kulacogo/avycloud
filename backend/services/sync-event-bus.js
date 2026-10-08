@@ -250,6 +250,12 @@ bus.on('stock:changed', async (payload) => {
 // Starvation"). Jetzt: Map<tenantId, Timer> pro Sync-Typ — jeder Tenant
 // bekommt sein eigenes Debounce-Fenster.
 
+// Vorfall 2026-10-08: der Event-Sync lief nach JEDEM eigenen Status-Uebergang
+// (Pick/Pack/Webhook) als 3-Tage-GetOrders — obwohl der Worker alle 5 min
+// importiert. Liegt der letzte erfolgreiche Import (geteilter Marker) weniger
+// als EVENT_SYNC_EBAY_FRESH_MS zurueck, macht er keinen eBay-Aufruf. 0 = aus.
+const EVENT_SYNC_EBAY_FRESH_MS = parseInt(process.env.EVENT_SYNC_EBAY_FRESH_MS || String(6 * 60 * 1000), 10);
+
 const _marketplaceSyncTimers = new Map(); // tenantId -> Timeout | 'running'
 function _debouncedMarketplaceOrderSync(tenantId) {
   const tenant = String(tenantId || 'default').trim() || 'default';
@@ -265,7 +271,7 @@ function _debouncedMarketplaceOrderSync(tenantId) {
       const { syncEbayOrders } = require('./order-intake-ebay');
       const { syncKauflandOrders } = require('./order-intake-kaufland');
       const [ebay, kaufland] = await Promise.allSettled([
-        syncEbayOrders({ tenantId: tenant, lookbackDays: 3 }),
+        syncEbayOrders({ tenantId: tenant, lookbackDays: 3, skipIfFreshMs: EVENT_SYNC_EBAY_FRESH_MS, priority: 'P1' }),
         syncKauflandOrders({ tenantId: tenant, lookbackDays: 3 }),
       ]);
       console.log(`[sync-bus] marketplace order sync (tenant=${tenant}): ebay=${ebay.status} kaufland=${kaufland.status}`);

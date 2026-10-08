@@ -456,7 +456,17 @@ router.get('/ebay/status', requirePermission('products', 'read'), async (req, re
 router.get('/ebay/rate-limit-status', requirePermission('products', 'read'), async (req, res) => {
   try {
     const { getUsage } = require('../lib/ebay-rate-limiter');
-    return res.status(200).json({ ok: true, data: getUsage() });
+    // ACHTUNG: getUsage() zaehlt nur DIESE Instanz (In-Process). Der ehrliche,
+    // instanzuebergreifende Stand ist das Tagesbudget (seit 2026-10-08):
+    // Rest/Limit/Stufe/Reset + Verbrauch je CallName und Prioritaet.
+    let budget = null;
+    try {
+      const { getEbayTradingBudget } = require('../lib/ebay-trading-budget');
+      budget = await getEbayTradingBudget().getState({ force: true });
+    } catch (budgetErr) {
+      budget = { unknown: true, error: budgetErr?.message || String(budgetErr) };
+    }
+    return res.status(200).json({ ok: true, data: { ...getUsage(), budget } });
   } catch (error) {
     console.error('[GET /ebay/rate-limit-status]', error.message);
     return res.status(500).json({ ok: false, error: { code: 'INTERNAL', message: error.message } });

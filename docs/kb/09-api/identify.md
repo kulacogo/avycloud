@@ -1,7 +1,7 @@
 ---
 title: API — Identify (AI Pipelines + Chat + Jobs)
 for: [dev, agent, admin]
-lastReviewed: 2026-05-18
+lastReviewed: 2026-10-06
 ---
 
 # API — Identify
@@ -82,7 +82,8 @@ V2-Pipeline + Datasheet-Review + **persistent save als SYSTEM mode** (saveProduc
   - Stock-Protection: `findProductByStrictIdentifier` zuerst (Duplicate-Reuse statt Re-Identify).
   - Bei neuem Produkt: `saveProductV2(product, { mode: 'system', ... })` + `adjustPendingIntakeQuantity` + Los-Marker (`ops.sourceLot`/`ops.sourceLotAt`).
   - Metric-Write nach `external_api_calls`-ähnlichem Channel (`recordIdentifyMetric`).
-- **Idempotency**: durch Duplicate-Reuse-Pfad implicit idempotent für identische Identifier.
+- **Idempotency**: Keine allgemeine Idempotenz. Duplicate-Reuse kann die Wareneingangsmenge erhöhen; vorhandene EAN niemals als schreibenden Produktions-Smoke-Test verwenden.
+- **Preisvertrag (V3, 06.10.2026)**: Recherche und `sellPrice`-Initialisierung vor `saveProductV2`; Antwort liest anschließend das gespeicherte Produkt. Additive Diagnose unter `ops.data_quality.identify_v3.price_research`, inklusive ursprünglichem Verkaufspreis. Bei fehlgeschlagener Speicherung HTTP 500; Fehler-Metrikvariable liegt im äußeren Handler-Scope, damit der Fehlerpfad nicht selbst abbricht.
 - **Failure Modes**:
   - `400` ohne Bilder/Barcodes.
   - `400 { code: 'LOT_REQUIRED' | 'LOT_NOT_FOUND' }`.

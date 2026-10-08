@@ -315,7 +315,7 @@ function buildBrowseQueryForProduct(product) {
   return priceSafeString(q).slice(0, 100);
 }
 
-async function findEbayBrowsePriceForProductV1(product) {
+async function findEbayBrowsePriceForProductV1(product, { capture = false } = {}) {
   const gtin = pickBestGtinForBrowse(product);
   const query = gtin ? '' : buildBrowseQueryForProduct(product);
   const categoryId = priceSafeString(product?.details?.categoryId || '').replace(/\D+/g, '');
@@ -330,6 +330,7 @@ async function findEbayBrowsePriceForProductV1(product) {
       gtin: gtin || undefined,
       query: query || undefined,
       limit: 60,
+      ...(capture ? { newFixedPriceOnly: true } : {}),
     });
     const samples = Array.isArray(res?.samples) ? res.samples : [];
     let eur = samples
@@ -354,7 +355,14 @@ async function findEbayBrowsePriceForProductV1(product) {
       }
     }
 
-    if (eur.length < 3) {
+    if (capture) {
+      const { capturePageMatchesIdentity } = require('./capture-price');
+      const { captureOfferQuantityMatches } = require('./capture-offer-quantity');
+      eur = eur.filter(sample => sample.conditionId === '1000' && sample.buyingOptions?.includes('FIXED_PRICE') &&
+        captureOfferQuantityMatches(product, sample.title) &&
+        (gtin || capturePageMatchesIdentity({ product, page: { text: sample.title } })));
+    }
+    if (eur.length < (capture ? 1 : 3)) {
       return {
         ok: false,
         reason: matchGated ? 'too_few_matching_samples' : 'too_few_samples',
@@ -661,7 +669,7 @@ async function enrichPriceForProductBestEffort(product, { force = false, reason 
  * @param {object} product
  * @param {{ force?: boolean, reason?: string }} opts
  */
-async function enrichPriceParallel(product, { force = false, reason = 'identify', capture = false } = {}) {
+async function enrichPriceParallel(product, { force = false, reason = 'identify', capture = false, captureDiagnostics = {} } = {}) {
   if (!product) return { ok: false, updated: false, error: 'product_missing' };
   product.details = product.details || {};
   product.details.pricing = product.details.pricing || {};
@@ -673,7 +681,7 @@ async function enrichPriceParallel(product, { force = false, reason = 'identify'
 
   if (capture) {
     const { lookupCapturePrice } = require('./capture-price');
-    const price = await lookupCapturePrice(product);
+    const price = await lookupCapturePrice(product, { diagnostics: captureDiagnostics });
     if (!price) return { ok: false, updated: false, error: 'no_verified_price', serpTrace: [] };
     product.details.pricing.lowest_price = {
       amount: price.amount, currency: price.currency, sources: price.sources,

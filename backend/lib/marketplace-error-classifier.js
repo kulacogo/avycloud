@@ -37,10 +37,14 @@ const RETRYABLE = Object.freeze({
 
 // Reihenfolge ist Priorität: auth VOR listing_config (sonst fängt „invalid…"
 // fälschlich Token-Fehler), rate_limited zuerst (eindeutigste Signatur).
+// eBay antwortet auf Site 77 und den Laendersites DEUTSCH / ITALIENISCH /
+// SPANISCH (2026-10-08: „kein gültiger Wert für Größe" galt als `unknown`
+// und damit als retryable — die Reconciliation pushte das Listing alle 30 min
+// erneut, ~240 Trading-Aufrufe/Tag fuer EIN Produkt).
 const PATTERNS = [
   ['rate_limited', /exceeded usage limit|usage limit|call limit|rate.?limit|too many requests|\bquota\b|\b429\b/i],
-  ['auth', /\biaf token\b|\btoken\b|unauthorized|invalid_grant|\bauth\b|access denied|\b401\b|\b403\b|forbidden|expired token|hard expired/i],
-  ['listing_config', /best.?offer|auto.?decline|buy it now price|\baspect\b|item specific|missing required|required item|\bcategory\b|invalid category|invalid value|\bcondition\b|policy.*violat|disallowed/i],
+  ['auth', /\biaf token\b|\btokens?\b|unauthorized|invalid_grant|\bauth\b|access denied|\b401\b|\b403\b|forbidden|expired token|hard expired|authentifizierung|autenticazione|autenticaci[oó]n/i],
+  ['listing_config', /best.?offer|auto.?decline|buy it now price|\baspect\b|item specific|missing required|required item|\bcategory\b|invalid category|invalid value|\bcondition\b|policy.*violat|disallowed|kein g[üu]ltiger wert|ung[üu]ltig|nicht g[üu]ltig|w[äa]hlen sie einen wert|artikelmerkmal|valore (non )?valido|non [èe] un valore|valor (no )?v[áa]lido|no es un valor/i],
   ['transient', /timeout|etimedout|econnreset|socket hang up|temporar|unavailable|network|\b5\d\d\b|service unavailable|gateway/i],
 ];
 

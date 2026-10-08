@@ -1,3 +1,11 @@
+## 06.10.2026 — PR30 produktiv; deutscher Händlerverweis als Nachtrag
+
+- PR30/Main dc010626 produktiv: Web01827-w22 und Worker00282-qn4 seit11:49MESZ Ready/Healthy/100 %, Hosting887f034b62a671b3. CI final5.716Backendtests/496Dateien;547Frontendtests,TypeScript/Build und4Browserprüfungen grün. Betreiberauftrag Tests→Produktion gilt weiterhin, keine neue Freigabe verlangen.
+- Marktpreis wird initial auch Verkaufspreisvorschlag, aktiver Review-/Summary-Fluss zeigt ihn. Echte Nachmessung14:28MESZ:3/10 neue-Recherche-Datenblätter mit initialem Verkaufspreis; sieben ohne, zwei weitere alte Requests liefen beim Rollout noch aus. **Gesamtproblem weiterhin offen.** Frühere40/179 waren Marktpreise, kein Nachweis initialer Verkaufspreise.
+- Folgebranch codex/capture-german-offers-20261006 im selben managed Worktree: gefundene ausländische Händlerseite darf ihrem expliziten deutschen Produktverweis folgen, maximal ein Sprung, gleiche Händleridentität und Preisprüfung. Stagecaptain PPS-47XL real44,90€ in3,05s ohne Gemini. Fünf Regressionen rot→grün; vollständige Suite5.721Tests. Dieser Nachtrag noch nicht deployed.
+- [Nachweise und Grenzen](docs/reports/capture-price-2026-10-06.md); vollständiges aktuelles Projektgedächtnis im Hauptcheckout /Users/oguz/Dev/avycloud/CODEX_MEMORY.md. Keine Prompt-/Schemaänderung, keine neue Scope-Version. Keine Altprodukte verändert. Produktive Identify-Route nicht als schreibenden Test mit vorhandener EAN verwenden (pending intake).
+- Bekannte separate Fehler: image-proxy502 und forecast/alerts500. Zwei neue Datenblätter beschreiben geschlossene Versandkartons ohne sichtbaren Inhalt; Paket2von4 eines Spielhauses ist kein belegtes Komplettset. Offene Identitäts-/Lieferumfangsprobleme nicht mit Fantasiepreisen verdecken.
+
 ## 27.09.2026 — Neue Betreiberregel: keine automatische Wiederaktivierung
 
 Positiver Lagerbestand ist KEINE Erlaubnis zum erneuten Listen. Stock-Sync/Cron/Drain dürfen auf eBay und Kaufland kein pausiertes, inaktives, beendetes oder ausverkauftes Angebot wieder aktivieren. Manuelle Aktivierung bleibt nach tatsächlicher BIN-/Reservierungs- und Live-Statusprüfung möglich. Diese Anweisung ersetzt die frühere Relist-Selbstheilung aus CLAUDE.md Regel 15. [Arbeits-/Release-Nachweis](CODEX_MANUAL_REACTIVATION_20260927.md). Deployment folgt nach finaler CI; nicht vorzeitig als produktiv melden.

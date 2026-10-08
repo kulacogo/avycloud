@@ -1,7 +1,7 @@
 ---
 title: Identify Pipeline (V3 + V4)
 for: [dev, agent, admin, manager]
-lastReviewed: 2026-09-27
+lastReviewed: 2026-10-06
 ---
 
 # Identify Pipeline (V3 + V4)
@@ -53,7 +53,13 @@ Produktionsauslieferung vom Betreiber nach Abnahme freigegeben; Prompt-Version `
 - HTTP(S)-Referenzen bleiben auch bei der finalen Attributnormalisierung vollständig erhalten. Normale Textwerte behalten ihre bisherigen Grenzen.
 - Additive Diagnose: `ops.data_quality.identify_v3.capture_contract_version = 2`, `price_research.{completed,found,source}` und `content_generation.{agentic,fallback}`. `completed` bedeutet abgeschlossener Versuch, keine Garantie auf einen Preis.
 
-Tenant-ID wird von der Route an Stage 2/3 weitergereicht; Stage 3 verwendet sie bei der bestehenden Scope-Konfiguration. Kein automatischer Statuswechsel zu „Bereit“, kein automatisches Setzen von `sellPrice`, kein Nachbearbeiten alter Produkte. Die Code-Vertragsversion ersetzt nicht die Scope-Versionierung nach der LLM-Charta; deren Release-Schritt ist im Abnahmebericht festgehalten.
+Tenant-ID wird von der Route an Stage 2/3 weitergereicht; Stage 3 verwendet sie bei der bestehenden Scope-Konfiguration. Kein automatischer Statuswechsel zu „Bereit“, kein Nachbearbeiten alter Produkte. Die Code-Vertragsversion ersetzt nicht die Scope-Versionierung nach der LLM-Charta; deren Release-Schritt ist im Abnahmebericht festgehalten.
+
+### Preis-Korrektur vom 06.10.2026
+
+Die abgeschlossene Recherche wird bei neuen V3-Produkten jetzt auch als `sellPrice`/`suggestedPrice` übernommen. Ein erfolgloser erster Lauf erhält vor Stage 4 höchstens einen weiteren Versuch mit dem fertigen Datenblatt (max. 45 Sekunden innerhalb von 300 Sekunden V3-Budget). Packungsänderung zwischen früher Identität und fertigem Titel verwirft einen vorhandenen frühen Preis. Keine zweite Recherche bei erfolgreichem ersten Lauf oder Stage-3-Fallback.
+
+Additiv `price_research.initial_sell_price` und `price_research.diagnostics` (Rechercheversion 3). Der Inhaltsvertrag bleibt Version 2; Prompt, Schema, Modellwahl und Generationseinstellungen sind in dieser Korrektur unverändert. Siehe [Preis bei V3-Erfassung](pricing-engine.md#preis-bei-v3-erfassung) und [Abnahme](../../reports/capture-price-2026-10-06.md).
 
 ### V4 — Orchestrator-Worker-Swarm (Dark-Deployed)
 

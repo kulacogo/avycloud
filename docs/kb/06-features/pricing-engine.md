@@ -1,7 +1,7 @@
 ---
 title: Pricing Engine
 for: [dev, agent, admin, manager]
-lastReviewed: 2026-09-27
+lastReviewed: 2026-10-06
 ---
 
 # Pricing Engine
@@ -62,14 +62,19 @@ Pflicht-Marketplaces: `ebay.de, kaufland.de, hood.de, amazon.de, idealo.de, zala
 
 ### Preis bei V3-Erfassung
 
-Die Korrektur vom 27.09.2026 nutzt `enrichPriceParallel(product, { capture: true })` mit einem separaten, insgesamt auf 45 Sekunden begrenzten Recherchelauf. Normale Refresh-/Chat-Aufrufe behalten ihren bisherigen Pfad.
+Stand 06.10.2026: `enrichPriceParallel(product, { capture: true })` nutzt die begrenzte Capture-Recherche. Refresh und Chat verwenden weiterhin ihren bestehenden Pfad.
 
-1. Browse und eine Websuche nach Marke, Modell und MPN starten parallel. Die Suche wartet höchstens vier Sekunden; ihre echten Treffer-URLs werden wiederverwendet.
-2. Maximal drei Händlerseiten werden gelesen, optional je ein gleichursprünglicher statischer Produktlink mit passender Kennung. Der deterministische Leser akzeptiert nur den EUR-Preis im eigenen `Offer` eines passenden JSON-LD-`Product`. Versandkosten, andere Produkte, explizite Gebrauchtware und nicht verfügbare Angebote werden ausgeschlossen.
-3. Liegt nach dem kurzen Vorlauf kein Ergebnis vor, startet höchstens ein bestehender Gemini-Rechercheaufruf mit verbleibendem Budget und echten Referenz-URLs. Eine vorhandene JSON-Reparatur kann einen zweiten Formatierungsaufruf benötigen. Bekannte EAN/MPN muss auf der geladenen Seite vorkommen; Preis und Quelle werden geprüft. Such-/Bild-URLs, Fremdwährungen und unbelegte Angebote werden verworfen.
-4. Erfolgreiche Ergebnisse bleiben erhalten, auch wenn eine andere Quelle ausfällt. Händler-/Grounding-Angebote verwenden den Median ihrer bestätigten Quellen. Das gewählte Ergebnis landet samt Quellen in `details.pricing.lowest_price`, **nicht** in `sellPrice`.
+1. Browse und Kennungssuche starten parallel. Bevorzugt EAN/GTIN/UPC, sonst Marke + MPN; bei fehlendem Webpreis folgt eine getrennte Modell-/Varianten-/Produkttyp-Suche. Kein `site:.de`, damit deutsche Shops auf `.com` erreichbar bleiben. Höchstens zwei Suchanfragen à acht Sekunden pro Lauf, sechs Treffer je Anfrage.
+2. Der Händlerleser akzeptiert das eigene EUR-`Offer` eines passenden JSON-LD-`Product`, einschließlich `mainEntity`, Preis-Spezifikationen und eindeutig identifizierten `ProductGroup`-Varianten. Deutsche Shopregion, Neuware, Verfügbarkeit, Packungsgröße und Identität werden geprüft. Findet die Suche nur die fremdsprachige Länderfiliale, darf ein expliziter `rel=alternate`-Link mit `hreflang=de`/`de-DE` zur deutschen Produktseite desselben Händlers einmal gefolgt werden (innerhalb des bestehenden Budgets; keine geratenen URLs, fremden Händler oder Aktionslinks). Der Preis wird erst auf der deutschen Seite geprüft; `diagnostics.german_alternates` zählt diese Fälle. MPN braucht die passende Marke; ein exklusiv im strukturierten Produkt belegtes Modell kann bei fehlenden veröffentlichten Kennungen mit übereinstimmender Farbe/Größe genügen. Abweichende Kennungen verhindern diesen Modell-Rückfall.
+3. Ein strukturiertes Suchindex-Angebot darf bei HTTP 403/429 oder anderen Infrastrukturfehlern helfen, wenn Artikel, Packung, vollständiger EUR-Preis und Lagerverfügbarkeit übereinstimmen. Es bleibt ausdrücklich `verified: false`, `evidence_type: search_index`, Confidence 0,65. 404/410, Fremdregionen und ein widersprechendes erfolgreich geladenes Angebot bleiben ausgeschlossen.
+4. eBay Capture fordert Neuware (`conditionId=1000`) und Festpreis; ein exakt passendes Angebot genügt. Der normale Refresh behält mindestens drei Treffer. Auktionen, Gebrauchtware und abweichende Packungen werden ausgeschlossen.
+5. Liegt nach höchstens acht Sekunden kein Preis vor, entdeckt ein begrenzter Gemini-Aufruf weitere URLs. Deren tatsächliches Angebot liest derselbe deterministische Leser; Modellbetrag oder Preisvorkommen irgendwo auf einer Seite reichen nicht aus. Fünf Sekunden werden für die Prüfung reserviert. Weiterleitungen werden als tatsächliche Händler-URL gespeichert und Quellen dedupliziert.
+6. Jeder Lauf hat höchstens 45 Sekunden. Ein erfolgloser erster Lauf kann vor der Speicherung mit dem fertigen Datenblatt einmal wiederholt werden, sofern Stage 3 regulär erfolgreich war und vom V3-Gesamtbudget (300 Sekunden) mindestens fünf Sekunden bleiben. Eine zwischen Erkennung und Datenblatt geänderte Packungsgröße verwirft den frühen Preis. Es gibt keinen nachträglichen Capture-Preiswrite.
+7. Der recherchierte Median landet in `details.pricing.lowest_price`; neue V3-Produkte erhalten denselben Betrag zusätzlich als editierbaren `sellPrice` und `suggestedPrice`. Der Vorschlag enthält keinen pauschalen Zustandsrabatt und keine Margengarantie. Vorhandene Produkte im Wiederverwendungspfad behalten ihre Preise. Ohne Angebot wird kein Preis erfunden.
 
-Ein Preis ohne belastbare Quelle bleibt leer. Direkte Webabfragen können bestehende Such-/Unlocker-Dienste kostenpflichtig verwenden; „kein KI-Aufruf“ bedeutet nicht „kostenlos“. Laufende Netzwerkrequests werden durch den äußeren Budgetablauf nicht sämtlich abgebrochen, können aber anschließend keine Produktänderung auslösen. [Messungen, Grenzen und Tests](../../reports/capture-quality-2026-09-27.md).
+`ops.data_quality.identify_v3.price_research` enthält zusätzlich `initial_sell_price` und Recherchediagnostik (`version: 3`, Such-/Seitenzahlen, HTTP-Fehler, Laufzeit, Quelle, Budgetende; beim zweiten Lauf getrennt nach `initial`/`final_datasheet`). Damit lassen sich ursprünglicher Verkaufspreis und spätere Bearbeitung unterscheiden. Ein heutiger Preis oder `snapshot.price_ok` allein beweist keinen initialen Verkaufspreis.
+
+Externe Recherche kann kostenpflichtig sein. Netzwerkrequests können über das äußere Budget hinaus auslaufen, aber anschließend keine Produktänderung auslösen. Eine lückenlose Abdeckung ist nicht belegt. [Audit, Proben und Abnahmegrenzen](../../reports/capture-price-2026-10-06.md).
 
 ### Pricing-Rules (`pricingRules` Collection)
 
@@ -88,6 +93,8 @@ Pricing-Runner (`services/pricing-runner.js`) ist disabled-by-default; Trigger e
 ## Code-Pfade
 
 **Backend:**
+- `backend/lib/capture-indexed-offer.js` — strukturierte Suchindex-Angebote mit Beleggrenze
+- `backend/lib/capture-offer-quantity.js` — Packungsgrößenprüfung für Händler und Browse
 - `backend/services/pricing-engine.js` — 3-Tier-Algorithmus + Rules-CRUD
 - `backend/services/pricing-runner.js` — Scheduled Runner (default disabled)
 - `backend/services/competitor-refresh-runner.js` — 72 h-Background-Fetcher (default disabled)

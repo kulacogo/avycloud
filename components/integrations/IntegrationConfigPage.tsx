@@ -8,6 +8,7 @@ import {
 } from "../../api/client";
 import type { IntegrationConfig, IntegrationProvider, IntegrationStatusEntry } from "../../api/client";
 import IntegrationWizard from "../IntegrationWizard";
+import { describeEbayListingSync } from "../../utils/ebaySyncBanner";
 
 /* ─── Integration Metadata ─── */
 
@@ -168,6 +169,8 @@ export const IntegrationConfigPage: React.FC<IntegrationConfigPageProps> = ({
   const [provider, setProvider] = useState<IntegrationProvider | null>(null);
   const [statusEntry, setStatusEntry] = useState<IntegrationStatusEntry | null>(null);
   const [wizardOpen, setWizardOpen] = useState(false);
+  // Fehlertyp-bewusstes eBay-Banner (Kontingent vs. Anmeldung), reine Funktion.
+  const ebaySyncBanner = describeEbayListingSync(statusEntry?.details?.listingSync ?? null);
 
   const loadConfig = useCallback(async () => {
     setLoading(true);
@@ -348,33 +351,32 @@ export const IntegrationConfigPage: React.FC<IntegrationConfigPageProps> = ({
           </button>
         </div>
 
-        {/* eBay: Angebots-Abgleich gestört (ehrlicher Sync-Zustand) */}
-        {integration === "ebay" &&
-          statusEntry?.details?.listingSync &&
-          statusEntry.details.listingSync.healthy === false && (
-            <div className="bg-danger-dim border border-app-border rounded-xl px-4 py-3 mb-4">
-              <p className="text-sm text-danger font-semibold mb-1">
-                Angebots-Abgleich mit eBay gestört
+        {/* eBay: Angebots-Abgleich gestört (ehrlicher Sync-Zustand).
+            Seit 2026-10-08 unterscheidet das Banner den Fehlertyp: ein leeres
+            Tageskontingent heilt sich zum Reset von selbst — dafür gibt es
+            KEINEN „neu verbinden"-Knopf mehr (utils/ebaySyncBanner.ts). */}
+        {integration === "ebay" && ebaySyncBanner.kind !== "none" && (
+          <div
+            className={`${ebaySyncBanner.kind === "quota" ? "bg-warning-dim" : "bg-danger-dim"} border border-app-border rounded-xl px-4 py-3 mb-4`}
+          >
+            <p className={`text-sm font-semibold mb-1 ${ebaySyncBanner.kind === "quota" ? "text-warning" : "text-danger"}`}>
+              {ebaySyncBanner.title}
+            </p>
+            {ebaySyncBanner.lines.map((line, idx) => (
+              <p key={idx} className={`text-xs mb-1 ${idx === 0 ? "text-txt-secondary" : "text-txt-muted"}`}>
+                {line}
               </p>
-              <p className="text-xs text-txt-secondary mb-1">
-                {statusEntry.details.listingSync.lastSuccessAtIso
-                  ? `Letzter erfolgreicher Abruf: ${new Date(statusEntry.details.listingSync.lastSuccessAtIso).toLocaleString("de-DE")}.`
-                  : "Es gab noch keinen erfolgreichen Abruf."}{" "}
-                Die angezeigten eBay-Angebote können veraltet sein.
-              </p>
-              {statusEntry.details.listingSync.lastError?.message && (
-                <p className="text-xs text-txt-muted mb-3">
-                  Letzter Fehler: {statusEntry.details.listingSync.lastError.message}
-                </p>
-              )}
+            ))}
+            {ebaySyncBanner.showReconnect && (
               <button
                 onClick={openWizard}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
+                className="mt-2 inline-flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
               >
                 eBay neu verbinden
               </button>
-            </div>
-          )}
+            )}
+          </div>
+        )}
 
         {/* Banners */}
         {error && (

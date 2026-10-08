@@ -23,3 +23,23 @@ it('requires descriptive product overlap when no usable identifier exists', () =
   expect(capturePageMatchesIdentity({ product: generic, page: { text: 'PMMA Lichtfaser Sternenhimmel Schwarz' } })).toBe(true);
   expect(capturePageMatchesIdentity({ product: generic, page: { text: 'Markenlos LED Lampe Schwarz' } })).toBe(false);
 });
+
+it('does not confuse a blanket with a suit that happens to share BLK008', () => {
+  const blanket = { identification: { brand: 'OMERAI', name: 'OMERAI Kühldecke BLK008' }, details: { identifiers: { mpn: 'BLK008' } } };
+  expect(capturePageMatchesIdentity({ product: blanket, page: { text: 'Mario Moyano Smoking Black Watch Tartan BLK008' } })).toBe(false);
+});
+
+it('does not treat a generic two-word model as a product identity', () => {
+  const generic = { identification: { brand: 'Markenlos', name: 'Markenlos Double-Deck' }, details: { identifiers: {} } };
+  expect(capturePageMatchesIdentity({ product: generic, page: { text: 'XPlode Double Deck Blue Feuerwerk' } })).toBe(false);
+});
+
+it('accepts an exact structured model/variant when the shop omits codes, not another size or an explicit conflicting EAN', () => {
+  const p = { identification:{brand:'Acme',name:'Acme Windbreaker'},details:{identifiers:{ean:'4012345678901'},attributes:{Modell:'Windbreaker',Größe:'140x200 cm',Farbe:'Weiß'}} };
+  const node = {name:'Acme Windbreaker',size:'140 x 200 cm',color:'White'};
+  const check = identity => capturePageMatchesIdentity({product:p,page:{text:JSON.stringify(identity),identity}});
+  expect(check(node)).toBe(true);
+  expect(check({...node,size:'160 x 200 cm'})).toBe(false);
+  expect(check({...node,gtin13:'4012345678902'})).toBe(false);
+  expect(capturePageMatchesIdentity({product:p,page:{text:JSON.stringify(node)}})).toBe(false);
+});
