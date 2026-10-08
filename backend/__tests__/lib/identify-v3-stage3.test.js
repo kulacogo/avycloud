@@ -596,9 +596,11 @@ describe('runStage3ContentGeneration — richer fallback (Phase 3)', () => {
 });
 
  describe('Stage 3 budget and normalization regressions', () => {
-  afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs(); require.cache[agenticPath].exports.isAgenticEnabled.mockReturnValue(false); });
+  afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); vi.unstubAllEnvs(); require.cache[agenticPath].exports.isAgenticEnabled.mockReturnValue(false); });
   it('keeps the full agentic budget even when the single-shot cap is 60 seconds', async () => {
     vi.useFakeTimers();
+    const setTimer = vi.spyOn(global, 'setTimeout');
+    const clearTimer = vi.spyOn(global, 'clearTimeout');
     vi.stubEnv('STAGE3_CONTENT_TIMEOUT_MS', '60000');
     vi.stubEnv('STAGE3_AGENTIC_TIMEOUT_MS', '90000');
     const agent = require.cache[agenticPath].exports;
@@ -609,7 +611,10 @@ describe('runStage3ContentGeneration — richer fallback (Phase 3)', () => {
     const result = await promise;
     expect(result._meta.fallbackUsed).toBe(false);
     expect(result.title_ebay).toBe('Generated title');
-    expect(vi.getTimerCount()).toBe(0);
+    // Assert cleanup of OUR deadline, not unrelated SDK/background timers.
+    const deadlineCall = setTimer.mock.calls.findIndex(args => args[1] === 150000);
+    expect(deadlineCall).toBeGreaterThanOrEqual(0);
+    expect(clearTimer).toHaveBeenCalledWith(setTimer.mock.results[deadlineCall].value);
   });
   it('does not start single-shot work after the caller deadline', async () => {
     vi.useFakeTimers();

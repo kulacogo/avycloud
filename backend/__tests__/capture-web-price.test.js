@@ -5,6 +5,11 @@ const product = { identification: { brand: 'Steinel', name: 'Steinel L 605 S' },
 const node = { '@type': 'Product', name: 'Steinel L 605 S', gtin13: '4007841065287', offers: [{ '@type': 'Offer', price: '102.32', priceCurrency: 'EUR', shippingDetails: { shippingRate: { value: 0, currency: 'EUR' } } }] };
 const html = value => `<script type="application/ld+json">${JSON.stringify(value)}</script>`;
 
+// Navigation tests verify offers and deadline decisions, not machine speed.
+// First-use module initialization can exceed one second on a cold CI worker.
+beforeEach(() => { vi.spyOn(Date, 'now').mockReturnValue(1000); });
+afterEach(() => { vi.restoreAllMocks(); });
+
 it('uses catalog pages only to discover an actual product link, never their displayed prices', async () => {
   const catalog = 'https://shop.de/collections/lighting';
   const child = 'https://shop.de/products/steinel-l-605-s-065287';

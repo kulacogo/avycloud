@@ -43,3 +43,5 @@ Unveränderliche Scope-Version `identify.v2/capture-v3-20261009`, Elternversion 
 Der Betreiberauftrag „nach Tests auf Produktion“ ist erteilt. Dieser Bericht wird vor der Auslieferung erstellt; Commit/Revisionen/Health und endgültige Testergebnisse werden im `CODEX_MEMORY.md` nachgewiesen. Private Rohprotokolle: `/Users/oguz/Dev/avycloud-local-backups/capture-quality/20261009/`.
 
 Lokale Abschlussprüfung: **6.002 Backendtests / 519 Dateien grün**, TypeScript und Frontend-Build grün. Testbelege privat in `/tmp/avy-capture-6002.log`, `/tmp/avy-capture-typecheck.log`, `/tmp/avy-capture-build-final.log`.
+
+Nach Integration von Main e786a580: **6.022 Tests / 521 Dateien grün**. Zwei CI-abhängige Testannahmen korrigiert: Navigation nutzt eine kontrollierte Uhr statt Laufzeit des kalten Modulladers; Timerprüfung überprüft das Löschen des eigenen Deadlines statt sämtliche fremden SDK-Timer. Produktionscode unverändert.
