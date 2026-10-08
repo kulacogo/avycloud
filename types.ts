@@ -1011,6 +1011,15 @@ export interface FinancialReportShipping {
   dpd: number;
   other: number;
   source: string;
+  /**
+   * Abgrenzung (seit 2026-10-09): Sendungen nach dem letzten Rechnungsdatum
+   * sind verschickt, aber noch nicht abgerechnet — sie werden mit dem
+   * Vormonats-Stueckpreis geschaetzt. Optional, Deploy-Fenster.
+   */
+  approx?: boolean;
+  geschaetzt?: number;
+  geschaetztParcels?: number;
+  stueckpreis?: number | null;
 }
 
 export interface FinancialReport {

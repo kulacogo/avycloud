@@ -37,3 +37,20 @@ test("missing net fields never silently display gross values as net", () => {
   assert.equal(result.revenue, null); assert.equal(result.shipping, null);
   assert.equal(result.result, null); assert.equal(result.provisional, true);
 });
+
+test("shipping estimated for unbilled parcels marks the result provisional and names it", () => {
+  const r = report();
+  (r as any).shipping = { brutto: 2194.13, parcelCount: 235, approx: true, geschaetzt: 2018.65, geschaetztParcels: 235, stueckpreis: 8.59 };
+  const v = financeSummary(r);
+  assert.equal(v.estimatedShipping, true);
+  assert.equal(v.provisional, true);
+  assert.equal(v.costs.find((c) => c.key === "shipping")?.estimated, true);
+  assert.ok(v.notices.includes("Versand für 235 Sendungen geschätzt"));
+});
+test("fully billed shipping stays final", () => {
+  const r = report();
+  (r as any).shipping = { brutto: 5855.56, parcelCount: 682, approx: false, geschaetzt: 0, geschaetztParcels: 0 };
+  const v = financeSummary(r);
+  assert.equal(v.estimatedShipping, false);
+  assert.equal(v.provisional, false);
+});

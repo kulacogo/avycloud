@@ -173,8 +173,20 @@ async function getShippingCostsFromSevDesk(fromDate, toDate, { forceRefresh = fa
   const apiKey = await getSevDeskApiKey();
   if (!apiKey) throw new Error('SEVDESK_API_TOKEN not configured');
 
+  // LEISTUNGSDATUM statt Abbuchungstag (seit 2026-10-09, lib/shipping-leistungsdatum.js):
+  // DHL/Deutsche Post rechnen in 10-Tage-Zyklen ab und buchen erst danach vom
+  // Konto ab — die Rechnung vom 30.09. ging am 05.10. ab und verzerrte den
+  // Oktober um 7 Margenpunkte. Das Rechnungsdatum steht im Verwendungszweck.
+  // Dafuer muss der Kontoauszug ueber das Fenster HINAUS gelesen werden, sonst
+  // fehlt genau die Rechnung vom Monatsende. Notbremse: SHIPPING_SERVICE_DATE='off'.
+  const {
+    leistungsdatum, imFenster, addDays, NACHLAUF_FENSTER_TAGE,
+  } = require('./shipping-leistungsdatum');
+  const nachLeistungsdatum = String(process.env.SHIPPING_SERVICE_DATE || '').trim().toLowerCase() !== 'off';
+  const abfrageBis = nachLeistungsdatum ? addDays(toDate, NACHLAUF_FENSTER_TAGE) : toDate;
+
   const startTs = Math.floor(new Date(fromDate + 'T00:00:00Z').getTime() / 1000);
-  const endTs   = Math.floor(new Date(toDate   + 'T23:59:59Z').getTime() / 1000);
+  const endTs   = Math.floor(new Date(abfrageBis + 'T23:59:59Z').getTime() / 1000);
 
   // Fetch bank account transactions (Kontoauszug-Buchungen) — this matches what the user
   // sees in SevDesk under "Bezahldatum". The /Voucher endpoint (Eingangsrechnungen) uses
@@ -204,6 +216,7 @@ async function getShippingCostsFromSevDesk(fromDate, toDate, { forceRefresh = fa
   let sendcloudCost = 0; // SendCloud-Rechnungen, brutto
   let prepaidCost = 0;   // Portokassen-Aufladung — VORAUSZAHLUNG, kein Verbrauch
   let txCount = 0;
+  let ohneLeistungsdatum = 0; // brutto, Buchungen ohne Rechnungsdatum im Text (DPD, SendCloud)
   const matched = [];
 
   for (const t of transactions) {
@@ -211,6 +224,11 @@ async function getShippingCostsFromSevDesk(fromDate, toDate, { forceRefresh = fa
     if (raw >= 0) continue; // skip incoming payments and zero entries
     const category = categorizeShipping(t);
     if (!category) continue;
+    // Periodenzuordnung: Rechnungsdatum, sonst Abbuchungstag. Eine Buchung,
+    // deren Leistungsdatum vor dem Fenster liegt (z. B. die August-Rechnung,
+    // am 03.09. abgebucht), gehoert in den Vormonat und faellt hier raus.
+    const ld = nachLeistungsdatum ? leistungsdatum(t) : { datum: String(t?.valueDate || '').slice(0, 10), quelle: 'abbuchung' };
+    if (!imFenster(ld.datum, fromDate, toDate)) continue;
     const amount = Math.abs(raw);
     if (category === 'vorauszahlung') {
       // Portokasse: Geld ist abgeflossen, die Leistung noch nicht bezogen.
@@ -222,13 +240,14 @@ async function getShippingCostsFromSevDesk(fromDate, toDate, { forceRefresh = fa
     totalCost += amount;
     if (category === 'sendcloud') sendcloudCost += amount;
     else directCost += amount;
+    if (ld.quelle !== 'rechnung') ohneLeistungsdatum += amount;
     txCount++;
-    matched.push({ payee: t?.payeePayerName || '?', amount, date: t?.valueDate || '', category });
+    matched.push({ payee: t?.payeePayerName || '?', amount, date: t?.valueDate || '', leistung: ld.datum, quelle: ld.quelle, category });
   }
 
   if (matched.length > 0) {
     console.log(`[sevdesk-shipping] ${fromDate}–${toDate}: ${txCount} Zahlungen, ${totalCost.toFixed(2)}€ (direct: ${directCost.toFixed(2)}€, sendcloud: ${sendcloudCost.toFixed(2)}€)`);
-    matched.forEach(m => console.log(`  ${m.date}: [${m.category}] ${m.payee} → ${m.amount.toFixed(2)}€`));
+    matched.forEach(m => console.log(`  ${m.date}: [${m.category}] ${m.payee} → ${m.amount.toFixed(2)}€${m.quelle === 'rechnung' ? ` (Leistung ${m.leistung})` : ''}`));
   } else {
     console.log(`[sevdesk-shipping] ${fromDate}–${toDate}: keine Versandlieferanten-Buchungen (${transactions.length} Buchungen total)`);
   }
@@ -238,6 +257,17 @@ async function getShippingCostsFromSevDesk(fromDate, toDate, { forceRefresh = fa
     direct_shipping_cost: Math.round(directCost * 100) / 100,   // brutto, Fracht (DHL/DPD/DP)
     sendcloud_cost: Math.round(sendcloudCost * 100) / 100,      // brutto, SendCloud-Rechnungen
     prepaid_cost: Math.round(prepaidCost * 100) / 100,          // brutto, Portokasse (NICHT in total_cost)
+    // brutto, Anteil ohne Rechnungsdatum im Text (DPD/SendCloud) — nach Abbuchungstag zugeordnet
+    ohne_leistungsdatum: Math.round(ohneLeistungsdatum * 100) / 100,
+    nach_leistungsdatum: nachLeistungsdatum,
+    // Letztes Rechnungsdatum im Fenster — ab dem Folgetag sind Pakete noch
+    // nicht abgerechnet (Abgrenzung in lib/shipping-accrual.js).
+    letztes_leistungsdatum: matched
+      .filter((m) => m.quelle === 'rechnung' && m.leistung)
+      // max startet bei null — ein String-Vergleich gegen null ist IMMER false,
+      // deshalb der ausdrueckliche Null-Fall (sonst bleibt das Datum leer und
+      // ALLE Pakete des Monats gelten als unabgerechnet).
+      .reduce((max, m) => (max == null || m.leistung > max ? m.leistung : max), null),
     voucher_count: txCount,
     currency: 'EUR',
     source: 'sevdesk',
