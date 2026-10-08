@@ -23,6 +23,7 @@ import {
   type ActiveFilter,
   type ProductNotesInfo,
   type FilterContext,
+  type PermissionCheck,
   type NumberCompareValue,
   type DateRangeValue,
 } from "./productFilters.ts";
@@ -57,12 +58,19 @@ const baseCtx = (over: Partial<FilterContext> = {}): FilterContext => ({
   ...over,
 });
 
+/** Rechte-Pruefung nach dem Muster von AuthContext.hasPermission. */
+const rolle = (permissions: Record<string, Record<string, boolean>>): PermissionCheck =>
+  (moduleName, action) => permissions?.["*"]?.["*"] === true || permissions[moduleName]?.[action] === true;
+const ADMIN = rolle({ "*": { "*": true } });
+const MITARBEITER = rolle({ products: { read: true, write: true } });
+const NUR_LESEN = rolle({ products: { read: true } });
+
 const apply = (
   products: Product[],
   active: ActiveFilter[],
   ctx: FilterContext = baseCtx(),
-  isAdmin = true
-) => applyProductFilters(products, active, ctx, { isAdmin }).map((p) => p.id);
+  can: PermissionCheck = ADMIN
+) => applyProductFilters(products, active, ctx, { can }).map((p) => p.id);
 
 describe("matchesNumberCompare", () => {
   const cmp = (op: NumberCompareValue["op"], a: number | null, b: number | null = null): NumberCompareValue => ({ op, a, b });
@@ -278,14 +286,16 @@ describe("applyProductFilters — neue Dimensionen", () => {
     assert.deepEqual(apply([halb, voll], [{ id: "vollstaendigkeit", value: { op: "lt", a: 80, b: null } }]), ["a"]);
   });
 
-  test("Erfasser: Mehrfachauswahl + Ohne-Zuordnung, nur fuer Admins", () => {
+  test("Erfasser: Mehrfachauswahl + Ohne-Zuordnung, fuer Admin und Mitarbeiter", () => {
     const p1 = makeProduct({ id: "a" });
     const p2 = makeProduct({ id: "b" });
     const ctx = baseCtx({ resolveErfasstVon: (p) => (p.id === "a" ? "Oguz" : "") });
-    assert.deepEqual(apply([p1, p2], [{ id: "erfasser", value: ["Oguz"] }], ctx, true), ["a"]);
-    assert.deepEqual(apply([p1, p2], [{ id: "erfasser", value: [NONE_SENTINEL] }], ctx, true), ["b"]);
-    // Nicht-Admin: der Filter wird ignoriert statt still falsch zu filtern
-    assert.deepEqual(apply([p1, p2], [{ id: "erfasser", value: ["Oguz"] }], ctx, false), ["a", "b"]);
+    assert.deepEqual(apply([p1, p2], [{ id: "erfasser", value: ["Oguz"] }], ctx, ADMIN), ["a"]);
+    assert.deepEqual(apply([p1, p2], [{ id: "erfasser", value: [NONE_SENTINEL] }], ctx, ADMIN), ["b"]);
+    // Mitarbeiter (Betreiber 2026-10-08): filtert genauso
+    assert.deepEqual(apply([p1, p2], [{ id: "erfasser", value: ["Oguz"] }], ctx, MITARBEITER), ["a"]);
+    // Ohne Produkt-Schreibrecht: der Filter wird ignoriert statt still falsch zu filtern
+    assert.deepEqual(apply([p1, p2], [{ id: "erfasser", value: ["Oguz"] }], ctx, NUR_LESEN), ["a", "b"]);
   });
 
   test("Zustand: leeres Feld zaehlt als Neu (1000)", () => {
@@ -419,7 +429,7 @@ describe("applyProductFilters — Paritaet zum Altverhalten", () => {
 
 describe("Registry-Konsistenz", () => {
   test("jede Definition hat Label, Gruppe und funktionierendes chipLabel", () => {
-    for (const def of getFilterDefs(true)) {
+    for (const def of getFilterDefs(ADMIN)) {
       assert.ok(def.label.length > 0, `${def.id} ohne Label`);
       assert.ok(def.group.length > 0, `${def.id} ohne Gruppe`);
       const chip = def.chipLabel(def.defaultValue, baseCtx());
@@ -427,14 +437,20 @@ describe("Registry-Konsistenz", () => {
     }
   });
 
-  test("adminOnly-Filter sind fuer Nicht-Admins unsichtbar", () => {
-    const nonAdminIds = getFilterDefs(false).map((d) => d.id);
-    assert.ok(!nonAdminIds.includes("erfasser"));
-    assert.ok(getFilterDefs(true).map((d) => d.id).includes("erfasser"));
+  test("Erfasst von: sichtbar mit Produkt-Schreibrecht, sonst nicht", () => {
+    assert.ok(getFilterDefs(ADMIN).map((d) => d.id).includes("erfasser"));
+    assert.ok(getFilterDefs(MITARBEITER).map((d) => d.id).includes("erfasser"));
+    assert.ok(!getFilterDefs(NUR_LESEN).map((d) => d.id).includes("erfasser"));
+  });
+
+  test("Filter ohne Rechte-Voraussetzung sieht jede Rolle", () => {
+    const ohneRechte = getFilterDefs(() => false).map((d) => d.id);
+    assert.equal(ohneRechte.length, getFilterDefs(ADMIN).length - 1);
+    assert.ok(ohneRechte.includes("editor"));
   });
 
   test("Default-Werte sind inaktiv", () => {
-    for (const def of getFilterDefs(true)) {
+    for (const def of getFilterDefs(ADMIN)) {
       assert.equal(def.isActive(def.defaultValue), false, `${def.id} ist mit Default aktiv`);
     }
   });
