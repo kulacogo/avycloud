@@ -1,5 +1,19 @@
 # Handheld / Team-Pick / Druck — Releaseprüfung
 
+## Aktualisierung 08.10.2026
+
+**Ziel bestätigt: Windows `192.168.178.61`, durchgehend laufender Rechner.** PR [#32](https://github.com/kulacogo/avycloud/pull/32) enthält jetzt auch einen Windows-Adapter und `install-windows.ps1` / `Einrichten.cmd`. Rollenformate aus dem tatsächlichen Windows-Treiber, SumatraPDF 3.6.1 mit explizitem `paperkind`, dauerhafte Anwendungsquittung und bestehendes Journal. Task Scheduler startet als LocalService beim Booten, auch ohne interaktive Anmeldung. Privates ProgramData-Verzeichnis und lokal eingegebenes AvyCloud-Passwort; gespeichert wird ausschließlich das Refresh-Token. Node/Sumatra kommen aus fixierten Hersteller-Downloads mit SHA-256-Prüfung.
+
+**Installation auf dem Zielrechner weiterhin offen.** Netzwerkprüfung: SMB/445 erreichbar, aber ohne bestehende Anmeldung abgelehnt; SSH/22, RDP/3389 und WinRM/5985/5986 nicht erreichbar. Keine Fernwartungs-App auf dem Mac gefunden. Betreiber nach vorhandenem Fernzugang bzw. lokalem Setup-Start gefragt. Keine Passwortabfrage im Chat. Kein Windows-Login, keine Treiberinstallation oder physische Druckabnahme behaupten.
+
+Neu geprüft: 31 Agenttests inklusive Windows-Adapter und tatsächlichem Dienstkonto-Verifikationsablauf mit Abhängigkeitssimulation; beide PowerShell-Dateien mit Microsoft PowerShell 7.6.6 geparst. Zwei Test-PDFs mit exaktem Rollenmaß durch Backendtests geprüft und gerendert visuell kontrolliert. **Kein Windows-Runtime-Test**, weil Zielzugang fehlt. Setup druckt die beiden Testetiketten unter LocalService und wartet auf Sicht-/Scanbestätigung, bevor es Produktionsjobs zulässt.
+
+Main einschließlich eBay-Tagesbudget und Filter „Erfasst von“ bis `04f35572` integriert. Letzter Gesamtlauf: **5.915 Backendtests / 516 Dateien**, **575 Frontend-/Agenttests**, TypeScript und Vite-Build grün. Zwei anfängliche OAuth-Test-Timeouts kamen aus der neuen Budget-Datenbankabhängigkeit; inzwischen auf Main über dessen Test-Store-Konfiguration behoben. Kein zusätzlicher Produktionsfix oder Test-Timeout-Override in diesem Release.
+
+Lesend 08.10.2026, 16:49 MESZ: `print_agents=0`, offene Druckjobs 0, offene confirmed/picking-Aufträge 6, verwaltete Picks 0, alte Teilpicks 0. Web `01831-nf8`, Worker `00286-pqj` kurz zuvor Ready/100 %. **Unser Release noch nicht deployed.** Vor tatsächlichem Cutover Werte erneut prüfen. Ohne eingerichtete Station würde der neue Packabschluss blockieren; deshalb bleibt die Stationsabnahme Voraussetzung.
+
+Die folgenden Werte beschreiben die Erstprüfung vom 07.10.; die Aktualisierung oben hat Vorrang.
+
 Stand: 2026-10-07, ca. 00:50 Europe/Berlin. **Implementiert und lokal geprüft, noch nicht produktiv.** Branch `codex/handheld-team-print-20261006`, Basis `0e89b058555d950442f54f2d4ab948601f2fd3ba`. Auftrag: neue übersichtliche Handheld-UI, integrierter Labeldruck und paralleles Picken durch Mitarbeiter auf Produktion bringen.
 
 ## Produktionsvoraussetzung noch offen

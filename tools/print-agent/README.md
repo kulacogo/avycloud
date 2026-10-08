@@ -30,7 +30,27 @@ auf den Standarddrucker aus: ein 103-mm-Paketetikett auf der 62-mm-Briefrolle
 hat einen abgeschnittenen Barcode, und das Paket bleibt im Verteilzentrum
 liegen.
 
-## Einrichtung — ein Befehl
+## Windows — Zielrechner 192.168.178.61
+
+Betreiberentscheidung 08.10.2026: Die dauerhafte Station läuft auf dem Windows-Rechner `192.168.178.61`. Die früher am Mac gemessenen Druckernamen sind **keine** Bestätigung der Windows-Konfiguration.
+
+1. Beide Brother-Drucker mit Windows-Treiber und den Rollen **103×164 mm** bzw. **62×100 mm** einrichten. Drucker müssen rechnerweit verfügbar sein, nicht ausschließlich als Verbindung im Benutzerprofil.
+2. Setup-Paket vollständig entpacken. Rechtsklick auf `Einrichten.cmd` → **Als Administrator ausführen**. Alternativ `install-windows.ps1` in einer administrativen PowerShell ausführen. Es werden keine Firewall- oder Fernzugriffsregeln geöffnet.
+3. Paket- und Briefdrucker aus den tatsächlich passenden Treiberformaten auswählen. Zwei **TEST – KEIN PORTO**-Etiketten werden bereits unter dem späteren Dienstkonto ausgegeben. Rollen, Rahmen und QR-Codes physisch prüfen. Erst nach `JA` geht die Einrichtung weiter.
+4. AvyCloud-Konto mit `orders:read` und `orders:ship` lokal anmelden. Passwort wird verdeckt eingegeben und nicht gespeichert; nur die erneuerbare Sitzung bleibt geschützt auf diesem Rechner.
+5. Setup startet die Aufgabe **AvyCloud Print Agent** und wartet auf einen frischen Heartbeat dieser Station. Beim alten Backend lautet der Zustand „wartet auf Protokoll 2“. Nach Backend-Release erneut den Onlinezustand prüfen.
+
+Die Aufgabe startet beim Booten als **LocalService**, ohne angemeldeten Windows-Benutzer und ohne Administratorrechte zur Laufzeit. Wiederanlauf nach Prozessabbruch über Task Scheduler. Der Rechner muss wach und online bleiben. Benötigt ausgehend HTTPS; keine eingehenden Ports für AvyCloud.
+
+Laufzeit, `config.json`, `session.json`, `agent.log`, `verification.json` und das bleibende `journal/` liegen in `%ProgramData%\AvyCloud Print Agent`. Verzeichnisrechte ausschließlich für LocalService, SYSTEM und Administratoren. `journal/` bei Updates **erhalten**. Das Setup hält einen vorhandenen Dienst während der Aktualisierung an. Bei abgebrochener Einrichtung bleibt er angehalten; Protokoll prüfen und Setup fertig ausführen. Zum Anhalten in einer administrativen PowerShell: `Stop-ScheduledTask -TaskName 'AvyCloud Print Agent'`; für dauerhaftes Anhalten zusätzlich `Disable-ScheduledTask`.
+
+`windows-runtime.json` fixiert Node **22.23.3** und SumatraPDF **3.6.1**, Hersteller-URLs und SHA-256-Prüfsummen. Kein npm-Install auf dem Windows-Rechner nötig. PowerShell-ExecutionPolicy wird nur für die jeweiligen gebündelten Skriptprozesse gesetzt, nicht systemweit geändert. `make-test-labels.js` erzeugt die beiden mitgelieferten Test-PDFs aus Backend-Entwicklungsdependencies; zur Laufzeit werden sie nur gelesen.
+
+Vor jeder Ausgabe liest der Adapter die aktuellen Treiberformate. Passendes `PaperSize.RawKind` wird als `paperkind` ausdrücklich an SumatraPDF übergeben; kein Standarddrucker und keine geratene A4-Seite. Temporäres PDF liegt im geschützten Stationsverzeichnis und wird nach dem Aufruf entfernt. SumatraPDFs erfolgreicher Exit nach Druckübergabe erzeugt eine als `sumatra:…` gekennzeichnete Anwendungsquittung – **keine erfundene Windows-Spool-ID und kein Beweis für Papierauswurf**. Dieselbe Journal-/Unsicherheitslogik wie unter macOS verhindert automatischen Wiederholungsdruck nach unklarer Übergabe.
+
+Herstellerquellen: [SumatraPDF-Druckparameter](https://www.sumatrapdfreader.org/docs/Command-line-arguments), [verwendete Implementierung 3.6.1](https://github.com/sumatrapdfreader/sumatrapdf/blob/3.6.1rel/src/Print.cpp), [Windows-Dienstkonto in geplanten Aufgaben](https://learn.microsoft.com/en-us/powershell/module/scheduledtasks/new-scheduledtaskprincipal), [Treiber-Papierkennung](https://learn.microsoft.com/en-us/dotnet/api/system.drawing.printing.papersize.rawkind).
+
+## macOS — Einrichtung
 
 ```bash
 bash tools/print-agent/einrichten.sh

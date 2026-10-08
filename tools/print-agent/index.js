@@ -19,11 +19,12 @@
 
 const { erstelleApi } = require('./lib/api');
 const { deliverOnce } = require('./lib/delivery');
-const journalDirectory = require('node:path').join(require('node:os').homedir(), 'Library', 'Application Support', 'AvyCloud Print Agent', 'journal');
+const journalDirectory = require('node:path').join(require('./lib/platform').dataDirectory(), 'journal');
+const printerAdapter = require(process.platform === 'win32' ? './lib/windows' : './lib/drucker');
 const {
   waehleDrucker, druckeBuffer, listeDrucker, listeMedien, waehleMedium,
   sammleDrucker, ermittleDrucker,
-} = require('./lib/drucker');
+} = printerAdapter;
 
 const argumente = process.argv.slice(2);
 const istProbelauf = argumente.includes('--dry-run');
@@ -79,6 +80,9 @@ async function ergaenzeDrucker() {
 }
 
 async function ladeMedien() {
+  if (process.platform === 'win32') {
+    printerAdapter.validatePrinters(konfig.drucker, await printerAdapter.inventory());
+  }
   for (const name of Object.values(konfig.drucker)) {
     if (!name || medienJeDrucker.has(name)) continue;
     medienJeDrucker.set(name, await listeMedien(name));
@@ -190,4 +194,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { konfig, einAuftrag };
+module.exports = { konfig, einAuftrag, hauptschleife };

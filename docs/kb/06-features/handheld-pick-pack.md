@@ -1,7 +1,7 @@
 ---
 title: Handheld — exklusives Picken, Packen und Druckstation
 for: [dev, agent, admin]
-lastReviewed: 2026-10-07
+lastReviewed: 2026-10-08
 ---
 
 # Handheld Pick / Pack
@@ -37,6 +37,8 @@ Protokoll 2: `queued → claimed → dispatching → done`. Claim bindet Tenant,
 Nach einem Browser-Neuladen bleibt die offene Labelaufgabe pro Benutzer in sessionStorage erhalten. Bei verlorener Versandantwort wird die vorhandene Sendung gesucht; es wird nicht blind erneut frankiert. Wenn keine Sendung entstanden ist, muss der Auftrag geprüft werden. Der Fehler wird nicht als „fertig“ quittiert.
 
 Eine echte Druckstation im Drucker-LAN mit angemeldetem Konto (`orders:read`, `orders:ship`) ist Voraussetzung für den neuen Packablauf. Die lokale Vorschau verwendet ausschließlich Testdaten und simuliert die Druckantwort; sie ist kein Nachweis physischer Druckfunktion.
+
+Betreiberziel seit 08.10.2026: **Windows 192.168.178.61**. Windows-Adapter mit echten Treiberformaten und festem Druckernamen, SumatraPDF 3.6.1 ohne Dialog; Aufgabenplanung unter LocalService startet beim Booten. Dauerhaftes Journal und Refresh-Sitzung im zugriffsbeschränkten ProgramData-Verzeichnis. Windows-Erfolg ist eine Anwendungsquittung nach Sumatra-Druckübergabe; das API-Feld `spoolId` enthält dort ausdrücklich `sumatra:…`, keinen behaupteten Windows-Job-Identifier. Einrichtung prüft beide Rollen mit Testetiketten unter dem tatsächlichen Dienstkonto. Details und Einschränkungen im [Installer-Runbook](../../../tools/print-agent/README.md#windows--zielrechner-19216817861).
 
 ## Verweise
 

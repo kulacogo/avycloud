@@ -32,7 +32,7 @@ async function deliverOnce({ directory, jobId, api, print, recovering = false })
   let spoolId;
   try {
     spoolId = await print();
-    if (!spoolId) throw new Error('CUPS hat keine Auftragskennung geliefert.');
+    if (!spoolId) throw new Error('Druckprogramm hat keine Uebergabequittung geliefert.');
     await durableWrite(`${stem}.sent`, { jobId, spoolId });
   } catch (error) {
     return api.result({ ok: false, error: error.message });
