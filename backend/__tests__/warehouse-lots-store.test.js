@@ -135,13 +135,17 @@ beforeEach(() => {
 
 describe('createLots', () => {
   it('legt L-Bereich an und überspringt existierende (idempotent)', async () => {
-    store.warehouse_lots['L-072602'] = { code: 'L-072602', tenantId: 'default' };
-    const result = await createLots({ type: 'L', month: 7, year: 2026, numbers: '1-3' });
-    expect(result.created).toEqual(['L-072601', 'L-072603']);
-    expect(result.skipped).toEqual(['L-072602']);
-    expect(store.warehouse_lots['L-072601'].type).toBe('L');
-    expect(store.warehouse_lots['L-072601'].tenantId).toBe('default');
-    expect(store.warehouse_lots['L-072601'].number).toBe(1);
+    store.warehouse_lots['L-0826'] = { code: 'L-0826', tenantId: 'default' };
+    const juli = await createLots({ type: 'L', month: 7, year: 2026 });
+    expect(juli.created).toEqual(['L-0726']);
+    expect(juli.skipped).toEqual([]);
+    // Ein zweiter Aufruf fuer denselben Monat legt NICHTS Neues an.
+    const nochmal = await createLots({ type: 'L', month: 8, year: 2026, numbers: '1-3' });
+    expect(nochmal.created).toEqual([]);
+    expect(nochmal.skipped).toEqual(['L-0826']);
+    expect(store.warehouse_lots['L-0726'].type).toBe('L');
+    expect(store.warehouse_lots['L-0726'].tenantId).toBe('default');
+    expect(store.warehouse_lots['L-0726'].number).toBeNull();
   });
 
   it('NL: genau ein Los pro Monat', async () => {
@@ -197,10 +201,10 @@ describe('listLots', () => {
   it('sortiert neueste zuerst, L vor NL, Nummern aufsteigend', async () => {
     await createLots({ type: 'NL', month: 6, year: 2026 });
     await createLots({ type: 'NL', month: 7, year: 2026 });
-    await createLots({ type: 'L', month: 7, year: 2026, numbers: '2' });
-    await createLots({ type: 'L', month: 7, year: 2026, numbers: '1' });
+    await createLots({ type: 'L', month: 7, year: 2026 });
+    await createLots({ type: 'L', month: 8, year: 2026 });
     const lots = await listLots({ withCounts: false });
-    expect(lots.map((l) => l.code)).toEqual(['L-072601', 'L-072602', 'NL-0726', 'NL-0626']);
+    expect(lots.map((l) => l.code)).toEqual(['L-0826', 'L-0726', 'NL-0726', 'NL-0626']);
   });
 });
 

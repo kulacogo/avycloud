@@ -1,11 +1,17 @@
 /**
  * Los-Verwaltung (Einkaufs-Zugehörigkeit von Ware).
  *
- * Ein "Los" ist die Herkunft eines Wareneingangs:
- *   L-MMYYNN  — Auktions-Los (Nummer 01-200 pro Monat; 1-99 zweistellig,
- *               100-200 dreistellig). Beispiel: L-072612.
- *   NL-MMYY   — Non-Los (nicht über Auktion erworben), eins pro Monat.
- *               Beispiel: NL-0726.
+ * Ein "Los" ist die Herkunft eines Wareneingangs, EIN Los je Art und Monat:
+ *   L-MMYY    — Auktions-Los. Beispiel: L-0726.
+ *   NL-MMYY   — Non-Los (nicht über Auktion erworben). Beispiel: NL-0726.
+ *
+ * FORMATWECHSEL 2026-10-08 (Betreiber-Anweisung „L-0726XX konsolidieren zu
+ * L-0726"): bis dahin trugen Auktions-Lose eine Nummer je Einkauf
+ * (L-MMYYNN, 01-200). Die Einzellose eines Monats wurden zu EINEM Monatslos
+ * zusammengelegt (Script scripts/consolidate-lots.js), die Einkaufsbeträge
+ * summiert. Das alte Format wird weiterhin GELESEN (gedruckte Labels, alte
+ * Scans, Buchungs-Meta), aber nicht mehr angelegt — parseLotCode liefert
+ * dafür `legacy:true`.
  *
  * Lose sind reine Zuordnungs-Metadaten (ops.sourceLot am Produkt) — KEIN
  * Bestand, KEINE Berührung mit bookStockIn/bookStockOut oder den
@@ -34,11 +40,13 @@ const LOT_TYPES = ['L', 'NL'];
 const MIN_LOT_NUMBER = 1;
 const MAX_LOT_NUMBER = 200;
 
-// Nummernteil: 01-09 | 10-99 | 100-199 | 200 — KEINE führende Null bei
-// dreistelligen Werten. Damit ist jeder Code eindeutig und kollidiert mit
-// keinem BIN-Code-Format (BIN: {ZONE}{ETAGE}{GG}{RR}{E}, kein Bindestrich).
-const L_CODE_REGEX = /^L-(0[1-9]|1[0-2])(\d{2})(0[1-9]|[1-9]\d|1\d\d|200)$/;
+// Beide Arten kollidieren mit keinem BIN-Code-Format (BIN: {ZONE}{ETAGE}{GG}{RR}{E},
+// kein Bindestrich).
+const L_CODE_REGEX = /^L-(0[1-9]|1[0-2])(\d{2})$/;
 const NL_CODE_REGEX = /^NL-(0[1-9]|1[0-2])(\d{2})$/;
+// Altformat bis 2026-10-08: Nummernteil 01-09 | 10-99 | 100-199 | 200. Nur noch
+// zum LESEN — es stehen Labels mit diesen Codes im Lager und in warehouseEvents.
+const L_LEGACY_CODE_REGEX = /^L-(0[1-9]|1[0-2])(\d{2})(0[1-9]|[1-9]\d|1\d\d|200)$/;
 
 function normalizeYear(year) {
   const y = Number(year);
@@ -49,7 +57,8 @@ function normalizeYear(year) {
 }
 
 /**
- * Baut einen Los-Code. { type: 'L'|'NL', month: 1-12, year: 2026|26, number?: 1-200 }
+ * Baut einen Los-Code. { type: 'L'|'NL', month: 1-12, year: 2026|26 }
+ * Eine Nummer wird nicht mehr akzeptiert (Formatwechsel 2026-10-08).
  */
 function buildLotCode({ type, month, year, number } = {}) {
   if (!LOT_TYPES.includes(type)) {
@@ -62,23 +71,17 @@ function buildLotCode({ type, month, year, number } = {}) {
   const fullYear = normalizeYear(year);
   const mm = String(m).padStart(2, '0');
   const yy = String(fullYear % 100).padStart(2, '0');
-  if (type === 'NL') {
-    if (number !== undefined && number !== null) {
-      throw new Error('NL-Lose haben keine Nummer.');
-    }
-    return `NL-${mm}${yy}`;
+  if (number !== undefined && number !== null && number !== '') {
+    throw new Error('Lose tragen keine Nummer mehr — ein Los je Art und Monat (z. B. L-0726).');
   }
-  const n = Number(number);
-  if (!Number.isInteger(n) || n < MIN_LOT_NUMBER || n > MAX_LOT_NUMBER) {
-    throw new Error(`Los-Nummer muss zwischen ${MIN_LOT_NUMBER} und ${MAX_LOT_NUMBER} liegen.`);
-  }
-  const numberPart = n < 100 ? String(n).padStart(2, '0') : String(n);
-  return `L-${mm}${yy}${numberPart}`;
+  return `${type}-${mm}${yy}`;
 }
 
 /**
  * Parst einen Los-Code (case-/whitespace-tolerant für Scanner-Eingaben).
  * Rückgabe { code, type, month, year, number } oder null.
+ * Altformat L-MMYYNN wird weiterhin gelesen und trägt `legacy:true` —
+ * damit bleibt ein altes Label lesbar, ohne dass es neu angelegt werden kann.
  */
 function parseLotCode(code) {
   const normalized = String(code || '').trim().toUpperCase();
@@ -90,7 +93,18 @@ function parseLotCode(code) {
       type: 'L',
       month: Number(lMatch[1]),
       year: 2000 + Number(lMatch[2]),
-      number: Number(lMatch[3]),
+      number: null,
+    };
+  }
+  const lLegacy = normalized.match(L_LEGACY_CODE_REGEX);
+  if (lLegacy) {
+    return {
+      code: normalized,
+      type: 'L',
+      month: Number(lLegacy[1]),
+      year: 2000 + Number(lLegacy[2]),
+      number: Number(lLegacy[3]),
+      legacy: true,
     };
   }
   const nlMatch = normalized.match(NL_CODE_REGEX);
@@ -182,22 +196,19 @@ function lotDocToJson(doc) {
 }
 
 /**
- * Legt Lose an. NL: genau ein Code (MM/YY). L: numbers = '12' oder '1-38'.
- * Bereits existierende Codes werden übersprungen (idempotent).
+ * Legt ein Los an: genau EIN Code je Art und Monat (L-MMYY bzw. NL-MMYY).
+ * Ein bereits existierender Code wird übersprungen (idempotent).
+ * `numbers` wird aus Kompatibilität entgegengenommen und ignoriert — alte
+ * Aufrufer (Frontend im Deploy-Fenster) dürfen daran nicht scheitern.
  */
+// eslint-disable-next-line no-unused-vars
 async function createLots({ type, month, year, numbers, tenantId = 'default', createdBy = null } = {}) {
   if (!LOT_TYPES.includes(type)) {
     throw new Error(`Ungültiger Los-Typ. Erlaubt sind ${LOT_TYPES.join(', ')}.`);
   }
-  const codes = [];
   const parsedMonth = Number(month);
   const fullYear = normalizeYear(year);
-  if (type === 'NL') {
-    codes.push(buildLotCode({ type: 'NL', month: parsedMonth, year: fullYear }));
-  } else {
-    const nums = parseLotNumberSelection(numbers);
-    nums.forEach((n) => codes.push(buildLotCode({ type: 'L', month: parsedMonth, year: fullYear, number: n })));
-  }
+  const codes = [buildLotCode({ type, month: parsedMonth, year: fullYear })];
 
   const refs = codes.map((code) => lotsCollection.doc(code));
   const snaps = await firestore.getAll(...refs);
