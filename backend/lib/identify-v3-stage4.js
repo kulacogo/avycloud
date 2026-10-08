@@ -1,6 +1,7 @@
 'use strict';
 
 const { evaluateEbayReady } = require('./datasheet-quality');
+const { evaluateCaptureContent, isKnownValue } = require('./capture-content-readiness');
 const { scoreGpsr } = require('./gpsr-manufacturer-registry');
 const { SOURCE_WEIGHTS } = require('./confidence-scoring');
 
@@ -42,10 +43,10 @@ function computeFieldConfidence(fieldName, value, sources) {
 function computeAspectCoverage(requiredAspects, providedSpecifics) {
   const provided = Array.isArray(providedSpecifics) ? providedSpecifics : [];
   const providedKeys = new Set(
-    provided.map((s) => (s?.key || '').trim().toLowerCase()).filter(Boolean)
+    provided.filter(s => isKnownValue(s?.value)).map((s) => (s?.key || '').trim().toLowerCase()).filter(Boolean)
   );
 
-  const required = Array.isArray(requiredAspects) ? requiredAspects : [];
+  const required = (Array.isArray(requiredAspects) ? requiredAspects : []).map(aspect => typeof aspect === 'string' ? aspect : aspect?.name || aspect?.localizedName).filter(Boolean);
   const total = required.length;
   const missing = required.filter((a) => !providedKeys.has(a.toLowerCase()));
   const filled = total - missing.length;
@@ -109,8 +110,15 @@ function runStage4Validation(stage1, stage2, stage3, assembledProduct) {
   const gpsrScore = gpsrData ? scoreGpsr(gpsrData) : 0;
 
   // Marketplace readiness
-  const ebayReady = qualityGate.ok && requiredAspectsCoverage.coverage >= 0.7;
-  const kauflandReady = Boolean(stage3.title_kaufland && stage3.description_kaufland);
+  const contentQuality = evaluateCaptureContent({ ...stage3, gpsr: gpsrData }, {
+    identity: stage1.identity, enrichment: stage2,
+    imageParts: (assembledProduct?.details?.images || []).map(image => ({ data: image.url_or_base64 || image.url })),
+  });
+  const contentIssues = [...new Set([...(qualityGate.issues || []), ...contentQuality.issues])];
+  const ebayReady = qualityGate.ok && contentQuality.ok && requiredAspectsCoverage.coverage === 1;
+  const kauflandIssues = contentIssues.filter(issue => !/^(title_|priority_a_|order_priority_a|duplicate_word)/.test(issue));
+  if (!stage1.barcodes?.ean) kauflandIssues.push('ean_missing');
+  const kauflandReady = kauflandIssues.length === 0 && requiredAspectsCoverage.coverage === 1;
 
   // Overall score (weighted composite)
   const weights = {
@@ -132,8 +140,8 @@ function runStage4Validation(stage1, stage2, stage3, assembledProduct) {
     fieldConfidence,
     requiredAspectsCoverage,
     marketplaceReadiness: {
-      ebay: { ready: ebayReady, issues: qualityGate.issues || [], score: overallScore },
-      kaufland: { ready: kauflandReady, issues: [], score: kauflandReady ? overallScore : overallScore * 0.8 },
+      ebay: { ready: ebayReady, issues: contentIssues, score: overallScore },
+      kaufland: { ready: kauflandReady, issues: kauflandIssues, score: kauflandReady ? overallScore : overallScore * 0.8 },
     },
     overallScore,
     gpsrScore,

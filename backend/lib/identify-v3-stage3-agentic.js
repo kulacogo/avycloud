@@ -32,6 +32,7 @@
  */
 
 const atomicTools = require('../services/atomic-tools');
+const { evaluateCaptureContent } = require('./capture-content-readiness');
 const { resolveModel } = require('./model-select');
 const { trackGroundingQueries } = require('./grounding-usage');
 const { GPSR_CONTENT_SCHEMA, sanitizeCaptureGpsr, buildCaptureRequirements } = require('./capture-content-contract');
@@ -136,10 +137,10 @@ function _getClient() {
 const WRITE_DATASHEET_DECLARATION = {
   name: WRITE_TOOL,
   description:
-    'Write the FINAL product datasheet. CALL THIS EXACTLY ONCE per session ' +
+    'Submit the complete product datasheet for validation. If rejected, research the reported gaps and submit a corrected draft ' +
     'when you have collected enough evidence. Every field must be marketplace-' +
     'ready (eBay.de + Kaufland.de). Item specifics must include all required ' +
-    'aspects from the system prompt. Do NOT call atomic-tools after this.',
+    'aspects from the system prompt. Resolve validation feedback before final acceptance.',
   parameters: {
     type: 'object',
     properties: {
@@ -184,6 +185,7 @@ const WRITE_DATASHEET_DECLARATION = {
       gpsr_manufacturer_phone: { type: 'string' },
       gpsr_manufacturer_country: { type: 'string' },
       gpsr: GPSR_CONTENT_SCHEMA,
+      product_source_urls: { type: 'array', items: { type: 'string' }, description: 'Bis zu 6 tatsaechlich geoeffnete Produktseiten fuer exakt dieses Modell; URLs unveraendert aus den Rechercheergebnissen.' },
     },
     required: ['title_ebay', 'title_kaufland', 'description_ebay', 'item_specifics'],
   },
@@ -207,13 +209,16 @@ const ALLOWED_WRITE_KEYS = new Set([
   'gpsr_manufacturer_phone',
   'gpsr_manufacturer_country',
   'gpsr',
+  'product_source_urls',
 ]);
 
 function _sanitizeWriteArgs(rawArgs = {}) {
   const out = {};
   for (const [k, v] of Object.entries(rawArgs)) {
     if (!ALLOWED_WRITE_KEYS.has(k)) continue;
-    if (k === 'gpsr') {
+    if (k === 'product_source_urls') {
+      out[k] = Array.isArray(v) ? [...new Set(v.filter(url => typeof url === 'string' && /^https?:\/\//i.test(url)))].slice(0, 6) : [];
+    } else if (k === 'gpsr') {
       out[k] = sanitizeCaptureGpsr(v);
     } else if (k === 'key_features') {
       if (Array.isArray(v)) {
@@ -259,6 +264,8 @@ function _buildSystemPrompt({
     'Du bist ein professioneller Produktdaten-Kurator fuer eBay.de und Kaufland.de.',
     '',
     'Auftrag: Erstelle ein VOLLSTAENDIGES marketplace-ready Produktdatenblatt aus den vorliegenden Daten und Bildern.',
+    'Die Erkennung, Kategorie- und Barcode-Recherche sind bereits abgeschlossen. Wiederhole lookup_gtin, verify_brand oder search_ebay_catalog NICHT ohne konkreten Widerspruch. Nutze die vorliegenden Daten und recherchiere fehlende Produktmerkmale/GPSR ueber Produkt- und Herstellerseiten.',
+    'Wenn eine Korrekturrunde nur Titel, Beschreibung oder Highlights betrifft: korrigiere direkt anhand vorhandener Fakten, ohne neue Recherche. Ein Erkennungsfehler darf nicht durch erfundene Daten verdeckt werden.',
     '',
     'Werkzeuge die Du SELBSTSTAENDIG nutzen kannst (KEINE Erlaubnis fragen):',
     '  • googleSearch          — generelle Web-Recherche (Hersteller-Specs, Aspekte)',
@@ -391,13 +398,15 @@ function _buildSystemPrompt({
 
 const RETRY_DELAYS_MS = [500, 1000];
 
-async function _withRetry(operation, label = 'agentic') {
+async function _withRetry(operation, label = 'agentic', checkDeadline = () => {}) {
   let lastErr;
   for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt += 1) {
     try {
+      checkDeadline();
       return await operation();
     } catch (err) {
       lastErr = err;
+      checkDeadline();
       const status = err?.status ?? err?.response?.status;
       const retryable = status >= 500 || status === 429 || status == null;
       if (!retryable || attempt >= RETRY_DELAYS_MS.length) break;
@@ -412,7 +421,7 @@ async function _withRetry(operation, label = 'agentic') {
 // ---------------------------------------------------------------------------
 
 const MAX_ITERATIONS = _envInt('STAGE3_AGENTIC_MAX_ITERATIONS', 5);
-const SOFT_RESEARCH_LIMIT = _envInt('STAGE3_AGENTIC_SOFT_RESEARCH_LIMIT', 3);
+const SOFT_RESEARCH_LIMIT = _envInt('STAGE3_AGENTIC_SOFT_RESEARCH_LIMIT', 1);
 const TOTAL_TIMEOUT_MS = _envInt('STAGE3_AGENTIC_TIMEOUT_MS', 90000);
 
 async function generateProductContentAgentic({
@@ -430,8 +439,14 @@ async function generateProductContentAgentic({
   // Optional DI for tests.
   aiClient = null,
   modelOverride = null,
+  deadline = Infinity,
 } = {}) {
   const startedAt = Date.now();
+  const expiresAt = Math.min(deadline, startedAt + TOTAL_TIMEOUT_MS);
+  const controller = new AbortController();
+  const checkDeadline = () => {
+    if (controller.signal.aborted || Date.now() >= expiresAt) throw new Error('agentic stage 3 deadline timeout');
+  };
   const ai = aiClient || (await _getClient());
 
   // Phase F.1b.3 — best-effort scope-config (additive). Caller-overrides pin
@@ -471,10 +486,21 @@ async function generateProductContentAgentic({
     sawWriteCall: false,
     forcedFinalizations: 0,
     durationMs: 0,
+    qualityRepairs: 0,
+    unresolvedIssues: [],
   };
 
+  const researchUrls = new Set();
+  const collectResponseSources = response => {
+    for (const candidate of response?.candidates || []) {
+      for (const chunk of candidate.groundingMetadata?.groundingChunks || []) if (chunk.web?.uri) researchUrls.add(chunk.web.uri);
+      for (const row of candidate.urlContextMetadata?.urlMetadata || []) if (row.retrievedUrl && row.urlRetrievalStatus === 'URL_RETRIEVAL_STATUS_SUCCESS') researchUrls.add(row.retrievedUrl);
+    }
+  };
   const state = {
     finalArgs: null,
+    bestArgs: null,
+    bestIssues: null,
   };
 
   const systemPrompt = _buildSystemPrompt({
@@ -535,20 +561,40 @@ async function generateProductContentAgentic({
       'Recherchiere alles was unsicher ist und schliesse mit einem write_product_datasheet-Call ab.',
   });
 
-  // Wall-clock total timeout (covers pathological multi-iteration hangs).
-  const totalTimeoutPromise = new Promise((_, reject) =>
-    setTimeout(
-      () => reject(new Error(`agentic stage 3 total timeout after ${TOTAL_TIMEOUT_MS}ms`)),
-      TOTAL_TIMEOUT_MS,
-    ),
-  );
-  totalTimeoutPromise.catch(() => {}); // never an unhandled rejection
+  // Every request shares the caller's deadline. A timed-out chat must never
+  // resume research, execute tools, or launch another paid fallback later.
+  const send = (message, override) => _withRetry(() => {
+    checkDeadline();
+    return chat.sendMessage({ message, config: {
+      ...config, ...(override || {}), abortSignal: controller.signal,
+      httpOptions: { timeout: Math.max(1, expiresAt - Date.now()) },
+    } });
+  }, 'stage3', checkDeadline);
+  const assessDraft = args => {
+    const sanitized = _sanitizeWriteArgs(args);
+    const quality = evaluateCaptureContent(sanitized, { identity, enrichment, imageParts });
+    if (quality.normalizedTitle) sanitized.title_ebay = quality.normalizedTitle;
+    if (quality.normalizedHighlights) sanitized.key_features = quality.normalizedHighlights;
+    if (!state.bestArgs || quality.issues.length <= state.bestIssues.length) {
+      state.bestArgs = sanitized;
+      state.bestIssues = quality.issues;
+    }
+    for (const url of sanitized.product_source_urls || []) researchUrls.add(url);
+    if (quality.ok) state.finalArgs = sanitized;
+    return quality;
+  };
+  let totalTimer;
+  const totalTimeoutPromise = new Promise((_, reject) => {
+    totalTimer = setTimeout(() => {
+      controller.abort();
+      reject(new Error('agentic stage 3 deadline timeout'));
+    }, Math.max(1, expiresAt - Date.now()));
+  });
 
   const work = (async () => {
-    let response = await _withRetry(
-      () => chat.sendMessage({ message: userParts }),
-      'sendMessage-initial',
-    );
+    let response = await send(userParts);
+    checkDeadline();
+    collectResponseSources(response);
     trackGroundingQueries(response, 'identify.stage3.agentic');
 
     let researchOnlyIters = 0;
@@ -557,8 +603,9 @@ async function generateProductContentAgentic({
       response &&
       Array.isArray(response.functionCalls) &&
       response.functionCalls.length > 0 &&
-      trace.iterations < MAX_ITERATIONS
+      trace.iterations <= MAX_ITERATIONS + 4
     ) {
+      checkDeadline();
       const callList = response.functionCalls;
       const hasWriteCall = callList.some((c) => c && c.name === WRITE_TOOL);
       if (hasWriteCall) {
@@ -577,10 +624,11 @@ async function generateProductContentAgentic({
           let result;
           try {
             if (callName === WRITE_TOOL) {
-              const sanitized = _sanitizeWriteArgs(callArgs);
-              state.finalArgs = sanitized;
-              result = { ok: true, source: WRITE_TOOL, data: { accepted: true }, confidence: 1 };
+              const quality = assessDraft(callArgs);
+              result = { ok: quality.ok, source: WRITE_TOOL, data: { accepted: quality.ok, issues: quality.issues, title_suggestion_from_existing_facts: quality.titleSuggestion, required_title_tokens_in_order: quality.titleRequirements,
+                instruction: 'Korrigiere die genannten Luecken anhand der Fotos/OCR und Produktquellen. Recherchiere fehlende Fakten. Keine Merkmale, Preise oder Herstellerdaten erfinden. Erneut write_product_datasheet aufrufen.' } };
             } else if (typeof executorMap[callName] === 'function') {
+              checkDeadline();
               result = await executorMap[callName](callArgs);
             } else {
               result = {
@@ -621,47 +669,43 @@ async function generateProductContentAgentic({
 
       // If the write-tool fired this iteration, we're done — break and emit the result.
       if (state.finalArgs) break;
+      if (hasWriteCall) {
+        if (trace.qualityRepairs >= 2) break;
+        trace.qualityRepairs += 1;
+      }
+      if (trace.iterations > MAX_ITERATIONS + 3) break;
 
       const atLastIter = trace.iterations >= MAX_ITERATIONS;
       const softForce = !trace.sawWriteCall && researchOnlyIters >= SOFT_RESEARCH_LIMIT;
-      const forceFinalize = atLastIter || softForce;
+      const needsResearch = state.bestIssues?.some(issue => /^(gpsr_|missing_required_aspect|attributes_too_few)/.test(issue));
+      const forceFinalize = hasWriteCall ? !needsResearch : (atLastIter || softForce);
       if (forceFinalize) trace.forcedFinalizations += 1;
 
       const sendConfig = forceFinalize ? _buildForcedFinalizeConfig() : undefined;
 
       // eslint-disable-next-line no-await-in-loop
-      response = await _withRetry(
-        () =>
-          sendConfig
-            ? chat.sendMessage({ message: toolResponses, config: sendConfig })
-            : chat.sendMessage({ message: toolResponses }),
-        forceFinalize ? 'sendMessage-forced' : 'sendMessage-loop',
-      );
+      response = await send(toolResponses, sendConfig);
+      checkDeadline();
+      collectResponseSources(response);
       trackGroundingQueries(response, 'identify.stage3.agentic');
     }
 
     // Ultimate fallback — if loop ran out without a write-call, send one
     // last forced-finalize message asking ONLY for write_product_datasheet.
-    if (!state.finalArgs) {
+    if (!state.finalArgs && !state.bestArgs) {
       try {
-        const fallbackResponse = await _withRetry(
-          () =>
-            chat.sendMessage({
-              message: [
+        checkDeadline();
+        const fallbackResponse = await send([
                 {
                   text:
                     'Schreibe JETZT das fertige Datenblatt mit write_product_datasheet — ' +
                     'keine weitere Recherche.',
                 },
-              ],
-              config: _buildForcedFinalizeConfig(),
-            }),
-          'sendMessage-ultimate',
-        );
+              ], _buildForcedFinalizeConfig());
         const calls = fallbackResponse?.functionCalls || [];
         const writeCall = calls.find((c) => c && c.name === WRITE_TOOL);
         if (writeCall) {
-          state.finalArgs = _sanitizeWriteArgs(writeCall.args || {});
+          assessDraft(writeCall.args || {});
           trace.sawWriteCall = true;
           trace.forcedFinalizations += 1;
         }
@@ -671,7 +715,7 @@ async function generateProductContentAgentic({
       }
     }
 
-    if (!state.finalArgs) {
+    if (!state.finalArgs && !state.bestArgs) {
       throw new Error('agentic stage 3: no write_product_datasheet call after all retries');
     }
   })();
@@ -680,19 +724,26 @@ async function generateProductContentAgentic({
     await Promise.race([work, totalTimeoutPromise]);
   } catch (err) {
     trace.durationMs = Date.now() - startedAt;
-    throw Object.assign(err, { _agentic: trace });
+    if (!state.bestArgs) throw Object.assign(err, { _agentic: trace });
+  } finally {
+    clearTimeout(totalTimer);
+    controller.abort();
   }
 
+  trace.unresolvedIssues = state.finalArgs ? [] : state.bestIssues || [];
   trace.durationMs = Date.now() - startedAt;
 
   return {
-    ...state.finalArgs,
+    ...(state.finalArgs || state.bestArgs),
     _agentic: {
       iterations: trace.iterations,
       toolCalls: trace.toolCalls,
       sawWriteCall: trace.sawWriteCall,
       forcedFinalizations: trace.forcedFinalizations,
       durationMs: trace.durationMs,
+      qualityRepairs: trace.qualityRepairs,
+      unresolvedIssues: trace.unresolvedIssues,
+      researchUrls: [...researchUrls].slice(0, 12),
     },
   };
 }

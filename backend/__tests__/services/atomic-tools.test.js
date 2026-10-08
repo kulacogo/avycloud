@@ -98,6 +98,9 @@ patchLocalModule('../../lib/serpapi', {
   fetchSerpApi: fetchSerpApiMock,
 });
 
+const directFetchMock = vi.fn().mockResolvedValue({ ok: false, status: 0 });
+patchLocalModule('../../lib/price-evidence', { fetchPageForVerification: directFetchMock });
+
 // ---------------------------------------------------------------------------
 // 2. Now load the module under test.
 // ---------------------------------------------------------------------------
@@ -111,6 +114,7 @@ const {
 } = atomicTools;
 
 beforeEach(() => {
+  directFetchMock.mockReset().mockResolvedValue({ ok: false, status: 0 });
   lookupEanMock.mockReset();
   lookupEanMock.mockResolvedValue({
     found: false,
@@ -514,6 +518,15 @@ describe('executeFetchUrlContent', () => {
     expect(res.data.result.body).toContain('<html>ok</html>');
     const callArgs = JSON.parse(executeWebFetchToolCallMock.mock.calls[0][0].arguments);
     expect(callArgs.url).toBe('https://example.com');
+  });
+
+  it('reads a public product page directly when the optional unlocker is unavailable', async () => {
+    executeWebFetchToolCallMock.mockResolvedValueOnce({ success: false, error: 'disabled' });
+    directFetchMock.mockResolvedValueOnce({ ok: true, status: 200, text: 'Manufacturer specifications from the actual product page', html: '<html>specifications</html>', resolvedUrl: 'https://example.com/product' });
+    const res = await executors.executeFetchUrlContent({ url: 'https://example.com/product' });
+    expect(res.ok).toBe(true);
+    expect(res.data.result.body).toContain('Manufacturer specifications');
+    expect(res.data.result.via).toBe('direct_fallback');
   });
 
   it('returns FETCH_FAILED when toolkit signals failure', async () => {

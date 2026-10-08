@@ -7,6 +7,7 @@ function isGermanOfferPage(url, html = '') {
     const parsed = new URL(url);
     // German storefronts commonly live on .com. A EUR amount alone is not
     // evidence of the German consumer market (e.g. Portugal or Slovakia).
+    if (/\.(at|ch|nl|be|fr|it|es|pt|pl|cz|sk|dk|se|no|fi)$/i.test(parsed.hostname)) return false;
     return /\.de$/i.test(parsed.hostname) || /^\/de(?:[-_]de)?(?:\/|$)/i.test(parsed.pathname) ||
       /<html\b[^>]*\blang=["']de(?:-DE)?["']/i.test(html);
   } catch { return false; }
@@ -71,15 +72,18 @@ function extractProductOffer(html, product, matchesIdentity) {
 function findProductLink(html, pageUrl, product) {
   const ids = product.details?.identifiers || {};
   const tokens = [ids.ean, ids.gtin, ids.mpn].map(value => String(value || '').toLowerCase()).filter(value => /^[a-z0-9-]{4,}$/.test(value));
-  if (!tokens.length) return null;
+  const model = String(product.details?.attributes?.Modell || '').toLowerCase();
+  const modelTokens = model.split(/[^a-z0-9]+/).filter(word => word.length >= 4);
+  if (!tokens.length && modelTokens.length < 2) return null;
   const base = new URL(pageUrl);
   for (const match of String(html || '').matchAll(/<a\b[^>]*href=["']([^"']+)["'][^>]*>/gi)) {
     try {
       const link = new URL(match[1].replace(/&amp;/g, '&'), base);
       if (link.origin !== base.origin || link.search || link.hash || link.href === base.href) continue;
-      if (!/\.html?$|\/(?:product|produkt|p)\//i.test(link.pathname)) continue;
+      if (!/\.html?$|\/(?:products?|produkte?|p)\//i.test(link.pathname)) continue;
       if (/cart|warenkorb|checkout|wishlist|delete|remove|logout|add[-_]/i.test(link.pathname)) continue;
-      if (tokens.some(token => link.pathname.toLowerCase().includes(token))) return link.href;
+      const path = decodeURIComponent(link.pathname).toLowerCase();
+      if (tokens.some(token => path.includes(token)) || (modelTokens.length >= 2 && modelTokens.every(token => new RegExp('(?:^|[^a-z0-9])' + token + '(?:[^a-z0-9]|$)').test(path)))) return link.href;
     } catch { /* Not a navigable product URL. */ }
   }
   return null;
@@ -90,13 +94,25 @@ async function lookupCaptureWebPrice(product, { referencePages = [], deadline, m
   const { indexedOfferPrice } = require('./capture-indexed-offer');
   const { isInfraFetchFailure, classifyPriceSourceUrl } = require('./price-evidence');
   const seen = new Set();
+  const searchedShops = new Set();
+  const recoverProduct = async (html, url) => {
+    const origin = new URL(url).origin;
+    if (searchedShops.has(origin) || !isGermanOfferPage(url, html)) return null;
+    searchedShops.add(origin);
+    const urls = await require('./capture-shopify-price').discoverShopifyProducts({ html, url, product, fetchPage: fetcher, deadline });
+    for (const target of urls) {
+      const offer = await read(target, false);
+      if (offer) return offer;
+    }
+    return null;
+  };
   const indexed = new Map(referencePages.map(row => [row.url, indexedOfferPrice(row, product, matchesIdentity)]));
   const read = async (url, follow = true) => {
     if (Date.now() >= deadline || seen.has(url)) return null;
     seen.add(url);
     diagnostics.pages = (diagnostics.pages || 0) + 1;
     try {
-      const page = await fetcher(url, { timeoutMs: Math.max(1, Math.min(4000, deadline - Date.now())) });
+      const page = await fetcher(url, { timeoutMs: Math.max(1, Math.min(6000, deadline - Date.now())), maxHtmlBytes: 3_000_000, allowErrorHtml: true });
       if (Date.now() >= deadline) return null;
       const indexedPrice = indexed.get(url);
       if (!page?.ok) {
@@ -106,10 +122,14 @@ async function lookupCaptureWebPrice(product, { referencePages = [], deadline, m
         if (indexedPrice && isInfraFetchFailure(page?.status)) {
           return { name: `Google-Index: ${new URL(url).hostname}`, url, price: indexedPrice, evidence_type: 'search_index', verified: false, checked_at: new Date().toISOString() };
         }
-        return null;
+        return follow && page?.status === 404 ? recoverProduct(page.html, page.resolvedUrl || url) : null;
       }
       const resolvedUrl = page.resolvedUrl || url;
-      if (classifyPriceSourceUrl(resolvedUrl).kind !== 'candidate') return null;
+      if (classifyPriceSourceUrl(resolvedUrl).kind !== 'candidate') {
+        const child = follow && /\/collections?\//i.test(new URL(resolvedUrl).pathname) && findProductLink(page.html, resolvedUrl, product);
+        if (child) { const result = await read(child, false); if (result) return result; }
+        return follow ? recoverProduct(page.html, resolvedUrl) : null;
+      }
       if (!isGermanOfferPage(resolvedUrl, page.html)) {
         // Search may find a merchant's foreign storefront for the exact MPN.
         // Follow only its explicit German alternate, with one hop and the
@@ -121,12 +141,14 @@ async function lookupCaptureWebPrice(product, { referencePages = [], deadline, m
       }
       // Do not mistake an explicitly advertised net price for a gross price.
       if (/(?:zzgl\.?|exkl\.?)\s*(?:der\s*)?(?:MwSt|Mehrwertsteuer)/i.test(page.text || '')) return null;
-      const amount = extractProductOffer(page.html, product, matchesIdentity);
+      const amount = extractProductOffer(page.html, product, matchesIdentity) ??
+        require('./capture-shopify-price').extractShopifyVariantOffer(page.html, product);
       if (amount !== null) return { name: new URL(resolvedUrl).hostname, url: resolvedUrl, price: amount, verified: true, verified_at: new Date().toISOString() };
       // Without an attributable Product Offer, a number elsewhere on the
       // page (shipping, crossed-out price, recommendation) is not proof.
       const child = follow && findProductLink(page.html, resolvedUrl, product);
-      return child ? read(child, false) : null;
+      if (child) { const result = await read(child, false); if (result) return result; }
+      return follow ? recoverProduct(page.html, resolvedUrl) : null;
     } catch { return null; }
   };
   const urls = [...new Set(referencePages.map(page => page.url).filter(Boolean))].slice(0, 6);

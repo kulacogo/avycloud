@@ -127,7 +127,7 @@ function _stage4CrossRefEnabled() {
  *
  * Returns a canonical Product + confidence metadata.
  */
-async function identifyProductV3({ files = [], barcodes = '', locale = 'de-DE', hint = null, lotCode = null, inventoryId = null, tenantId = null } = {}) {
+async function identifyProductV3({ files = [], barcodes = '', locale = 'de-DE', hint = null, lotCode = null, inventoryId = null, tenantId = null, deadline = Date.now() + 240000 } = {}) {
   const startTime = Date.now();
 
   // Stage 1: Recognition
@@ -137,7 +137,7 @@ async function identifyProductV3({ files = [], barcodes = '', locale = 'de-DE', 
   const stage2 = await runStage2Enrichment(stage1, locale, { tenantId });
 
   // Stage 3: Content Generation
-  const stage3 = await runStage3ContentGeneration(stage1, stage2, locale, { tenantId });
+  const stage3 = await runStage3ContentGeneration(stage1, stage2, locale, { tenantId, deadline: deadline - 50000 });
 
   // Join the original research task BEFORE validation/save/response. It ran
   // alongside content generation, so late-but-valid prices are not discarded.
@@ -162,12 +162,13 @@ async function identifyProductV3({ files = [], barcodes = '', locale = 'de-DE', 
   // datasheet now contains product type, variant and pack size. Give failed
   // research one bounded second pass with that richer input, before any save.
   if (stage2._pendingPricing && !(stage2.pricing?.amount > 0) && stage3._meta?.fallbackUsed === false) {
-    const budgetMs = Math.min(45000, 300000 - (Date.now() - startTime));
+    const budgetMs = Math.min(45000, deadline - Date.now() - 5000);
     if (budgetMs >= 5000) {
       const diagnostics = {};
       try {
         const { lookupCapturePrice } = require('../lib/capture-price');
-        const price = await lookupCapturePrice({ ...product, tenantId }, { budgetMs, diagnostics });
+        const referencePages = [...new Set([...(stage3.product_source_urls || []), ...(stage3._meta?.agenticTrace?.researchUrls || []), product.details?.gpsr?.url].filter(Boolean))].map(url => ({ url }));
+        const price = await lookupCapturePrice({ ...product, tenantId }, { budgetMs, diagnostics, referencePages });
         stage2.pricingDiagnostics = { initial: stage2.pricingDiagnostics || null, final_datasheet: diagnostics };
         if (price?.amount > 0) {
           stage2.pricing = price;
@@ -225,7 +226,7 @@ async function identifyProductV3({ files = [], barcodes = '', locale = 'de-DE', 
   product.ops = product.ops || {};
   product.ops.data_quality = product.ops.data_quality || {};
   product.ops.data_quality.identify_v3 = {
-    capture_contract_version: 2,
+    capture_contract_version: 3,
     checked_at_iso: new Date().toISOString(),
     price_research: {
       completed: Boolean(stage2._pendingPricing),
@@ -237,6 +238,8 @@ async function identifyProductV3({ files = [], barcodes = '', locale = 'de-DE', 
     content_generation: {
       agentic: Boolean(stage3._meta?.agenticUsed),
       fallback: stage3._meta?.fallbackUsed !== false,
+      quality_repairs: stage3._meta?.agenticTrace?.qualityRepairs || 0,
+      unresolved_issues: stage3._meta?.agenticTrace?.unresolvedIssues || [],
     },
     overall_score: stage4.overallScore,
     field_confidence: stage4.fieldConfidence,
@@ -479,7 +482,12 @@ function assembleProduct(id, stage1, stage2, stage3, opts) {
     for (const [field, value] of Object.entries(legacy)) {
       if (value) fullGpsr[field] = value;
     }
-    return fullGpsr;
+    const { keepGpsrRolesCoherent } = require('../lib/capture-gpsr-coherence');
+    return keepGpsrRolesCoherent(fullGpsr, [
+      registryData && { ...registryData, email: registryData.email || registryData.manufacturer_email },
+      { manufacturer_name: stage3.gpsr_manufacturer_name, manufacturer_address: stage3.gpsr_manufacturer_address, email: stage3.gpsr_manufacturer_email, manufacturer_phone: stage3.gpsr_manufacturer_phone, entity_country: stage3.gpsr_manufacturer_country, ...stage3.gpsr },
+      wf && { ...wf, email: wf.email || wf.manufacturer_email },
+    ].filter(Boolean));
   })();
 
   return {

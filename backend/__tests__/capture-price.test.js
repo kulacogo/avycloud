@@ -30,6 +30,15 @@ beforeEach(() => {
 });
 afterEach(() => vi.useRealTimers());
 
+it('reuses verified content-research pages before paying for another discovery pass', async () => {
+  webPrice.mockResolvedValue({ amount: 19, sources: [source], via: 'web_product_offer' });
+  const result = await lookupCapturePrice(product(), { referencePages: [{ url: source.url }] });
+  expect(result.amount).toBe(19);
+  expect(search).not.toHaveBeenCalled();
+  expect(browse).not.toHaveBeenCalled();
+  expect(grounding).not.toHaveBeenCalled();
+});
+
 it('returns a completed Browse result despite a hanging second source; never mutates the input', async () => {
   browse.mockResolvedValue({ ok: true, amount: 59.99, sources: [source] });
   grounding.mockReturnValue(new Promise(() => {}));

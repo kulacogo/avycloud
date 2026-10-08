@@ -240,7 +240,9 @@ async function runStage2Enrichment(stage1, locale = 'de-DE', { tenantId = null }
           STAGE2_LOOKUP_TIMEOUT_MS,
           'GPSR registry',
         );
-        return gpsr || { found: false, data: null };
+        if (!gpsr) return { found: false, data: null };
+        const data = gpsr.data || gpsr.gpsr || gpsr;
+        return { ...gpsr, found: hasMeaningfulGpsr(gpsr), data };
       } catch (err) {
         console.warn('[stage2] GPSR lookup failed:', err?.message);
         return { found: false, data: null };

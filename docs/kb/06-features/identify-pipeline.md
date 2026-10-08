@@ -1,7 +1,7 @@
 ---
 title: Identify Pipeline (V3 + V4)
 for: [dev, agent, admin, manager]
-lastReviewed: 2026-10-06
+lastReviewed: 2026-10-09
 ---
 
 # Identify Pipeline (V3 + V4)
@@ -60,6 +60,18 @@ Tenant-ID wird von der Route an Stage 2/3 weitergereicht; Stage 3 verwendet sie 
 Die abgeschlossene Recherche wird bei neuen V3-Produkten jetzt auch als `sellPrice`/`suggestedPrice` übernommen. Ein erfolgloser erster Lauf erhält vor Stage 4 höchstens einen weiteren Versuch mit dem fertigen Datenblatt (max. 45 Sekunden innerhalb von 300 Sekunden V3-Budget). Packungsänderung zwischen früher Identität und fertigem Titel verwirft einen vorhandenen frühen Preis. Keine zweite Recherche bei erfolgreichem ersten Lauf oder Stage-3-Fallback.
 
 Additiv `price_research.initial_sell_price` und `price_research.diagnostics` (Rechercheversion 3). Der Inhaltsvertrag bleibt Version 2; Prompt, Schema, Modellwahl und Generationseinstellungen sind in dieser Korrektur unverändert. Siehe [Preis bei V3-Erfassung](pricing-engine.md#preis-bei-v3-erfassung) und [Abnahme](../../reports/capture-price-2026-10-06.md).
+
+### Erfassungsvertrag v3 — 09.10.2026
+
+Ein erster `write_product_datasheet`-Aufruf ist ein Entwurf. `backend/lib/capture-content-readiness.js` prüft die kanonischen Texte, Highlights, echte Pflichtmerkmalwerte, Kaufland-Inhalte und vollständige GPSR-Rollen. Die agentische Recherche erhält konkrete Lücken und Titel-Pflichttokens zurück und darf höchstens zweimal korrigieren. Bei Budgetende bleibt der beste Entwurf mit offenen Problemen erhalten. Kein beliebiger Enum-Wert ersetzt einen unbekannten Fakt. Die Statuswahl des Nutzers wird nicht verändert.
+
+Stage 3 nutzt das verbleibende absolute V3-Budget; ihr äußeres Limit umfasst die agentischen 90 Sekunden und höchstens einen verbleibenden Single-Shot-Rückfall. SDK-Abbruch und Timer verhindern späte weitere Modellaufrufe. Die Route reicht ihre bestehende V3-Deadline durch; 50 Sekunden bleiben für abschließende Preisrecherche und Assembly reserviert. `STAGE3_AGENTIC_SOFT_RESEARCH_LIMIT` ist standardmäßig 1, damit die Korrekturen Zeit erhalten. Keine Änderung der Modellpolitik.
+
+Stage 2 normalisiert reale Hersteller-Registry-Dokumente (`gpsr`) auf den erwarteten Vertrag (`found/data`). `backend/lib/capture-gpsr-coherence.js` verhindert beim Zusammenführen das Vermischen unterschiedlicher Firmen/Länder innerhalb derselben Rolle. Das ist eine Konsistenzregel, kein unabhängiger Faktenbeleg. Attributtexte und URLs bleiben im kanonischen Datenblatt vollständig; Exportgrenzen gehören an den Marktplatzrand.
+
+Die finale Preisrecherche verwendet bereits recherchierte Produktquellen und die Hersteller-Website. `backend/lib/capture-shopify-price.js` liest EUR-Preise für die **exakte GTIN** aus verfügbaren Shopify-Varianten. Bei alten URLs/Kategorieseiten darf die dokumentierte, lesende Händler-Suche zur echten Produktseite navigieren; deren Variante wird separat geprüft. Staffel-/Abo-/fremde Variantenpreise werden nicht übernommen. `capture-web-price.js` erhält maximal 3 MB HTML, folgt konkreten Collection-Produktlinks und verwirft fremde Ländershops. `fetch_url_content` kann ohne den deaktivierten Unlocker direkt lesen; jede Seite hat ein gemeinsames Zeitbudget für beide Abrufwege.
+
+Zusätzliche Diagnose: `content_generation.quality_repairs`, `unresolved_issues`, Rechercheversion 4 mit `reused_content_sources`; Vertragsversion 3. Die Marktplatzbereitschaft verlangt echte Vollständigkeit und Preis, auch für Kaufland. Ein grüner Automatentest allein ist kein Nachweis sachlich korrekter, vollständig listingfertiger Daten. Abnahme und verbleibende Lücken: [Erfassung 09.10.2026](../../reports/capture-quality-2026-10-09.md).
 
 ### V4 — Orchestrator-Worker-Swarm (Dark-Deployed)
 

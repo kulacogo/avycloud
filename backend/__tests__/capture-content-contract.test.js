@@ -8,7 +8,7 @@ it('derives generation instructions from the actual category-specific highlight 
   for (const category of ['Baby > Bettausstattung', 'Computer > Notebooks', 'Auto > Ersatzteile']) {
     const rules = normalizeHighlightsStrict({ identification: { category } }, []).rules;
     const prompt = buildCaptureRequirements({ category: { ebayBreadcrumb: category } });
-    expect(prompt).toContain(`${rules.min}-${rules.max}`);
+    expect(prompt).toContain(`${Math.max(5, rules.min)}-${Math.max(5, rules.max)}`);
     expect(prompt).toContain(`${rules.minLen}-${rules.maxLen}`);
   }
 });
