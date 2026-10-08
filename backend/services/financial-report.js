@@ -423,20 +423,70 @@ async function getFinancialReport({ preset = null, fromDate = null, toDate = nul
       ? eigeneSendungen
       : sendcloudShipping;
     shippingBank = mergeShippingBankFirst(sevdeskShipping, stueckQuelle);
+
+    // ABGRENZUNG (seit 2026-10-09): Pakete nach dem letzten Rechnungsdatum sind
+    // verschickt, aber noch nicht abgerechnet. Mit dem Leistungsdatum rutschte
+    // die September-Rechnung korrekt in den September — und der junge Oktober
+    // stand mit 235 Paketen bei 175 € Versand (Marge 55,6 % statt ~47 %).
+    // Die offenen Pakete werden mit dem Stueckpreis des VORMONATS bewertet und
+    // als Schaetzung ausgewiesen; die echte Rechnung ersetzt sie von selbst.
+    let versandSchaetzung = null;
+    try {
+      const { stueckpreisAusPeriode, ergaenzeOffenenVersand } = require('../lib/shipping-accrual');
+      const { addDays } = require('../lib/shipping-leistungsdatum');
+      const letztesLeistungsdatum = sevdeskShipping?.letztes_leistungsdatum || null;
+      const offenAb = letztesLeistungsdatum
+        ? `${addDays(letztesLeistungsdatum, 1)}T00:00:00.000Z`
+        : fromIso;
+      const offene = offenAb < toIso ? await countShipmentsWindow(offenAb, toIso, tenantId) : { parcel_count: 0 };
+      if (num(offene?.parcel_count) > 0) {
+        // Vormonat = die 30 Tage vor dem Fenster, nach Leistungsdatum gebucht.
+        const vorBis = isoDateStr(new Date(new Date(fromIso).getTime() - 1));
+        const vorVon = addDays(vorBis, -29);
+        const [vorKosten, vorPakete] = await Promise.all([
+          getShippingCostsFromSevDesk(vorVon, vorBis, { timeoutMs: 20000 }),
+          countShipmentsWindow(`${vorVon}T00:00:00.000Z`, fromIso, tenantId),
+        ]);
+        const stueckpreis = stueckpreisAusPeriode({ brutto: vorKosten?.total_cost, parcelCount: vorPakete?.parcel_count });
+        versandSchaetzung = ergaenzeOffenenVersand({
+          gebuchtBrutto: shippingBank.brutto,
+          offeneParcels: offene.parcel_count,
+          stueckpreis,
+        });
+        versandSchaetzung.stueckpreis = stueckpreis;
+      }
+    } catch (err) {
+      console.warn(`[finanzbericht] Versand-Abgrenzung nicht moeglich: ${err.message}`);
+    }
+    const versandBrutto = versandSchaetzung ? versandSchaetzung.brutto : shippingBank.brutto;
+    const versandApprox = Boolean(versandSchaetzung && versandSchaetzung.approx);
+
     // In die bestehende Form giessen, damit die uebrigen Stellen unveraendert
     // bleiben. `netto` bleibt null — gerechnet wird jetzt mit `brutto`.
-    shipping = shippingBank.brutto != null || shippingBank.parcelCount > 0
+    shipping = versandBrutto != null || shippingBank.parcelCount > 0
       ? {
         netto: null,
-        brutto: shippingBank.brutto,
+        brutto: versandBrutto,
         parcelCount: shippingBank.parcelCount,
         dhl: shippingBank.dhl,
         dpd: shippingBank.dpd,
         other: shippingBank.other,
-        source: shippingBank.source,
+        source: versandApprox ? 'bank+schaetzung' : shippingBank.source,
+        approx: versandApprox,
+        geschaetzt: versandSchaetzung ? versandSchaetzung.geschaetzt : 0,
+        geschaetztParcels: versandSchaetzung ? versandSchaetzung.geschaetztParcels : 0,
+        stueckpreis: versandSchaetzung ? versandSchaetzung.stueckpreis : null,
       }
       : null;
-    if (shippingBank.pending) {
+    if (versandApprox) {
+      errors.push(
+        `Versand: ${versandSchaetzung.geschaetztParcels} Sendungen sind noch nicht abgerechnet — geschätzt mit ${versandSchaetzung.stueckpreis.toFixed(2).replace('.', ',')} € je Paket (Vormonat), ${versandSchaetzung.geschaetzt.toFixed(2).replace('.', ',')} € ≈.`
+      );
+    } else if (versandSchaetzung && versandSchaetzung.grund === 'kein_stueckpreis') {
+      errors.push(
+        `Versand: ${versandSchaetzung.geschaetztParcels} Sendungen sind noch nicht abgerechnet und es gibt keinen Vormonats-Stückpreis — der Versand ist zu niedrig.`
+      );
+    } else if (shippingBank.pending) {
       errors.push(
         `Versandkosten für diesen Zeitraum sind noch nicht abgebucht — ${shippingBank.parcelCount} Sendungen verschickt.`
       );
@@ -699,6 +749,12 @@ async function getFinancialReport({ preset = null, fromDate = null, toDate = nul
         dpd: shipping.dpd,
         other: shipping.other,
         source: shipping.source,
+        // Abgrenzung (2026-10-09): Pakete nach dem letzten Rechnungsdatum, mit
+        // dem Vormonats-Stueckpreis geschaetzt — sichtbar, nie still.
+        approx: Boolean(shipping.approx),
+        geschaetzt: shipping.geschaetzt || 0,
+        geschaetztParcels: shipping.geschaetztParcels || 0,
+        stueckpreis: shipping.stueckpreis != null ? shipping.stueckpreis : null,
         // Getrennt ausgewiesen: Fracht ist die eigentliche Versandkostenzahl,
         // Plattform sind die SendCloud-Rechnungen, Vorauszahlung die Portokasse.
         fracht: shippingBank ? shippingBank.fracht : null,
