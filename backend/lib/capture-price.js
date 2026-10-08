@@ -24,7 +24,7 @@ function buildCapturePriceQueries(product) {
   const descriptive = [label, type && !normalized(label).includes(normalized(type)) ? type : '', usable(attrs.Größe), usable(attrs.Farbe)].filter(Boolean).join(' ');
   // Separate exact-code discovery from the descriptive fallback. Requiring
   // every label token in one query hides otherwise valid retailer pages.
-  return [...new Set([gtin || (mpn && [brand, mpn].filter(Boolean).join(' ')), descriptive].filter(Boolean))].slice(0, 2);
+  return [...new Set([gtin || (mpn && [brand, mpn].filter(Boolean).join(' ')), descriptive, brand && model && descriptive !== label ? `"${brand}" "${model}"` : label].filter(Boolean))].slice(0, 3);
 }
 
 function capturePageMatchesIdentity({ page, product }) {
@@ -80,13 +80,26 @@ function capturePageMatchesIdentity({ page, product }) {
 // take several minutes and repeat Browse/Web/Gemini through nested fallbacks.
 // Keep successful sources even if another source never finishes; return data,
 // never mutate a product or schedule a post-response product write.
-async function lookupCapturePrice(product, { budgetMs = 45000, diagnostics = {} } = {}) {
+async function lookupCapturePrice(product, { budgetMs = 45000, diagnostics = {}, referencePages = [] } = {}) {
   const { findEbayBrowsePriceForProductV1 } = require('./price-enrichment');
   const { lookupPricesViaGemini } = require('./gemini-price-lookup');
   const { classifyPriceSourceUrl } = require('./price-evidence');
   const { search } = require('./evidence-provider');
   const deadline = Date.now() + budgetMs;
-  Object.assign(diagnostics, { version: 3, searches: 0, search_results: 0, search_timeouts: 0, pages: 0, grounding_started: false, grounding_offers: 0 });
+  Object.assign(diagnostics, { version: 4, searches: 0, search_results: 0, search_timeouts: 0, pages: 0, grounding_started: false, grounding_offers: 0 });
+  // Reuse product pages already researched by the content step. Strict offer
+  // verification still decides whether any price can be used.
+  const seeds = referencePages.filter(row => row?.url && classifyPriceSourceUrl(row.url).kind === 'candidate' && !/cart|checkout|delete|logout|add[-_]/i.test(new URL(row.url).pathname)).slice(0, 6);
+  if (seeds.length) {
+    const result = await require('./capture-web-price').lookupCaptureWebPrice(product, { referencePages: seeds, deadline, matchesIdentity: capturePageMatchesIdentity, diagnostics });
+    if (result) {
+      diagnostics.result = result.via;
+      diagnostics.reused_content_sources = seeds.length;
+      diagnostics.duration_ms = budgetMs - Math.max(0, deadline - Date.now());
+      return result;
+    }
+    if (Date.now() >= deadline) return null;
+  }
   const completed = [];
   let closed = false;
   let notifyPrice;
@@ -110,16 +123,17 @@ async function lookupCapturePrice(product, { budgetMs = 45000, diagnostics = {} 
       diagnostics.searches++;
       const result = await Promise.race([
         search(`${query} kaufen`, { limit: 6, locale: 'de-DE' }),
-        new Promise(resolve => { searchTimer = setTimeout(() => resolve(null), Math.max(1, Math.min(8000, deadline - Date.now()))); }),
+        new Promise(resolve => { searchTimer = setTimeout(() => resolve(null), Math.max(1, Math.min(25000, deadline - Date.now()))); }),
       ]);
       if (closed || Date.now() >= deadline) return [];
       if (!result) diagnostics.search_timeouts++;
       diagnostics.search_results += result?.results?.length || 0;
-      return (result?.results || []).filter(row => classifyPriceSourceUrl(row.url).kind === 'candidate').slice(0, 6);
+      return (result?.results || []).filter(row => classifyPriceSourceUrl(row.url).kind === 'candidate' || /^https?:\/\/[^/]+\/collections?\//i.test(row.url)).slice(0, 6);
     } catch { return []; }
     finally { clearTimeout(searchTimer); }
   };
-  const referencePagesTask = searchPages(queries[0]);
+  const searchTasks = queries.map(searchPages);
+  const referencePagesTask = searchTasks[0] || Promise.resolve([]);
   const browseTask = collect(async () => {
     const result = await findEbayBrowsePriceForProductV1(product, { capture: true });
     if (!closed) diagnostics.browse_result = result?.ok ? 'found' : result?.reason || 'empty';
@@ -131,8 +145,11 @@ async function lookupCapturePrice(product, { budgetMs = 45000, diagnostics = {} 
     if (closed || Date.now() >= deadline) return null;
     const { lookupCaptureWebPrice } = require('./capture-web-price');
     const result = await lookupCaptureWebPrice(product, { referencePages, deadline, matchesIdentity: capturePageMatchesIdentity, diagnostics });
-    if (result || completed.length || closed || deadline - Date.now() < 6000 || !queries[1]) return result;
-    const fallbackPages = await searchPages(queries[1]);
+    if (result || completed.length || closed) return result;
+    // Color/type-heavy queries frequently hide a merchant's parent product
+    // page. Discover that page too; exact variant proof remains mandatory.
+    const rows = await Promise.all(searchTasks.slice(1));
+    const fallbackPages = Array.from({ length: 6 }, (_, index) => rows.map(row => row[index]).filter(Boolean)).flat();
     return lookupCaptureWebPrice(product, { referencePages: fallbackPages, deadline, matchesIdentity: capturePageMatchesIdentity, diagnostics });
   });
   const groundingTask = collect(async () => {
@@ -145,8 +162,8 @@ async function lookupCapturePrice(product, { budgetMs = 45000, diagnostics = {} 
       ]);
     } finally { clearTimeout(graceTimer); }
     if (completed.length || closed || Date.now() >= deadline) return null;
-    const referencePages = await referencePagesTask;
-    if (closed || Date.now() >= deadline) return null;
+    const referencePages = [...new Map((await Promise.all(searchTasks)).flat().map(row => [row.url, row])).values()].slice(0, 12);
+    if (closed || Date.now() >= deadline || completed.length) return null;
     // Leave time to verify returned offers; consuming the entire deadline in
     // generation made a successful lookup unusable at the verification step.
     diagnostics.grounding_started = true;
@@ -172,7 +189,7 @@ async function lookupCapturePrice(product, { budgetMs = 45000, diagnostics = {} 
   try {
     await Promise.race([
       Promise.all(jobs),
-      new Promise(resolve => { timer = setTimeout(resolve, budgetMs); }),
+      new Promise(resolve => { timer = setTimeout(resolve, Math.max(1, deadline - Date.now())); }),
     ]);
   } finally {
     closed = true;

@@ -63,7 +63,7 @@ lastReviewed: 2026-05-18
 | `STAGE3_AGENTIC_TEMPERATURE` | `DEFAULT_CHAT_TEMPERATURE` | Override. | [backend/lib/gemini-config.js](../../../backend/lib/gemini-config.js) |
 | `STAGE3_AGENTIC_MAX_TOKENS` | `12000` | `maxOutputTokens`. | identify-v3-stage3-agentic.js |
 | `STAGE3_AGENTIC_MAX_IMAGES` | `4` | Max Bilder im Initial-Prompt. | identify-v3-stage3-agentic.js |
-| `STAGE3_AGENTIC_SOFT_RESEARCH_LIMIT` | `3` | Soft-Limit für Research-Tool-Calls bevor Modell zum Write gedrängt wird. | identify-v3-stage3-agentic.js |
+| `STAGE3_AGENTIC_SOFT_RESEARCH_LIMIT` | `1` | Research-Runden vor dem ersten prüfbaren Entwurf; anschließend höchstens zwei gezielte Korrekturen im selben Chat (Erfassungsvertrag v3). | identify-v3-stage3-agentic.js |
 
 ## GPSR + Category-Resolver
 

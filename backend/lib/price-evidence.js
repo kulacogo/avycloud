@@ -68,6 +68,11 @@ function classifyPriceSourceUrl(rawUrl) {
   if (!host.includes('.')) return { kind: 'invalid', reason: 'invalid_host' };
   if (IMAGE_CDN_HOSTS.some((re) => re.test(host))) return { kind: 'image', reason: 'image_cdn' };
   if (IMAGE_FILE_RE.test(parsed.pathname)) return { kind: 'image', reason: 'image_file' };
+  // Shopify product links may include their collection context. This is a
+  // concrete product page, unlike /collections/name itself.
+  if (/^\/(?:[a-z]{2}(?:-[a-z]{2})?\/)?collections\/[^/]+\/products\/[^/]+\/?$/i.test(parsed.pathname)) {
+    return { kind: 'candidate', reason: 'product_with_collection_context' };
+  }
   if (SEARCH_URL_PATTERNS.some((re) => re.test(url))) return { kind: 'search', reason: 'search_or_category_page' };
   return { kind: 'candidate', reason: 'ok' };
 }
@@ -167,18 +172,22 @@ function evaluatePageEvidence({ text, html, product, claimedPrice }) {
  */
 const MAX_HTML_BYTES = 1_500_000; // Roh-HTML-Kappe (Shopify-Produktseiten ~800KB)
 
-async function fetchPageForVerification(url, { timeoutMs = 15_000 } = {}) {
+async function fetchPageForVerification(url, { timeoutMs = 15_000, maxHtmlBytes = MAX_HTML_BYTES, allowErrorHtml = false } = {}) {
+  const deadline = Date.now() + timeoutMs;
+  const htmlLimit = Math.min(3_000_000, Math.max(MAX_HTML_BYTES, Number(maxHtmlBytes) || MAX_HTML_BYTES));
   const { fetchText, htmlToText } = require('./web-search-html');
   try {
     const viaUnlocker = await fetchText(url, { timeoutMs });
-    if (viaUnlocker && viaUnlocker.ok && viaUnlocker.body) {
-      const html = String(viaUnlocker.body).slice(0, MAX_HTML_BYTES);
-      return { ok: true, status: viaUnlocker.status, text: htmlToText(html), html, via: viaUnlocker.via, url, resolvedUrl: viaUnlocker.resolvedUrl || url };
+    if (viaUnlocker && (viaUnlocker.ok || (allowErrorHtml && viaUnlocker.status === 404)) && viaUnlocker.body) {
+      const html = String(viaUnlocker.body).slice(0, htmlLimit);
+      return { ok: Boolean(viaUnlocker.ok), status: viaUnlocker.status, text: htmlToText(html), html, via: viaUnlocker.via, url, resolvedUrl: viaUnlocker.resolvedUrl || url };
     }
   } catch { /* fällt auf Direkt-GET zurück */ }
   try {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) return { ok: false, status: 0, text: '', html: '', via: 'deadline', url };
+    const timer = setTimeout(() => controller.abort(), remaining);
     try {
       const res = await fetch(url, {
         redirect: 'follow',
@@ -188,7 +197,7 @@ async function fetchPageForVerification(url, { timeoutMs = 15_000 } = {}) {
           'Accept-Language': 'de-DE,de;q=0.9',
         },
       });
-      const html = res.ok ? String(await res.text()).slice(0, MAX_HTML_BYTES) : '';
+      const html = res.ok || (allowErrorHtml && res.status === 404) ? String(await res.text()).slice(0, htmlLimit) : '';
       return { ok: res.ok, status: res.status, text: res.ok ? htmlToText(html) : '', html, via: 'direct', url, resolvedUrl: res.url || url };
     } finally {
       clearTimeout(timer);

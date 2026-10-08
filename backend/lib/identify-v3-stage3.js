@@ -54,18 +54,13 @@ function _getAgenticModule() {
  *  - Optionally triggers a focused repair call when >30% of required aspects
  *    ended up as "Unbekannt" (STAGE3_ASPECT_REPAIR, default true).
  */
-// eBay-ItemSpecifics-Werte sind auf ~65 Zeichen begrenzt — aber URLs (z.B.
-// Sicherheitsdatenblatt-Links) werden durch Kappung ZERSTÖRT und dieser Wert
-// fließt zurück ins kanonische Datenblatt (Live-Incident 2026-07-16: GCS-SDS-
-// URL auf 60 Zeichen gekürzt → 404). URLs bleiben ungekappt; die eBay-Grenze
-// behandelt der eBay-Boundary-Code selbst.
+// Preserve canonical facts. Marketplace-specific length limits belong to the
+// exporter; truncating here silently destroys researched values and document URLs.
 function capSpecificValue(value) {
-  const s = String(value);
-  if (/^https?:\/\//i.test(s.trim())) return s;
-  return s.slice(0, 60);
+  return String(value);
 }
 
-async function runStage3ContentGeneration(stage1, stage2, locale = 'de-DE', { tenantId = null } = {}) {
+async function runStage3ContentGeneration(stage1, stage2, locale = 'de-DE', { tenantId = null, deadline = Infinity } = {}) {
   const startTime = Date.now();
   const identity = stage1.identity || {};
 
@@ -106,6 +101,12 @@ async function runStage3ContentGeneration(stage1, stage2, locale = 'de-DE', { te
     process.env.STAGE3_CONTENT_TIMEOUT_MS || '60000',
     10,
   );
+  const agentic = _getAgenticModule();
+  const useAgentic = agentic && agentic.isAgenticEnabled();
+  const agenticBudget = Math.max(1, parseInt(process.env.STAGE3_AGENTIC_TIMEOUT_MS || '90000', 10));
+  const expiresAt = Math.min(deadline, startTime + STAGE3_CONTENT_TIMEOUT_MS + (useAgentic ? agenticBudget : 0));
+  const controller = new AbortController();
+  let contentTimer;
   let content;
   let usedFallback = false;
   let usedAgentic = false;
@@ -116,6 +117,8 @@ async function runStage3ContentGeneration(stage1, stage2, locale = 'de-DE', { te
 
     const generationInput = {
       tenantId,
+      deadline: expiresAt,
+      abortSignal: controller.signal,
       identity: {
         brand: identity.brand,
         model: identity.model,
@@ -148,14 +151,12 @@ async function runStage3ContentGeneration(stage1, stage2, locale = 'de-DE', { te
     // urlContext + 9 atomic-tools + write_product_datasheet, max 5 iterations
     // with forced-finalization. Default OFF; opt-in via STAGE3_AGENTIC=true or
     // STAGE3_AGENTIC_SAMPLE=0.X. Falls back to single-shot on any failure.
-    const agentic = _getAgenticModule();
-    const useAgentic = agentic && agentic.isAgenticEnabled();
-
     let contentPromise;
     if (useAgentic) {
       usedAgentic = true;
       contentPromise = agentic.generateProductContentAgentic(generationInput).catch(async (err) => {
-        // Soft-fall-through to single-shot — log but don't propagate.
+        if (controller.signal.aborted || expiresAt - Date.now() < 5000) throw err;
+        // Only use the remaining budget; never launch work after expiration.
         console.warn('[stage3] agentic path failed, falling back to single-shot:', err?.message || err);
         usedAgentic = false;
         return generateProductContent(generationInput);
@@ -167,9 +168,9 @@ async function runStage3ContentGeneration(stage1, stage2, locale = 'de-DE', { te
     content = await Promise.race([
       contentPromise,
       new Promise((_, reject) =>
-        setTimeout(
-          () => reject(new Error(`Stage 3 content generation timeout after ${STAGE3_CONTENT_TIMEOUT_MS}ms`)),
-          STAGE3_CONTENT_TIMEOUT_MS,
+        contentTimer = setTimeout(
+          () => { controller.abort(); reject(new Error('Stage 3 content generation deadline timeout')); },
+          Math.max(1, expiresAt - Date.now()),
         ),
       ),
     ]);
@@ -183,6 +184,9 @@ async function runStage3ContentGeneration(stage1, stage2, locale = 'de-DE', { te
       content = buildFallbackContent(identity, stage2);
     }
     usedFallback = true;
+  } finally {
+    clearTimeout(contentTimer);
+    controller.abort();
   }
 
   // Post-processing
@@ -191,11 +195,11 @@ async function runStage3ContentGeneration(stage1, stage2, locale = 'de-DE', { te
   // Title normalization
   if (result.title_ebay) {
     try {
-      const coerced = coerceTitleToPolicy(result.title_ebay, {
-        brand: identity.brand,
-        model: identity.model,
-      });
-      if (coerced?.title) result.title_ebay = coerced.title;
+      const draft = {
+        identification: { brand: identity.brand, name: result.title_ebay, category: stage2.category?.ebayBreadcrumb || identity.internalCategory || '' },
+        details: { attributes: Object.fromEntries((result.item_specifics || []).filter(row => row?.key).map(row => [row.key, row.value])) },
+      };
+      result.title_ebay = coerceTitleToPolicy(draft, result.title_ebay);
     } catch {
       // Keep original title
     }
@@ -230,7 +234,7 @@ async function runStage3ContentGeneration(stage1, stage2, locale = 'de-DE', { te
       // cleaned .highlights array, not the object itself (previously the
       // Array.isArray() guard was always false, silently discarding the policy).
       const { highlights } = normalizeHighlightsStrict(dummyProduct, result.key_features);
-      if (Array.isArray(highlights) && highlights.length) {
+      if (Array.isArray(highlights)) {
         result.key_features = highlights;
       }
     } catch {
@@ -280,6 +284,8 @@ async function runStage3ContentGeneration(stage1, stage2, locale = 'de-DE', { te
     if (
       repairEnabled &&
       !usedFallback &&
+      !usedAgentic &&
+      expiresAt - Date.now() >= 5000 &&
       normalizedRequiredAspects.length > 0 &&
       aspectEnforcementMeta.unknownCount > 0 &&
       aspectEnforcementMeta.unknownCount / normalizedRequiredAspects.length >= repairThreshold
@@ -290,6 +296,8 @@ async function runStage3ContentGeneration(stage1, stage2, locale = 'de-DE', { te
           stage2,
           unknownAspects: aspectEnforcementMeta.unknownAspects,
           requiredAspects: normalizedRequiredAspects,
+          deadline: expiresAt,
+          tenantId,
         });
         if (repaired && typeof repaired === 'object') {
           applyRepairValues(result, repaired, normalizedRequiredAspects);
@@ -420,9 +428,7 @@ function enforceRequiredAspectsPostGen(content, requiredAspects) {
     const existing = presentByNormKey.get(norm);
     if (!existing) {
       // Back-fill with placeholder.
-      const allowedValueHint = (aspect.values && aspect.values.length)
-        ? pickLikeliestFallback(aspect.values)
-        : 'Unbekannt';
+      const allowedValueHint = 'Unbekannt';
       content.item_specifics.push({ key: aspect.name, value: allowedValueHint });
       content.item_specifics_confidence[aspect.name] = 0;
       missing.push(aspect.name);
@@ -470,23 +476,11 @@ function isUnknownValue(v) {
   return s === '' || s === 'unbekannt' || s === 'unknown' || s === 'n/a' || s === 'k.a.' || s === 'nicht zutreffend';
 }
 
-function pickLikeliestFallback(values) {
-  // When the aspect has an enum of allowed values, prefer a generic-ish one so the
-  // listing does not get blocked; callers can still flag confidence=0.
-  const preferred = ['Sonstige', 'Unbekannt', 'Keine Angabe'];
-  for (const pref of preferred) {
-    const hit = values.find((v) => String(v).toLowerCase() === pref.toLowerCase());
-    if (hit) return hit;
-  }
-  // Otherwise fall back to the first value, but expose the value string limited to 60 chars.
-  return capSpecificValue(values[0] || 'Unbekannt');
-}
-
 /**
  * Focused Gemini repair call for unknown aspects.  Fire-and-safe: any failure
  * returns null and the caller keeps the Unbekannt placeholders.
  */
-async function runAspectRepair({ identity, stage2, unknownAspects, requiredAspects }) {
+async function runAspectRepair({ identity, stage2, unknownAspects, requiredAspects, deadline = Infinity, tenantId = null }) {
   if (!Array.isArray(unknownAspects) || unknownAspects.length === 0) return null;
 
   const aspectLines = unknownAspects.map((a) => {
@@ -538,29 +532,35 @@ Nichts erfinden — wenn du nichts findest, lasse den Key weg.`;
   // version-level config can refine these knobs without code changes.
   // Phase F.1b batch 3 — extracted to single source of truth (was 4x literal).
   const REPAIR_FALLBACK = { temperature: 0.1, maxOutputTokens: 1024 };
-  const scopeConfig = await _tryResolveScopeConfig('identify.v2', null, REPAIR_FALLBACK);
+  const scopeConfig = await _tryResolveScopeConfig('identify.v2', tenantId, REPAIR_FALLBACK);
 
+  const timeoutMs = Math.min(ASPECT_REPAIR_TIMEOUT_MS, deadline - Date.now());
+  if (timeoutMs < 1000) return null;
   let parsed;
+  let repairTimer;
   try {
     const repairPromise = gemini3GenerateJSON({
       prompt,
       schema,
       ...REPAIR_FALLBACK,
       scopeConfig,
+      timeoutMs,
     });
     Promise.resolve(repairPromise).catch(() => {});
     parsed = await Promise.race([
       repairPromise,
       new Promise((_, reject) =>
-        setTimeout(
-          () => reject(new Error(`Aspect repair timeout after ${ASPECT_REPAIR_TIMEOUT_MS}ms`)),
-          ASPECT_REPAIR_TIMEOUT_MS,
+        repairTimer = setTimeout(
+          () => reject(new Error(`Aspect repair timeout after ${timeoutMs}ms`)),
+          timeoutMs,
         ),
       ),
     ]);
   } catch (err) {
     console.warn('[stage3] Aspect repair Gemini call failed:', err?.message);
     return null;
+  } finally {
+    clearTimeout(repairTimer);
   }
   if (!parsed || typeof parsed !== 'object') return null;
   if (!parsed.repaired || typeof parsed.repaired !== 'object') return null;

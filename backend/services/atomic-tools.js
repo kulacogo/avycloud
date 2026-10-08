@@ -809,11 +809,16 @@ async function executeFetchUrlContent({ url, extractImages } = {}) {
       format: 'raw',
       timeout_ms: EXECUTOR_TIMEOUT_MS,
     };
-    const result = await withTimeout(
+    let result = await withTimeout(
       toolkit.executeWebFetchToolCall({ arguments: JSON.stringify(args) }),
       EXECUTOR_TIMEOUT_MS,
       'fetch_url_content'
     );
+    if ((!result || result.success === false || result.error) && Date.now() - started < EXECUTOR_TIMEOUT_MS) {
+      const { fetchPageForVerification } = require('../lib/price-evidence');
+      const page = await fetchPageForVerification(url, { timeoutMs: Math.max(1, Math.min(6000, EXECUTOR_TIMEOUT_MS - (Date.now() - started))) });
+      if (page.ok) result = { success: true, url: page.resolvedUrl || url, body: (page.text || page.html || '').slice(0, 50000), via: 'direct_fallback' };
+    }
     const ok = Boolean(result && result.success !== false && !result.error);
     return {
       ok,

@@ -68,3 +68,10 @@ describe('_jsonFormatterFallback', () => {
     })).rejects.toThrow(/leer|empty/i);
   });
 });
+
+it('does not launch a paid formatting fallback after the capture deadline', async () => {
+  const { _parseGroundedJson } = require('../../lib/gemini3-client');
+  const generateContent = vi.fn();
+  await expect(_parseGroundedJson({ ai: { models: { generateContent } }, responseText: 'Researched prose without JSON', deadline: Date.now() - 1 })).rejects.toThrow(/deadline/);
+  expect(generateContent).not.toHaveBeenCalled();
+});

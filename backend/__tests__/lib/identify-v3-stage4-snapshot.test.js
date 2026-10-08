@@ -5,6 +5,7 @@
 // guarantee value-preserving migration from local SOURCE_BASE_SCORES to the
 // central SOURCE_WEIGHTS map in lib/confidence-scoring.js.
 //
+// Readiness contract intentionally tightened on 2026-10-09; confidence weights unchanged.
 // If a drift is introduced (e.g. by overriding values for keys present in
 // central with different values), this test fails LOUDLY — STOP and report.
 
@@ -36,7 +37,7 @@ require.cache[gpsrPath] = {
   id: gpsrPath,
   filename: gpsrPath,
   loaded: true,
-  exports: { scoreGpsr: scoreGpsrMock, getManufacturerGpsrByName: vi.fn() },
+  exports: { ...require.cache[gpsrPath].exports, scoreGpsr: scoreGpsrMock, getManufacturerGpsrByName: vi.fn() },
 };
 
 const { runStage4Validation } = require('../../lib/identify-v3-stage4');

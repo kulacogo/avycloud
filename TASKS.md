@@ -5,6 +5,13 @@
 >
 > **Aktueller Gesamt-/Fundament-Plan (Stand 2026-06-17):** `docs/superpowers/avycloud-master-plan.md`. Umsetzung beginnt mit **Track 1** (Teil K) nach `docs/superpowers/avycloud-execution-guide.md`. Die Oversell-/Single-Writer-Items unten sind darin als F0/F1/F2 aufgegangen; ältere Plan-Pfade unter `~/.claude/plans/` sind historisch.
 
+## 🔴 Erfassung: sachlich vollständige Datenblätter (09.10.2026)
+
+- Initialpreis-Nachmessung seit PR31: 24/155; Gesamtproblem offen.
+- Erfassungsvertrag v3 korrigiert Budget/Korrekturrunden, Merkmalsverlust, GPSR-Registry-Vertrag und Händlerpreisquellen. Drei von vier gezielten Originalfoto-Proben bestehen die Inhaltsprüfung inklusive Preis; keine repräsentative Quote.
+- Offen: MeXo HB21.9400-1 ohne exakten 2er-Set-Preis und mit fragwürdiger Herstellerzuordnung; HAFIX 7×4 m ohne belegten Preis. GPSR-Faktenprüfung über reine Vollständigkeit hinaus und Titelpolitik separat nachziehen.
+- [Abnahme und Quellen](docs/reports/capture-quality-2026-10-09.md), Produktionsnachweis in `CODEX_MEMORY.md`. Nicht als vollständige Lösung schließen.
+
 ## 🔴 [KRITISCH] Oversell-Prevention (seit 2026-04-23)
 
 **Trigger-Incident:** SKU-9871561937 (TrendOcean) — Kaufland verkauft, lokaler Bestand = 0, aber eBay-Angebot blieb aktiv mit positivem Bestand → Oversell-Risiko.

@@ -952,6 +952,7 @@ const CONTENT_SCHEMA = {
     gpsr_manufacturer_phone: { type: 'string' },
     gpsr_manufacturer_country: { type: 'string' },
     gpsr: GPSR_CONTENT_SCHEMA,
+    product_source_urls: { type: 'array', items: { type: 'string' }, description: 'Tatsaechlich geoeffnete Produktseiten fuer exakt dieses Modell (max. 6), URLs nicht erfinden.' },
   },
   required: ['title_ebay', 'title_kaufland', 'description_ebay', 'item_specifics'],
 };
@@ -977,6 +978,8 @@ async function generateProductContent({
   weightFallback = null,
   gpsrWebFallback = null,
   barcodeConfirmation = null,
+  deadline = Infinity,
+  abortSignal,
 } = {}) {
   const ai = await module.exports.getGenAIClient();
   const modelName = resolveModel(null, 'IDENTIFY_MODEL', DEFAULT_MODEL);
@@ -1150,11 +1153,13 @@ AUFGABE: Erstelle ein VOLLSTAENDIGES Produktdatenblatt basierend auf den obigen 
     responseMimeType: 'application/json',
     responseJsonSchema: CONTENT_SCHEMA,
     safetySettings: defaultSafetySettings(),
-    httpOptions: { timeout: parseInt(process.env.STAGE3_GEMINI_TIMEOUT_MS || '60000', 10) },
+    abortSignal,
+    httpOptions: { timeout: Math.max(1, Math.min(parseInt(process.env.STAGE3_GEMINI_TIMEOUT_MS || '60000', 10), deadline - Date.now())) },
   };
   const contentThinking = _identifyThinkingConfig();
   if (contentThinking) contentConfig.thinkingConfig = contentThinking;
 
+  if (abortSignal?.aborted || Date.now() >= deadline) throw new Error('Stage 3 deadline expired');
   const response = await ai.models.generateContent({
     model: modelName,
     contents: [{ role: 'user', parts }],
@@ -1167,7 +1172,7 @@ AUFGABE: Erstelle ein VOLLSTAENDIGES Produktdatenblatt basierend auf den obigen 
   const parsed = await _parseGroundedJson({
     ai, modelName, responseText: rawText, schema: CONTENT_SCHEMA,
     timeoutMs: parseInt(process.env.STAGE3_GEMINI_TIMEOUT_MS || '60000', 10),
-    maxOutputTokens: 8192, label: 'content-generation',
+    maxOutputTokens: 8192, label: 'content-generation', deadline, abortSignal,
   });
   return parsed;
 }
@@ -1223,9 +1228,10 @@ function _extractBalancedJson(text) {
 // JSON enthält: Zweitcall OHNE Tools MIT responseJsonSchema (auf 2.5 erlaubt,
 // solange keine Tools dabei sind) formt das Rechercheergebnis in Schema-JSON.
 // Wirft bei leerem rawText — ein Formatter ohne Quelle würde halluzinieren.
-async function _jsonFormatterFallback({ ai, modelName, rawText, schema, timeoutMs = 30000, maxOutputTokens = 4096 }) {
+async function _jsonFormatterFallback({ ai, modelName, rawText, schema, timeoutMs = 30000, maxOutputTokens = 4096, deadline = Infinity, abortSignal }) {
   const src = String(rawText || '').trim();
   if (!src) throw new Error('formatter fallback: rawText ist leer');
+  if (abortSignal?.aborted || Date.now() >= deadline) throw new Error('formatter fallback: deadline expired');
   const response = await ai.models.generateContent({
     model: modelName,
     contents: [{
@@ -1241,7 +1247,8 @@ async function _jsonFormatterFallback({ ai, modelName, rawText, schema, timeoutM
       maxOutputTokens,
       responseMimeType: 'application/json',
       responseJsonSchema: schema,
-      httpOptions: { timeout: timeoutMs },
+      abortSignal,
+      httpOptions: { timeout: Math.max(1, Math.min(timeoutMs, deadline - Date.now())) },
     },
   });
   const text = (response.text || '').trim();
@@ -1253,7 +1260,7 @@ async function _jsonFormatterFallback({ ai, modelName, rawText, schema, timeoutM
 
 // Robuste Parse-Kette für grounded Antworten: balancierte Extraktion →
 // Truncation-Repair → Formatter-Zweitcall.
-async function _parseGroundedJson({ ai, modelName, responseText, schema, timeoutMs, maxOutputTokens, label }) {
+async function _parseGroundedJson({ ai, modelName, responseText, schema, timeoutMs, maxOutputTokens, label, deadline, abortSignal }) {
   const text = String(responseText || '').trim();
   const extracted = _extractBalancedJson(text);
   if (extracted) {
@@ -1261,7 +1268,7 @@ async function _parseGroundedJson({ ai, modelName, responseText, schema, timeout
     if (parsed) return parsed;
   }
   console.warn(`[gemini3-client] ${label}: kein direktes JSON — Formatter-Zweitcall`);
-  return _jsonFormatterFallback({ ai, modelName, rawText: text, schema, timeoutMs, maxOutputTokens });
+  return _jsonFormatterFallback({ ai, modelName, rawText: text, schema, timeoutMs, maxOutputTokens, deadline, abortSignal });
 }
 
 // Gemini 2.5 erlaubt KEINE Kombination aus Tools (googleSearch/urlContext)
