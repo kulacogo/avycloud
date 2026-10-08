@@ -680,16 +680,22 @@ async function runImproveJobInline(jobId, productId, editorInitials = 'KI') {
 // ── Routes ───────────────────────────────────────────────────────────
 // ══════════════════════════════════════════════════════════════════════
 
-// --- "Erfasst von" (admin-only): wer hat welches Produkt erfasst ---
+// --- "Erfasst von": wer hat welches Produkt erfasst ---
 // Quelle: audit_log product.identified (seit 2026-07-04) — deckt auch Produkte ab,
 // die vor dem ops.identified_by-Feld erfasst wurden. Muss vor '/products/:id' stehen.
-router.get('/products/identified-by', requirePermission('admin', 'users.read'), async (req, res) => {
+// Recht seit 2026-10-08 (Betreiber): Produkt-Schreibrecht, damit Mitarbeiter den
+// Filter "Erfasst von" nutzen koennen. Vorher admin.users.read — das steht nicht im
+// Rechte-Katalog, hatte also nur der Inhaber.
+// Abfrage nur auf product.identified (zwei Gleichheitsfilter, kein Composite-Index
+// noetig). Gemessen 08.10.2026: 1.370 statt 10.000 gelesene Dokumente — und
+// vollstaendig: das alte limit(10000) ueber ALLE Aktionen schnitt die aeltesten
+// Erfassungen ab (1.119 statt 1.368 Produkte), also genau die ohne ops.identified_by.
+router.get('/products/identified-by', requirePermission('products', 'write'), async (req, res) => {
   try {
     const tenantId = req.user?.tenantId || 'default';
     const snap = await firestore.collection('audit_log')
       .where('tenantId', '==', tenantId)
-      .orderBy('timestamp', 'desc')
-      .limit(10000)
+      .where('action', '==', 'product.identified')
       .get();
 
     const { listUsers } = require('../lib/rbac');
@@ -700,15 +706,18 @@ router.get('/products/identified-by', requirePermission('admin', 'users.read'), 
       return [uid, u.displayName || full || u.username || u.email || uid];
     }));
 
-    // Älteste zuletzt verarbeiten? Wir wollen den ERSTEN Erfasser pro Produkt:
-    // Einträge kommen desc — der letzte Schreiber im Map-Durchlauf ist der älteste.
+    // Wir wollen den ERSTEN Erfasser pro Produkt. Ohne orderBy kommt die Abfrage
+    // unsortiert — also aufsteigend nach Zeit sortieren, der erste Eintrag gewinnt.
+    // timestamp ist eine ISO-Zeichenkette (einziger Schreiber: services/audit-log.js).
+    const entries = snap.docs
+      .map((d) => d.data())
+      .sort((x, y) => String(x?.timestamp || '').localeCompare(String(y?.timestamp || '')));
     const map = {};
-    for (const d of snap.docs) {
-      const a = d.data();
+    for (const a of entries) {
       if (a?.action !== 'product.identified') continue;
       const productId = a?.details?.productId || a?.resourceId;
       const uid = a?.userId;
-      if (!productId || !uid || uid === 'system') continue;
+      if (!productId || !uid || uid === 'system' || map[productId]) continue;
       map[productId] = { uid, name: nameByUid.get(uid) || a.userEmail || uid };
     }
     res.json({ ok: true, data: map });

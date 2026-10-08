@@ -417,7 +417,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
     }));
   }, [products]);
 
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, hasPermission } = useAuth();
   const myInitials = useMemo(() => deriveInitials(user?.email || ''), [user?.email]);
 
   // Alle http-Bildkandidaten in Reihenfolge (fuer onError-Fallback aufs naechste).
@@ -519,11 +519,17 @@ const AdminTable: React.FC<AdminTableProps> = ({
     return () => window.removeEventListener('avy:produktdaten-export', onOpen);
   }, []);
 
-  // Admin-only: "Erfasst von" — Zuordnung aus dem Erfassungs-Protokoll (deckt
-  // auch Produkte ab, die vor dem ops.identified_by-Feld erfasst wurden).
+  // Sichtbare Filter-Definitionen — welches Recht ein Filter verlangt, steht an
+  // seiner Definition (z. B. "Erfasst von": Produkt-Schreibrecht).
+  const filterDefs = useMemo(() => getFilterDefs(hasPermission), [hasPermission]);
+  const canSeeErfasser = filterDefs.some((d) => d.id === 'erfasser');
+
+  // "Erfasst von" — Zuordnung aus dem Erfassungs-Protokoll (deckt auch Produkte
+  // ab, die vor dem ops.identified_by-Feld erfasst wurden). Geladen fuer alle,
+  // die den Filter sehen; die Spalte bleibt Admin-only.
   const [identifiedByMap, setIdentifiedByMap] = useState<Record<string, { uid: string; name: string }>>({});
   useEffect(() => {
-    if (!isAdmin) return;
+    if (!canSeeErfasser) return;
     let cancelled = false;
     import('../api/client').then(({ getProductsIdentifiedByMap }) =>
       getProductsIdentifiedByMap()
@@ -531,7 +537,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
         .catch(() => {})
     );
     return () => { cancelled = true; };
-  }, [isAdmin]);
+  }, [canSeeErfasser]);
 
   // Anzeigename des Erfassers (Feld am Produkt gewinnt, sonst Protokoll-Map).
   const resolveErfasstVon = useCallback((p: any): string => {
@@ -539,10 +545,8 @@ const AdminTable: React.FC<AdminTableProps> = ({
     return field?.name || field?.email || identifiedByMap[p?.id]?.name || '';
   }, [identifiedByMap]);
 
-  // Sichtbare Filter-Definitionen (Erfasser nur fuer Admins) + Live-Kontext
-  // fuer Predicates und Options-Counts. `now` wird beim FILTERN frisch gesetzt
-  // — hier dient es nur als Platzhalter fuer Chip-Texte.
-  const filterDefs = useMemo(() => getFilterDefs(isAdmin), [isAdmin]);
+  // Live-Kontext fuer Predicates und Options-Counts. `now` wird beim FILTERN
+  // frisch gesetzt — hier dient es nur als Platzhalter fuer Chip-Texte.
   const filterCtx = useMemo<FilterContext>(
     () => ({
       now: new Date(),
@@ -1336,7 +1340,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
     // Alle Dimensionen laufen durch die Registry — `now` frisch, damit
     // rollierende Datums-Presets ("Letzte 7 Tage") korrekt bleiben.
     const liveCtx = { ...filterCtx, now: new Date() };
-    const filtered = applyProductFilters(searchFiltered, activeFilters, liveCtx, { isAdmin });
+    const filtered = applyProductFilters(searchFiltered, activeFilters, liveCtx, { can: hasPermission });
 
     if (sortLevels.length === 0) return filtered;
 
@@ -1385,7 +1389,7 @@ const AdminTable: React.FC<AdminTableProps> = ({
     searchTerm,
     activeFilters,
     filterCtx,
-    isAdmin,
+    hasPermission,
     resolveErfasstVon,
     ebayLinkedMap,
     ebayProductIdMap,
