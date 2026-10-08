@@ -205,6 +205,26 @@ if (RUN_BACKGROUND_JOBS) {
   } catch (e) {
     console.warn('[ListingSyncRunner] failed to start (non-blocking):', e?.message || e);
   }
+  // eBay-Tagesbudget (Vorfall 2026-10-08): Rest des Trading-Kontingents alle
+  // 15 min ueber die Developer-Analytics-API messen (eigenes Kontingent, KEIN
+  // Trading-Aufruf) und in system/ebay_trading_budget/windows/<Tag> schreiben.
+  // Die Messung sieht auch Aufrufe, die nicht durch diesen Prozess gingen.
+  // Fail-open: ohne Messung rechnet das Budget mit dem eigenen Zaehler weiter.
+  try {
+    const { runEbayBudgetProbe } = require('./lib/ebay-rate-limit-probe');
+    // Muell-Wert (z. B. "15m") ergaebe NaN → Node tickt dann im 1-ms-Takt:
+    // Untergrenze 60 s, sonst Voreinstellung (Gegenlese).
+    const resolveIntervalMs = (raw, fallbackMs, minMs) => {
+      const n = parseInt(String(raw == null ? '' : raw).trim(), 10);
+      return Number.isFinite(n) && n >= minMs ? n : fallbackMs;
+    };
+    const EBAY_BUDGET_PROBE_INTERVAL_MS = resolveIntervalMs(process.env.EBAY_BUDGET_PROBE_INTERVAL_MS, 15 * 60 * 1000, 60_000);
+    setTimeout(() => { runEbayBudgetProbe().catch(() => {}); }, 20_000);
+    setInterval(() => { runEbayBudgetProbe().catch(() => {}); }, EBAY_BUDGET_PROBE_INTERVAL_MS);
+    console.log(`[ebay-budget] Kontingent-Messung aktiv: alle ${EBAY_BUDGET_PROBE_INTERVAL_MS}ms`);
+  } catch (e) {
+    console.warn('[ebay-budget] probe failed to start (non-blocking):', e?.message || e);
+  }
   try {
     startCompetitorRefreshRunner();
   } catch (e) {
@@ -422,7 +442,9 @@ const server = app.listen(PORT, () => {
           const { syncEbayOrders } = require('./services/order-intake-ebay');
           const kl = await syncKauflandOrders({ tenantId, lookbackDays: 1 })
             .catch((err) => { console.warn(`[order-fast-poll] kaufland failed: ${err?.message}`); return null; });
-          const eb = await syncEbayOrders({ tenantId, lookbackDays: 1 })
+          // P0: der Fast-Poll ist der einzige Dauer-Importeur — er laeuft bis
+          // zum Boden des Tagesbudgets (lib/ebay-trading-budget.js).
+          const eb = await syncEbayOrders({ tenantId, lookbackDays: 1, priority: 'P0' })
             .catch((err) => { console.warn(`[order-fast-poll] ebay failed: ${err?.message}`); return null; });
           const imported = Number(kl?.synced || 0) + Number(eb?.synced || 0);
           if (imported > 0) {
@@ -842,6 +864,11 @@ const server = app.listen(PORT, () => {
 // Graceful shutdown für Cloud Run
 process.on('SIGTERM', () => {
   console.log('SIGTERM received. Shutting down gracefully...');
+  // Ungeflushte eBay-Budget-Zaehler (≤ 5 s) best-effort schreiben, sonst
+  // untererfasst das geteilte Tagesbudget jede Instanz-Abschaltung.
+  try {
+    require('./lib/ebay-trading-budget').getEbayTradingBudget().flush().catch(() => {});
+  } catch (_) { /* best effort */ }
   server.close(() => {
     console.log('HTTP server closed.');
     process.exit(0);

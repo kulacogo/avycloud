@@ -41,6 +41,7 @@ async function fetchEbayOrders({
   entriesPerPage = 50,
   orderRole = 'Seller',
   orderStatus = 'All',
+  priority = null,
 } = {}) {
   // Default: last 7 days
   const now = new Date();
@@ -69,7 +70,9 @@ async function fetchEbayOrders({
     </Pagination>
   `;
 
-  const result = await callTradingApi('GetOrders', innerXml, { timeoutMs: 30000 });
+  // priority: Tagesbudget-Prioritaet (lib/ebay-trading-budget.js) — Worker-
+  // Fast-Poll P0, Abgleiche P1/P2, UI-Syncs P2.
+  const result = await callTradingApi('GetOrders', innerXml, { timeoutMs: 30000, priority: priority || undefined });
   const resp = result.response;
 
   // Check for eBay API errors (HTTP 200 can still contain errors)
@@ -238,14 +241,38 @@ function mapEbayOrder(ebayOrder) {
  * Sync eBay orders to Firestore.
  * Deduplicates by marketplaceOrderId.
  *
- * @param {{ tenantId?: string, lookbackDays?: number }} opts
+ * @param {{ tenantId?: string, lookbackDays?: number, skipIfFreshMs?: number, priority?: string|null }} opts
+ *   skipIfFreshMs — liegt der letzte ERFOLGREICHE Import (irgendein Prozess,
+ *   geteilter Marker ops/ebayOrderIntake__<tenant>) weniger als N ms zurueck,
+ *   wird KEIN eBay-Aufruf gemacht (Default 0 = immer importieren).
+ *   priority — Tagesbudget-Prioritaet des Intake-GetOrders (Default P1).
  * @returns {Promise<{ synced: number, skipped: number, total: number }>}
  */
-async function syncEbayOrders({ tenantId = 'default', lookbackDays = 7 } = {}) {
+async function syncEbayOrders({ tenantId = 'default', lookbackDays = 7, skipIfFreshMs = 0, priority = null } = {}) {
   // eBay Trading API hard limit: CreateTimeFrom cannot be older than 90 days
   const cappedDays = Math.min(lookbackDays, 90);
   const now = new Date();
   const from = new Date(now.getTime() - cappedDays * 24 * 60 * 60 * 1000).toISOString();
+
+  // Geteilter Zustand (seit 2026-10-08): Frische-Marker + Abgleich-Takt ueber
+  // alle Prozesse (Web-Instanzen + Worker). null = nicht lesbar → fail-open.
+  const shared = await readSharedIntakeState(tenantId);
+  const freshMs = Number(skipIfFreshMs) > 0 ? Number(skipIfFreshMs) : 0;
+  if (freshMs > 0 && shared && shared.lastIntakeOkAtIso) {
+    const ageMs = now.getTime() - Date.parse(shared.lastIntakeOkAtIso);
+    if (Number.isFinite(ageMs) && ageMs >= 0 && ageMs < freshMs) {
+      console.log(`[ebay-intake] uebersprungen: letzter erfolgreicher Import vor ${Math.round(ageMs / 1000)}s (${shared.lastIntakeProcess || 'unbekannt'}) — kein GetOrders`);
+      return { synced: 0, skipped: 0, total: 0, skippedFresh: true, lastIntakeOkAtIso: shared.lastIntakeOkAtIso, lastIntakeProcess: shared.lastIntakeProcess || null };
+    }
+  }
+  // Sicherheitsnetz-Eskalation (Gegenlese): ein Web-/Event-Sync mit Frische-
+  // Schranke ist nur solange Komfort (P2), wie der Worker lebt. Altert der
+  // Marker, importiert offensichtlich niemand mehr — dann muss der Aufruf
+  // steigen, sonst bliebe unter der P2-Reserve jede neue Bestellung ohne
+  // Reservierung: < 20 min P2, < 60 min P1, danach (oder ohne Marker) P0.
+  const intakePriority = freshMs > 0
+    ? escalateIntakePriority(priority || 'P2', shared && shared.lastIntakeOkAtIso ? now.getTime() - Date.parse(shared.lastIntakeOkAtIso) : null)
+    : (priority || 'P1');
 
   let page = 1;
   let totalSynced = 0;
@@ -260,6 +287,7 @@ async function syncEbayOrders({ tenantId = 'default', lookbackDays = 7 } = {}) {
       createTimeTo: now.toISOString(),
       pageNumber: page,
       entriesPerPage: 100,
+      priority: intakePriority,
     });
 
     totalEntries = result.totalEntries;
@@ -314,6 +342,14 @@ async function syncEbayOrders({ tenantId = 'default', lookbackDays = 7 } = {}) {
     if (page > result.totalPages) break;
   } while (page <= 50); // Safety limit
 
+  // Erfolgreicher Intake → geteilter Frische-Marker (andere Prozesse koennen
+  // ihren Import ueberspringen, solange er frisch ist).
+  await writeSharedIntakeState(tenantId, {
+    lastIntakeOkAtIso: new Date().toISOString(),
+    lastIntakeProcess: currentProcessRole(),
+    lastIntakeLookbackDays: cappedDays,
+  });
+
   // Push updated availability to all marketplaces
   if (newOrderSkus.size > 0) {
     try {
@@ -353,18 +389,27 @@ async function syncEbayOrders({ tenantId = 'default', lookbackDays = 7 } = {}) {
 
   // --- Status reconciliation: re-fetch recent orders to pick up status changes ---
   const startedAtMs = Date.now();
+  // Takt-Zustand anderer Prozesse uebernehmen (neuester Stand gewinnt) — sonst
+  // beginnt jede neue Cloud-Run-Instanz mit einem 6-Seiten-30-Tage-Abgleich.
+  // Direkt vor dem Planen ERNEUT lesen (Gegenlese): der Intake oben dauert
+  // Sekunden bis Minuten, ein anderer Prozess kann inzwischen abgeglichen haben.
+  const latestShared = await readSharedIntakeState(tenantId);
+  mergeSharedReconcileState(_reconcileState, latestShared || shared);
   const plan = planReconciliation(startedAtMs);
   if (plan.mode !== 'skip') {
     markReconciliationAttempt(startedAtMs);
-    try {
-      const reconcileDays = parseInt(process.env.RECONCILIATION_MAX_AGE_DAYS || '30', 10);
-      const recWindow = plan.mode === 'full'
+    await writeSharedIntakeState(tenantId, { reconcile: { lastAttemptAtIso: new Date(startedAtMs).toISOString() } });
+    const reconcileDays = parseInt(process.env.RECONCILIATION_MAX_AGE_DAYS || '30', 10);
+    const runReconcile = async (mode, modTimeFromMs) => {
+      const recWindow = mode === 'full'
         ? { createTimeFrom: new Date(startedAtMs - reconcileDays * 24 * 60 * 60 * 1000).toISOString(), createTimeTo: now.toISOString() }
-        : { modTimeFrom: new Date(plan.modTimeFromMs).toISOString(), modTimeTo: new Date(startedAtMs).toISOString() };
+        : { modTimeFrom: new Date(modTimeFromMs).toISOString(), modTimeTo: new Date(startedAtMs).toISOString() };
+      // Voll-Abgleich ist Komfort (P2), der inkrementelle ist wichtig (P1).
+      const recPriority = mode === 'full' ? 'P2' : 'P1';
       let recPage = 1;
       let recChecked = 0;
       do {
-        const result = await fetchEbayOrders({ ...recWindow, pageNumber: recPage, entriesPerPage: 100 });
+        const result = await fetchEbayOrders({ ...recWindow, pageNumber: recPage, entriesPerPage: 100, priority: recPriority });
         for (const order of result.orders) {
           await saveOrderIfNew({ tenantId, order });
           recChecked++;
@@ -372,10 +417,29 @@ async function syncEbayOrders({ tenantId = 'default', lookbackDays = 7 } = {}) {
         recPage++;
         if (recPage > result.totalPages) break;
       } while (recPage <= 50);
-      markReconciliationDone(plan.mode, startedAtMs);
-      console.log(`[ebay-intake] Status reconciliation (${plan.mode}): checked ${recChecked} orders (${recPage - 1} page(s))`);
+      markReconciliationDone(mode, startedAtMs);
+      const reconcilePatch = { lastAttemptAtIso: new Date(startedAtMs).toISOString(), lastMode: mode, lastDoneAtIso: new Date().toISOString() };
+      if (mode === 'full') reconcilePatch.lastFullStartedAtIso = new Date(startedAtMs).toISOString();
+      await writeSharedIntakeState(tenantId, { reconcile: reconcilePatch });
+      console.log(`[ebay-intake] Status reconciliation (${mode}): checked ${recChecked} orders (${recPage - 1} page(s))`);
+    };
+    try {
+      await runReconcile(plan.mode, plan.modTimeFromMs);
     } catch (err) {
-      console.warn(`[ebay-intake] Status reconciliation failed: ${err.message}`);
+      // Verweigert das Tagesbudget den Voll-Abgleich (P2), darf der wichtige
+      // inkrementelle (P1) nicht mit ihm verhungern (Gegenlese): sofort ab dem
+      // letzten erfolgreichen Voll-Lauf nachziehen; der Voll-Lauf bleibt faellig.
+      const budgetDeferred = Boolean(err && (err.budgetDeferred || err.code === 'EBAY_BUDGET_DEFERRED'));
+      if (budgetDeferred && plan.mode === 'full' && _reconcileState.lastFullStartedAtMs > 0) {
+        console.warn(`[ebay-intake] Voll-Abgleich vom Tagesbudget zurueckgestellt — inkrementeller Abgleich (P1) laeuft stattdessen: ${err.message}`);
+        try {
+          await runReconcile('incremental', _reconcileState.lastFullStartedAtMs - RECONCILE_OVERLAP_MS);
+        } catch (incErr) {
+          console.warn(`[ebay-intake] Status reconciliation failed: ${incErr.message}`);
+        }
+      } else {
+        console.warn(`[ebay-intake] Status reconciliation failed: ${err.message}`);
+      }
     }
   }
 
@@ -442,6 +506,73 @@ function markReconciliationDone(mode, startedAtMs, state = _reconcileState) {
 function _resetReconcileStateForTests() {
   _reconcileState.lastFullStartedAtMs = 0;
   _reconcileState.lastAttemptAtMs = 0;
+}
+
+// ─── Geteilter Intake-Zustand (seit 2026-10-08) ─────────────────────────────
+//
+// Vorher hielt JEDER Prozess seinen eigenen Abgleich-Takt: jede neue Web-
+// Instanz begann mit einem 6-Seiten-30-Tage-Abgleich (gemessen 06.10.: 20 Web-
+// Voll-Laeufe statt hoechstens 8), k Web-Instanzen fuhren k parallele 4-min-
+// Takte, und 1.127 UI-Syncs am 06.10. (Handscanner alle 30 s) kosteten je
+// 2+ GetOrders, obwohl der Worker alle 5 min ohnehin importiert. Das Doc
+// ops/ebayOrderIntake__<tenant> macht Frische-Marker und Takt fuer alle
+// Prozesse sichtbar. Jeder Zugriff ist fail-open: ohne Firestore gilt der
+// lokale Zustand und der Import laeuft wie bisher.
+const INTAKE_STATE_DOC_PREFIX = 'ebayOrderIntake__';
+
+function intakeStateRef(tenantId) {
+  return getDb().collection('ops').doc(`${INTAKE_STATE_DOC_PREFIX}${String(tenantId || 'default')}`);
+}
+
+async function readSharedIntakeState(tenantId) {
+  try {
+    const snap = await intakeStateRef(tenantId).get();
+    return snap && snap.exists ? (snap.data() || {}) : {};
+  } catch (err) {
+    console.warn(`[ebay-intake] geteilter Zustand nicht lesbar (fail-open): ${err.message}`);
+    return null;
+  }
+}
+
+async function writeSharedIntakeState(tenantId, patch) {
+  try {
+    await intakeStateRef(tenantId).set({ tenantId: String(tenantId || 'default'), ...patch, updatedAt: new Date().toISOString() }, { merge: true });
+  } catch (err) {
+    console.warn(`[ebay-intake] geteilter Zustand nicht schreibbar: ${err.message}`);
+  }
+}
+
+function currentProcessRole() {
+  try {
+    return require('../lib/process-role').shouldRunBackgroundJobs() ? 'worker' : 'web';
+  } catch (_) {
+    return 'unknown';
+  }
+}
+
+/**
+ * Prioritaet eines Syncs MIT Frische-Schranke nach dem Alter des letzten
+ * erfolgreichen Imports: solange der Worker lebt, Komfort; stirbt er, muss das
+ * Sicherheitsnetz steigen, bis zum Boden (P0). Rein, exportiert fuer Tests.
+ */
+function escalateIntakePriority(basePriority, markerAgeMs) {
+  const rank = { P0: 0, P1: 1, P2: 2 };
+  const base = rank[basePriority] != null ? basePriority : 'P2';
+  if (markerAgeMs == null || !Number.isFinite(markerAgeMs)) return 'P0'; // nie importiert / Marker unlesbar
+  if (markerAgeMs < 20 * 60 * 1000) return base;
+  if (markerAgeMs < 60 * 60 * 1000) return rank[base] < 1 ? base : 'P1';
+  return 'P0';
+}
+
+/** Neuester Stand gewinnt — lokal UND geteilt, damit kein Prozess zurueckfaellt. */
+function mergeSharedReconcileState(local, shared) {
+  const r = shared && shared.reconcile;
+  if (!r || typeof r !== 'object') return local;
+  const full = Date.parse(r.lastFullStartedAtIso || '');
+  const attempt = Date.parse(r.lastAttemptAtIso || '');
+  if (Number.isFinite(full) && full > (local.lastFullStartedAtMs || 0)) local.lastFullStartedAtMs = full;
+  if (Number.isFinite(attempt) && attempt > (local.lastAttemptAtMs || 0)) local.lastAttemptAtMs = attempt;
+  return local;
 }
 
 /**
@@ -700,5 +831,9 @@ module.exports = {
   planReconciliation,
   markReconciliationAttempt,
   markReconciliationDone,
+  mergeSharedReconcileState,
+  readSharedIntakeState,
+  escalateIntakePriority,
+  INTAKE_STATE_DOC_PREFIX,
   _resetReconcileStateForTests,
 };

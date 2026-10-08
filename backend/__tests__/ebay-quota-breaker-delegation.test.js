@@ -62,10 +62,18 @@ describe('eBay quota breaker — shared delegation (WP1 Task 6)', () => {
     expect(openCalls[0].cooldownMs).toBeGreaterThan(0);
   });
 
-  it('flag ON: closing broadcasts to the shared breaker', () => {
+  it('flag ON: closing an OPEN breaker broadcasts to the shared breaker', () => {
     process.env.EBAY_QUOTA_BREAKER_SHARED = 'true';
+    ebay.openEbayQuotaBreaker();
     ebay.closeEbayQuotaBreaker();
     expect(closeCalls.length).toBe(1);
+  });
+
+  it('flag ON: closing a breaker that was never open writes NOTHING (2026-10-08: vorher ein Firestore-Write je erfolgreichem Trading-Call)', () => {
+    process.env.EBAY_QUOTA_BREAKER_SHARED = 'true';
+    ebay.closeEbayQuotaBreaker();
+    ebay.closeEbayQuotaBreaker();
+    expect(closeCalls.length).toBe(0);
   });
 
   it('flag OFF: consult is a no-op — no read, no throw', async () => {

@@ -87,6 +87,27 @@ async function closeEbayQuotaBreaker({ firestore, now = Date.now() } = {}) {
   _cache = { value: null, fetchedAt: 0 };
 }
 
+// eBay setzt die Trading-API-Tageskontingente um Mitternacht US-Pazifik
+// zurueck. Der Drain (stock-failure-drain) nutzt dieses Fenster, um Retries
+// waehrend einer erschoepften Tagesquota nicht sinnlos zu verbrennen —
+// 2026-08-26: 378 abandoned Failure-Docs, weil alle 5 Versuche (~90 min)
+// komplett in die stundenlange Sperre fielen. EINE Quelle fuer den Reset:
+// lib/ebay-trading-budget.js computeWindow() (DST-korrekt ueber echte LA-
+// Mitternachten, kein 86400-s-Annahme). Min. 60 s, damit ein Aufrufer direkt
+// vor Mitternacht nie 0/negativ plant.
+function msUntilNextEbayQuotaReset(now = Date.now()) {
+  let resetAtMs;
+  try {
+    resetAtMs = require('./ebay-trading-budget').computeWindow({ nowMs: now }).resetAtMs;
+  } catch (_) {
+    // Fallback ohne TZ-Daten: 07:00 UTC (= PDT-Mitternacht) als Naeherung.
+    const secUtc = Math.floor((now % 86400000) / 1000);
+    const secondsIntoDay = (secUtc - 7 * 3600 + 86400) % 86400;
+    resetAtMs = now + (86400 - secondsIntoDay) * 1000;
+  }
+  return Math.max(60 * 1000, resetAtMs - now);
+}
+
 // Test-Helper: lokalen Cache leeren (simuliert frische Instanz).
 function _resetCache() {
   _cache = { value: null, fetchedAt: 0 };
@@ -97,6 +118,7 @@ module.exports = {
   closeEbayQuotaBreaker,
   isEbayQuotaBreakerOpen,
   getEbayQuotaBreakerState,
+  msUntilNextEbayQuotaReset,
   _resetCache,
   DOC_PATH,
   CACHE_TTL_MS,

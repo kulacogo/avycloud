@@ -376,10 +376,10 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
     resolvedEbayItemId = await resolveEbayItemIdFromLiveListing({ productId, freshProduct, listingsSnapshot: completeEbayListings });
   }
 
-  const isEndedListing = (msg) => {
-    const lower = String(msg || '').toLowerCase();
-    return lower.includes('beendet') || lower.includes('ended') || lower.includes('1047');
-  };
+  // Gegenlese 2026-10-08: Quota-Fehler haben Vorrang, „1047" nur als Wort —
+  // ein Countdown „(quota cooldown 1047s)" ist KEIN beendetes Angebot.
+  const { isEndedListingMessage } = require('../lib/ebay-listing-ended');
+  const isEndedListing = (msg, sourceErr = null) => isEndedListingMessage(msg, sourceErr);
 
   // Fremdes/entferntes Listing = TERMINAL, nie retrybar (Quota-Fresser
   // 2026-07-21: 4 Produkte mit 389…-Alt-Konto-ItemIDs erzeugten ~250
@@ -451,7 +451,7 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
         console.log(`[stock-sync] ebay END product=${productId} itemId=${resolvedEbayItemId} → ended (zero stock)`);
       } catch (err) {
         const errMsg = err?.message || String(err);
-        if (isEndedListing(errMsg)) {
+        if (isEndedListing(errMsg, err)) {
           // Listing was already ended — treat as success, clear stale itemId.
           // BEWUSST KEIN zeroStockEnd-Marker (Review-Finding 4): "already
           // ended" beweist NICHT, dass WIR beendet haben — es kann eine
@@ -470,7 +470,7 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
         } else {
           results.push({ channel: 'ebay', status: 'error', error: errMsg });
           console.warn(`[stock-sync] ebay END FAILED product=${productId} itemId=${resolvedEbayItemId}:`, errMsg);
-          if (isEndedListing(errMsg)) await clearStaleItemId();
+          if (isEndedListing(errMsg, err)) await clearStaleItemId();
         }
       }
     } else {
@@ -478,10 +478,11 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
       // to prevent oversell on stale higher marketplace quantity.
       try {
         const { reviseFixedPriceItem } = require('../lib/ebay-trading-api');
+        // P0: Mengen-Push ist Oversell-Schutz — laeuft bis zum Boden des Tagesbudgets.
         const result = await reviseFixedPriceItem({
           itemId: String(resolvedEbayItemId),
           quantity: availableQuantity,
-        });
+        }, { priority: 'P0' });
         const status = result?.ack === 'Success' || result?.ack === 'Warning' ? 'success' : 'failed';
         results.push({ channel: 'ebay', status, itemId: resolvedEbayItemId, quantityPushed: availableQuantity, zeroStock: false });
         console.log(`[stock-sync] ebay product=${productId} itemId=${resolvedEbayItemId} qty=${availableQuantity} status=${status}`);
@@ -493,7 +494,7 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
         }
       } catch (err) {
         const errMsg = err?.message || String(err);
-        if (isEndedListing(errMsg)) {
+        if (isEndedListing(errMsg, err)) {
           // Listing was ended — can't revise. Bestand ist aber > 0!
           // Duplikat-Schutz VOR clearStaleItemId prüfen: existiert für die SKU
           // ein ANDERES noch aktives Listing (Operator-Relist direkt auf eBay),
@@ -611,13 +612,13 @@ async function syncStockToAllChannels({ tenantId = 'default', product, reason = 
               console.log(`[stock-sync] ebay END sibling product=${productId} itemId=${sibId} (zero stock, Multi-Site)`);
             } else {
               const { reviseFixedPriceItem } = require('../lib/ebay-trading-api');
-              const r = await reviseFixedPriceItem({ itemId: sibId, quantity: availableQuantity });
+              const r = await reviseFixedPriceItem({ itemId: sibId, quantity: availableQuantity }, { priority: 'P0' });
               const st = r?.ack === 'Success' || r?.ack === 'Warning' ? 'success' : 'failed';
               results.push({ channel: 'ebay', status: st, itemId: sibId, quantityPushed: availableQuantity, action: 'revise_sibling_site' });
             }
           } catch (sibErr) {
             const msg = sibErr?.message || String(sibErr);
-            if (isEndedListing(msg) || isForeignOrRemovedListing(msg)) {
+            if (isEndedListing(msg, sibErr) || isForeignOrRemovedListing(msg)) {
               // Geschwister-Listing tot/fremd → nur DESSEN Mirror-Row
               // deaktivieren (kein Drain-Doc, kein Retry) — der Light-Sync
               // re-aktiviert es, falls es doch lebt.
@@ -849,11 +850,12 @@ async function syncPriceToAllChannels({ tenantId = 'default', product, prices = 
     if (!guardBlocked) {
       try {
         const { reviseFixedPriceItem } = require('../lib/ebay-trading-api');
+        // P2: Preis-Push ist Komfort — wartet, wenn das Tagesbudget knapp ist.
         const result = await reviseFixedPriceItem({
           itemId: String(ebayItemId),
           startPrice: ebayPrice,
           currency: 'EUR',
-        });
+        }, { priority: 'P2' });
         const status = result?.ack === 'Success' || result?.ack === 'Warning' ? 'success' : 'failed';
         results.push({ channel: 'ebay', status, pricePushed: ebayPrice });
         console.log(`[price-sync] ebay product=${productId} price=${ebayPrice} status=${status}`);

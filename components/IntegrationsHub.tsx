@@ -3,6 +3,7 @@ import { fetchIntegrationStatus, fetchIntegrationProviders } from "../api/client
 import type { IntegrationStatusEntry, IntegrationProvider } from "../api/client";
 import IntegrationWizard from "./IntegrationWizard";
 import { PageTitle } from "./ui/PageTitle";
+import { describeEbayListingSync } from "../utils/ebaySyncBanner";
 
 /* ─── Types ─── */
 type Category = "all" | "marketplaces" | "shipping" | "finance" | "other";
@@ -109,20 +110,22 @@ const IntegrationCard: React.FC<IntegrationCardProps> = ({ integration, provider
           <StatusIndicator status={integration.status} connectedAt={integration.connectedAt} />
         </div>
 
-        {/* Sync-Störung (ehrlicher Zustand, unabhängig vom Verbunden-Status) */}
-        {integration.details?.listingSync && integration.details.listingSync.healthy === false && (
-          <div className="mb-4 bg-danger-dim rounded-lg px-3 py-2">
-            <div className="flex items-center gap-1.5">
-              <span className="inline-block w-2 h-2 rounded-full bg-danger" />
-              <span className="text-xs font-semibold text-danger">Angebots-Abgleich gestört</span>
+        {/* Sync-Störung (ehrlicher Zustand, unabhängig vom Verbunden-Status).
+            Seit 2026-10-08 Fehlertyp-bewusst: Kontingent (warten) vs. gestört. */}
+        {(() => {
+          const banner = describeEbayListingSync(integration.details?.listingSync ?? null);
+          if (banner.kind === "none") return null;
+          const quota = banner.kind === "quota";
+          return (
+            <div className={`mb-4 rounded-lg px-3 py-2 ${quota ? "bg-warning-dim" : "bg-danger-dim"}`}>
+              <div className="flex items-center gap-1.5">
+                <span className={`inline-block w-2 h-2 rounded-full ${quota ? "bg-warning" : "bg-danger"}`} />
+                <span className={`text-xs font-semibold ${quota ? "text-warning" : "text-danger"}`}>{banner.title}</span>
+              </div>
+              <p className="text-[11px] text-txt-secondary mt-1">{banner.lines[0]}</p>
             </div>
-            <p className="text-[11px] text-txt-secondary mt-1">
-              {integration.details.listingSync.lastSuccessAtIso
-                ? `Letzter erfolgreicher Abruf: ${new Date(integration.details.listingSync.lastSuccessAtIso).toLocaleString("de-DE")}`
-                : "Noch nie erfolgreich abgerufen"}
-            </p>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Details for connected integrations */}
         {isConnected && integration.details && (

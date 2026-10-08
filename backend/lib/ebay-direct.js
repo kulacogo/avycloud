@@ -1371,6 +1371,10 @@ async function fetchLiveListingsFromEbay({
   entriesPerPage = 100,
   detailConcurrency = 4,
   timeoutMs = 25000,
+  // Tagesbudget (2026-10-08): der Voll-Abzug macht EIN GetItem je Listing
+  // (~1.000 Aufrufe je Klick auf „Synchronisieren" im eBay-Tab) — Komfort,
+  // also P2: stoppt an der P2-Reserve, bevor Oversell-Schutz und Import leiden.
+  priority = 'P2',
 } = {}) {
   const concurrency = Math.max(1, Math.min(Number(detailConcurrency) || 4, 10));
   const summary = await fetchLiveListingSummariesFromEbay({ maxPages, entriesPerPage, timeoutMs });
@@ -1381,7 +1385,7 @@ async function fetchLiveListingsFromEbay({
     const responses = await Promise.all(
       group.map(async (entry) => {
         try {
-          const detail = await getItemDetails(entry.itemId, { timeoutMs });
+          const detail = await getItemDetails(entry.itemId, { timeoutMs, priority });
           return {
             ok: true,
             entry,
@@ -1433,6 +1437,7 @@ async function fetchLiveListingSummariesFromEbay({
   maxPages = 10,
   entriesPerPage = 100,
   timeoutMs = 25000,
+  priority = null,
 } = {}) {
   const pages = Math.max(1, Math.min(Number(maxPages) || 10, 200));
   const perPage = Math.max(1, Math.min(Number(entriesPerPage) || 100, 200));
@@ -1444,6 +1449,7 @@ async function fetchLiveListingSummariesFromEbay({
       pageNumber: page,
       entriesPerPage: perPage,
       timeoutMs,
+      priority: priority || undefined,
     });
     totalPages = Math.max(totalPages, Number(result?.pagination?.totalPages) || 1);
     activeItems.push(...(result?.items || []));
@@ -1684,11 +1690,35 @@ async function upsertLiveListingSummaries(listings = [], { runId = null, actor =
  * Shop-Gesundheit: Wann war der letzte ERFOLGREICHE Abruf, scheitert der
  * Sync seither, steht eine Massen-Deaktivierung zur Bestätigung an?
  */
+// Tagesbudget-Stand fuer die Anzeige (Vorfall 2026-10-08) — best effort, nie
+// werfend: Rest, Limit, Stufe, Reset. Fehlt alles → null (Banner bleibt ehrlich).
+async function readTradingBudgetForStatus() {
+  try {
+    const { getEbayTradingBudget } = require('./ebay-trading-budget');
+    const state = await getEbayTradingBudget().getState();
+    if (!state || state.unknown) return null;
+    return {
+      remaining: state.remaining,
+      limit: state.limit,
+      used: state.used,
+      level: state.level,
+      source: state.source,
+      resetAtIso: state.resetAtIso,
+      reserves: state.reserves || null,
+      enabled: state.enabled !== false,
+    };
+  } catch (_err) {
+    return null;
+  }
+}
+
 async function getEbayListingSyncHealth() {
   const staleLimitMinutes = Math.max(
     30,
     parseInt(process.env.EBAY_LISTING_SYNC_STALE_MINUTES || '90', 10) || 90
   );
+  const { classifyEbaySyncError } = require('./ebay-sync-error-kind');
+  const budget = await readTradingBudgetForStatus();
 
   let doc = null;
   try {
@@ -1701,20 +1731,46 @@ async function getEbayListingSyncHealth() {
       lastSuccessAtIso: null,
       staleMinutes: null,
       lastError: { message: `Status nicht lesbar: ${err.message}`, atIso: null },
+      errorKind: 'other',
       failingSinceIso: null,
       blockedReason: null,
       pendingConfirmation: false,
       staleLimitMinutes,
+      budget,
     };
   }
 
   const lastSuccessAtIso = safeString(doc?.lastCompletedAtIso) || null;
   const lastSuccessMs = lastSuccessAtIso ? Date.parse(lastSuccessAtIso) : NaN;
   const rawError = doc?.lastError && doc.lastError.message ? doc.lastError : null;
-  const lastError = rawError
+  let lastError = rawError
     ? { message: safeString(rawError.message), atIso: safeString(rawError.atIso) || null }
     : null;
-  const errorMs = lastError?.atIso ? Date.parse(lastError.atIso) : NaN;
+  let errorMs = lastError?.atIso ? Date.parse(lastError.atIso) : NaN;
+
+  // Vom Tagesbudget PAUSIERTER Spiegel (2026-10-08): der Runner schreibt
+  // lastSkip{reason:'budget_reserve'} statt eines Fehlers. Liegt die Pause
+  // nach dem letzten Erfolg (und nach dem letzten echten Fehler), ist sie der
+  // ehrliche Grund fuer den alternden Spiegel — als quota-artiger Eintrag,
+  // damit das Banner „pausiert" statt „gestoert + neu verbinden" sagt.
+  const skip = doc?.lastSkip && doc.lastSkip.reason === 'budget_reserve' ? doc.lastSkip : null;
+  const skipMs = skip ? Date.parse(safeString(skip.atIso) || '') : NaN;
+  const pauseIsCurrent = skip && Number.isFinite(skipMs) && (!Number.isFinite(lastSuccessMs) || skipMs > lastSuccessMs);
+  const pausedByBudget = pauseIsCurrent
+    ? { atIso: safeString(skip.atIso), remaining: Number.isFinite(Number(skip.remaining)) ? Number(skip.remaining) : null, resetAtIso: safeString(skip.resetAtIso) || null }
+    : null;
+  // Ein UNGELOESTER echter Fehler (nach dem letzten Erfolg) gewinnt gegen die
+  // Pause (Gegenlese): sonst verdeckte „pausiert" einen Token-Ausfall.
+  const unresolvedError = lastError && Number.isFinite(errorMs) && (!Number.isFinite(lastSuccessMs) || errorMs > lastSuccessMs);
+  if (pauseIsCurrent && !unresolvedError) {
+    const rest = pausedByBudget.remaining;
+    const limit = budget && Number.isFinite(Number(budget.limit)) ? Number(budget.limit) : null;
+    lastError = {
+      message: `Spiegel pausiert: Tagesbudget-Reserve erreicht${rest != null ? ` (Rest ${rest}${limit ? ` von ${limit}` : ''})` : ''} — der Rest ist für Oversell-Schutz, Auftrags-Import und Versandmeldungen reserviert; läuft nach dem Reset${skip.resetAtIso ? ` (${skip.resetAtIso})` : ''} weiter.`,
+      atIso: safeString(skip.atIso),
+    };
+    errorMs = skipMs;
+  }
 
   const staleMinutes = Number.isFinite(lastSuccessMs)
     ? Math.max(0, Math.round((Date.now() - lastSuccessMs) / 60_000))
@@ -1736,10 +1792,12 @@ async function getEbayListingSyncHealth() {
       lastSuccessAtIso: null,
       staleMinutes: null,
       lastError: null,
+      errorKind: null,
       failingSinceIso: null,
       blockedReason: null,
       pendingConfirmation: Boolean(doc?.pendingLargeDeactivation),
       staleLimitMinutes,
+      budget,
     };
   }
 
@@ -1753,10 +1811,15 @@ async function getEbayListingSyncHealth() {
     lastSuccessAtIso,
     staleMinutes,
     lastError,
+    // Fehlertyp fuer die Oberflaeche: 'quota' → warten bis Reset (KEIN
+    // „neu verbinden"), 'auth' → neu verbinden, 'other' → Fehlertext zeigen.
+    errorKind: failingSinceIso ? classifyEbaySyncError(lastError?.message) : null,
     failingSinceIso,
     blockedReason: deactivation?.blocked ? safeString(deactivation.reason) || null : null,
     pendingConfirmation: Boolean(doc?.pendingLargeDeactivation),
     staleLimitMinutes,
+    budget,
+    pausedByBudget,
   };
 }
 
@@ -1783,7 +1846,12 @@ async function syncLiveListingsLight(options = {}) {
   if (running && Number.isFinite(runningAtMs) && runningAtMs > now - 3 * 60_000) {
     return { skipped: true, reason: 'running', runningAtIso, runId };
   }
-  const cooldownMs = parseInt(process.env.EBAY_LIGHT_SYNC_COOLDOWN_MS || String(10 * 60_000), 10); // 10 min default (was 1 min)
+  // Cooldown: Aufrufer-Override (Budget-Takt des Runners, seit 2026-10-08)
+  // vor ENV vor 10-min-Default. Der Override darf den Takt nur STRECKEN —
+  // kuerzer als der ENV-/Default-Wert wird er nie.
+  const envCooldownMs = parseInt(process.env.EBAY_LIGHT_SYNC_COOLDOWN_MS || String(10 * 60_000), 10); // 10 min default (was 1 min)
+  const overrideCooldownMs = Number(options?.cooldownMs);
+  const cooldownMs = Number.isFinite(overrideCooldownMs) && overrideCooldownMs > envCooldownMs ? overrideCooldownMs : envCooldownMs;
   if (Number.isFinite(lastCompletedAtMs) && lastCompletedAtMs > now - cooldownMs) {
     return { skipped: true, reason: 'cooldown', lastCompletedAtIso, runId };
   }
@@ -1800,7 +1868,9 @@ async function syncLiveListingsLight(options = {}) {
   );
 
   try {
-    const ingest = await fetchLiveListingSummariesFromEbay({ maxPages, entriesPerPage, timeoutMs });
+    // priority: Tagesbudget-Prioritaet des Spiegels (Runner: P2, unter der
+    // P2-Reserve P1) — Default im Trading-Client: GetMyeBaySelling = P2.
+    const ingest = await fetchLiveListingSummariesFromEbay({ maxPages, entriesPerPage, timeoutMs, priority: options?.priority || null });
     const upsert = await upsertLiveListingSummaries(ingest.listings, { runId, actor });
     const ingestPagesFetched = Number(ingest?.summary?.pagesFetched) || 0;
     const ingestTotalPages = Number(ingest?.summary?.totalPagesReported) || 0;
