@@ -1,6 +1,7 @@
 #Requires -RunAsAdministrator
 param([string]$ParcelPrinter = '', [string]$LetterPrinter = '')
 $ErrorActionPreference = 'Stop'
+$ProgressPreference = 'SilentlyContinue'
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 $stationDir = Join-Path $env:ProgramData 'AvyCloud Print Agent'
 $taskName = 'AvyCloud Print Agent'
@@ -108,7 +109,9 @@ $runner = Join-Path $current 'windows-run.js'
 $verification = Join-Path $stationDir 'verification.json'
 if (Test-Path -LiteralPath $verification) { Remove-Item -LiteralPath $verification }
 $verifyAction = New-ScheduledTaskAction -Execute $node -Argument ('"' + $runner + '" --verify') -WorkingDirectory $current
-$verifySettings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit (New-TimeSpan -Minutes 5) -MultipleInstances IgnoreNew
+# Match the unattended daemon: a laptop on battery must not silently leave
+# verification waiting for a task that Windows refuses to start.
+$verifySettings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit (New-TimeSpan -Minutes 5) -MultipleInstances IgnoreNew -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
 Register-ScheduledTask -TaskName $verifyName -Action $verifyAction -Principal $principal -Settings $verifySettings -Force | Out-Null
 try {
   Start-ScheduledTask -TaskName $verifyName

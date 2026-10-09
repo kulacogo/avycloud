@@ -8,6 +8,46 @@ const { spawnSync } = require('node:child_process');
 const powershell = process.platform === 'win32' ? 'powershell.exe' : 'pwsh';
 const available = spawnSync(powershell, ['-NoProfile', '-Command', 'exit 0'], { timeout: 10000 }).status === 0;
 
+test('Windows setup verification and daemon can start and continue on battery power',
+  { skip: !available && 'PowerShell is not installed' }, async () => {
+    const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'avycloud-setup-power-'));
+    const harness = `param([string]$Installer)
+$ErrorActionPreference = 'Stop'
+$tokens = $null; $errors = $null
+$ast = [System.Management.Automation.Language.Parser]::ParseFile($Installer, [ref]$tokens, [ref]$errors)
+if ($errors.Count) { throw 'Installer syntax failed' }
+# Model the Windows cmdlet defaults; execute only the actual settings expressions.
+# No task is registered or started by this test.
+function New-ScheduledTaskSettingsSet {
+  param([TimeSpan]$ExecutionTimeLimit, [string]$MultipleInstances, [int]$RestartCount,
+    [TimeSpan]$RestartInterval, [switch]$StartWhenAvailable,
+    [switch]$AllowStartIfOnBatteries, [switch]$DontStopIfGoingOnBatteries)
+  return @{ DisallowStartIfOnBatteries = -not $AllowStartIfOnBatteries;
+    StopIfGoingOnBatteries = -not $DontStopIfGoingOnBatteries }
+}
+$calls = @($ast.FindAll({param($n)
+  $n -is [System.Management.Automation.Language.CommandAst] -and
+    $n.GetCommandName() -eq 'New-ScheduledTaskSettingsSet'
+}, $true))
+if ($calls.Count -ne 2) { throw 'Expected verification and daemon settings' }
+foreach ($call in $calls) {
+  $settings = & ([scriptblock]::Create($call.Extent.Text))
+  if ($settings.DisallowStartIfOnBatteries) { throw 'Task would not start on battery power' }
+  if ($settings.StopIfGoingOnBatteries) { throw 'Task would stop when power is unplugged' }
+}
+Write-Output 'Both tasks allow battery operation'
+`;
+    try {
+      const harnessFile = path.join(directory, 'verify.ps1');
+      await fs.writeFile(harnessFile, harness);
+      const result = spawnSync(powershell, ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
+        '-File', harnessFile, path.resolve(__dirname, '../install-windows.ps1')],
+      { encoding: 'utf8', timeout: 30000, shell: false });
+      assert.equal(result.status, 0, result.stdout + result.stderr);
+      assert.match(result.stdout, /Both tasks allow battery operation/);
+    } finally { await fs.rm(directory, { recursive: true, force: true }); }
+  });
+
 test('Windows setup accepts actual Brother fixed forms and rejects mismatched/unnamed sizes before installation',
   { skip: !available && 'PowerShell is not installed' }, async () => {
     const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'avycloud-setup-formats-'));
