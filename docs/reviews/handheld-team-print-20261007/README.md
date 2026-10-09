@@ -2,7 +2,9 @@
 
 ## Aktualisierung 09.10.2026
 
-Windows `09410-DRIVE` über Tailscale `100.83.3.111` online. Das geprüfte Installationspaket vom 08.10. wurde per Taildrop erfolgreich übertragen. Kein Fernwartungsprogramm installiert; SSH/RDP/WinRM nicht erreichbar. Lokaler Setup-Start angefragt, Windows-Ausführung und physische Abnahme weiterhin offen. Kein Produktionsdeploy von PR32.
+Windows `09410-DRIVE` über Tailscale `100.83.3.111` online. Das geprüfte Installationspaket vom 08.10. wurde per Taildrop erfolgreich übertragen. Kein Fernwartungsprogramm installiert; SSH/RDP/WinRM nicht erreichbar. Setup lokal als Administrator gestartet und bei fehlendem 103×164-mm-Drucker gestoppt. Diagnose empfangen: QL-1110NWB fehlt unter Windows; vorhanden sind zwei QL-820NWB-Queues. Offizieller Brother-Installer verlinkt. Physische Abnahme weiterhin offen. Kein Produktionsdeploy von PR32.
+
+Brief-Formatauswahl anhand echter Windows-Treiberdaten korrigiert (festes `62mm x 100mm`, RawKind275, vor gleich großen Alias-/Customformen). Zwei Regressionen rot → grün. Drucker-Vorabprüfung vor Downloads/Stationsänderungen. Neuer Gesamtlauf nach dieser Korrektur: **6.061 Backendtests / 528 Dateien, 593 Frontend-/Agenttests, Typprüfung und Build grün**. V2-Setup als `AvyCloud-Druckstation-Windows-20261009-v2.zip` per Taildrop übertragen; SHA256 `663d1dbfc86fdd98cda3f66fa684d05a1817e7084d606ba07e956fb9426296d7`.
 
 Main `62a1ad38` integriert; alle aktuellen Erfassungs-, Finanz-, Währungs- und Losänderungen bleiben erhalten. **6.061 Backendtests / 528 Dateien**, **591 Frontend-/Agenttests**, Typprüfung und Build grün. Ein datumsempfindlicher bestehender Tracking-Test benötigte eine feste Testuhr, weil seine September-Fixtures am heutigen Datum aus dem 14-Tage-Fenster fielen. Kein Produktionscode dafür geändert.
 

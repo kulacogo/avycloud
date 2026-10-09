@@ -10,6 +10,37 @@ $apiKey = 'AIzaSyBP0YAdmyTiGTIJwA1q5bvEF2lUxmHoq9U'
 $utf8 = New-Object System.Text.UTF8Encoding($false)
 
 if (-not [Environment]::Is64BitOperatingSystem) { throw 'Windows 64 Bit ist erforderlich.' }
+
+# Check available printers before downloads or changes to an existing station.
+$inventoryJson = & (Join-Path $PSScriptRoot 'lib\windows-printers.ps1')
+$parsedPrinters = $inventoryJson | ConvertFrom-Json
+$all = @($parsedPrinters)
+function Choose-Printer([string]$role, [double]$width, [double]$height, [string]$selected) {
+  $choices = @($all | Where-Object { @($_.papers | Where-Object {
+    [Math]::Abs($_.widthMm - $width) -le 0.6 -and [Math]::Abs($_.heightMm - $height) -le 0.6
+  }).Count -gt 0 })
+  if ($selected) {
+    if (-not ($choices | Where-Object { $_.name -eq $selected })) { throw "Drucker/Formate fuer $role nicht gefunden: $selected" }
+    return $selected
+  }
+  if ($choices.Count -eq 0) {
+    Write-Host ('Vorhandene Windows-Drucker: ' + (($all | ForEach-Object { $_.name }) -join ', '))
+    if ($role -eq 'Paket (DHL/DPD)') {
+      throw 'Der Paketdrucker mit 103 x 164 mm fehlt in Windows. Brother QL-1110NWB mit Brother-Treiber als Netzwerkdrucker einrichten, dann dieses Setup erneut starten.'
+    }
+    throw "Kein Drucker mit $width x $height mm. Brother-Treiber und Rollenformat zuerst einrichten."
+  }
+  Write-Host "`n$role - $width x $height mm"
+  for ($i=0; $i -lt $choices.Count; $i++) { Write-Host ('  {0}: {1}' -f ($i+1), $choices[$i].name) }
+  $answer = Read-Host 'Drucker-Nummer'
+  $number = 0
+  if (-not [int]::TryParse($answer, [ref]$number) -or $number -lt 1 -or $number -gt $choices.Count) { throw 'Ungueltige Auswahl.' }
+  return $choices[$number-1].name
+}
+$parcel = Choose-Printer 'Paket (DHL/DPD)' 103 164 $ParcelPrinter
+$letter = Choose-Printer 'Brief (Deutsche Post)' 62 100 $LetterPrinter
+if ($parcel -eq $letter) { throw 'Paket und Brief brauchen zwei verschiedene Drucker.' }
+
 New-Item -ItemType Directory -Path $stationDir -Force | Out-Null
 # The daemon needs no administrator rights. Only LocalService, SYSTEM and
 # administrators may read the refresh session or change its executable.
@@ -53,26 +84,6 @@ New-Item -ItemType Directory -Path $current -Force | Out-Null
 foreach ($name in @('index.js', 'windows-run.js', 'package.json', 'lib', 'fixtures')) {
   Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination $current -Recurse -Force
 }
-$all = @(& (Join-Path $current 'lib\windows-printers.ps1') | ConvertFrom-Json)
-function Choose-Printer([string]$role, [double]$width, [double]$height, [string]$selected) {
-  $choices = @($all | Where-Object { @($_.papers | Where-Object {
-    [Math]::Abs($_.widthMm - $width) -le 0.6 -and [Math]::Abs($_.heightMm - $height) -le 0.6
-  }).Count -gt 0 })
-  if ($selected) {
-    if (-not ($choices | Where-Object { $_.name -eq $selected })) { throw "Drucker/Formate fuer $role nicht gefunden: $selected" }
-    return $selected
-  }
-  if ($choices.Count -eq 0) { throw "Kein Drucker mit $width x $height mm. Brother-Treiber und Rollenformat zuerst einrichten." }
-  Write-Host "`n$role - $width x $height mm"
-  for ($i=0; $i -lt $choices.Count; $i++) { Write-Host ('  {0}: {1}' -f ($i+1), $choices[$i].name) }
-  $answer = Read-Host 'Drucker-Nummer'
-  $number = 0
-  if (-not [int]::TryParse($answer, [ref]$number) -or $number -lt 1 -or $number -gt $choices.Count) { throw 'Ungueltige Auswahl.' }
-  return $choices[$number-1].name
-}
-$parcel = Choose-Printer 'Paket (DHL/DPD)' 103 164 $ParcelPrinter
-$letter = Choose-Printer 'Brief (Deutsche Post)' 62 100 $LetterPrinter
-if ($parcel -eq $letter) { throw 'Paket und Brief brauchen zwei verschiedene Drucker.' }
 $config = @{ backend=$backend; apiKey=$apiKey; parcel=$parcel; letter=$letter }
 [IO.File]::WriteAllText((Join-Path $stationDir 'config.json'), ($config | ConvertTo-Json), $utf8)
 

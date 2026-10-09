@@ -27,6 +27,26 @@ test('Windows uses a driver paper format with matching dimensions, never a guess
   assert.throws(() => validatePrinters({ parcel: 'missing', letter: letter.name }, [parcel, letter]), /nicht gefunden/);
   assert.deepEqual(validatePrinters({ parcel: parcel.name, letter: letter.name }, [parcel, letter]), { parcel: 257, letter: 258 });
 });
+test('Brother QL-820 selects the fixed 62x100 format over matching continuous/custom/name-badge aliases', () => {
+  // Actual driver inventory from the Windows station on 2026-10-09.
+  const papers = [
+    { name: '62mm x 100mm', kind: 275, widthMm: 61.98, heightMm: 99.82 },
+    { name: '62mm', kind: 259, widthMm: 61.98, heightMm: 99.82 },
+    { name: 'Versand-Etikett (Päckchen)', kind: 321, widthMm: 61.98, heightMm: 99.82 },
+    { name: 'Namensschild', kind: 322, widthMm: 61.98, heightMm: 99.82 },
+    { name: 'Benutzerdefinierte Größe', kind: 256, widthMm: 61.98, heightMm: 99.82 },
+  ];
+  assert.equal(selectPaper({ name: 'DP Label', papers }, 62, 100), 275);
+  assert.equal(selectPaper({ name: 'DP Label', papers: [...papers].reverse() }, 62, 100), 275);
+  assert.throws(() => selectPaper({ name: 'DP Label', papers: papers.slice(1) }, 62, 100), /eindeutig/);
+});
+test('a fixed-size name cannot override physical dimensions or hide conflicting fixed-size formats', () => {
+  const fixed = { name: '103 mm x 164 mm (Shipping label)', kind: 300, widthMm: 103, heightMm: 164 };
+  const custom = { name: 'Custom', kind: 256, widthMm: 103, heightMm: 164 };
+  assert.equal(selectPaper({ name: 'Paket', papers: [custom, fixed] }, 103, 164), 300);
+  assert.throws(() => selectPaper({ name: 'Paket', papers: [{ ...fixed, widthMm: 100 }] }, 103, 164), /Rollenformat/);
+  assert.throws(() => selectPaper({ name: 'Paket', papers: [fixed, { ...fixed, kind: 301 }] }, 103, 164), /eindeutig/);
+});
 test('Windows runtime state survives checkout changes and uses ProgramData', () => {
   assert.equal(dataDirectory('win32', { ProgramData: 'C:\\ProgramData' }), 'C:\\ProgramData\\AvyCloud Print Agent');
   assert.ok(dataDirectory('darwin', {}, '/Users/me').endsWith('/Library/Application Support/AvyCloud Print Agent'));

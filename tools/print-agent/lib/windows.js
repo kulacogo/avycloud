@@ -20,7 +20,14 @@ function selectPaper(printer, widthMm, heightMm) {
   const matching = (printer?.papers || []).filter((paper) =>
     Number.isInteger(paper.kind) && paper.kind > 0 &&
     Math.abs(paper.widthMm - widthMm) <= 0.6 && Math.abs(paper.heightMm - heightMm) <= 0.6);
-  const kinds = [...new Set(matching.map((paper) => paper.kind))];
+  // Brother exposes fixed, continuous, custom and name-badge forms with the
+  // same current dimensions. Prefer the explicitly named fixed size, while
+  // still requiring the driver's measured dimensions above to match.
+  const fixed = matching.filter((paper) => {
+    const size = String(paper.name || '').trim().match(/^(\d+(?:[.,]\d+)?)\s*mm\s*[x×]\s*(\d+(?:[.,]\d+)?)\s*mm(?:\s*\([^)]*\))?$/i);
+    return size && Number(size[1].replace(',', '.')) === widthMm && Number(size[2].replace(',', '.')) === heightMm;
+  });
+  const kinds = [...new Set((fixed.length ? fixed : matching).map((paper) => paper.kind))];
   if (!kinds.length) throw new Error(`Rollenformat ${widthMm}x${heightMm} mm fehlt im Treiber von ${printer?.name || 'Drucker'}.`);
   if (kinds.length > 1) throw new Error(`Rollenformat fuer ${printer.name} ist nicht eindeutig. Doppelte Treiberformate pruefen.`);
   return kinds[0];
