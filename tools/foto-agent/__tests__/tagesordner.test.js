@@ -19,7 +19,8 @@ const jetzt = new Date(2026, 7, 17, 16, 0, 0);
 const vorMinuten = (m) => new Date(jetzt.getTime() - m * 60 * 1000);
 
 test('erkennt gueltige Los-Codes', () => {
-  assert.strictEqual(leseLosCode('L-081703'), 'L-081703');
+  assert.strictEqual(leseLosCode('L-0826'), 'L-0826');
+  assert.strictEqual(leseLosCode('L-081703'), 'L-081703'); // Altformat bleibt lesbar
   assert.strictEqual(leseLosCode('NL-0826'), 'NL-0826');
   assert.strictEqual(leseLosCode('  l-081703  \n'), 'L-081703');
 });

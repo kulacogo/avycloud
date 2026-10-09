@@ -2337,7 +2337,13 @@ function coerceTitleToPolicy(
   return title;
 }
 
+// Expose the existing policy's concrete requirements to the capture repair loop.
+function getTitleRequiredTokens(product) {
+  return buildTitlePlanBySchema(product, inferSchemaId(product), { proposedTitle: '' }).a.filter(Boolean);
+}
+
 module.exports = {
+  getTitleRequiredTokens,
   coerceTitleToPolicy,
   validateTitleToPolicy,
   inferTitleCategory,

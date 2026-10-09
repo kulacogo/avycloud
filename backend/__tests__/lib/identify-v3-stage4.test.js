@@ -20,7 +20,7 @@ require.cache[gpsrPath] = {
   id: gpsrPath,
   filename: gpsrPath,
   loaded: true,
-  exports: { scoreGpsr: scoreGpsrMock, getManufacturerGpsrByName: vi.fn() },
+  exports: { ...require.cache[gpsrPath].exports, scoreGpsr: scoreGpsrMock, getManufacturerGpsrByName: vi.fn() },
 };
 
 const { computeFieldConfidence, computeAspectCoverage, runStage4Validation } =
@@ -215,9 +215,10 @@ describe('runStage4Validation', () => {
     expect(scoreGpsrMock).toHaveBeenCalledWith(product.details.gpsr);
   });
 
-  it('sets ebay ready when quality gate passes and aspect coverage >= 70%', () => {
+  it('does not accept incomplete content even when the legacy gate passes', () => {
     const result = runStage4Validation(stage1, stage2, stage3, product);
-    expect(result.marketplaceReadiness.ebay.ready).toBe(true);
+    expect(result.marketplaceReadiness.ebay.ready).toBe(false);
+    expect(result.marketplaceReadiness.ebay.issues).toContain('gpsr_manufacturer_address_missing');
   });
 
   it('sets ebay not ready when quality gate fails', () => {
@@ -226,9 +227,9 @@ describe('runStage4Validation', () => {
     expect(result.marketplaceReadiness.ebay.ready).toBe(false);
   });
 
-  it('sets kaufland ready when titles and descriptions present', () => {
+  it('does not mark Kaufland ready merely because two text fields exist', () => {
     const result = runStage4Validation(stage1, stage2, stage3, product);
-    expect(result.marketplaceReadiness.kaufland.ready).toBe(true);
+    expect(result.marketplaceReadiness.kaufland.ready).toBe(false);
   });
 
   it('handles missing stage data gracefully', () => {
@@ -241,4 +242,9 @@ describe('runStage4Validation', () => {
     expect(result.overallScore).toBeGreaterThanOrEqual(0);
     expect(result.fieldConfidence.brand.score).toBe(0);
   });
+});
+
+ it('does not count unknown required values or ignore object-shaped required aspects', () => {
+  const result = computeAspectCoverage([{ name: 'Farbe' }, 'Material'], [{ key: 'Farbe', value: 'Unbekannt' }, { key: 'Material', value: '' }]);
+  expect(result).toEqual({ total: 2, filled: 0, missing: ['Farbe', 'Material'], coverage: 0 });
 });

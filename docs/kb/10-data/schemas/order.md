@@ -81,7 +81,8 @@ Caller koennen pro Transition individuelle Timestamps mitgeben (`timestamps` Par
 | `sku` | string \| null | Stock-Schluessel. Pflicht fuer Stock-Decrement-Pfade. |
 | `name` | string | Item-Bezeichnung. |
 | `quantity` | number | Stueckzahl. |
-| `priceBrutto` | number | Brutto pro Stueck. |
+| `priceBrutto` | number | Brutto pro Stueck, **immer Euro**. |
+| `originalPrice` / `originalCurrency` | number / string \| undefined | Nur Fremdwaehrung (kaufland.cz/.pl): Stueckpreis in der Marktplatzwaehrung. |
 | `priceNetto` | number \| undefined | Netto pro Stueck. **TBD** — Konsistenz im Code verifizieren. |
 | `weight` | number | kg, aus `enrichOrderItemsWithWeight()`. |
 | `order_unit_id` / `id_order_unit` | string \| undefined | Kaufland-spezifisch (fuer Returns-Linkage). |
@@ -92,8 +93,16 @@ Caller koennen pro Transition individuelle Timestamps mitgeben (`timestamps` Par
 
 | Feld | Typ | Beschreibung |
 |------|-----|--------------|
-| `totalAmount` | number | Brutto-Summe (inkl. Versand). |
-| `currency` | string | `'EUR'`. |
+| `totalAmount` | number | Brutto-Summe (inkl. Versand). **Immer Euro** — auch fuer kaufland.cz/.pl (seit 2026-10-05, Vorfall M53KUW5: 534,14 CZK waren als 534,14 € gespeichert). |
+| `currency` | string | `'EUR'`. Nur wenn kein Kurs ermittelbar war (`exchangeRateSource: 'none'`) steht hier die Marktplatzwaehrung — dann sind die Betraege NICHT umgerechnet. |
+| `storefront` | string \| null | Kaufland-Storefront (`de`, `cz`, `pl`, …), seit 2026-10-05 bei jedem Kaufland-Auftrag. |
+| `originalCurrency` | string | Nur Fremdwaehrung: Marktplatzwaehrung (`CZK`, `PLN`). |
+| `originalTotalAmount` | number | Nur Fremdwaehrung: Brutto-Summe in `originalCurrency`. |
+| `exchangeRate` | number | Fremdwaehrung je 1 EUR (EZB-Quotierung, z. B. 24.47). |
+| `exchangeRateDate` | string | Datum des verwendeten EZB-Kurses (`YYYY-MM-DD`). |
+| `exchangeRateSource` | `'ecb'` \| `'static_fallback'` \| `'none'` | Herkunft des Kurses; `static_fallback` = Notkurs. |
+| `exchangeRatePending` | boolean | `true` = Notkurs oder gar kein Kurs — der 30-Tage-Abgleich zieht nach (`ops.currencyHeal`). |
+| `currencyConvertedAt` | string \| null | Zeitpunkt der Umrechnung. |
 | `vatRate` | number | Default `0.19`. Wird von `invoice-engine` gelesen. Manuell ueberschreibbar via UI ([routes/orders.js:1553](../../../../backend/routes/orders.js)). |
 | `paymentStatus` | string \| null | Marketplace-Wert (z. B. `'Complete'`, `'Pending'`). |
 | `paymentMethod` | string \| null | z. B. `'PayPal'`. |

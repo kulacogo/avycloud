@@ -7,7 +7,7 @@ it('searches identifiers and a separate model query without excluding .com merch
   expect(buildCapturePriceQueries(ikea)).toEqual(['IKEA 805.657.16', 'IKEA SÄFFEROT']);
 });
 it('prefers GTIN and retains variant information in the model fallback', () => {
-  expect(buildCapturePriceQueries({ identification: { brand: 'Acme', name: 'Acme Alpha 140x200 blue' }, details: { identifiers: { ean: '4012345678901' }, attributes: { Modell: 'Alpha', Größe: '140x200', Farbe: 'blue' } } })).toEqual(['4012345678901', 'Acme Alpha 140x200 blue']);
+  expect(buildCapturePriceQueries({ identification: { brand: 'Acme', name: 'Acme Alpha 140x200 blue' }, details: { identifiers: { ean: '4012345678901' }, attributes: { Modell: 'Alpha', Größe: '140x200', Farbe: 'blue' } } })).toEqual(['4012345678901', 'Acme Alpha 140x200 blue', '"Acme" "Alpha"']);
 });
 it('matches formatted manufacturer numbers, never a partial number or another model', () => {
   expect(capturePageMatchesIdentity({ product: ikea, page: { text: 'IKEA SÄFFEROT 80565716' } })).toBe(true);

@@ -425,3 +425,10 @@ describe('runStage2Enrichment — Category-Resolver-V2 integration', () => {
     }
   });
 });
+
+it('normalizes the actual registry document shape for downstream generation and assembly', async () => {
+  const data = { manufacturer_name: 'Example GmbH', manufacturer_address: 'Teststraße 4', manufacturer_city: 'Berlin', email: 'info@example.de' };
+  getManufacturerGpsrByNameMock.mockResolvedValueOnce({ key: 'example', gpsr: data, sources: ['https://example.de/impressum'] });
+  const result = await runStage2Enrichment(makeStage1());
+  expect(result.gpsr).toMatchObject({ found: true, data, sources: ['https://example.de/impressum'] });
+});

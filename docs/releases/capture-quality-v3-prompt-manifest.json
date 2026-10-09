@@ -1,0 +1,18 @@
+{
+  "scopeId": "identify.v2",
+  "versionId": "capture-v3-20261009",
+  "parentVersionId": "capture-v2-20260927",
+  "captureContractVersion": 3,
+  "promptAppend": "",
+  "scopePayload": "Preserve parent prompt/rules/model config; compiled prompt/schema changes are identified by the source hashes below.",
+  "sourceFiles": {
+    "backend/lib/capture-content-contract.js": "a5e10e506d42388cc102841b036c3c28ed2eb39191402cb2cad0a72a0841d2a3",
+    "backend/lib/capture-content-readiness.js": "3fde1ea7db5a02deca3765ff8d8fd87a6f959cd023ceb8da058f9ec0fb49903c",
+    "backend/lib/gemini3-client.js": "f3a95052455bdab7c790695e471be2ce63cb48f83d34928f857c68a2c005c81f",
+    "backend/lib/identify-v3-stage3-agentic.js": "7163699b4a9d902fae05e63d13ddc16ac1d801c996a68d711eba9a4031f60cc7",
+    "backend/lib/identify-v3-stage3.js": "2dd51ad8f35d7fc026e10c8f45d55e19427ca35fd6a84c490203b99476923671",
+    "backend/lib/title-policy.js": "361bbe1f7a1e0f65863a164cc875368ad01d0ea7a50cb3d079074ba17e194b38"
+  },
+  "activation": "After matching application release is healthy. Compare-and-set activeVersionId; preserve tenant overrides.",
+  "rollback": "Restore parentVersionId only if this version is still active, with prior application revisions."
+}

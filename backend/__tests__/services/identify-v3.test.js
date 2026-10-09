@@ -150,7 +150,7 @@ describe('identifyProductV3', () => {
     expect(runStage4Mock.mock.calls[0][1].pricing.amount).toBe(59.99);
     expect(meta.stages.stage2.pricingComplete).toBe(true);
     expect(runStage2Mock.mock.calls[0][2]).toEqual({ tenantId: 'tenant-a' });
-    expect(runStage3Mock.mock.calls[0][3]).toEqual({ tenantId: 'tenant-a' });
+    expect(runStage3Mock.mock.calls[0][3]).toEqual({ tenantId: 'tenant-a', deadline: expect.any(Number) });
   });
   it('runs all 4 stages in sequence', async () => {
     const { product, meta } = await identifyProductV3({

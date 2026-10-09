@@ -5,9 +5,16 @@
 >
 > **Aktueller Gesamt-/Fundament-Plan (Stand 2026-06-17):** `docs/superpowers/avycloud-master-plan.md`. Umsetzung beginnt mit **Track 1** (Teil K) nach `docs/superpowers/avycloud-execution-guide.md`. Die Oversell-/Single-Writer-Items unten sind darin als F0/F1/F2 aufgegangen; ältere Plan-Pfade unter `~/.claude/plans/` sind historisch.
 
-## Handheld / Team-Pick / Labeldruck — Stand 2026-10-08
+## 🔴 Erfassung: sachlich vollständige Datenblätter (09.10.2026)
 
-Implementiert in PR #32 / `codex/handheld-team-print-20261006`. Ziel jetzt ausdrücklich **Windows 192.168.178.61**. Windows-Adapter und Setup mit Autostart unter LocalService, beiden Testrollen und passwortfreier Dauersitzung ergänzt. **Noch nicht produktiv:** Windows-Zugriff/Setup-Anmeldung und physische Abnahme fehlen; keine Station in Produktion registriert. Main bis `04f35572` integriert. Backend 5.915 Tests, Frontend/Agent 575 Tests, Typprüfung und Build erfolgreich. Keine produktiven Orders/Bestände für Tests verändert. [Vertrag](docs/kb/06-features/handheld-pick-pack.md), [Releasebelege und Auslieferungscheck](docs/reviews/handheld-team-print-20261007/README.md).
+- Initialpreis-Nachmessung seit PR31: 24/155; Gesamtproblem offen.
+- Erfassungsvertrag v3 korrigiert Budget/Korrekturrunden, Merkmalsverlust, GPSR-Registry-Vertrag und Händlerpreisquellen. Drei von vier gezielten Originalfoto-Proben bestehen die Inhaltsprüfung inklusive Preis; keine repräsentative Quote.
+- Offen: MeXo HB21.9400-1 ohne exakten 2er-Set-Preis und mit fragwürdiger Herstellerzuordnung; HAFIX 7×4 m ohne belegten Preis. GPSR-Faktenprüfung über reine Vollständigkeit hinaus und Titelpolitik separat nachziehen.
+- [Abnahme und Quellen](docs/reports/capture-quality-2026-10-09.md), Produktionsnachweis in `CODEX_MEMORY.md`. Nicht als vollständige Lösung schließen.
+
+## Handheld / Team-Pick / Labeldruck — Stand 2026-10-09
+
+Implementiert in PR #32 / `codex/handheld-team-print-20261006`. Ziel **Windows 192.168.178.61**, über Tailscale **100.83.3.111** (`09410-DRIVE`) erreichbar; Setup-ZIP übertragen. Kein Fernwartungsprogramm installiert, lokaler Start angefragt. Windows-Adapter und Setup mit Autostart unter LocalService, beiden Testrollen und passwortfreier Dauersitzung ergänzt. **Noch nicht produktiv:** Windows-Zugriff/Setup-Anmeldung und physische Abnahme fehlen; keine Station in Produktion registriert. Main bis `62a1ad38` integriert. 6.061 Backendtests / 528 Dateien, Frontend/Agent 591 Tests, Typprüfung und Build erfolgreich. Keine produktiven Orders/Bestände für Tests verändert. [Vertrag](docs/kb/06-features/handheld-pick-pack.md), [Releasebelege und Auslieferungscheck](docs/reviews/handheld-team-print-20261007/README.md).
 
 ## 🔴 [KRITISCH] Oversell-Prevention (seit 2026-04-23)
 

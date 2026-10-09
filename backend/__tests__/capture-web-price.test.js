@@ -5,6 +5,25 @@ const product = { identification: { brand: 'Steinel', name: 'Steinel L 605 S' },
 const node = { '@type': 'Product', name: 'Steinel L 605 S', gtin13: '4007841065287', offers: [{ '@type': 'Offer', price: '102.32', priceCurrency: 'EUR', shippingDetails: { shippingRate: { value: 0, currency: 'EUR' } } }] };
 const html = value => `<script type="application/ld+json">${JSON.stringify(value)}</script>`;
 
+// Navigation tests verify offers and deadline decisions, not machine speed.
+// First-use module initialization can exceed one second on a cold CI worker.
+beforeEach(() => { vi.spyOn(Date, 'now').mockReturnValue(1000); });
+afterEach(() => { vi.restoreAllMocks(); });
+
+it('uses catalog pages only to discover an actual product link, never their displayed prices', async () => {
+  const catalog = 'https://shop.de/collections/lighting';
+  const child = 'https://shop.de/products/steinel-l-605-s-065287';
+  const fetchPage = vi.fn(async url => ({ ok: true, html: url === catalog
+    ? `<p>Sale 1 EUR</p><a href="/products/steinel-l-605-s-065287">L605</a>` : html(node) }));
+  const result = await lookupCaptureWebPrice(product, { referencePages: [{ url: catalog }], deadline: Date.now() + 1000, matchesIdentity: capturePageMatchesIdentity, fetchPage });
+  expect(result).toMatchObject({ amount: 102.32, sources: [{ url: child }] });
+});
+
+it('does not treat an Austrian storefront with German text as a German price', async () => {
+  const fetchPage = async () => ({ ok: true, html: `<html lang="de">${html(node)}</html>` });
+  expect(await lookupCaptureWebPrice(product, { referencePages: [{ url: 'https://shop.at/products/065287' }], deadline: Date.now() + 1000, matchesIdentity: capturePageMatchesIdentity, fetchPage })).toBeNull();
+});
+
 it('reads only the matched product offer, not shipping or other products', () => {
   const unrelated = { ...node, gtin13: '9999999999999', name: 'Steinel other model', offers: [{ price: 9.99, priceCurrency: 'EUR' }] };
   expect(extractProductOffer(html({ '@graph': [unrelated, node] }), product, capturePageMatchesIdentity)).toBe(102.32);

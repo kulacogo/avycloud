@@ -1777,7 +1777,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
             autoComplete="off"
             autoCapitalize="characters"
             className="w-full rounded-xl bg-app-bg border border-app-border px-3 py-2 text-sm text-txt-primary placeholder:text-txt-muted/50 focus:outline-none focus:ring-2 focus:ring-accent/40"
-            placeholder="Los scannen (z.B. L-072612)"
+            placeholder="Los scannen (z.B. L-0726)"
             value={identifyLotCode}
             onChange={(e) => setIdentifyLotCode(e.target.value.toUpperCase())}
           />

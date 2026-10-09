@@ -1,7 +1,7 @@
 ---
 title: Handheld — exklusives Picken, Packen und Druckstation
 for: [dev, agent, admin]
-lastReviewed: 2026-10-08
+lastReviewed: 2026-10-09
 ---
 
 # Handheld Pick / Pack
@@ -38,7 +38,7 @@ Nach einem Browser-Neuladen bleibt die offene Labelaufgabe pro Benutzer in sessi
 
 Eine echte Druckstation im Drucker-LAN mit angemeldetem Konto (`orders:read`, `orders:ship`) ist Voraussetzung für den neuen Packablauf. Die lokale Vorschau verwendet ausschließlich Testdaten und simuliert die Druckantwort; sie ist kein Nachweis physischer Druckfunktion.
 
-Betreiberziel seit 08.10.2026: **Windows 192.168.178.61**. Windows-Adapter mit echten Treiberformaten und festem Druckernamen, SumatraPDF 3.6.1 ohne Dialog; Aufgabenplanung unter LocalService startet beim Booten. Dauerhaftes Journal und Refresh-Sitzung im zugriffsbeschränkten ProgramData-Verzeichnis. Windows-Erfolg ist eine Anwendungsquittung nach Sumatra-Druckübergabe; das API-Feld `spoolId` enthält dort ausdrücklich `sumatra:…`, keinen behaupteten Windows-Job-Identifier. Einrichtung prüft beide Rollen mit Testetiketten unter dem tatsächlichen Dienstkonto. Details und Einschränkungen im [Installer-Runbook](../../../tools/print-agent/README.md#windows--zielrechner-19216817861).
+Betreiberziel seit 08.10.2026: **Windows 192.168.178.61**, seit 09.10. über Tailscale **100.83.3.111** (`09410-DRIVE`) erreichbar. Windows-Adapter mit echten Treiberformaten und festem Druckernamen, SumatraPDF 3.6.1 ohne Dialog; Aufgabenplanung unter LocalService startet beim Booten. Dauerhaftes Journal und Refresh-Sitzung im zugriffsbeschränkten ProgramData-Verzeichnis. Windows-Erfolg ist eine Anwendungsquittung nach Sumatra-Druckübergabe; das API-Feld `spoolId` enthält dort ausdrücklich `sumatra:…`, keinen behaupteten Windows-Job-Identifier. Einrichtung prüft beide Rollen mit Testetiketten unter dem tatsächlichen Dienstkonto. Details und Einschränkungen im [Installer-Runbook](../../../tools/print-agent/README.md#windows--zielrechner-19216817861).
 
 ## Verweise
 

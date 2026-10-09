@@ -49,7 +49,7 @@ Kommentar.
 
 ```
 # Auktion München, Mischware
-L-081703
+L-0826
 ```
 
 Gültig sind `L-MMJJNN` (Auktions-Los) und `NL-MMJJ` (Non-Los). Steht in der

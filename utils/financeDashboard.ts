@@ -20,23 +20,27 @@ export function financeSummary(report: FinancialReport) {
   const missingCogs = !report.costModel.usable && !(p.coveragePct != null && p.coveragePct > 0);
   const estimatedFees = ["rates", "mixed"].includes(p.feeSource);
   const missingBasis = revenue == null || refunds == null || fees == null;
+  // Versand-Abgrenzung: Sendungen nach dem letzten Rechnungsdatum sind mit dem
+  // Vormonats-Stueckpreis geschaetzt — das Ergebnis ist dann vorlaeufig.
+  const estimatedShipping = Boolean(report.shipping?.approx) && (report.shipping?.geschaetztParcels ?? 0) > 0;
   const provisional = missingBasis || shipping == null || missingCogs || estimatedFees || report.costModel.usable
-    || p.estimatedItemCount > 0 || p.unmatchedItemCount > 0;
+    || estimatedShipping || p.estimatedItemCount > 0 || p.unmatchedItemCount > 0;
   // Never manufacture a final profit when a cost source is absent.
   const result = missingCogs || missingBasis ? null : p.rohgewinn;
   const margin = missingCogs || missingBasis ? null : p.margePct;
   const costs = [
     { key: "cogs", label: "Wareneinsatz", amount: missingCogs ? null : p.cogs, estimated: report.costModel.usable || p.estimatedItemCount > 0, tone: "bg-info" },
     { key: "fees", label: "Marktplatzgebühren", amount: fees, estimated: estimatedFees, tone: "bg-accent" },
-    { key: "shipping", label: "Versand", amount: shipping, estimated: false, tone: "bg-warning" },
+    { key: "shipping", label: "Versand", amount: shipping, estimated: estimatedShipping, tone: "bg-warning" },
     { key: "refunds", label: "Erstattungen", amount: refunds, estimated: false, tone: "bg-danger" },
   ];
   const notices = [
     ...(missingBasis ? ["Nettobasis unvollständig"] : []),
     ...(missingCogs ? ["Wareneinsatz fehlt"] : []),
     ...(shipping == null ? ["Versandkosten offen"] : []),
+    ...(estimatedShipping ? [`Versand für ${report.shipping?.geschaetztParcels} Sendungen geschätzt`] : []),
     ...(estimatedFees ? ["Gebühren geschätzt"] : []),
     ...(p.unmatchedItemCount > 0 ? [`${p.unmatchedItemCount} Positionen ohne Warenkosten`] : []),
   ];
-  return { net, revenue, refunds, fees, shipping, missingCogs, estimatedFees, provisional, result, margin, costs, notices };
+  return { net, revenue, refunds, fees, shipping, missingCogs, estimatedFees, estimatedShipping, provisional, result, margin, costs, notices };
 }

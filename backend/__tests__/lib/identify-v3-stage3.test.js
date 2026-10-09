@@ -79,7 +79,7 @@ require(titlePath);
 require.cache[titlePath] = {
   id: titlePath, filename: titlePath, loaded: true,
   exports: {
-    coerceTitleToPolicy: vi.fn((title) => ({ title, violations: [] })),
+    coerceTitleToPolicy: vi.fn((product, title) => title),
     validateTitleToPolicy: vi.fn(() => ({ valid: true })),
     inferTitleCategory: vi.fn(),
   },
@@ -237,7 +237,7 @@ describe('runStage3ContentGeneration', () => {
     );
   });
 
-  it('respects allowed values from requiredAspects[].values', async () => {
+  it('never invents a required value from its allowed enum', async () => {
     generateProductContentMock.mockResolvedValueOnce({
       title_ebay: 'Produkt',
       title_kaufland: 'Produkt',
@@ -261,7 +261,7 @@ describe('runStage3ContentGeneration', () => {
     const farbe = result.item_specifics.find((s) => s.key === 'Farbe');
     expect(farbe).toBeDefined();
     // Either picks one of the allowed values, not "Unbekannt" verbatim.
-    expect(['Schwarz', 'Weiß', 'Rot']).toContain(farbe.value);
+    expect(farbe.value).toBe('Unbekannt');
     // Also: the prompt-facing aspect is decorated with the allowed-values hint.
     const call = generateProductContentMock.mock.calls[0][0];
     const farbeAspect = call.enrichment.requiredAspects.find(
@@ -593,4 +593,50 @@ describe('runStage3ContentGeneration — richer fallback (Phase 3)', () => {
     const result = await runStage3ContentGeneration(stage1, stage2);
     expect(result.key_features).toEqual(expect.arrayContaining(['Sony', 'WH-1000XM5', 'Schwarz', 'Kopfhoerer']));
   });
+});
+
+ describe('Stage 3 budget and normalization regressions', () => {
+  afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); vi.unstubAllEnvs(); require.cache[agenticPath].exports.isAgenticEnabled.mockReturnValue(false); });
+  it('keeps the full agentic budget even when the single-shot cap is 60 seconds', async () => {
+    vi.useFakeTimers();
+    const setTimer = vi.spyOn(global, 'setTimeout');
+    const clearTimer = vi.spyOn(global, 'clearTimeout');
+    vi.stubEnv('STAGE3_CONTENT_TIMEOUT_MS', '60000');
+    vi.stubEnv('STAGE3_AGENTIC_TIMEOUT_MS', '90000');
+    const agent = require.cache[agenticPath].exports;
+    agent.isAgenticEnabled.mockReturnValue(true);
+    agent.generateProductContentAgentic.mockImplementation(() => new Promise(resolve => setTimeout(() => resolve({ title_ebay: 'Generated title', item_specifics: [] }), 70000)));
+    const promise = runStage3ContentGeneration(makeStage1(), { requiredAspects: [] });
+    await vi.advanceTimersByTimeAsync(70001);
+    const result = await promise;
+    expect(result._meta.fallbackUsed).toBe(false);
+    expect(result.title_ebay).toBe('Generated title');
+    // Assert cleanup of OUR deadline, not unrelated SDK/background timers.
+    const deadlineCall = setTimer.mock.calls.findIndex(args => args[1] === 150000);
+    expect(deadlineCall).toBeGreaterThanOrEqual(0);
+    expect(clearTimer).toHaveBeenCalledWith(setTimer.mock.results[deadlineCall].value);
+  });
+  it('does not start single-shot work after the caller deadline', async () => {
+    vi.useFakeTimers();
+    const agent = require.cache[agenticPath].exports;
+    agent.isAgenticEnabled.mockReturnValue(true);
+    agent.generateProductContentAgentic.mockImplementation(() => new Promise((_, reject) => setTimeout(() => reject(Error('late')), 10000)));
+    const resultTask = runStage3ContentGeneration(makeStage1(), { requiredAspects: [] }, 'de-DE', { deadline: Date.now() + 5000 });
+    await vi.advanceTimersByTimeAsync(5001);
+    expect((await resultTask)._meta.fallbackUsed).toBe(true);
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(generateProductContentMock).not.toHaveBeenCalled();
+  });
+  it('passes a product and a title to the real title-policy contract', async () => {
+    await runStage3ContentGeneration(makeStage1(), makeStage2());
+    expect(require.cache[titlePath].exports.coerceTitleToPolicy).toHaveBeenCalledWith(
+      expect.objectContaining({ identification: expect.objectContaining({ brand: 'Sony' }) }),
+      expect.any(String));
+  });
+});
+
+it('preserves complete researched attribute values in the canonical datasheet', () => {
+  const { capSpecificValue } = require('../../lib/identify-v3-stage3');
+  const value = 'Atmungsaktiv, 40° Wäsche, Trocknergeeignet, Mit Reißverschluss und abnehmbaren Bezügen';
+  expect(capSpecificValue(value)).toBe(value);
 });

@@ -1,5 +1,13 @@
 # Handheld / Team-Pick / Druck — Releaseprüfung
 
+## Aktualisierung 09.10.2026
+
+Windows `09410-DRIVE` über Tailscale `100.83.3.111` online. Das geprüfte Installationspaket vom 08.10. wurde per Taildrop erfolgreich übertragen. Kein Fernwartungsprogramm installiert; SSH/RDP/WinRM nicht erreichbar. Lokaler Setup-Start angefragt, Windows-Ausführung und physische Abnahme weiterhin offen. Kein Produktionsdeploy von PR32.
+
+Main `62a1ad38` integriert; alle aktuellen Erfassungs-, Finanz-, Währungs- und Losänderungen bleiben erhalten. **6.061 Backendtests / 528 Dateien**, **591 Frontend-/Agenttests**, Typprüfung und Build grün. Ein datumsempfindlicher bestehender Tracking-Test benötigte eine feste Testuhr, weil seine September-Fixtures am heutigen Datum aus dem 14-Tage-Fenster fielen. Kein Produktionscode dafür geändert.
+
+Lesend 11:30 MESZ: Web `01835-jwk`, Worker `00290-pt6` Ready/100 %, 0 Stationen, 0 offene Druckjobs, 3 offene Pickaufträge, keine verwalteten oder alten Teilpicks. Vor Cutover erneut prüfen.
+
 ## Aktualisierung 08.10.2026
 
 **Ziel bestätigt: Windows `192.168.178.61`, durchgehend laufender Rechner.** PR [#32](https://github.com/kulacogo/avycloud/pull/32) enthält jetzt auch einen Windows-Adapter und `install-windows.ps1` / `Einrichten.cmd`. Rollenformate aus dem tatsächlichen Windows-Treiber, SumatraPDF 3.6.1 mit explizitem `paperkind`, dauerhafte Anwendungsquittung und bestehendes Journal. Task Scheduler startet als LocalService beim Booten, auch ohne interaktive Anmeldung. Privates ProgramData-Verzeichnis und lokal eingegebenes AvyCloud-Passwort; gespeichert wird ausschließlich das Refresh-Token. Node/Sumatra kommen aus fixierten Hersteller-Downloads mit SHA-256-Prüfung.

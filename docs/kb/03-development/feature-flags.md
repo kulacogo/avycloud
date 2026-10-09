@@ -63,7 +63,7 @@ lastReviewed: 2026-05-18
 | `STAGE3_AGENTIC_TEMPERATURE` | `DEFAULT_CHAT_TEMPERATURE` | Override. | [backend/lib/gemini-config.js](../../../backend/lib/gemini-config.js) |
 | `STAGE3_AGENTIC_MAX_TOKENS` | `12000` | `maxOutputTokens`. | identify-v3-stage3-agentic.js |
 | `STAGE3_AGENTIC_MAX_IMAGES` | `4` | Max Bilder im Initial-Prompt. | identify-v3-stage3-agentic.js |
-| `STAGE3_AGENTIC_SOFT_RESEARCH_LIMIT` | `3` | Soft-Limit für Research-Tool-Calls bevor Modell zum Write gedrängt wird. | identify-v3-stage3-agentic.js |
+| `STAGE3_AGENTIC_SOFT_RESEARCH_LIMIT` | `1` | Research-Runden vor dem ersten prüfbaren Entwurf; anschließend höchstens zwei gezielte Korrekturen im selben Chat (Erfassungsvertrag v3). | identify-v3-stage3-agentic.js |
 
 ## GPSR + Category-Resolver
 
@@ -270,6 +270,14 @@ Das Trading-Kontingent (5.000 Aufrufe/Tag für ALLE Calls, Reset Mitternacht US-
 Seiten mit 100 Dokumenten, maximal 50 Seiten. Ein voller letzter Budgetblock zählt als unvollständig, niemals als erfolgreicher Ausschnitt. Jeder andere Mandant wird im Query und am Dokument abgegrenzt. Der bestehende Default-Spiegel aus `ebay-direct.js` hat historisch kein `tenantId`: ausschließlich für `default` bleibt die vorhandene SKU-Abfrage bestehen; fremd markierte Zeilen werden verworfen. Das ist ein begrenzter Altbestandsadapter, kein Muster für neue Collections.
 
 Vor `on`: Shadow-Lauf und benötigte Firestore-Indizes je Mandant prüfen, aktive/historische Relists und Länderangebote vergleichen. Weder Aktivierung noch Datenmigration ist Teil der lokalen Codeänderung. Rücknahme mit `off` stellt die alte Begrenzung wieder her und ist deshalb nur eine technische Notbremse. Es wurde kein Listing verändert.
+
+## Marktplatz-Bestellungen in Fremdwährung (seit 2026-10-05)
+
+| ENV | Default | Wirkung | Anker |
+|-----|---------|---------|-------|
+| `ORDER_CURRENCY_CONVERSION` | an (jeder Wert außer exakt `off`) | Kaufland-Bestellungen in CZK/PLN (kaufland.cz/.pl) werden beim Intake mit dem EZB-Referenzkurs des Bestelltages in Euro umgerechnet; `totalAmount`/`priceBrutto`/`currency` sind damit immer Euro, das Original bleibt additiv (`originalCurrency`, `originalTotalAmount`, `exchangeRate`, …). Gilt auch für Kaufland-Retouren. `off` = keine Umrechnung — die Beträge bleiben in der Marktplatzwährung, `currency` nennt sie ehrlich (CZK). Notbremse, kein Betriebsmodus. | [backend/lib/order-currency.js](../../../backend/lib/order-currency.js), [backend/lib/fx-rates.js](../../../backend/lib/fx-rates.js), [backend/services/order-intake-kaufland.js](../../../backend/services/order-intake-kaufland.js) |
+
+Kein weiterer Schalter: fällt die EZB aus, gilt ein datierter Notkurs (`FALLBACK_RATES` in fx-rates.js) mit `exchangeRatePending: true`; der nächste 30-Tage-Abgleich ersetzt ihn durch den echten Kurs. Vorfall + Design: [CLAUDE.md](../../../CLAUDE.md) §„Kaufland-Bestellungen in Fremdwährung", [docs/superpowers/specs/2026-10-05-kaufland-fremdwaehrung-design.md](../../superpowers/specs/2026-10-05-kaufland-fremdwaehrung-design.md).
 
 ## Hinweise
 

@@ -4,7 +4,7 @@ import type { WarehouseLot } from "../../types";
 
 /**
  * Los-Auswahl beim Erfassen (Pflicht). Ein Los ist die Einkaufs-Zugehörigkeit
- * der Ware: L-MMYYNN (Auktions-Los) oder NL-MMYY (Non-Los). Nur Codes, die in
+ * der Ware: L-MMYY (Auktions-Los) oder NL-MMYY (Non-Los), eins je Monat. Nur Codes, die in
  * der Los-Struktur angelegt sind, werden akzeptiert — der QR-Scan vom
  * Rollwagen-Label liefert exakt diesen Code.
  */
@@ -100,7 +100,7 @@ const LotSelector: React.FC<LotSelectorProps> = ({ value, onChange }) => {
         type="text"
         autoComplete="off"
         className={`w-full rounded-xl bg-app-bg border ${borderClass} px-3 py-2 text-sm text-txt-primary placeholder:text-txt-muted/50 focus:outline-none focus:ring-2 focus:ring-accent/40`}
-        placeholder={loading ? "Lose werden geladen..." : "Los scannen/eingeben (z.B. L-072612 oder NL-0726)"}
+        placeholder={loading ? "Lose werden geladen..." : "Los scannen/eingeben (z.B. L-0726 oder NL-0726)"}
         value={inputText}
         onChange={handleInputChange}
         onFocus={() => setOpen(true)}

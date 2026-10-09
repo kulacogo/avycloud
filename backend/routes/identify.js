@@ -561,7 +561,7 @@ router.post('/v2/identify', requirePermission('identify', 'run'), identifyLimite
         // Cap V3 by whichever is smaller: its own budget or the remaining wall-clock budget.
         const v3Cap = Math.min(V3_TIMEOUT_MS, remainingMs());
         const v3Result = await Promise.race([
-          identifyProductV3({ files, barcodes, locale, hint, lotCode, inventoryId, tenantId: tenantIdForMetric }),
+          identifyProductV3({ files, barcodes, locale, hint, lotCode, inventoryId, tenantId: tenantIdForMetric, deadline: Date.now() + v3Cap }),
           new Promise((_, reject) =>
             setTimeout(() => reject(new Error(`V3 pipeline timeout after ${v3Cap}ms`)), v3Cap)
           ),

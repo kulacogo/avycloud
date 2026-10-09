@@ -32,7 +32,7 @@ liegen.
 
 ## Windows — Zielrechner 192.168.178.61
 
-Betreiberentscheidung 08.10.2026: Die dauerhafte Station läuft auf dem Windows-Rechner `192.168.178.61`. Die früher am Mac gemessenen Druckernamen sind **keine** Bestätigung der Windows-Konfiguration.
+Betreiberentscheidung 08.10.2026: Die dauerhafte Station läuft auf dem Windows-Rechner `192.168.178.61`. Die früher am Mac gemessenen Druckernamen sind **keine** Bestätigung der Windows-Konfiguration. Seit 09.10. ist der Rechner als `09410-DRIVE` über Tailscale `100.83.3.111` erreichbar. Tailscale dient dem Zugang bzw. der Dateiübertragung; der Agent holt Aufträge weiterhin ausgehend per HTTPS. Eine VPN-Verbindung allein ermöglicht keine Ferninstallation.
 
 1. Beide Brother-Drucker mit Windows-Treiber und den Rollen **103×164 mm** bzw. **62×100 mm** einrichten. Drucker müssen rechnerweit verfügbar sein, nicht ausschließlich als Verbindung im Benutzerprofil.
 2. Setup-Paket vollständig entpacken. Rechtsklick auf `Einrichten.cmd` → **Als Administrator ausführen**. Alternativ `install-windows.ps1` in einer administrativen PowerShell ausführen. Es werden keine Firewall- oder Fernzugriffsregeln geöffnet.

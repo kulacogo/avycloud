@@ -31,6 +31,7 @@ import {
   waitForPrintJob,
 } from "../api/client";
 import type { ShippingPreviewMatch, CuratedShippingProduct } from "../api/client";
+import { formatMoney, orderAmountView } from "../utils/orderAmount";
 import type {
   Order,
   OrderTimelineEvent,
@@ -663,6 +664,9 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
         quantity: number;
         lineTotal: number;
         hasPrice: boolean;
+        /** Fremdwaehrung (kaufland.cz/.pl): Positionssumme in der Marktplatzwaehrung. */
+        originalLineTotal: number | null;
+        originalCurrency: string | null;
         pickHint?: { binCode?: string; quantityAvailable?: number };
       }
     >();
@@ -683,6 +687,11 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
       const quantity = Number(item.quantity) || 0;
       const lineAmount =
         item.priceBrutto != null ? item.priceBrutto * quantity : 0;
+      const hasOriginal =
+        typeof item.originalPrice === "number" &&
+        !!item.originalCurrency &&
+        item.originalCurrency.toUpperCase() !== (item.currency || "EUR").toUpperCase();
+      const originalLineAmount = hasOriginal ? (item.originalPrice as number) * quantity : null;
 
       const existing = groups.get(identityKey);
       if (existing) {
@@ -690,6 +699,10 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
         if (item.priceBrutto != null) {
           existing.lineTotal += lineAmount;
           existing.hasPrice = true;
+        }
+        if (originalLineAmount != null) {
+          existing.originalLineTotal = (existing.originalLineTotal ?? 0) + originalLineAmount;
+          existing.originalCurrency = item.originalCurrency ?? existing.originalCurrency;
         }
         return;
       }
@@ -704,6 +717,8 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
         quantity,
         lineTotal: lineAmount,
         hasPrice: item.priceBrutto != null,
+        originalLineTotal: originalLineAmount,
+        originalCurrency: hasOriginal ? (item.originalCurrency ?? null) : null,
         pickHint: item.pickHint
           ? {
               binCode: item.pickHint.binCode ?? undefined,
@@ -1149,14 +1164,32 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
                       Auftragsdaten
                     </h3>
                     <div className="bg-app-bg rounded-lg p-3 space-y-2 text-sm">
-                      <Row
-                        label="Betrag"
-                        value={
-                          order.totalAmount != null
-                            ? `${order.totalAmount.toFixed(2)} ${order.currency || "EUR"}`
-                            : "—"
-                        }
-                      />
+                      {(() => {
+                        // Euro als Hauptbetrag; kaufland.cz/.pl: Original + Kurs daneben.
+                        const amount = orderAmountView(order);
+                        return (
+                          <Row
+                            label="Betrag"
+                            value={
+                              amount.secondary || amount.hint ? (
+                                <span className="inline-flex flex-col items-end">
+                                  <span>{amount.primary}</span>
+                                  {amount.secondary && (
+                                    <span className="text-xs text-txt-muted">{amount.secondary}</span>
+                                  )}
+                                  {amount.hint && (
+                                    <span className={`text-xs ${amount.pending ? "text-warning" : "text-txt-muted"}`}>
+                                      {amount.hint}
+                                    </span>
+                                  )}
+                                </span>
+                              ) : (
+                                amount.primary
+                              )
+                            }
+                          />
+                        );
+                      })()}
                       <Row
                         label="Erstellt"
                         value={
@@ -1850,10 +1883,15 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
                             </div>
                           )}
                         </div>
-                        <div className="text-sm font-semibold text-txt-primary whitespace-nowrap">
+                        <div className="text-sm font-semibold text-txt-primary whitespace-nowrap text-right">
                           {item.hasPrice
                             ? `${item.lineTotal.toFixed(2)} €`
                             : "—"}
+                          {item.originalLineTotal != null && (
+                            <div className="text-[11px] font-normal text-txt-muted">
+                              {formatMoney(item.originalLineTotal, item.originalCurrency)}
+                            </div>
+                          )}
                         </div>
                       </div>
                     ))
@@ -1864,11 +1902,19 @@ export const OrderDetail: React.FC<OrderDetailProps> = ({
                     <span className="text-sm font-medium text-txt-primary">
                       Gesamt
                     </span>
-                    <span className="text-lg font-bold text-txt-primary">
-                      {order.totalAmount != null
-                        ? `${order.totalAmount.toFixed(2)} €`
-                        : "—"}
-                    </span>
+                    {(() => {
+                      const amount = orderAmountView(order);
+                      return (
+                        <span className="inline-flex flex-col items-end" title={amount.hint ?? undefined}>
+                          <span className="text-lg font-bold text-txt-primary">{amount.primary}</span>
+                          {amount.secondary && (
+                            <span className={`text-xs ${amount.pending ? "text-warning" : "text-txt-muted"}`}>
+                              {amount.secondary}
+                            </span>
+                          )}
+                        </span>
+                      );
+                    })()}
                   </div>
                 </div>
               )}

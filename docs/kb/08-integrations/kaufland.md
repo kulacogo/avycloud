@@ -143,6 +143,7 @@ VAT-Indicators (Whitelist `VAT_INDICATORS`): `standard_rate`, `reduced_rate_1`, 
 - **Kaufland-Reconcile (Gap C, TASKS.md)** schreibt aktuell direkt in `products_v2.inventory.quantity` (`routes/marketplace.js:966`), siehe CLAUDE.md Punkt 13 Verbot a). Bekannte Schuld bis Refactor.
 - **`KAUFLAND_WEBHOOK_SECRET` muss separat gesetzt werden** — fehlt es, ist die Verifikation fail-open. Kein Default in Secret-Manager.
 - **Multi-Storefront ist Per-Call-Parameter, kein Tenant-Setting.** Storefront-IDs (`de|cz|sk|pl|at|fr|it`) müssen pro Call mitgegeben werden; Tenant-globaler Default ist `'de'`.
+- **Fremdwährung je Storefront (kaufland.cz = CZK, kaufland.pl = PLN).** Bestellpositionen tragen `currency` + `storefront`; `price`, `revenue_gross`, `revenue_net`, `shipping_rate` sind Minor Units dieser Währung (live gemessen 2026-10-05, Vorfall M53KUW5: 534,14 CZK wurden als 534,14 € gespeichert). Seitdem rechnet der Intake mit dem EZB-Kurs des Bestelltages in Euro um ([backend/lib/order-currency.js](../../../backend/lib/order-currency.js), [backend/lib/fx-rates.js](../../../backend/lib/fx-rates.js)); das Original bleibt additiv am Auftrag. **Offen:** Buchungsbericht (`getBookings`) für Erstattungen und Gebührensatz liest nur Storefront `de`; die Storefront `cz` lieferte am 05.10.2026 noch einen leeren Bericht — ob Kaufland dort in CZK oder EUR bucht, ist ungemessen.
 
 ## Owner / Docs
 

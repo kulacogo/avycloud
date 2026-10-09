@@ -58,11 +58,10 @@ const LotStructureTab: React.FC = () => {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [selectedCodes, setSelectedCodes] = useState<Set<string>>(new Set());
   const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState<{ type: "L" | "NL"; month: number; year: number; numbers: string }>({
+  const [form, setForm] = useState<{ type: "L" | "NL"; month: number; year: number }>({
     type: "L",
     month: now.getMonth() + 1,
     year: now.getFullYear(),
-    numbers: "",
   });
   const [ekDrafts, setEkDrafts] = useState<Record<string, string>>({});
   const [savingEkCode, setSavingEkCode] = useState<string | null>(null);
@@ -127,17 +126,12 @@ const LotStructureTab: React.FC = () => {
   }, [loadLots]);
 
   const handleCreate = useCallback(async () => {
-    if (form.type === "L" && !form.numbers.trim()) {
-      setStatusMessage("Bitte Los-Nummer(n) angeben, z.B. „12“ oder „1-38“.");
-      return;
-    }
     setCreating(true);
     try {
       const result = await createWarehouseLotsApi({
         type: form.type,
         month: form.month,
         year: form.year,
-        numbers: form.type === "L" ? form.numbers.trim() : undefined,
       });
       if (!result.ok) {
         setStatusMessage(result.error?.message || "Lose konnten nicht angelegt werden.");
@@ -149,7 +143,6 @@ const LotStructureTab: React.FC = () => {
       if (created.length) parts.push(`${created.length} Los${created.length === 1 ? "" : "e"} angelegt (${created[0]}${created.length > 1 ? ` … ${created[created.length - 1]}` : ""})`);
       if (skipped.length) parts.push(`${skipped.length} übersprungen (existierten bereits)`);
       setStatusMessage(parts.join(" · ") || "Nichts zu tun.");
-      setForm((prev) => ({ ...prev, numbers: "" }));
       await loadLots();
     } finally {
       setCreating(false);
@@ -268,9 +261,9 @@ const LotStructureTab: React.FC = () => {
       <div className="bg-app-surface rounded-2xl p-5 border border-app-border">
         <h3 className="text-xl font-semibold text-txt-primary mb-1">Neue Lose anlegen</h3>
         <p className="text-sm text-txt-muted mb-3">
-          <b>L</b> = Auktions-Los (z.B. L-072612, Nummer 01–200 je Monat) · <b>NL</b> = Non-Los für alle
-          Ware ohne Auktion (z.B. NL-0726, eins pro Monat). Die Labels werden beim Wareneingang auf
-          Rollwagen/Gitterwagen geklebt.
+          <b>L</b> = Auktions-Los (z.B. L-0726) · <b>NL</b> = Non-Los für alle Ware ohne Auktion
+          (z.B. NL-0726). Je Art genau <b>ein Los pro Monat</b> — der Einkaufsbetrag ist die Summe aller
+          Einkäufe des Monats. Die Labels werden beim Wareneingang auf Rollwagen/Gitterwagen geklebt.
         </p>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
           <div>
@@ -312,30 +305,21 @@ const LotStructureTab: React.FC = () => {
               ))}
             </select>
           </div>
-          {form.type === "L" ? (
-            <div>
-              <label className="block text-sm text-txt-muted mb-1">Nummer(n) 1–200</label>
-              <input
-                value={form.numbers}
-                onChange={(e) => setForm((prev) => ({ ...prev, numbers: e.target.value }))}
-                placeholder="12 oder 1-38"
-                className="w-full bg-app-elevated border border-app-border rounded-lg px-3 py-2"
-              />
-            </div>
-          ) : (
-            <div className="flex items-end">
-              <p className="text-xs text-txt-muted pb-2">
-                Ergibt: <span className="font-mono">NL-{String(form.month).padStart(2, "0")}{String(form.year % 100).padStart(2, "0")}</span>
-              </p>
-            </div>
-          )}
+          <div className="flex items-end">
+            <p className="text-xs text-txt-muted pb-2">
+              Ergibt:{" "}
+              <span className="font-mono">
+                {form.type}-{String(form.month).padStart(2, "0")}{String(form.year % 100).padStart(2, "0")}
+              </span>
+            </p>
+          </div>
         </div>
         <button
           onClick={handleCreate}
           disabled={creating}
           className="mt-4 px-4 py-2 bg-accent-dim text-accent rounded-xl hover:bg-accent/20 transition disabled:opacity-40"
         >
-          {creating ? "Wird angelegt…" : form.type === "L" ? "Lose anlegen" : "Los anlegen"}
+          {creating ? "Wird angelegt…" : "Los anlegen"}
         </button>
       </div>
 
