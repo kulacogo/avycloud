@@ -12,6 +12,10 @@
 - Offen: MeXo HB21.9400-1 ohne exakten 2er-Set-Preis und mit fragwürdiger Herstellerzuordnung; HAFIX 7×4 m ohne belegten Preis. GPSR-Faktenprüfung über reine Vollständigkeit hinaus und Titelpolitik separat nachziehen.
 - [Abnahme und Quellen](docs/reports/capture-quality-2026-10-09.md), Produktionsnachweis in `CODEX_MEMORY.md`. Nicht als vollständige Lösung schließen.
 
+## Handheld / Team-Pick / Labeldruck — Stand 2026-10-09
+
+Implementiert in PR #32 / `codex/handheld-team-print-20261006`. Ziel **Windows 192.168.178.61**, über Tailscale **100.83.3.111** (`09410-DRIVE`) erreichbar; Setup-ZIP übertragen. Setup gestartet; Diagnose bestätigt fehlenden QL-1110NWB in Windows. Offizieller Brother-Installer übertragen; Brief-Formatauswahl im Agent anhand echter Treiberdaten korrigiert. Windows-Adapter und Setup mit Autostart unter LocalService, beiden Testrollen und passwortfreier Dauersitzung ergänzt. **Noch nicht produktiv:** QL-1110NWB-Einrichtung in Windows, Setup-Anmeldung und physische Abnahme fehlen; keine Station in Produktion registriert. Main bis `62a1ad38` integriert. 6.061 Backendtests / 528 Dateien, Frontend/Agent 593 Tests, Typprüfung und Build erfolgreich. Keine produktiven Orders/Bestände für Tests verändert. [Vertrag](docs/kb/06-features/handheld-pick-pack.md), [Releasebelege und Auslieferungscheck](docs/reviews/handheld-team-print-20261007/README.md).
+
 ## 🔴 [KRITISCH] Oversell-Prevention (seit 2026-04-23)
 
 **Trigger-Incident:** SKU-9871561937 (TrendOcean) — Kaufland verkauft, lokaler Bestand = 0, aber eBay-Angebot blieb aktiv mit positivem Bestand → Oversell-Risiko.

@@ -4184,7 +4184,7 @@ export const packOrder = async (orderId: string): Promise<void> => {
 export async function packAndShip(
   orderId: string,
   opts?: { weight?: number; labelFormat?: string; shippingMethodId?: number; shippingOptionCode?: string }
-): Promise<{ labelBlobUrl: string | null; labelBlob: Blob | null; trackingNumber: string | null; carrier: string | null; labelError?: string | null }> {
+): Promise<{ labelBlobUrl: string | null; labelBlob: Blob | null; trackingNumber: string | null; carrier: string | null; labelError?: string | null; shipmentId: string | null }> {
   await packOrder(orderId);
   const result = await shipOrder(orderId, opts);
 
@@ -4219,6 +4219,7 @@ export async function packAndShip(
   return {
     labelBlobUrl,
     labelBlob,
+    shipmentId: result?.shipmentId || null,
     trackingNumber: result?.trackingNumber || null,
     carrier: result?.carrier || null,
     labelError,
@@ -4256,7 +4257,7 @@ export async function fetchPrintStatus(): Promise<PrintStatus> {
 
 export interface PrintJob {
   jobId: string;
-  status: 'queued' | 'claimed' | 'done' | 'failed';
+  status: 'queued' | 'claimed' | 'dispatching' | 'done' | 'failed' | 'uncertain';
   printerRole: string;
   widthMm: number | null;
   heightMm: number | null;
@@ -4266,12 +4267,12 @@ export interface PrintJob {
 /** Versandetikett in die Druckwarteschlange legen. */
 export async function enqueueLabelPrint(
   orderId: string,
-  opts?: { shipmentId?: string; copies?: number }
+  opts?: { shipmentId?: string; copies?: number; reprintId?: string }
 ): Promise<PrintJob> {
   const res = await fetchApi(`${BACKEND_URL}/api/print/jobs`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ orderId, shipmentId: opts?.shipmentId, copies: opts?.copies || 1 }),
+    body: JSON.stringify({ orderId, shipmentId: opts?.shipmentId, copies: opts?.copies || 1, reprintId: opts?.reprintId }),
   });
   const data = await parseResponse(res);
   if (!res.ok || data?.ok === false) throw new Error(data?.error?.message || 'Druckauftrag fehlgeschlagen');
@@ -4304,7 +4305,7 @@ export async function waitForPrintJob(
   let last: PrintJob | null = null;
   while (Date.now() < bis) {
     last = await fetchPrintJob(jobId);
-    if (last.status === 'done' || last.status === 'failed') return last;
+    if (last.status === 'done' || last.status === 'failed' || last.status === 'uncertain') return last;
     await new Promise((r) => setTimeout(r, intervalMs));
   }
   throw new Error('Der Drucker hat sich nicht zurückgemeldet — bitte am Drucker nachsehen.');
@@ -5208,6 +5209,37 @@ export const stockInProduct = async (payload: {
   }
 };
 
+export const getPickSessionId = (): string => {
+  const key = 'avycloud:pick-session';
+  let id = sessionStorage.getItem(key);
+  if (!id) { id = crypto.randomUUID(); sessionStorage.setItem(key, id); }
+  return id;
+};
+
+export async function fetchPickWork(): Promise<Order | null> {
+  const response = await fetchApi(`${BACKEND_URL}/api/orders/pick-work`, { cache: 'no-store' });
+  const result = await parseResponse(response);
+  if (!response.ok) throw new Error(result?.error?.message || 'Auftrag konnte nicht geladen werden.');
+  return result.data;
+}
+export async function claimPickWork(options: { takeover?: boolean; orderId?: string } = {}): Promise<Order | null> {
+  const response = await fetchApi(`${BACKEND_URL}/api/orders/pick-work/claim`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sessionId: getPickSessionId(), ...options }),
+  });
+  const result = await parseResponse(response);
+  if (!response.ok) throw Object.assign(new Error(result?.error?.message || 'Auftrag konnte nicht zugewiesen werden.'), { code: result?.error?.code });
+  return result.data;
+}
+export async function pausePickWork(order: Order): Promise<void> {
+  const response = await fetchApi(`${BACKEND_URL}/api/orders/pick-work/pause`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ orderId: order.id, token: order.pickWork?.token }),
+  });
+  const result = await parseResponse(response);
+  if (!response.ok) throw new Error(result?.error?.message || 'Pause konnte nicht gespeichert werden.');
+}
+
 export const stockOutProduct = async (payload: {
   sku?: string;
   productId?: string;
@@ -5217,9 +5249,21 @@ export const stockOutProduct = async (payload: {
   orderId?: string;
   orderItemId?: string;
   meta?: Record<string, any>;
-}): Promise<{ ok: boolean; data?: { bin: WarehouseBin; product: Product }; error?: { code: number; message: string } }> => {
+}): Promise<{ ok: boolean; data?: { bin: WarehouseBin; product: Product; pickWork?: Order['pickWork']; deduped?: boolean }; error?: { code: number; message: string } }> => {
   let response: Response | undefined;
   try {
+    if (payload.orderId && !payload.meta?.pickToken) {
+      const order = await claimPickWork({ orderId: payload.orderId });
+      if (!order || order.id !== payload.orderId) throw new Error('Auftrag ist bereits vergeben. Bitte Ansicht aktualisieren.');
+      const intentKey = `avycloud:pick-intent:${payload.orderId}:${payload.orderItemId}`;
+      const fingerprint = JSON.stringify([payload.productId, payload.sku, payload.binCode, payload.quantity]);
+      let saved: { id: string; fingerprint: string } | null = null;
+      try { saved = JSON.parse(sessionStorage.getItem(intentKey) || 'null'); } catch { /* first intent */ }
+      if (saved && saved.fingerprint !== fingerprint) throw new Error('Vorherige Buchung zuerst erneut prüfen.');
+      const requestId = saved?.id || crypto.randomUUID();
+      sessionStorage.setItem(intentKey, JSON.stringify({ id: requestId, fingerprint }));
+      payload = { ...payload, meta: { ...payload.meta, pickToken: order.pickWork?.token, requestId } };
+    }
     response = await fetchApi(`${BACKEND_URL}/api/warehouse/stock-out`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -5229,6 +5273,7 @@ export const stockOutProduct = async (payload: {
     if (!response.ok) {
       return { ok: false, error: { code: response.status, message: result?.error?.message || 'Kommissionierung fehlgeschlagen' } };
     }
+    if (payload.orderId) sessionStorage.removeItem(`avycloud:pick-intent:${payload.orderId}:${payload.orderItemId}`);
     return { ok: true, data: result?.data };
   } catch (error) {
     const errorInfo = extractErrorInfo(error, response);

@@ -102,33 +102,38 @@ async function syncOrdersNative() {
  * @param {{ orderId: string, actor?: object }} opts
  * @returns {Promise<{ id: string }>}
  */
-async function pickOrder({ orderId, actor }) {
+async function pickOrder({ orderId, actor, tenantId = 'default' }) {
   const { transitionOrder } = require('./order-state-machine');
 
   // Try picking first, then picked (two-step)
   const currentSnap = await getDb().collection('orders').doc(orderId).get();
   if (!currentSnap.exists) throw new Error('Order not found');
   const current = currentSnap.data();
+  if ((current.tenantId || 'default') !== tenantId) throw new Error('Order not found');
+  const pickError = require('./pick-work').validatePickTransition(current, 'picked', actor);
+  if (pickError) throw new Error(pickError);
   const omsStatus = current.omsStatus || current.status || 'pending';
 
   // If not already in 'picking', transition to 'picking' first
   if (omsStatus !== 'picking' && omsStatus !== 'picked') {
-    await transitionOrder({
-      orderId,
+    const result = await transitionOrder({
+      orderId, tenantId,
       toStatus: 'picking',
       actor: actor || { uid: 'system', email: 'api' },
       note: 'Kommissionierung gestartet',
     });
+    if (!result.ok) throw new Error(result.error);
   }
 
   // Then transition to 'picked'
   if (omsStatus !== 'picked') {
-    await transitionOrder({
-      orderId,
+    const result = await transitionOrder({
+      orderId, tenantId,
       toStatus: 'picked',
       actor: actor || { uid: 'system', email: 'api' },
       note: 'Kommissionierung abgeschlossen',
     });
+    if (!result.ok) throw new Error(result.error);
   }
 
   return { id: orderId };
@@ -142,22 +147,24 @@ async function pickOrder({ orderId, actor }) {
  * @param {{ orderId: string, actor?: object }} opts
  * @returns {Promise<{ id: string }>}
  */
-async function packOrder({ orderId, actor }) {
+async function packOrder({ orderId, actor, tenantId = 'default' }) {
   const { transitionOrder } = require('./order-state-machine');
 
   const currentSnap = await getDb().collection('orders').doc(orderId).get();
   if (!currentSnap.exists) throw new Error('Order not found');
   const current = currentSnap.data();
+  if ((current.tenantId || 'default') !== tenantId) throw new Error('Order not found');
   const omsStatus = current.omsStatus || current.status || 'pending';
 
   // If in 'picked', transition to 'packed' (skipping 'packing' for quick pack)
   if (omsStatus !== 'packed') {
-    await transitionOrder({
-      orderId,
+    const result = await transitionOrder({
+      orderId, tenantId,
       toStatus: 'packed',
       actor: actor || { uid: 'system', email: 'api' },
       note: 'Verpackung abgeschlossen',
     });
+    if (!result.ok) throw new Error(result.error);
   }
 
   return { id: orderId };

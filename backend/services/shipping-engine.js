@@ -1396,6 +1396,12 @@ async function shipOrder({ orderId, tenantId = 'default', shippingMethodId, ship
   if (!orderSnap.exists) throw new Error('Auftrag nicht gefunden');
   const order = { id: orderSnap.id, ...orderSnap.data() };
 
+  if ((order.tenantId || 'default') !== tenantId) throw new Error('Auftrag nicht gefunden');
+  // Validate before carrier calls: rejecting the later OMS transition must not
+  // still buy postage for an incomplete managed pick.
+  const pickError = require('./pick-work').validatePickTransition(order, 'shipped');
+  if (pickError) throw new Error(pickError);
+
   // Calculate weight
   const orderWeight = weight || calculateOrderWeight(order);
   if (!orderWeight) {

@@ -78,6 +78,7 @@ async function readOrderClaimStateInTx({ tx, orderRef } = {}) {
   const skus = Array.isArray(data.stockDecrementedSkus) ? data.stockDecrementedSkus.map(String) : [];
   return {
     exists: true,
+    order: data,
     alreadyClaimed: Boolean(at),
     at,
     by: by === 'pick' || by === 'ship' ? by : null,

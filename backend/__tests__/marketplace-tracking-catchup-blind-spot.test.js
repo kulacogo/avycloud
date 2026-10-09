@@ -160,10 +160,19 @@ describe('Tracking-Nachholer: kein blinder Fleck mehr', () => {
       trackingNumber: 'NEVER1', updatedAt: iso(H), shippedAt: iso(H),
     });
 
-    const stats = await retryFailedMarketplacePushes({});
+    // Dieser Wrapper hat keinen nowMs-Parameter. Die Incident-Fixtures duerfen
+    // nicht durch das reale Kalenderdatum aus dem 14-Tage-Fenster fallen.
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(NOW);
+    try {
+      const stats = await retryFailedMarketplacePushes({});
 
-    expect(completeSaleFor).toContain('never');
-    expect(stats.retried).toBeGreaterThanOrEqual(14);
+      expect(completeSaleFor).toContain('never');
+      expect(stats.retried).toBe(14);
+      expect(stats.succeeded).toBe(14);
+      expect(completeSaleFor).toHaveLength(14);
+    } finally {
+      clock.mockRestore();
+    }
   });
 
   it('laeuft nicht doppelt, wenn ein Lauf noch aktiv ist', async () => {

@@ -42,7 +42,7 @@ const DecimalNumpad: React.FC<DecimalNumpadProps> = ({
   hint,
 }) => {
   const keyBase =
-    "flex items-center justify-center rounded-xl bg-app-surface text-txt-primary border border-app-border font-semibold h-[clamp(2.125rem,5.2dvh,3rem)]";
+    "flex items-center justify-center rounded-xl bg-app-surface text-txt-primary border border-app-border font-semibold h-[48px]";
 
   // Der erste Tastendruck auf einen Vorschlag ersetzt ihn. Die Meldung nach
   // oben passiert im selben Zug, damit der zweite Tastendruck anhängt.
@@ -88,13 +88,13 @@ const DecimalNumpad: React.FC<DecimalNumpadProps> = ({
           value={value}
           placeholder="0,0"
           aria-label={label || "Gewicht"}
-          className="flex-1 rounded-xl bg-app-surface text-txt-primary border border-app-border text-2xl font-semibold px-3 h-11 tabular-nums"
+          className="min-w-0 w-0 flex-1 rounded-xl bg-app-surface text-txt-primary border border-app-border text-2xl font-semibold px-3 h-[48px] tabular-nums"
         />
         <span className="text-sm font-semibold text-txt-muted w-8 shrink-0">{unit}</span>
         <button
           type="button"
           aria-label="Leeren"
-          className="rounded-xl px-3 h-11 bg-app-surface text-txt-primary text-sm font-semibold border border-app-border"
+          className="rounded-xl px-3 h-[48px] bg-app-surface text-txt-primary text-sm font-semibold border border-app-border"
           onClick={leeren}
         >
           C

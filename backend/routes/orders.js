@@ -80,6 +80,50 @@ function normalizeOrderForResponse(order) {
   };
 }
 
+// Pick assignments are additive; status changes still go through transitionOrder.
+const pickWorkService = require('../services/pick-work').createPickWorkService({
+  db: firestore,
+  listCandidates: async (tenantId) => {
+    const snap = await firestore.collection('orders').where('tenantId', '==', tenantId)
+      .where('omsStatus', 'in', ['confirmed', 'picking']).get();
+    return snap.docs.map((doc) => ({ ...doc.data(), id: doc.id }));
+  },
+});
+const pickContext = (req) => ({ tenantId: req.user?.tenantId || 'default',
+  actor: { uid: req.user?.uid, email: req.user?.email || null } });
+const sendPickError = (res, error) => res.status(error.status || 500).json({ ok: false,
+  error: { code: error.code || 'PICK_ERROR', message: error.message } });
+
+router.get('/orders/pick-work', requirePermission('orders', 'pick'), async (req, res) => {
+  try {
+    res.setHeader('Cache-Control', 'no-store');
+    const order = await pickWorkService.current(pickContext(req));
+    const rows = order ? await attachPickHintsToOrders([order]) : [];
+    res.json({ ok: true, data: rows[0] ? normalizeOrderForResponse(rows[0]) : null });
+  } catch (error) { sendPickError(res, error); }
+});
+router.post('/orders/pick-work/claim', requirePermission('orders', 'pick'), async (req, res) => {
+  try {
+    const order = await pickWorkService.claim({ ...pickContext(req),
+      sessionId: req.body?.sessionId, takeover: req.body?.takeover === true, orderId: req.body?.orderId || null });
+    if (order && order.omsStatus === 'confirmed') {
+      const result = await require('../services/order-state-machine').transitionOrder({
+        ...pickContext(req), orderId: order.id, toStatus: 'picking', note: 'Auftrag am Scanner übernommen',
+      });
+      if (!result.ok) throw Object.assign(new Error(result.error), { status: 409 });
+      order.omsStatus = 'picking';
+    }
+    const rows = order ? await attachPickHintsToOrders([order]) : [];
+    res.json({ ok: true, data: rows[0] ? normalizeOrderForResponse(rows[0]) : null });
+  } catch (error) { sendPickError(res, error); }
+});
+router.post('/orders/pick-work/pause', requirePermission('orders', 'pick'), async (req, res) => {
+  try {
+    const order = await pickWorkService.pause({ ...pickContext(req), orderId: req.body?.orderId, token: req.body?.token });
+    res.json({ ok: true, data: normalizeOrderForResponse(order) });
+  } catch (error) { sendPickError(res, error); }
+});
+
 // ── Routes ───────────────────────────────────────────────────────────
 
 router.get('/orders', requirePermission('orders', 'read'), async (req, res) => {
@@ -724,6 +768,7 @@ router.post('/orders/:orderId/complete', requirePermission('orders', 'pick'), as
     const { pickOrder } = require('../services/order-source-router');
     await pickOrder({
       orderId,
+      tenantId: req.user?.tenantId || 'default',
       actor: req.user ? { uid: req.user.uid, email: req.user.email } : undefined,
     });
 
@@ -778,6 +823,7 @@ router.post('/orders/:orderId/pack', requirePermission('orders', 'pack'), async 
     const { packOrder } = require('../services/order-source-router');
     await packOrder({
       orderId,
+      tenantId: req.user?.tenantId || 'default',
       actor: req.user ? { uid: req.user.uid, email: req.user.email } : undefined,
     });
 

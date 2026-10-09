@@ -77,6 +77,7 @@ function buildPickHint(product, fallbackItem) {
       product.id ||
       null,
     binCode: primaryBin || null,
+    bins: bins.length ? bins : primaryBin ? [{ code: primaryBin, quantity: primaryQuantity || 0 }] : [],
     quantityAvailable: typeof primaryQuantity === 'number' ? primaryQuantity : null,
     image: product.details?.images?.[0]?.url_or_base64 || null,
   };

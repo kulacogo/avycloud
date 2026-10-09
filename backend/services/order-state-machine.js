@@ -169,6 +169,8 @@ async function transitionOrder({ tenantId = 'default', orderId, toStatus, actor,
 
     const order = snap.data();
     const fromStatus = order.omsStatus || order.status || 'pending';
+    const pickError = require('./pick-work').validatePickTransition(order, toStatus, actor);
+    if (pickError) return { ok: false, fromStatus, toStatus, error: pickError };
 
     if (fromStatus === toStatus) {
       return { ok: false, fromStatus, toStatus, error: 'Auftrag ist bereits in diesem Status' };

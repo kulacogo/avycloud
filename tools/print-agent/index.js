@@ -18,10 +18,13 @@
  */
 
 const { erstelleApi } = require('./lib/api');
+const { deliverOnce } = require('./lib/delivery');
+const journalDirectory = require('node:path').join(require('./lib/platform').dataDirectory(), 'journal');
+const printerAdapter = require(process.platform === 'win32' ? './lib/windows' : './lib/drucker');
 const {
   waehleDrucker, druckeBuffer, listeDrucker, listeMedien, waehleMedium,
   sammleDrucker, ermittleDrucker,
-} = require('./lib/drucker');
+} = printerAdapter;
 
 const argumente = process.argv.slice(2);
 const istProbelauf = argumente.includes('--dry-run');
@@ -31,6 +34,7 @@ const konfig = {
   basisUrl: (process.env.AVYCLOUD_URL || '').replace(/\/+$/, ''),
   firebaseApiKey: process.env.FIREBASE_API_KEY || '',
   email: process.env.AGENT_EMAIL || '',
+  sessionFile: process.env.AGENT_SESSION_FILE || '',
   passwort: process.env.AGENT_PASSWORT || '',
   agentId: process.env.PRINT_AGENT_ID || `print-agent-${require('node:os').hostname()}`,
   drucker: {
@@ -76,6 +80,9 @@ async function ergaenzeDrucker() {
 }
 
 async function ladeMedien() {
+  if (process.platform === 'win32') {
+    printerAdapter.validatePrinters(konfig.drucker, await printerAdapter.inventory());
+  }
   for (const name of Object.values(konfig.drucker)) {
     if (!name || medienJeDrucker.has(name)) continue;
     medienJeDrucker.set(name, await listeMedien(name));
@@ -90,10 +97,13 @@ async function einAuftrag(api) {
   log(`Auftrag ${kennung}: ${auftrag.orderId} — Rolle ${auftrag.printerRole} `
     + `(${auftrag.widthMm}x${auftrag.heightMm} mm, ${auftrag.copies}x)`);
 
+  let handingOff = false;
   try {
     const druckerName = waehleDrucker(auftrag.printerRole, konfig.drucker);
     const vorhandeneMedien = medienJeDrucker.get(druckerName) || [];
-    const pdf = await api.ladeDokument(kennung);
+    // Recovery only reads the durable receipt; it must not depend on the
+    // carrier still serving the PDF and never invokes CUPS again.
+    const pdf = auftrag.status === 'dispatching' ? null : await api.ladeDokument(kennung);
 
     if (istProbelauf) {
       const medium = waehleMedium(auftrag.widthMm, auftrag.heightMm, vorhandeneMedien);
@@ -102,25 +112,27 @@ async function einAuftrag(api) {
       return true;
     }
 
-    const antwort = await druckeBuffer({
-      buffer: pdf,
-      druckerName,
-      widthMm: auftrag.widthMm,
-      heightMm: auftrag.heightMm,
-      copies: auftrag.copies,
-      jobId: kennung,
-      fitToPage: konfig.fitToPage,
-      vorhandeneMedien,
+    handingOff = true;
+    await deliverOnce({
+      directory: journalDirectory, jobId: kennung, recovering: auftrag.status === 'dispatching',
+      api: {
+        begin: () => api.melderErgebnis(kennung, { action: 'begin', agentId: konfig.agentId, claimToken: auftrag.claimToken }),
+        result: (result) => api.melderErgebnis(kennung, { ...result, agentId: konfig.agentId, claimToken: auftrag.claimToken }),
+      },
+      print: () => druckeBuffer({ buffer: pdf, druckerName, widthMm: auftrag.widthMm,
+        heightMm: auftrag.heightMm, copies: auftrag.copies, jobId: kennung,
+        fitToPage: konfig.fitToPage, vorhandeneMedien }),
     });
-    log(`  gedruckt auf "${druckerName}" ${antwort ? `(${antwort})` : ''}`);
-    await api.melderErgebnis(kennung, { ok: true });
+    log(`  Druckübergabe quittiert: ${kennung}`);
   } catch (fehler) {
     log(`  FEHLER: ${fehler.message}`);
-    if (!istProbelauf) {
-      // Immer zurueckmelden — sonst haengt der Auftrag bis zum Ablauf der
-      // Zusage und der Bediener wartet auf ein Etikett, das nie kommt.
-      await api.melderErgebnis(kennung, { ok: false, fehler: fehler.message }).catch(() => {});
+    if (!handingOff && auftrag.status !== 'dispatching') {
+      await api.melderErgebnis(kennung, { ok: false, error: fehler.message, agentId: konfig.agentId, claimToken: auftrag.claimToken });
+      return true;
     }
+    // A failed acknowledgement must leave the dispatch recoverable. Never
+    // report a printing failure here after CUPS may have accepted the job.
+    throw fehler;
   }
   return true;
 }
@@ -132,6 +144,10 @@ async function hauptschleife() {
     return;
   }
 
+  if (istProbelauf) {
+    await ergaenzeDrucker(); await ladeMedien();
+    log('Probelauf: Drucker geprüft. Keine Produktionsaufträge abgeholt.'); return;
+  }
   const api = erstelleApi(konfig);
   await ergaenzeDrucker();
   await ladeMedien();
@@ -178,4 +194,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { konfig, einAuftrag };
+module.exports = { konfig, einAuftrag, hauptschleife };

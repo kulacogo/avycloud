@@ -1382,9 +1382,11 @@ async function bookStockOut({ productId, sku, barcode, binCode, quantity, meta }
   let postInventoryQty = null;
   let claimResult = null;
   let shipDuplicateSkip = false;
+  let pickBooking = null;
 
   await firestore.runTransaction(async (tx) => {
     shipDuplicateSkip = false;
+    pickBooking = null;
     // ─── Phase READS ─────────────────────────────────────────────────────
     // Firestore-Constraint: ALLE Reads MUESSEN vor JEDEM Write erfolgen
     // (sonst: "Firestore transactions require all reads to be executed
@@ -1412,6 +1414,18 @@ async function bookStockOut({ productId, sku, barcode, binCode, quantity, meta }
       null;
     preInventoryQty = Number(productData?.inventory?.quantity);
     if (!Number.isFinite(preInventoryQty)) preInventoryQty = null;
+
+    // All authenticated order picks and every managed order use central progress.
+    // The trusted actor is supplied by the route, never taken from the browser.
+    if (orderRef && orderClaimState?.exists && (orderClaimState.order?.pickWork || meta?.actor)) {
+      const { preparePickBooking } = require('../services/pick-work');
+      pickBooking = preparePickBooking(orderClaimState.order, {
+        tenantId: meta?.tenantId, actor: meta?.actor, token: meta?.pickToken,
+        itemId: meta?.orderItemId, requestId: meta?.requestId,
+        productId: resolvedProductId, sku: resolvedSkuValue, binCode, quantity: Number(quantity),
+      });
+      if (pickBooking.deduped) return;
+    }
 
     // MUTUAL EXCLUSIVITY (CLAUDE.md Punkt 13, Review 2026-08-28): hat der
     // Ship-Pfad die Order bereits dekrementiert (by='ship'), sind Produkt-
@@ -1516,6 +1530,7 @@ async function bookStockOut({ productId, sku, barcode, binCode, quantity, meta }
     }
 
     // ─── Phase WRITES ───────────────────────────────────────────────────
+    if (pickBooking) tx.update(orderRef, { pickWork: pickBooking.work });
     entry.quantity -= quantity;
     entry.lastUpdatedAt = now.toDate().toISOString();
 
@@ -1609,6 +1624,11 @@ async function bookStockOut({ productId, sku, barcode, binCode, quantity, meta }
       lastStoredAt: now.toDate().toISOString(),
     };
   });
+
+  if (pickBooking?.deduped) {
+    return { product: await getProduct(productRef.id), bin: await getBinByCode(binCode),
+      pickWork: pickBooking.work, deduped: true };
+  }
 
   // Ship-Duplikat: Tx hat NICHTS geschrieben — Einheit wurde beim Versand
   // bereits ausgebucht. Kein Reservierungs-Consume (der Ship-Pfad hat die
@@ -1706,7 +1726,7 @@ async function bookStockOut({ productId, sku, barcode, binCode, quantity, meta }
   }
 
   const freshProduct = await getProduct(productRef.id);
-  return { product: freshProduct || updatedProduct, bin: updatedBin };
+  return { product: freshProduct || updatedProduct, bin: updatedBin, ...(pickBooking ? { pickWork: pickBooking.work, deduped: false } : {}) };
 }
 
 async function listBinsForProduct(productIdOrSku) {

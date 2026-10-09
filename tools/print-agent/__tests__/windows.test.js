@@ -1,0 +1,106 @@
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs/promises');
+const os = require('node:os');
+const path = require('node:path');
+const { selectPaper, printWindows, validatePrinters, inventory } = require('../lib/windows');
+const { dataDirectory } = require('../lib/platform');
+
+const parcel = { name: 'Brother Paket & Lager', papers: [{ kind: 257, widthMm: 103.1, heightMm: 164.1 }] };
+const letter = { name: 'Brief', papers: [{ kind: 258, widthMm: 62, heightMm: 100 }] };
+test('Windows inventory preserves Unicode driver names and never constructs shell code from names', async () => {
+  const printers = await inventory({ run: async (file, args, options) => {
+    assert.equal(file, 'powershell.exe');
+    assert.equal(args.includes('-File'), true);
+    assert.equal(options.shell, false);
+    return { stdout: '\uFEFF' + JSON.stringify([{ ...parcel, name: 'Büro & Versand' }]) };
+  } });
+  assert.equal(printers[0].name, 'Büro & Versand');
+  assert.equal(printers[0].papers[0].kind, 257);
+});
+test('Windows uses a driver paper format with matching dimensions, never a guessed/default printer', () => {
+  assert.equal(selectPaper(parcel, 103, 164), 257);
+  assert.throws(() => selectPaper(parcel, 62, 100), /Rollenformat/);
+  assert.throws(() => selectPaper({ ...parcel, papers: [...parcel.papers, { kind: 259, widthMm: 103, heightMm: 164 }] }, 103, 164), /eindeutig/);
+  assert.throws(() => selectPaper(parcel, NaN, 164), /Etiketten/);
+  assert.throws(() => validatePrinters({ parcel: parcel.name, letter: parcel.name }, [parcel, letter]), /verschiedene/);
+  assert.throws(() => validatePrinters({ parcel: 'missing', letter: letter.name }, [parcel, letter]), /nicht gefunden/);
+  assert.deepEqual(validatePrinters({ parcel: parcel.name, letter: letter.name }, [parcel, letter]), { parcel: 257, letter: 258 });
+});
+test('Brother QL-820 selects the fixed 62x100 format over matching continuous/custom/name-badge aliases', () => {
+  // Actual driver inventory from the Windows station on 2026-10-09.
+  const papers = [
+    { name: '62mm x 100mm', kind: 275, widthMm: 61.98, heightMm: 99.82 },
+    { name: '62mm', kind: 259, widthMm: 61.98, heightMm: 99.82 },
+    { name: 'Versand-Etikett (Päckchen)', kind: 321, widthMm: 61.98, heightMm: 99.82 },
+    { name: 'Namensschild', kind: 322, widthMm: 61.98, heightMm: 99.82 },
+    { name: 'Benutzerdefinierte Größe', kind: 256, widthMm: 61.98, heightMm: 99.82 },
+  ];
+  assert.equal(selectPaper({ name: 'DP Label', papers }, 62, 100), 275);
+  assert.equal(selectPaper({ name: 'DP Label', papers: [...papers].reverse() }, 62, 100), 275);
+  assert.throws(() => selectPaper({ name: 'DP Label', papers: papers.slice(1) }, 62, 100), /eindeutig/);
+});
+test('a fixed-size name cannot override physical dimensions or hide conflicting fixed-size formats', () => {
+  const fixed = { name: '103 mm x 164 mm (Shipping label)', kind: 300, widthMm: 103, heightMm: 164 };
+  const custom = { name: 'Custom', kind: 256, widthMm: 103, heightMm: 164 };
+  assert.equal(selectPaper({ name: 'Paket', papers: [custom, fixed] }, 103, 164), 300);
+  assert.throws(() => selectPaper({ name: 'Paket', papers: [{ ...fixed, widthMm: 100 }] }, 103, 164), /Rollenformat/);
+  assert.throws(() => selectPaper({ name: 'Paket', papers: [fixed, { ...fixed, kind: 301 }] }, 103, 164), /eindeutig/);
+});
+test('actual QL-1110 fixed 103x164 form tolerates the driver reported 103.63x164.34 dimensions', () => {
+  const papers = [
+    { name: '103mm x 164mm', kind: 385, widthMm: 103.63, heightMm: 164.34 },
+    { name: '103mm', kind: 265, widthMm: 103.63, heightMm: 164.34 },
+    { name: 'Versand-Etikett (Paket)', kind: 328, widthMm: 103.63, heightMm: 164.34 },
+    { name: 'Benutzerdefinierte Größe', kind: 256, widthMm: 103.63, heightMm: 164.34 },
+  ];
+  assert.equal(selectPaper({ name: 'Brother QL-1110NWB', papers }, 103, 164), 385);
+  assert.equal(selectPaper({ name: 'Brother QL-1110NWB', papers: [...papers].reverse() }, 103, 164), 385);
+  assert.throws(() => selectPaper({ name: 'Paket', papers: papers.slice(1) }, 103, 164), /Rollenformat/);
+});
+test('additional driver-dimension tolerance requires the exact fixed size and remains bounded', () => {
+  const fixed = { name: '103mm x 164mm', kind: 385, widthMm: 103.63, heightMm: 164.34 };
+  assert.throws(() => selectPaper({ name: 'Paket', papers: [{ ...fixed, name: '104mm x 164mm' }] }, 103, 164), /Rollenformat/);
+  assert.throws(() => selectPaper({ name: 'Paket', papers: [{ ...fixed, widthMm: 104.01 }] }, 103, 164), /Rollenformat/);
+  assert.throws(() => selectPaper({ name: 'Paket', papers: [{ ...fixed, heightMm: 165.01 }] }, 103, 164), /Rollenformat/);
+  assert.throws(() => selectPaper({ name: 'Paket', papers: [fixed, { ...fixed, kind: 386 }] }, 103, 164), /eindeutig/);
+});
+test('Windows runtime state survives checkout changes and uses ProgramData', () => {
+  assert.equal(dataDirectory('win32', { ProgramData: 'C:\\ProgramData' }), 'C:\\ProgramData\\AvyCloud Print Agent');
+  assert.ok(dataDirectory('darwin', {}, '/Users/me').endsWith('/Library/Application Support/AvyCloud Print Agent'));
+});
+test('silent print passes literal printer arguments, records an application receipt, and removes private PDF', async () => {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'avycloud-win-print-'));
+  let document;
+  try {
+    const receipt = await printWindows({ buffer: Buffer.from('%PDF-test'), druckerName: parcel.name,
+      widthMm: 103, heightMm: 164, copies: 1, jobId: 'job-1', directory,
+      sumatraPath: 'C:\\tools\\SumatraPDF.exe', inventory: async () => [parcel],
+      run: async (executable, args, options) => {
+        assert.equal(executable, 'C:\\tools\\SumatraPDF.exe');
+        assert.ok(args.includes(parcel.name));
+        assert.ok(args.includes('fit,simplex,1x,paperkind=257'));
+        assert.equal(args.includes('-print-to-default'), false);
+        assert.equal(options.shell, false);
+        document = args.at(-1);
+        assert.equal((await fs.readFile(document)).toString(), '%PDF-test');
+      },
+    });
+    assert.match(receipt, /^sumatra:job-1:/);
+    await assert.rejects(fs.access(document));
+  } finally { await fs.rm(directory, { recursive: true, force: true }); }
+});
+test('print errors/timeouts never become success receipts, and wrong media never starts Sumatra', async () => {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'avycloud-win-print-'));
+  let starts = 0;
+  const args = { buffer: Buffer.from('%PDF-test'), druckerName: parcel.name, widthMm: 103, heightMm: 164,
+    copies: 1, jobId: 'job-2', directory, sumatraPath: 'C:\\SumatraPDF.exe', inventory: async () => [parcel],
+    run: async () => { starts++; throw new Error('timeout'); } };
+  try {
+    await assert.rejects(printWindows(args), /timeout/);
+    assert.deepEqual(await fs.readdir(directory), []);
+    await assert.rejects(printWindows({ ...args, widthMm: 62, heightMm: 100 }), /Rollenformat/);
+    assert.equal(starts, 1);
+    await assert.rejects(printWindows({ ...args, copies: 0 }), /Kopien/);
+  } finally { await fs.rm(directory, { recursive: true, force: true }); }
+});

@@ -41,8 +41,20 @@ const ModalShell: React.FC<{
   const backdropRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null;
+    backdropRef.current?.querySelector<HTMLButtonElement>('button')?.focus();
+    return () => { previous?.focus({ preventScroll: true }); };
+  }, []);
+
+  useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape" && !busy) onClose();
+      if (e.key === 'Tab') {
+        const buttons = [...(backdropRef.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') || [])];
+        const first = buttons[0], last = buttons[buttons.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last?.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus(); }
+      }
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
@@ -59,8 +71,8 @@ const ModalShell: React.FC<{
       aria-modal="true"
       aria-label={title}
     >
-      <div className="w-full sm:max-w-md bg-app-surface border-t sm:border border-app-border sm:rounded-2xl rounded-t-2xl shadow-2xl flex flex-col max-h-[90vh]">
-        <div className="flex items-start justify-between gap-3 p-5 border-b border-app-border shrink-0">
+      <div className="w-full sm:max-w-md bg-app-surface border-t sm:border border-app-border sm:rounded-2xl shadow-2xl flex flex-col h-[100dvh] sm:h-auto sm:max-h-[90vh]">
+        <div className="flex items-start justify-between gap-3 p-4 border-b border-app-border shrink-0">
           <div className="min-w-0">
             <h2 className="text-base font-semibold text-txt-primary">{title}</h2>
             {subtitle ? (
@@ -71,7 +83,7 @@ const ModalShell: React.FC<{
             type="button"
             onClick={onClose}
             disabled={busy}
-            className="p-1.5 rounded-lg hover:bg-app-elevated text-txt-muted hover:text-txt-primary transition-colors disabled:opacity-50"
+            className="min-w-[48px] min-h-[48px] flex items-center justify-center rounded-lg hover:bg-app-elevated text-txt-muted hover:text-txt-primary transition-colors disabled:opacity-50"
             aria-label="Schließen"
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -80,7 +92,7 @@ const ModalShell: React.FC<{
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-5">{children}</div>
+        <div className="flex-1 min-h-0 overflow-y-auto p-4">{children}</div>
 
         <div className="p-4 border-t border-app-border bg-app-bg/30 rounded-b-2xl">{footer}</div>
       </div>
@@ -160,11 +172,7 @@ export const WeightPromptModal: React.FC<WeightPromptModalProps> = ({
   return (
     <ModalShell
       title="Gewicht eingeben"
-      subtitle={
-        contextLabel
-          ? `${contextLabel} — Versandlabel kann ohne Gewicht nicht erstellt werden.`
-          : "Versandlabel kann ohne Gewicht nicht erstellt werden."
-      }
+      subtitle={contextLabel || undefined}
       onClose={onCancel}
       busy={busy}
       footer={
@@ -173,7 +181,7 @@ export const WeightPromptModal: React.FC<WeightPromptModalProps> = ({
             type="button"
             onClick={onCancel}
             disabled={busy}
-            className="rounded-lg bg-app-elevated text-txt-secondary px-4 py-2.5 text-sm font-semibold hover:text-txt-primary transition disabled:opacity-50"
+            className="rounded-lg bg-app-elevated text-txt-secondary px-4 py-2.5 min-h-[48px] text-sm font-semibold hover:text-txt-primary transition disabled:opacity-50"
           >
             Abbrechen
           </button>
@@ -181,7 +189,7 @@ export const WeightPromptModal: React.FC<WeightPromptModalProps> = ({
             type="button"
             onClick={submit}
             disabled={busy || parsed == null}
-            className="inline-flex items-center gap-2 rounded-lg bg-accent text-white px-4 py-2.5 text-sm font-semibold hover:bg-accent/90 transition disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-lg bg-accent text-white px-4 py-2.5 min-h-[48px] text-sm font-semibold hover:bg-accent/90 transition disabled:opacity-50"
           >
             {busy && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
             Bestätigen
@@ -204,7 +212,7 @@ export const WeightPromptModal: React.FC<WeightPromptModalProps> = ({
         onChange={setValue}
         isSuggestion={istVorschlag}
         onSuggestionReplaced={() => setIstVorschlag(false)}
-        hint="Versandgewicht inkl. Verpackung. Am Rechner kann auch getippt werden."
+        hint="inkl. Verpackung"
       />
       {errorMessage ? (
         <div className="mt-3 bg-danger-dim border border-danger/20 rounded-lg px-3 py-2 text-xs text-danger">
@@ -275,7 +283,7 @@ export const CarrierPickModal: React.FC<CarrierPickModalProps> = ({
             type="button"
             onClick={onCancel}
             disabled={busy}
-            className="rounded-lg bg-app-elevated text-txt-secondary px-4 py-2.5 text-sm font-semibold hover:text-txt-primary transition disabled:opacity-50"
+            className="rounded-lg bg-app-elevated text-txt-secondary px-4 py-2.5 min-h-[48px] text-sm font-semibold hover:text-txt-primary transition disabled:opacity-50"
           >
             Abbrechen
           </button>
@@ -283,10 +291,10 @@ export const CarrierPickModal: React.FC<CarrierPickModalProps> = ({
             type="button"
             onClick={() => selected && onConfirm(selected)}
             disabled={busy || !selected}
-            className="inline-flex items-center gap-2 rounded-lg bg-accent text-white px-4 py-2.5 text-sm font-semibold hover:bg-accent/90 transition disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-lg bg-accent text-white px-4 py-2.5 min-h-[48px] text-sm font-semibold hover:bg-accent/90 transition disabled:opacity-50"
           >
             {busy && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
-            Label erstellen
+            Label drucken
           </button>
         </div>
       }
@@ -330,7 +338,7 @@ export const CarrierPickModal: React.FC<CarrierPickModalProps> = ({
                   </span>
                 </div>
                 <p className="text-xs text-txt-muted mt-0.5">
-                  {range} <span className="text-txt-muted/70">·</span> ID {id || "—"}
+                  {range}
                 </p>
               </div>
             </button>
@@ -353,6 +361,7 @@ export const CarrierPickModal: React.FC<CarrierPickModalProps> = ({
 
 interface ShippingOptionModalProps {
   weightKg: number;
+  confirmLabel?: string;
   products: CuratedShippingProduct[];
   /** true = Zielland außerhalb Standard-Zonen (Teamlead-Hinweis). */
   warn?: boolean;
@@ -372,6 +381,7 @@ interface ShippingOptionModalProps {
 
 export const ShippingOptionModal: React.FC<ShippingOptionModalProps> = ({
   weightKg,
+  confirmLabel = "Label erstellen",
   products,
   warn,
   trackedOnly,
@@ -401,7 +411,7 @@ export const ShippingOptionModal: React.FC<ShippingOptionModalProps> = ({
             type="button"
             onClick={onCancel}
             disabled={busy}
-            className="rounded-lg bg-app-elevated text-txt-secondary px-4 py-2.5 text-sm font-semibold hover:text-txt-primary transition disabled:opacity-50"
+            className="rounded-lg bg-app-elevated text-txt-secondary px-4 py-2.5 min-h-[48px] text-sm font-semibold hover:text-txt-primary transition disabled:opacity-50"
           >
             Abbrechen
           </button>
@@ -409,10 +419,10 @@ export const ShippingOptionModal: React.FC<ShippingOptionModalProps> = ({
             type="button"
             onClick={() => selected && onConfirm(selected)}
             disabled={busy || !selected}
-            className="inline-flex items-center gap-2 rounded-lg bg-accent text-white px-4 py-2.5 text-sm font-semibold hover:bg-accent/90 transition disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-lg bg-accent text-white px-4 py-2.5 min-h-[48px] text-sm font-semibold hover:bg-accent/90 transition disabled:opacity-50"
           >
             {busy && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
-            Label erstellen
+            {confirmLabel}
           </button>
         </div>
       }
@@ -425,8 +435,8 @@ export const ShippingOptionModal: React.FC<ShippingOptionModalProps> = ({
       {trackedOnly ? (
         <div className="mb-3 bg-info-dim border border-info/30 rounded-lg px-3 py-2 text-xs text-info">
           {orderValueKnown === false
-            ? "Bestellwert unbekannt — zur Sicherheit nur Versand mit Sendungsverfolgung."
-            : `Ab ${(trackedOnlyThresholdEur ?? 10).toLocaleString("de-DE")} € Bestellwert: nur Versand mit Sendungsverfolgung — Maxibrief/Warensendung stehen deshalb nicht zur Auswahl.`}
+            ? "Bestellwert unbekannt · Sendungsverfolgung erforderlich"
+            : "Sendungsverfolgung erforderlich"}
         </div>
       ) : null}
       <div className="space-y-2">
