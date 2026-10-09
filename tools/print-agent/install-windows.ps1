@@ -15,9 +15,22 @@ if (-not [Environment]::Is64BitOperatingSystem) { throw 'Windows 64 Bit ist erfo
 $inventoryJson = & (Join-Path $PSScriptRoot 'lib\windows-printers.ps1')
 $parsedPrinters = $inventoryJson | ConvertFrom-Json
 $all = @($parsedPrinters)
+function Test-PrinterPaper($paper, [double]$width, [double]$height) {
+  # Keep aligned with lib/windows.js. The real QL-1110 fixed 103x164 form
+  # reports 103.63x164.34 mm. Extra tolerance requires its exact fixed name.
+  $tolerance = 0.6
+  $size = [regex]::Match(([string]$paper.name).Trim(), '^(\d+(?:[.,]\d+)?)\s*mm\s*[x\u00d7]\s*(\d+(?:[.,]\d+)?)\s*mm(?:\s*\([^)]*\))?$', 'IgnoreCase')
+  if ($size.Success) {
+    $culture = [Globalization.CultureInfo]::InvariantCulture
+    $namedWidth = [double]::Parse($size.Groups[1].Value.Replace(',', '.'), $culture)
+    $namedHeight = [double]::Parse($size.Groups[2].Value.Replace(',', '.'), $culture)
+    if ($namedWidth -eq $width -and $namedHeight -eq $height) { $tolerance = 1.0 }
+  }
+  return $paper.kind -gt 0 -and [Math]::Abs($paper.widthMm - $width) -le $tolerance -and [Math]::Abs($paper.heightMm - $height) -le $tolerance
+}
 function Choose-Printer([string]$role, [double]$width, [double]$height, [string]$selected) {
   $choices = @($all | Where-Object { @($_.papers | Where-Object {
-    [Math]::Abs($_.widthMm - $width) -le 0.6 -and [Math]::Abs($_.heightMm - $height) -le 0.6
+    Test-PrinterPaper $_ $width $height
   }).Count -gt 0 })
   if ($selected) {
     if (-not ($choices | Where-Object { $_.name -eq $selected })) { throw "Drucker/Formate fuer $role nicht gefunden: $selected" }
@@ -26,7 +39,7 @@ function Choose-Printer([string]$role, [double]$width, [double]$height, [string]
   if ($choices.Count -eq 0) {
     Write-Host ('Vorhandene Windows-Drucker: ' + (($all | ForEach-Object { $_.name }) -join ', '))
     if ($role -eq 'Paket (DHL/DPD)') {
-      throw 'Der Paketdrucker mit 103 x 164 mm fehlt in Windows. Brother QL-1110NWB mit Brother-Treiber als Netzwerkdrucker einrichten, dann dieses Setup erneut starten.'
+      throw 'Kein Windows-Treiber meldet ein passendes Rollenformat 103 x 164 mm. Der Drucker kann bereits installiert sein. Treiber und Papierformate mit der AvyCloud-Druckerdiagnose pruefen.'
     }
     throw "Kein Drucker mit $width x $height mm. Brother-Treiber und Rollenformat zuerst einrichten."
   }

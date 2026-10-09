@@ -47,6 +47,24 @@ test('a fixed-size name cannot override physical dimensions or hide conflicting 
   assert.throws(() => selectPaper({ name: 'Paket', papers: [{ ...fixed, widthMm: 100 }] }, 103, 164), /Rollenformat/);
   assert.throws(() => selectPaper({ name: 'Paket', papers: [fixed, { ...fixed, kind: 301 }] }, 103, 164), /eindeutig/);
 });
+test('actual QL-1110 fixed 103x164 form tolerates the driver reported 103.63x164.34 dimensions', () => {
+  const papers = [
+    { name: '103mm x 164mm', kind: 385, widthMm: 103.63, heightMm: 164.34 },
+    { name: '103mm', kind: 265, widthMm: 103.63, heightMm: 164.34 },
+    { name: 'Versand-Etikett (Paket)', kind: 328, widthMm: 103.63, heightMm: 164.34 },
+    { name: 'Benutzerdefinierte Größe', kind: 256, widthMm: 103.63, heightMm: 164.34 },
+  ];
+  assert.equal(selectPaper({ name: 'Brother QL-1110NWB', papers }, 103, 164), 385);
+  assert.equal(selectPaper({ name: 'Brother QL-1110NWB', papers: [...papers].reverse() }, 103, 164), 385);
+  assert.throws(() => selectPaper({ name: 'Paket', papers: papers.slice(1) }, 103, 164), /Rollenformat/);
+});
+test('additional driver-dimension tolerance requires the exact fixed size and remains bounded', () => {
+  const fixed = { name: '103mm x 164mm', kind: 385, widthMm: 103.63, heightMm: 164.34 };
+  assert.throws(() => selectPaper({ name: 'Paket', papers: [{ ...fixed, name: '104mm x 164mm' }] }, 103, 164), /Rollenformat/);
+  assert.throws(() => selectPaper({ name: 'Paket', papers: [{ ...fixed, widthMm: 104.01 }] }, 103, 164), /Rollenformat/);
+  assert.throws(() => selectPaper({ name: 'Paket', papers: [{ ...fixed, heightMm: 165.01 }] }, 103, 164), /Rollenformat/);
+  assert.throws(() => selectPaper({ name: 'Paket', papers: [fixed, { ...fixed, kind: 386 }] }, 103, 164), /eindeutig/);
+});
 test('Windows runtime state survives checkout changes and uses ProgramData', () => {
   assert.equal(dataDirectory('win32', { ProgramData: 'C:\\ProgramData' }), 'C:\\ProgramData\\AvyCloud Print Agent');
   assert.ok(dataDirectory('darwin', {}, '/Users/me').endsWith('/Library/Application Support/AvyCloud Print Agent'));

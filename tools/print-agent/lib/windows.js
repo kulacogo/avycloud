@@ -17,15 +17,19 @@ async function inventory({ run = execute } = {}) {
 
 function selectPaper(printer, widthMm, heightMm) {
   if (![widthMm, heightMm].every((v) => Number.isFinite(v) && v > 0)) throw new Error('Ungueltige Etikettenmasse.');
-  const matching = (printer?.papers || []).filter((paper) =>
-    Number.isInteger(paper.kind) && paper.kind > 0 &&
-    Math.abs(paper.widthMm - widthMm) <= 0.6 && Math.abs(paper.heightMm - heightMm) <= 0.6);
+  const papers = (printer?.papers || []).filter((paper) => Number.isInteger(paper.kind) && paper.kind > 0);
+  const dimensionsMatch = (paper, tolerance) =>
+    Math.abs(paper.widthMm - widthMm) <= tolerance && Math.abs(paper.heightMm - heightMm) <= tolerance;
+  const matching = papers.filter((paper) => dimensionsMatch(paper, 0.6));
   // Brother exposes fixed, continuous, custom and name-badge forms with the
   // same current dimensions. Prefer the explicitly named fixed size, while
-  // still requiring the driver's measured dimensions above to match.
-  const fixed = matching.filter((paper) => {
+  // still bounding the driver's dimensions. QL-1110 reports its explicitly
+  // named 103x164 form as 103.63x164.34 mm. Only an exact fixed-size name gets
+  // the 1 mm allowance; unnamed/continuous/custom forms retain 0.6 mm.
+  const fixed = papers.filter((paper) => {
     const size = String(paper.name || '').trim().match(/^(\d+(?:[.,]\d+)?)\s*mm\s*[x×]\s*(\d+(?:[.,]\d+)?)\s*mm(?:\s*\([^)]*\))?$/i);
-    return size && Number(size[1].replace(',', '.')) === widthMm && Number(size[2].replace(',', '.')) === heightMm;
+    return size && Number(size[1].replace(',', '.')) === widthMm && Number(size[2].replace(',', '.')) === heightMm
+      && dimensionsMatch(paper, 1);
   });
   const kinds = [...new Set((fixed.length ? fixed : matching).map((paper) => paper.kind))];
   if (!kinds.length) throw new Error(`Rollenformat ${widthMm}x${heightMm} mm fehlt im Treiber von ${printer?.name || 'Drucker'}.`);
