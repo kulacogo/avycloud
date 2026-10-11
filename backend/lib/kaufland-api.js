@@ -933,8 +933,49 @@ async function createUnit(product, { storefront = 'de', autoCreateProductData = 
       console.warn(`[createUnit] POST /units rejected for ${picked.idOffer}: ${err.message}`);
       throw err;
     }
+    if (message.includes('already exists') && message.includes('id_offer')) {
+      const takenElsewhere = await findIdOfferInOtherStorefronts(picked.idOffer, picked.storefront);
+      if (takenElsewhere.length) {
+        const where = takenElsewhere.map((u) => `${u.storefront.toUpperCase()} (Angebot ${u.id_unit})`).join(', ');
+        const err = new Error(
+          `Die SKU ${picked.idOffer} ist bei Kaufland noch in ${where} vergeben, ` +
+          `aber ohne Angebot in ${String(picked.storefront).toUpperCase()}. Kaufland laesst jede SKU nur ` +
+          `einmal ueber alle Laender zu. Diese Angebote im Kaufland-Händlerportal loeschen, danach erneut listen.`
+        );
+        err.code = 'KAUFLAND_ID_OFFER_TAKEN_OTHER_STOREFRONT';
+        err.status = unitErr.status;
+        err.storefronts = takenElsewhere.map((u) => u.storefront);
+        console.warn(`[createUnit] id_offer ${picked.idOffer} blocked by units in ${where}`);
+        throw err;
+      }
+    }
     throw unitErr;
   }
+}
+
+// Kaufland gives an id_offer out only ONCE across all storefronts — measured
+// 2026-10-11: POST cz with a SKU that exists only in DE answers "already
+// exists". Copies from cross-border selling (CZ/SK/PL, created by Kaufland
+// itself) outlive a deleted DE unit and then block every new DE unit.
+// Read-only lookup to name the blocker; never deletes anything (CLAUDE.md
+// rule 14 — the operator decides). Lookup errors fall back to Kaufland's text.
+const KAUFLAND_STOREFRONTS = ['de', 'cz', 'sk', 'pl', 'at', 'fr', 'it'];
+async function findIdOfferInOtherStorefronts(idOffer, ownStorefront) {
+  const others = KAUFLAND_STOREFRONTS.filter((sf) => sf !== String(ownStorefront || 'de').toLowerCase());
+  const found = await Promise.all(others.map(async (sf) => {
+    try {
+      // Single attempt: this only improves an error message, it must not stall it.
+      const res = await kauflandRequest('GET', '/units', {
+        query: { storefront: sf, limit: 1, offset: 0, id_offer: idOffer },
+        maxRetries: 0,
+      });
+      const unit = Array.isArray(res?.data?.data) ? res.data.data[0] : null;
+      return unit && unit.id_offer === idOffer ? { storefront: sf, id_unit: unit.id_unit } : null;
+    } catch {
+      return null;
+    }
+  }));
+  return found.filter(Boolean);
 }
 
 async function updateUnit(unitId, product, { storefront = 'de', priceOnly = false, manualActivation = false } = {}) {
