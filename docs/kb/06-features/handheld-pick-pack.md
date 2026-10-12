@@ -1,7 +1,7 @@
 ---
 title: Handheld — exklusives Picken, Packen und Druckstation
 for: [dev, agent, admin]
-lastReviewed: 2026-10-09
+lastReviewed: 2026-10-12
 ---
 
 # Handheld Pick / Pack
@@ -16,11 +16,21 @@ Picken beginnt mit einer serverseitigen Zuweisung eines ganzen Auftrags. Zwei Mi
 
 BIN und SKU scannen, angezeigte Menge prüfen und „N Stück gepickt“ drücken. Ein wiederholter SKU-Scan bucht nichts. Teilmengen sind möglich; Fortschritt und aktuelle BIN-Bestände kommen nach der Buchung vom Server. Die Desktop-Pickansicht verwendet dieselbe Zuweisung und denselben Fortschritt.
 
+### Durchgehender Rundgang über mehrere Aufträge
+
+Betreiberablauf: Mitarbeiter sammeln mehrere Aufträge und beenden erst das Picken, bevor sie packen. „Nächster Auftrag“ wird deshalb nach Lagerposition statt rein nach Auftragseingang gewählt. Das ist eine laufende Routenfolge ohne feste Wagenkapazität oder Auftragspakete. Jeder ganze Auftrag bleibt exklusiv; keine Aufteilung desselben Auftrags auf verschiedene Mitarbeiter.
+
+Die Planung bevorzugt den zuletzt bestätigten Bereich (Zone und Etage), darin denselben Gang, dann die vorhandene Reihenfolge von hinten nach vorne. Neue Arbeit hinter dem Mitarbeiter verdrängt keine noch offenen Bereiche vor ihm. Alter des Auftrags entscheidet bei gleichem Lagerplatz; es erzwingt keine Zickzack-Wege zwischen verschiedenen Auftragstagen. Ohne bekannten Ausgangspunkt beginnt die bestehende Zonenreihenfolge. Unbekannte Lagerplätze bleiben als zu klärende Arbeit erhalten. Laufende und pausierte Zuweisungen werden nicht umgeplant; ausdrücklich ausgewählte Aufträge bleiben möglich.
+
+Quellen: [Routenentscheidung](../../../backend/services/pick-route.js), [tenantgebundene Lagerplatzprojektion](../../../backend/services/pick-route-locations.js), [atomare Zuweisung](../../../backend/services/pick-work.js). Die Projektion nutzt die positiven Produkt-BIN-Mengen ausschließlich als Planungshinweis; tatsächlicher Bestand und Buchungsberechtigung werden unverändert in der Stock-out-Transaktion geprüft. Kein zusätzlicher Bestandsschreiber. Keine Meter-/Zeitgarantie oder vollständige geometrische Optimierung: hinterlegte BIN-Hierarchie statt vermessener Laufwege. Mehrpositionen-Aufträge bleiben zusammen, ihre Artikel werden weiterhin innerhalb des Auftrags sortiert.
+
+Validierung und Veröffentlichungsstand: [Korrektur der Pick-Routen](../../reviews/pick-route-repair-20261012/README.md).
+
 Beim Packen müssen alle Positionen des ausgewählten Auftrags gescannt und die Stückzahlen bestätigt werden. Danach Gewicht und Versandart wählen. „Label drucken“ erstellt die Sendung über den bestehenden Versandweg und reiht das vorhandene Label in die Druckwarteschlange ein. Der Scanner braucht keinen Android-Druckdialog. Erst „Label angebracht · fertig“ beendet die sichtbare Druckaufgabe. Das ist eine menschliche Bestätigung; CUPS-Annahme allein beweist kein physisch gedrucktes oder angebrachtes Etikett.
 
 ## Daten und Invarianten
 
-- Additives `orders.pickWork`: `version`, `ownerUid`, `ownerName`, `sessionId`, `token`, `status`, `updatedAt`, `lines` (`itemId`, `itemKey` als Produkt/SKU-Fingerprint, `required`, `picked`), `receipts`.
+- Additives `orders.pickWork`: `version`, `ownerUid`, `ownerName`, `sessionId`, `token`, `status`, `updatedAt`, `lines` (`itemId`, `itemKey` als Produkt/SKU-Fingerprint, `required`, `picked`), `receipts`, optional `lastBinCode`. Der letzte bestätigte BIN wird atomar mit der Pick-Buchung gespeichert; ein doppelter Request setzt ihn nicht zurück. Bei alten Aufträgen wird er nur aus einer einzigen eindeutigen BIN-Quittung abgeleitet, niemals aus der Reihenfolge einer Firestore-Map geraten.
 - Neue Collection `pick_assignments`, Dokument-ID SHA-256 aus Tenant und UID; Felder `tenantId`, `ownerUid`, `orderId`, `updatedAt`. Alle neuen Queries sind tenantgebunden.
 - Zuweisung in Firestore-Transaktion. Buchungsprüfung, Fortschritt, bestehender Stock-Claim, BIN- und Lagerbuchschreibvorgang laufen in derselben bestehenden Stock-out-Transaktion. Keine neue parallele Bestandswahrheit.
 - Authentifizierter Actor kommt ausschließlich vom Server. Buchungen prüfen Tenant, Mitarbeiter, Token, Position, Produkt, ganze positive Menge und Restmenge. `requestId` wird pro Buchungsabsicht stabil gehalten; gleicher Schlüssel mit anderem Inhalt wird abgelehnt.

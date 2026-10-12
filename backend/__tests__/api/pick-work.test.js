@@ -35,3 +35,16 @@ it('returns conflict on another scanner and persists pause with the trusted owne
   expect(paused.status).toBe(200);
   expect(db.rows.get(`orders/${order.id}`).pickWork.status).toBe('paused');
 });
+it('uses fresh scoped BIN projections for two employees instead of FIFO arrival order', async () => {
+  db.rows.clear();
+  for (const [id, bin] of [['a-l', 'LEG0101A'], ['b-s', 'SEG0101A'], ['c-x', 'XEG0101A']]) {
+    db.rows.set(`orders/${id}`, { tenantId: 'default', omsStatus: 'picking', marketplace: 'ebay', createdAt: '2026-10-12',
+      items: [{ id: `${id}-line`, sku: id, quantity: 1 }] });
+    db.rows.set(`products_v2/${id}`, { tenantId: 'default', identification: { sku: id }, storageBins: [{ code: bin, quantity: 1 }] });
+  }
+  const responses = await Promise.all(['alice', 'bob'].map(uid => request(app).post('/api/orders/pick-work/claim')
+    .set('x-test-user', uid).send({ sessionId: `scanner-${uid}` })));
+  expect(responses.map(r => r.status)).toEqual([200,200]);
+  expect(responses.map(r => r.body.data.id).sort()).toEqual(['b-s','c-x']);
+  expect(db.rows.get('orders/a-l').pickWork).toBeUndefined();
+});

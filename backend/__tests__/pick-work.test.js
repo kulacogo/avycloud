@@ -107,3 +107,52 @@ it('does not trap the employee on a cancelled order with no picked goods', async
   db.rows.set('orders/a', { ...first, omsStatus: 'cancelled' });
   expect((await claim(service)).id).toBe('b');
 });
+
+describe('route-aware exclusive assignment', () => {
+  const routedSetup = () => {
+    const db = database(Object.fromEntries(['l', 's', 'x', 's2'].map((id) => [`orders/${id}`, order(id)])));
+    const bins = { l: ['LEG0101A'], s: ['SEG0401A'], x: ['XEG0101A'], s2: ['SEG0301A'] };
+    const service = createPickWorkService({ db,
+      listCandidates: async () => [...db.rows.entries()].filter(([k]) => k.startsWith('orders/')).map(([,v]) => v),
+      loadRouteBins: async () => new Map(Object.entries(bins)),
+    });
+    return { db, service };
+  };
+  it('starts along the route rather than arbitrary order IDs / age ties', async () => {
+    const { service } = routedSetup();
+    expect((await claim(service)).id).toBe('x');
+  });
+  it('continues at a confirmed position while another employee keeps their own order', async () => {
+    const { db, service } = routedSetup();
+    const first = await claim(service, actor, 'scanner-a', { orderId: 's' });
+    db.rows.set('orders/s', { ...first, omsStatus: 'picked', pickWork: { ...first.pickWork, lastBinCode: 'SEG0401A' } });
+    const [a,b] = await Promise.all([claim(service), claim(service, other, 'scanner-b')]);
+    expect(a.id).toBe('s2'); expect(b.id).toBe('x');
+    expect(a.pickWork.ownerUid).toBe(actor.uid);
+    expect(b.pickWork.ownerUid).toBe(other.uid);
+  });
+  it('preserves held work and explicit assignment even when another route looks better', async () => {
+    const { service } = routedSetup();
+    const first = await claim(service, actor, 'scanner-a', { orderId: 'l' });
+    await service.pause({ tenantId: 'default', actor, orderId: first.id, token: first.pickWork.token });
+    expect((await claim(service)).id).toBe('l');
+  });
+  it('records the last physical pick atomically and does not move it backwards on a duplicate retry', async () => {
+    const { service } = setup(); const current = await claim(service);
+    const request = { tenantId: 'default', actor, token: current.pickWork.token, itemId: 'a-1', requestId: 'r1',
+      productId: 'p1', sku: 'SKU-1', binCode: 'SEG0401A', quantity: 1 };
+    current.pickWork = preparePickBooking(current, request).work;
+    expect(current.pickWork.lastBinCode).toBe('SEG0401A');
+    current.pickWork = preparePickBooking(current, { ...request, requestId: 'r2', binCode: 'LEG0101A' }).work;
+    expect(preparePickBooking(current, request).work.lastBinCode).toBe('LEG0101A');
+  });
+  it('does not let an unavailable location source block resuming held work, or create a partial new claim', async () => {
+    const { db, service } = routedSetup();
+    const first = await claim(service);
+    const broken = createPickWorkService({ db, listCandidates: async () => [order('l')],
+      loadRouteBins: async () => { throw new Error('lookup failed'); } });
+    expect((await claim(broken)).id).toBe(first.id);
+    await expect(claim(broken, other, 'scanner-b')).rejects.toMatchObject({ status: 503, code: 'PICK_ROUTE_UNAVAILABLE' });
+    expect(db.rows.get('orders/l').pickWork).toBeUndefined();
+  });
+});

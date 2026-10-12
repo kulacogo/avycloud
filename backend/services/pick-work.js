@@ -1,6 +1,7 @@
 'use strict';
 
 const { createHash, randomUUID } = require('node:crypto');
+const { rankPickCandidates, lastPickBin } = require('./pick-route');
 const activeStatus = (order) => ['confirmed', 'picking'].includes(order.omsStatus || order.status);
 const tenantOf = (order) => order.tenantId || 'default';
 const key = (...parts) => createHash('sha256').update(JSON.stringify(parts)).digest('hex');
@@ -63,6 +64,7 @@ function preparePickBooking(order, request) {
   return { deduped: false, work: {
     ...order.pickWork,
     updatedAt: new Date().toISOString(),
+    lastBinCode: binCode,
     lines: order.pickWork.lines.map((entry) => entry.itemId === line.itemId ? { ...entry, picked: entry.picked + quantity } : entry),
     receipts: { ...order.pickWork.receipts, [receiptKey]: { fingerprint, itemId, quantity, binCode } },
   } };
@@ -90,7 +92,7 @@ function validatePickTransition(order, toStatus, actor) {
   return null;
 }
 
-function createPickWorkService({ db, listCandidates }) {
+function createPickWorkService({ db, listCandidates, loadRouteBins = async () => new Map() }) {
   const assignmentRef = (tenantId, uid) => db.collection('pick_assignments').doc(key(tenantId, uid));
   async function current({ tenantId, actor }) {
     requireActor(actor, tenantId);
@@ -104,18 +106,30 @@ function createPickWorkService({ db, listCandidates }) {
   async function claim({ tenantId, actor, sessionId, takeover = false, orderId: requestedId = null }) {
     requireActor(actor, tenantId);
     if (!sessionId || typeof sessionId !== 'string' || sessionId.length > 200) fail('Scanner-Kennung fehlt.');
-    const candidates = (await listCandidates(tenantId)).filter((order) => tenantOf(order) === tenantId && activeStatus(order))
-      .sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
+    const candidates = (await listCandidates(tenantId)).filter((order) => tenantOf(order) === tenantId && activeStatus(order)
+      && !order.pickWork && !order.stockDecrementedAt);
+    // Location lookup is advisory and request-scoped. Ownership is still
+    // reread and claimed atomically below, including on Firestore retries.
+    let routeBinsPromise;
+    const routedCandidates = () => {
+      if (!routeBinsPromise) routeBinsPromise = Promise.resolve().then(() => loadRouteBins({ tenantId, orders: candidates }))
+        .catch(cause => { throw Object.assign(new Error('Pick-Route derzeit nicht verfügbar. Bitte erneut versuchen.'), {
+          status: 503, code: 'PICK_ROUTE_UNAVAILABLE', cause,
+        }); });
+      return routeBinsPromise;
+    };
     const assignment = assignmentRef(tenantId, actor.uid);
     return db.runTransaction(async (tx) => {
       const prior = await tx.get(assignment);
       const currentId = prior.exists && prior.data().orderId;
+      let routeAnchor = null;
       if (currentId) {
         const ref = db.collection('orders').doc(currentId);
         const snap = await tx.get(ref);
         if (snap.exists && tenantOf(snap.data()) === tenantId && snap.data().pickWork?.ownerUid === actor.uid) {
           const order = { ...snap.data(), id: snap.id };
           const work = order.pickWork;
+          routeAnchor = lastPickBin(order);
           if (requestedId && requestedId !== order.id && activeStatus(order)) fail('Zuerst den zugewiesenen Auftrag abschließen.');
           // No timer frees physical goods on a cart. Held/partially picked orders
           // stay assigned until an explicit, audited recovery is performed.
@@ -131,7 +145,9 @@ function createPickWorkService({ db, listCandidates }) {
       }
       // Read candidates within the transaction. Firestore retries a conflicting
       // order claim so two users never receive the same unclaimed order.
-      for (const candidate of candidates) {
+      const locations = requestedId ? new Map() : await routedCandidates();
+      const ordered = rankPickCandidates(candidates.map(order => ({ ...order, routeBins: locations.get(order.id) || [] })), routeAnchor);
+      for (const candidate of ordered) {
         if (requestedId && candidate.id !== requestedId) continue;
         const ref = db.collection('orders').doc(candidate.id);
         const snap = await tx.get(ref);
