@@ -447,6 +447,7 @@ describe('managed pick commits progress atomically with BIN stock', () => {
     const request = managed();
     await bookStockOut(request);
     expect(_capturedTx.__calls.find((call) => call.patch?.pickWork)?.patch.pickWork.lines[0].picked).toBe(1);
+    expect(_capturedTx.__calls.find((call) => call.patch?.pickWork)?.patch.pickWork.lastBinCode).toBe(request.binCode);
     commitCaptured();
     const retry = await bookStockOut(request);
     expect(retry.deduped).toBe(true);

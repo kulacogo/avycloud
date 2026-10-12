@@ -83,6 +83,7 @@ function normalizeOrderForResponse(order) {
 // Pick assignments are additive; status changes still go through transitionOrder.
 const pickWorkService = require('../services/pick-work').createPickWorkService({
   db: firestore,
+  loadRouteBins: (context) => require('../services/pick-route-locations').loadPickRouteBins(firestore, context),
   listCandidates: async (tenantId) => {
     const snap = await firestore.collection('orders').where('tenantId', '==', tenantId)
       .where('omsStatus', 'in', ['confirmed', 'picking']).get();

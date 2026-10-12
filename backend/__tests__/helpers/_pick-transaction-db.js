@@ -8,14 +8,18 @@ function database(seed) {
   const snap = (path) => ({ exists: rows.has(path), id: path.split('/').at(-1), data: () => structuredClone(rows.get(path)), ref: ref(path) });
   return {
     rows,
+    getAll: async (...refs) => refs.filter(doc => doc.path).map(doc => snap(doc.path)),
     collection: (name) => {
       const filters = [];
       const query = {
         doc: (id) => ref(`${name}/${id}`),
         where: (field, op, value) => { filters.push([field, op, value]); return query; },
-        orderBy: () => query, limit: () => query,
+        orderBy: () => query, limit: () => query, select: () => query,
         get: async () => {
-          const docs = [...rows.entries()].filter(([path, row]) => path.startsWith(`${name}/`) && filters.every(([f, op, v]) => op === 'in' ? v.includes(row[f]) : row[f] === v))
+          const docs = [...rows.entries()].filter(([path, row]) => path.startsWith(`${name}/`) && filters.every(([f, op, v]) => {
+            const value = f.split('.').reduce((data, key) => data?.[key], row);
+            return op === 'in' ? v.includes(value) : value === v;
+          }))
             .map(([path]) => snap(path));
           return { docs, empty: !docs.length, size: docs.length };
         },
