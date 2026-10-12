@@ -28,6 +28,33 @@ function initialWork(order, actor, sessionId) {
     receipts: {},
   };
 }
+function intactPickProgress(order) {
+  const items = order.items; const lines = order.pickWork?.lines;
+  return Array.isArray(items) && items.length > 0 && Array.isArray(lines) && lines.length === items.length
+    && items.every(item => {
+      const matches = lines.filter(line => line.itemId === String(item.id));
+      return matches.length === 1 && Number.isSafeInteger(matches[0].required) && matches[0].required > 0
+        && matches[0].required === Number(item.quantity) && Number.isSafeInteger(matches[0].picked)
+        && matches[0].picked >= 0 && matches[0].picked <= matches[0].required
+        && (!matches[0].itemKey || matches[0].itemKey === itemKey(item));
+    });
+}
+function isAvailablePick(order) {
+  if (!activeStatus(order)) return false;
+  if (!order.pickWork) return !order.stockDecrementedAt;
+  return order.pickWork.status === 'released' && intactPickProgress(order)
+    && (!order.stockDecrementedAt || order.stockDecrementedBy === 'pick')
+    && order.pickWork.lines.some(line => line.picked < line.required);
+}
+function acquirePickWork(order, actor, sessionId) {
+  const fresh = initialWork(order, actor, sessionId);
+  if (!order.pickWork) return fresh;
+  if (!isAvailablePick(order)) fail('Pick-Fortschritt muss geprüft werden.', 'PICK_REVIEW');
+  // A new owner takes only the remainder. Historical receipts and picked
+  // quantities are never reset, including after a partial stock decrement.
+  return { ...order.pickWork, ...fresh, lines: order.pickWork.lines, receipts: order.pickWork.receipts || {},
+    lastBinCode: null };
+}
 function assertOwner(order, { tenantId, actor, token }) {
   requireActor(actor, tenantId);
   if (tenantOf(order) !== tenantId) fail('Auftrag nicht gefunden.', 'PICK_NOT_FOUND');
@@ -66,7 +93,7 @@ function preparePickBooking(order, request) {
     updatedAt: new Date().toISOString(),
     lastBinCode: binCode,
     lines: order.pickWork.lines.map((entry) => entry.itemId === line.itemId ? { ...entry, picked: entry.picked + quantity } : entry),
-    receipts: { ...order.pickWork.receipts, [receiptKey]: { fingerprint, itemId, quantity, binCode } },
+    receipts: { ...order.pickWork.receipts, [receiptKey]: { fingerprint, itemId, quantity, binCode, ownerUid: request.actor.uid } },
   } };
 }
 
@@ -106,8 +133,7 @@ function createPickWorkService({ db, listCandidates, loadRouteBins = async () =>
   async function claim({ tenantId, actor, sessionId, takeover = false, orderId: requestedId = null }) {
     requireActor(actor, tenantId);
     if (!sessionId || typeof sessionId !== 'string' || sessionId.length > 200) fail('Scanner-Kennung fehlt.');
-    const candidates = (await listCandidates(tenantId)).filter((order) => tenantOf(order) === tenantId && activeStatus(order)
-      && !order.pickWork && !order.stockDecrementedAt);
+    const candidates = (await listCandidates(tenantId)).filter((order) => tenantOf(order) === tenantId && isAvailablePick(order));
     // Location lookup is advisory and request-scoped. Ownership is still
     // reread and claimed atomically below, including on Firestore retries.
     let routeBinsPromise;
@@ -134,7 +160,7 @@ function createPickWorkService({ db, listCandidates, loadRouteBins = async () =>
           // No timer frees physical goods on a cart. Held/partially picked orders
           // stay assigned until an explicit, audited recovery is performed.
           const cancelledEmpty = (order.omsStatus || order.status) === 'cancelled' && work.lines.every((line) => line.picked === 0);
-          if (!cancelledEmpty && !['picked', 'packing', 'packed', 'shipped', 'delivered', 'completed'].includes(order.omsStatus || order.status)) {
+          if (work.status !== 'released' && !cancelledEmpty && !['picked', 'packing', 'packed', 'shipped', 'delivered', 'completed'].includes(order.omsStatus || order.status)) {
             if (work.sessionId !== sessionId && !takeover) fail('Auftrag ist auf einem anderen Scanner geöffnet.', 'PICK_OTHER_DEVICE');
             const next = { ...work, sessionId, token: work.sessionId === sessionId ? work.token : randomUUID(),
               status: activeStatus(order) ? 'active' : 'paused', updatedAt: new Date().toISOString() };
@@ -153,10 +179,10 @@ function createPickWorkService({ db, listCandidates, loadRouteBins = async () =>
         const snap = await tx.get(ref);
         if (!snap.exists) continue;
         const order = { ...snap.data(), id: snap.id };
-        if (tenantOf(order) !== tenantId || !activeStatus(order) || order.pickWork || order.stockDecrementedAt) continue;
-        const work = initialWork(order, actor, sessionId);
+        if (tenantOf(order) !== tenantId || !isAvailablePick(order)) continue;
+        const work = acquirePickWork(order, actor, sessionId);
         tx.update(ref, { pickWork: work });
-        tx.set(assignment, { tenantId, ownerUid: actor.uid, orderId: order.id, updatedAt: work.updatedAt });
+        tx.set(assignment, { ...(prior.exists ? prior.data() : {}), tenantId, ownerUid: actor.uid, orderId: order.id, updatedAt: work.updatedAt });
         return { ...order, pickWork: work };
       }
       return null;
@@ -177,4 +203,4 @@ function createPickWorkService({ db, listCandidates, loadRouteBins = async () =>
   return { current, claim, pause };
 }
 
-module.exports = { createPickWorkService, preparePickBooking, validatePickTransition };
+module.exports = { createPickWorkService, preparePickBooking, validatePickTransition, intactPickProgress, isAvailablePick, acquirePickWork };

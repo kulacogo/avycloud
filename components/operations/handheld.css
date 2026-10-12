@@ -56,5 +56,7 @@
 
 .handheld-quantity-page button { min-height: 48px; }
 .handheld-quantity-page input { min-height: 48px; }
+.handheld-end-dialog { display: contents; }
+.handheld-end-dialog button { min-height: 48px; }
 
 .handheld-hub-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); gap: 12px; flex: 1; min-height: 0; }

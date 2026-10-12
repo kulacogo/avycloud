@@ -1,12 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PageTitle } from './ui/PageTitle';
+import { ConfirmDialog } from './ui/ConfirmDialog';
 import { pickProgress, packProgress, mayReprintLabel } from '../utils/handheldProgress';
 import './operations/handheld.css';
-import { Order, Product, getOrderStatus } from '../types';
+import { Order, Product, PickRoundStep, getOrderStatus } from '../types';
 import { getProductQuantity } from '../utils/product';
 import {
   fetchOrders as fetchOrdersApi,
-  claimPickWork, fetchPickWork, pausePickWork,
+  nextPickRoundStop, endPickRound, fetchPickWork, pausePickWork,
   syncOrders as syncOrdersApi,
   completeOrder,
   packOrder,
@@ -170,6 +171,11 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
   // Fertiges Etikett, das nur noch gedruckt werden muss. Steht als grosser
   // Knopf im Pack-Bildschirm, bis der Mensch gedruckt oder weggetippt hat.
   const [assignedOrder, setAssignedOrder] = useState<Order | null>(null);
+  const [roundId, setRoundId] = useState<string | null>(null);
+  const roundIdRef = useRef<string | null>(null);
+  const assignmentInFlightRef = useRef(false);
+  const [routeStop, setRouteStop] = useState<PickRoundStep['stop']>(null);
+  const [endRoundOpen, setEndRoundOpen] = useState(false);
   const [assignmentBusy, setAssignmentBusy] = useState(false);
   const [assignmentError, setAssignmentError] = useState<string | null>(null);
   const [otherScanner, setOtherScanner] = useState(false);
@@ -185,22 +191,41 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
   const shipInFlightRef = useRef(false);
 
   const assignNextOrder = useCallback(async (takeover = false) => {
+    if (assignmentInFlightRef.current) return;
+    assignmentInFlightRef.current = true;
     setAssignmentBusy(true);
     setAssignmentError(null);
     setOtherScanner(false);
     try {
-      const order = await claimPickWork({ takeover });
+      const result = await nextPickRoundStop({ takeover, ...(roundIdRef.current ? { roundId: roundIdRef.current } : {}) });
+      const order = result.order;
+      roundIdRef.current = result.roundId; setRoundId(result.roundId); setRouteStop(result.stop);
       setAssignedOrder(order);
       setPickedByItemId(Object.fromEntries((order?.pickWork?.lines || []).map((line) => [line.itemId, line.picked])));
       setPendingPick(null); setActiveBin(''); setActiveSku(''); setPickMessage(null);
     } catch (error: any) {
       setAssignmentError(error.message);
       setOtherScanner(error.code === 'PICK_OTHER_DEVICE');
-    } finally { setAssignmentBusy(false); }
+      if (error.code === 'PICK_ROUND_ENDED') {
+        roundIdRef.current = null; setRoundId(null); setAssignedOrder(null); setRouteStop(null); setPickedByItemId({});
+      }
+    } finally { assignmentInFlightRef.current = false; setAssignmentBusy(false); }
   }, []);
   useEffect(() => {
     if (mode === 'operations-pick') void assignNextOrder();
   }, [mode, assignNextOrder]);
+  const finishRound = async () => {
+    if (!roundIdRef.current || pickBusy || assignmentInFlightRef.current) return;
+    assignmentInFlightRef.current = true;
+    setAssignmentBusy(true);
+    try {
+      await endPickRound(roundIdRef.current);
+      roundIdRef.current = null; setRoundId(null); setAssignedOrder(null); setRouteStop(null); setPickedByItemId({});
+      setPendingPick(null); setActiveBin(''); setActiveSku(''); setEndRoundOpen(false);
+      onNavigate('operations');
+    } catch (error: any) { setAssignmentError(error.message); setEndRoundOpen(false); }
+    finally { assignmentInFlightRef.current = false; setAssignmentBusy(false); }
+  };
 
   const [pendingLabel, setPendingLabel] = useState<{ blob?: Blob; orderId: string; orderLabel: string; carrier: string | null; shipmentId?: string | null; reprintId?: string } | null>(() => {
     try { return JSON.parse(sessionStorage.getItem(`avycloud:pending-label:${user?.uid}`) || 'null'); } catch { return null; }
@@ -284,7 +309,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
   const scanCaptureRef = useRef<HTMLElement | null>(null);
   const scanCaptureTimerRef = useRef<number | null>(null);
   const scanPausedRef = useRef(false);
-  scanPausedRef.current = shipDecisionStep !== 'idle' || Boolean(pendingLabel) || pickQuantityOpen || pickRouteOpen;
+  scanPausedRef.current = shipDecisionStep !== 'idle' || Boolean(pendingLabel) || pickQuantityOpen || pickRouteOpen || endRoundOpen;
 
   type IdentifySlotImage = { id: string; file: File; previewUrl: string };
   const [identifyImagesBySlot, setIdentifyImagesBySlot] = useState<Record<number, IdentifySlotImage[]>>({});
@@ -621,16 +646,17 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
       return pool;
     };
 
-    const chooseAllocatableBin = (product: Product | null) => {
+    const chooseAllocatableBin = (product: Product | null, preferred?: string) => {
       if (!product) return null;
       const pool = getBinPool(product);
       if (!pool.length) return null;
       pool.sort((a, b) => (b.quantity - a.quantity) || compareBinCodesForPickRoute(a.code, b.code));
-      return pool.find((b) => b.quantity > 0) || null;
+      return pool.find(b => b.quantity > 0 && b.code === preferred) || pool.find((b) => b.quantity > 0) || null;
     };
 
     (assignedOrder && assignedOrder.pickWork?.status === 'active' && ['confirmed', 'picking'].includes(getOrderStatus(assignedOrder)) ? [assignedOrder] : []).forEach((order) => {
-      order.items.forEach((it) => {
+      const routedItems = [...order.items].sort((a, b) => Number(b.id === routeStop?.itemId) - Number(a.id === routeStop?.itemId));
+      routedItems.forEach((it) => {
         const itemId = it.id;
         const pickedSoFar = Number(pickedByItemId[itemId] || 0) || 0;
         const total = Number(it.quantity || 0) || 0;
@@ -652,7 +678,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
           itemId;
 
         const stockProduct = hint?.bins ? { ...product, id: hint.productId || product?.id, storageBins: hint.bins, storage: undefined } as Product : product;
-        const allocatedBin = chooseAllocatableBin(stockProduct);
+        const allocatedBin = chooseAllocatableBin(stockProduct, routeStop?.itemId === itemId ? routeStop.binCode : undefined);
         const fallbackHintBin = hint?.binCode ? String(hint.binCode).toUpperCase() : '';
         const bestBin = allocatedBin || (fallbackHintBin ? { code: fallbackHintBin, quantity: Number(hint.quantityAvailable || 0) || 0 } : null);
 
@@ -728,9 +754,10 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
       };
     });
 
-    tasks.sort((a, b) => compareBinCodesForPickRoute(a.binCode, b.binCode));
+    const planned = (task: MobilePickTask) => task.binCode === routeStop?.binCode && task.allocations.some(a => a.itemId === routeStop.itemId);
+    tasks.sort((a, b) => Number(planned(b)) - Number(planned(a)) || compareBinCodesForPickRoute(a.binCode, b.binCode));
     return tasks;
-  }, [assignedOrder, pickedByItemId, resolveProductForItem]);
+  }, [assignedOrder, pickedByItemId, resolveProductForItem, routeStop]);
 
   const packItems = useMemo(() => {
     const ready = readyToPackOrders;
@@ -908,6 +935,9 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
           } else {
             setPickMessage(null);
           }
+          // Re-plan after EVERY booked stop across order boundaries. The next
+          // closest BIN may belong to another order in this same round.
+          await assignNextOrder();
         } catch (err: any) {
           console.error('Pick failed', err);
           try {
@@ -927,7 +957,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
         setPickBusy(false);
       }
     },
-    [assignedOrder, pickedByItemId, refreshOrders, t]
+    [assignedOrder, pickedByItemId, refreshOrders, t, assignNextOrder]
   );
   const resolveProductForStow = useCallback(
     (skuValue: string) => {
@@ -1462,7 +1492,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
     if (!isScanMode || scanPausedRef.current) return;
     scanCaptureRef.current?.focus({ preventScroll: true });
     logScanDebug('mode-focus');
-  }, [mode, shipDecisionStep, pendingLabel, pickQuantityOpen, pickRouteOpen, logScanDebug]);
+  }, [mode, shipDecisionStep, pendingLabel, pickQuantityOpen, pickRouteOpen, endRoundOpen, logScanDebug]);
 
   /**
    * Fangfeld zurückholen, sobald KEIN Dialog mehr offen ist.
@@ -1511,7 +1541,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
       window.clearTimeout(timer);
       window.removeEventListener('focus', reclaim);
     };
-  }, [mode, shipDecisionStep, pendingLabel, pickQuantityOpen, pickRouteOpen, logScanDebug]);
+  }, [mode, shipDecisionStep, pendingLabel, pickQuantityOpen, pickRouteOpen, endRoundOpen, logScanDebug]);
 
   // Verify focus survives every scan-step state change (BIN→SKU→confirm, next item).
   useEffect(() => {
@@ -2025,15 +2055,13 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
     const task = pendingPick || pickTasks[0] || null;
     const progress = pickProgress(assignedOrder?.pickWork?.lines || []);
     const finished = assignedOrder && getOrderStatus(assignedOrder) === 'picked';
-    const pause = async () => {
-      try {
-        if (assignedOrder?.pickWork && !finished) await pausePickWork(assignedOrder);
-        onNavigate('operations');
-      } catch (error: any) { setAssignmentError(error.message); }
-    };
     return (
       <section className="handheld-screen" aria-label="Picken">
         {renderScanCapture()}
+        <div className="handheld-end-dialog"><ConfirmDialog open={endRoundOpen} title="Pickrunde beenden?"
+          description="Offene Picks werden freigegeben. Bereits gepickte Ware am Packplatz ablegen."
+          confirmLabel="Runde beenden" cancelLabel="Weiterpicken" confirmBusy={assignmentBusy}
+          onCancel={() => { if (!assignmentBusy) setEndRoundOpen(false); }} onConfirm={finishRound} /></div>
         <header className="handheld-heading"><PageTitle>{pickQuantityOpen ? 'Menge' : 'Picken'}</PageTitle>
           <span className="handheld-counter">{progress.completedItems}/{progress.totalItems} Artikel</span>
         </header>
@@ -2074,7 +2102,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
                 {pendingPick && <button className="handheld-secondary" onClick={() => setPickQuantityOpen(true)}>Ändern</button>}
               </div>
             </article>
-          </> : <div className="handheld-empty"><h2>{assignmentError ? 'Auftrag nicht verfügbar' : progress.complete ? 'Alle Artikel gepickt' : 'Keine freie Pick-Arbeit'}</h2></div>}
+          </> : <div className="handheld-empty"><h2>{assignmentError ? 'Auftrag nicht verfügbar' : progress.complete ? 'Alle Artikel gepickt' : 'Keine weiteren Picks'}</h2></div>}
           <footer className="handheld-actions">
             {otherScanner ? <button className="handheld-primary" disabled={assignmentBusy} onClick={() => void assignNextOrder(true)}>Auf diesem Scanner fortsetzen</button>
             : assignedOrder?.pickWork?.status === 'paused' ? <button className="handheld-primary" disabled={assignmentBusy} onClick={() => void assignNextOrder()}>Auftrag fortsetzen</button>
@@ -2086,12 +2114,15 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
               }}>Auftrag abschließen</button>
             : task ? <button className="handheld-primary" disabled={!pendingPick || pickBusy || !pendingPickQty} onClick={() => pendingPick && void submitPick(pendingPick, pendingPickQty)}>
                 {pickBusy ? 'Wird gebucht…' : pendingPick ? `${pendingPickQty} Stück gepickt` : !activeBin ? 'BIN scannen' : 'Artikel scannen'}</button>
+            : roundId && !assignmentError ? <button className="handheld-primary" disabled={assignmentBusy} onClick={() => setEndRoundOpen(true)}>Runde beenden</button>
             : <button className="handheld-primary" disabled={assignmentBusy} onClick={() => void assignNextOrder()}>Erneut prüfen</button>}
             <div className="handheld-secondary-row">
-              <button className="handheld-secondary" disabled={pickBusy || assignmentBusy} onClick={() => void pause()}>{finished ? 'Übersicht' : 'Pause'}</button>
+              {task || assignmentError || finished
+                ? <button className="handheld-secondary" disabled={pickBusy || assignmentBusy || !roundId} onClick={() => setEndRoundOpen(true)}>Runde beenden</button>
+                : <button className="handheld-secondary" disabled={assignmentBusy} onClick={() => void assignNextOrder()}>Erneut prüfen</button>}
               <button className="handheld-secondary" disabled={!task || pickBusy} onClick={() => setPickRouteOpen(true)}>Artikel</button>
               <button className="handheld-secondary" disabled={!assignedOrder || pickBusy || Boolean(finished)} onClick={async () => {
-                try { if (assignedOrder) await pausePickWork(assignedOrder); setAssignmentError('Auftrag pausiert. Fehlmenge am Packtisch klären.'); setPendingPick(null); setAssignedOrder((o) => o?.pickWork ? { ...o, pickWork: { ...o.pickWork, status: 'paused' } } : o); }
+                try { if (assignedOrder) await pausePickWork(assignedOrder); setPendingPick(null); await assignNextOrder(); }
                 catch (error: any) { setAssignmentError(error.message); }
               }}>Problem</button>
             </div>

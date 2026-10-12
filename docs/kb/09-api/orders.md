@@ -1,7 +1,7 @@
 ---
 title: API — Orders (OMS + Dashboard + Shipping + Invoices)
 for: [dev, agent, admin]
-lastReviewed: 2026-05-18
+lastReviewed: 2026-10-12
 ---
 
 # API — Orders
@@ -477,3 +477,21 @@ Stand 2026-10-07, alle drei Endpunkte benötigen `orders:pick`, Tenant und Mitar
 Konflikte HTTP 409, `error.code=PICK_OTHER_DEVICE` bei anderem Scanner desselben Kontos. Clients müssen ausdrücklich übernehmen. `warehouse/stock-out` übergibt `meta.pickToken` und stabile `meta.requestId`, ergänzt um bestehende `orderId` und `orderItemId`. Serverseitig prüfen und speichern Fortschritt und Lagerbuchung atomar. [Vollständiger Vertrag](../06-features/handheld-pick-pack.md).
 
 Routenfortsetzung (12.10.2026): Eine automatische neue Zuweisung bevorzugt freie Arbeit entlang der Lagerroute ab dem letzten bestätigten `pickWork.lastBinCode`. Alter ist nur Gleichstandsregel am selben BIN. Aktive/pausierte Arbeit, explizite `orderId`, Tenant-/Owner-/Scannerprüfung und Request-/Response-Form bleiben unverändert. Die Lagerplatzprojektion liest tenantgebundene Produktdaten ohne Mutation. Ausfall der Projektion: HTTP 503 `PICK_ROUTE_UNAVAILABLE` vor neuer Zuweisung; eigener bestehender Auftrag kann weiterhin fortgesetzt werden. Es werden keine Bestände oder künftigen Aufträge vorab reserviert. Quellen und Grenzen im [Featurevertrag](../06-features/handheld-pick-pack.md#durchgehender-rundgang-über-mehrere-aufträge).
+
+
+## Auftragsübergreifende Pickrunde
+
+Stand 12.10.2026. Beide Endpunkte benötigen `orders:pick`; Actor/Tenant ausschließlich aus `req.user`. Bestehende Pick-/Stock-/OMS-Endpunkte bleiben kompatibel.
+
+| Endpunkt | Eingabe | `data` in der Antwort |
+|---|---|---|
+| POST `/api/orders/pick-round/next` | `{sessionId, roundId?:string, takeover?:boolean}` | `{roundId, order: Order|null, stop: {itemId, binCode, quantity}|null}`; `Cache-Control: no-store`. |
+| POST `/api/orders/pick-round/end` | `{sessionId, roundId}` | `{roundId, releasedOrders, endedAt}`. Wiederholung desselben Abschlusses liefert dasselbe Ergebnis. |
+
+`next` beginnt/öffnet eine Runde und wählt nach jedem gebuchten BIN aus eigener offener und freier Arbeit den nächsten Stopp. Bestehende fremde Zuweisungen sind ausgeschlossen. Problem-Pausen mit derselben `roundId` werden übersprungen; sie bleiben bis zum Abschluss gehalten. Explizite Scannerübernahme erneuert die Token aller gehaltenen Restaufträge, auch wenn deren OMS-Status zwischenzeitlich gesperrt wurde.
+
+`end` gibt alle noch gehaltenen Restaufträge in einer Transaktion frei (`pickWork.status=released`, neue Token, Herkunft in `releaseHistory`). Positionen, gebuchte Mengen, Quittungen und Stock-Marker bleiben unverändert. Es schreibt keinen OMS-Status und bucht keinen Bestand. Wenn eine vollständige Buchung ihren anschließenden OMS-Abschluss verloren hat, schließt der Router sie zuerst mit `transitionOrder(...picked)` ab und wiederholt die Aktion. Geänderte Positionen werden nicht automatisch korrigiert.
+
+`409 PICK_ROUND_ENDED`: alte/beendete Runde; `409 PICK_OTHER_DEVICE`: anderes Scannerkonto der gleichen UID/Sitzung, explizite Übernahme nötig; `409 PICK_REVIEW`: inkonsistente Auftragspositionen. `503 PICK_ROUTE_UNAVAILABLE`: Ortsprojektion fehlgeschlagen, keine neue Zuweisung. Ohne `roundId` wird eine aktive Runde wieder aufgenommen oder eine neue begonnen; nach bestätigtem Ende darf ein alter Request mit dessen `roundId` keine Arbeit zurückholen.
+
+Keine neue Collection, kein neuer Index und keine Konfiguration. Additive Felder und Geometriegrenzen im [Featurevertrag](../06-features/handheld-pick-pack.md).
