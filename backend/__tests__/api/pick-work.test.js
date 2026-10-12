@@ -48,3 +48,51 @@ it('uses fresh scoped BIN projections for two employees instead of FIFO arrival 
   expect(responses.map(r => r.body.data.id).sort()).toEqual(['b-s','c-x']);
   expect(db.rows.get('orders/a-l').pickWork).toBeUndefined();
 });
+it('round endpoints release remaining work only for the authenticated owner and preserve partial quantities', async () => {
+  db.rows.clear();
+  db.rows.set('orders/partial', { tenantId: 'default', omsStatus: 'picking', marketplace: 'ebay',
+    items: [{ id: 'line', sku: 'PARTIAL', quantity: 3 }] });
+  db.rows.set('products_v2/partial', { tenantId: 'default', identification: { sku: 'PARTIAL' }, storageBins: [{ code: 'XEG0202A', quantity: 8 }] });
+  const start = await request(app).post('/api/orders/pick-round/next').set('x-test-user', 'alice')
+    .send({ sessionId: 'a', actor: { uid: 'bob' }, tenantId: 'foreign' });
+  expect(start.status).toBe(200);
+  expect(start.body.data.stop).toMatchObject({ itemId: 'line', binCode: 'XEG0202A', quantity: 3 });
+  const roundId = start.body.data.roundId;
+  const { preparePickBooking } = require('../../services/pick-work');
+  const order = db.rows.get('orders/partial');
+  order.pickWork = preparePickBooking(order, { tenantId: 'default', actor: { uid: 'alice' }, token: order.pickWork.token,
+    itemId: 'line', sku: 'PARTIAL', quantity: 1, binCode: 'XEG0202A', requestId: 'http-pick' }).work;
+  order.stockDecrementedAt = 'today'; order.stockDecrementedBy = 'pick';
+  const wrong = await request(app).post('/api/orders/pick-round/end').set('x-test-user', 'bob').send({ sessionId: 'a', roundId, actor: { uid: 'alice' } });
+  expect(wrong.status).toBe(409);
+  const end = await request(app).post('/api/orders/pick-round/end').set('x-test-user', 'alice').send({ sessionId: 'a', roundId });
+  expect(end.status).toBe(200); expect(end.body.data.releasedOrders).toBe(1);
+  const bob = await request(app).post('/api/orders/pick-round/next').set('x-test-user', 'bob').send({ sessionId: 'b' });
+  expect(bob.status).toBe(200); expect(bob.body.data.order.pickWork.ownerUid).toBe('bob');
+  expect(bob.body.data.order.pickWork.lines[0].picked).toBe(1);
+  expect(bob.body.data.stop.quantity).toBe(2);
+  expect(bob.body.data.order.stockDecrementedAt).toBe('today');
+});
+it.each(['end', 'next'])('finishes fully booked work through the OMS before round %s', async action => {
+  db.rows.clear();
+  db.rows.set('orders/done', { tenantId: 'default', omsStatus: 'picking', marketplace: 'ebay',
+    items: [{ id: 'line', sku: 'DONE', quantity: 1 }] });
+  const first = await request(app).post('/api/orders/pick-round/next').set('x-test-user', 'alice').send({ sessionId: 'a' });
+  db.rows.get('orders/done').pickWork.lines[0].picked = 1;
+  const oms = require('../../services/order-state-machine');
+  const transition = vi.spyOn(oms, 'transitionOrder').mockImplementation(async ({ tenantId, orderId, toStatus, actor }) => {
+    expect(tenantId).toBe('default'); expect(actor.uid).toBe('alice'); expect(toStatus).toBe('picked');
+    db.rows.get(`orders/${orderId}`).omsStatus = toStatus;
+    return { ok: true };
+  });
+  try {
+    const response = await request(app).post(`/api/orders/pick-round/${action}`).set('x-test-user', 'alice')
+      .send({ sessionId: 'a', roundId: first.body.data.roundId });
+    expect(response.status).toBe(200);
+    expect(transition).toHaveBeenCalledTimes(1);
+    expect(db.rows.get('orders/done').pickWork.lines[0].picked).toBe(1);
+    expect(db.rows.get('orders/done').omsStatus).toBe('picked');
+    if (action === 'end') expect(response.body.data.releasedOrders).toBe(0);
+    else expect(response.body.data.order).toBeNull();
+  } finally { transition.mockRestore(); }
+});

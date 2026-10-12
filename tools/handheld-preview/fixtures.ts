@@ -21,6 +21,22 @@ export const claimPickWork = async () => {
   order.pickWork.status = 'active'; save(); return structuredClone(order);
 };
 export const pausePickWork = async () => { order.pickWork.status = 'paused'; save(); };
+let roundId = 'preview-round';
+export const nextPickRoundStop = async () => {
+  if (order.pickWork?.status === 'paused') return { roundId, order: null, stop: null };
+  const picked = await claimPickWork();
+  const lines = [...(picked?.pickWork.lines || [])];
+  if (new URLSearchParams(location.search).has('reverseStop')) lines.reverse();
+  const line = lines.find(line => line.picked < line.required);
+  const item = picked?.items.find(item => item.id === line?.itemId);
+  const binCode = products.find(p => p.identification.sku === item?.sku)?.storage.binCode;
+  return { roundId, order: picked, stop: line ? { itemId: line.itemId, binCode, quantity: line.required - line.picked } : null };
+};
+export const endPickRound = async () => {
+  if (new URLSearchParams(location.search).has('endFailure')) throw new Error('Verbindung unterbrochen. Erneut versuchen.');
+  if (order.pickWork) order.pickWork.status = 'released';
+  roundId = `preview-round-${Date.now()}`; save(); return { releasedOrders: 1 };
+};
 export const stockOutProduct = async (payload) => {
   const line = order.pickWork.lines.find((line) => line.itemId === payload.orderItemId);
   line.picked += payload.quantity; save();

@@ -467,4 +467,23 @@ describe('managed pick commits progress atomically with BIN stock', () => {
     await expect(bookStockOut({ ...request, meta: { ...request.meta, requestId: 'request-2' } })).rejects.toThrow(/Menge/);
     expect(_capturedTx.__writes()).toBe(0);
   });
+  it('a second employee books only the remainder after an explicitly ended round', async () => {
+    const first = managed();
+    const original = _docs.get('orders/ORDER-PICK-1').data();
+    original.items[0].quantity = 2; original.pickWork.lines[0].required = 2;
+    await bookStockOut(first); commitCaptured();
+    const partial = _docs.get('orders/ORDER-PICK-1').data();
+    expect(partial.pickWork.lines[0].picked).toBe(1);
+    partial.pickWork.status = 'released';
+    const { acquirePickWork } = require('../services/pick-work');
+    partial.pickWork = acquirePickWork(partial, { uid: 'bob' }, 'scanner-b');
+    const second = { ...first, meta: { ...first.meta, actor: { uid: 'bob' }, pickToken: partial.pickWork.token, requestId: 'bob-remainder' } };
+    await expect(bookStockOut(first)).rejects.toThrow(/Mitarbeiter/);
+    expect(_capturedTx.__writes()).toBe(0);
+    await bookStockOut(second); commitCaptured();
+    expect(_docs.get('orders/ORDER-PICK-1').data().pickWork.lines[0].picked).toBe(2);
+    expect(_docs.get('warehouseBins/XGA0101A').data().products[0].quantity).toBe(3);
+    const retry = await bookStockOut(second);
+    expect(retry.deduped).toBe(true); expect(_capturedTx.__writes()).toBe(0);
+  });
 });

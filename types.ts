@@ -643,9 +643,16 @@ export interface PickWork {
   ownerName: string;
   sessionId: string;
   token: string;
-  status: 'active' | 'paused';
+  status: 'active' | 'paused' | 'released';
+  roundId?: string;
   updatedAt: string;
   lines: Array<{ itemId: string; required: number; picked: number }>;
+}
+
+export interface PickRoundStep {
+  roundId: string;
+  order: Order | null;
+  stop: { itemId: string; binCode: string; quantity: number } | null;
 }
 
 export interface Order {

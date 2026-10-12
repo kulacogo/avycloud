@@ -81,19 +81,64 @@ function normalizeOrderForResponse(order) {
 }
 
 // Pick assignments are additive; status changes still go through transitionOrder.
-const pickWorkService = require('../services/pick-work').createPickWorkService({
-  db: firestore,
-  loadRouteBins: (context) => require('../services/pick-route-locations').loadPickRouteBins(firestore, context),
-  listCandidates: async (tenantId) => {
+const listPickCandidates = async (tenantId) => {
     const snap = await firestore.collection('orders').where('tenantId', '==', tenantId)
       .where('omsStatus', 'in', ['confirmed', 'picking']).get();
     return snap.docs.map((doc) => ({ ...doc.data(), id: doc.id }));
-  },
+};
+const pickWorkService = require('../services/pick-work').createPickWorkService({
+  db: firestore,
+  loadRouteBins: (context) => require('../services/pick-route-locations').loadPickRouteBins(firestore, context),
+  listCandidates: listPickCandidates,
+});
+const pickRoundService = require('../services/pick-round').createPickRoundService({ db: firestore,
+  listCandidates: listPickCandidates,
+  loadStops: context => require('../services/pick-route-locations').loadPickRouteStops(firestore, context),
 });
 const pickContext = (req) => ({ tenantId: req.user?.tenantId || 'default',
   actor: { uid: req.user?.uid, email: req.user?.email || null } });
 const sendPickError = (res, error) => res.status(error.status || 500).json({ ok: false,
   error: { code: error.code || 'PICK_ERROR', message: error.message } });
+
+// A successful stock booking may have lost its following completion response.
+// Finish such orders through the OMS, never by resetting progress or status.
+async function runRoundAction(action, context) {
+  const completed = new Set();
+  for (;;) {
+    try { return await action(context); }
+    catch (error) {
+      if (error.code !== 'PICK_COMPLETE_REQUIRED' || !error.orderId || completed.has(error.orderId)) throw error;
+      completed.add(error.orderId);
+      const result = await require('../services/order-state-machine').transitionOrder({
+        ...context, orderId: error.orderId, toStatus: 'picked', note: 'Pickpositionen vollständig gebucht',
+      });
+      if (!result.ok) throw Object.assign(new Error(result.error), { status: 409 });
+    }
+  }
+}
+router.post('/orders/pick-round/next', requirePermission('orders', 'pick'), async (req, res) => {
+  try {
+    const context = { ...pickContext(req), sessionId: req.body?.sessionId,
+      roundId: req.body?.roundId, takeover: req.body?.takeover === true };
+    const result = await runRoundAction(pickRoundService.next, context);
+    if (result.order?.omsStatus === 'confirmed') {
+      const changed = await require('../services/order-state-machine').transitionOrder({
+        ...pickContext(req), orderId: result.order.id, toStatus: 'picking', note: 'In Pickrunde übernommen',
+      });
+      if (!changed.ok) throw Object.assign(new Error(changed.error), { status: 409 });
+      result.order.omsStatus = 'picking';
+    }
+    const rows = result.order ? await attachPickHintsToOrders([result.order]) : [];
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({ ok: true, data: { ...result, order: rows[0] ? normalizeOrderForResponse(rows[0]) : null } });
+  } catch (error) { sendPickError(res, error); }
+});
+router.post('/orders/pick-round/end', requirePermission('orders', 'pick'), async (req, res) => {
+  try {
+    const result = await runRoundAction(pickRoundService.end, { ...pickContext(req), sessionId: req.body?.sessionId, roundId: req.body?.roundId });
+    res.json({ ok: true, data: result });
+  } catch (error) { sendPickError(res, error); }
+});
 
 router.get('/orders/pick-work', requirePermission('orders', 'pick'), async (req, res) => {
   try {

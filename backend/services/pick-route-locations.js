@@ -1,5 +1,5 @@
 'use strict';
-const { planOrderBins } = require('./pick-route');
+const { planOrderBins, planOrderStops } = require('./pick-route');
 const fields = ['tenantId', 'identification.sku', 'details.identifiers.sku', 'details.identifiers.ean', 'storageBins', 'storage'];
 const text = value => String(value || '').trim();
 const normalize = value => text(value).toUpperCase();
@@ -7,11 +7,11 @@ const chunks = (values, size) => Array.from({ length: Math.ceil(values.length / 
 
 // Read-only planning projection. Quantities are NOT reserved here. The existing
 // stock transaction remains the sole authority on ownership and actual stock.
-async function loadPickRouteBins(db, { tenantId, orders }) {
+async function loadPickRouteBins(db, { tenantId, orders, stops = false, lastBinCode = null }) {
   if (!tenantId) throw new Error('Pick route tenant is required');
   if (!orders.length) return new Map();
   const scoped = orders.filter(order => (order.tenantId || 'default') === tenantId);
-  const items = scoped.flatMap(order => Array.isArray(order.items) ? order.items : []);
+  const items = scoped.flatMap(order => Array.isArray(order.items) ? order.items.filter(Boolean) : []);
   const products = new Map();
   const add = doc => {
     if (!doc.exists) return;
@@ -45,7 +45,9 @@ async function loadPickRouteBins(db, { tenantId, orders }) {
     }
     if (product.details?.identifiers?.ean) addAlias(`ean:${text(product.details.identifiers.ean)}`, product);
   }
-  return new Map(scoped.map(order => [order.id, planOrderBins(order, item =>
-    products.get(text(item.productId)) || aliases.get(item.sku ? `sku:${normalize(item.sku)}` : `ean:${text(item.ean)}`))]));
+  const resolve = item => products.get(text(item.productId)) || aliases.get(item.sku ? `sku:${normalize(item.sku)}` : `ean:${text(item.ean)}`);
+  return new Map(scoped.map(order => [order.id, stops
+    ? planOrderStops(order, resolve, { nearest: true, lastBinCode }) : planOrderBins(order, resolve)]));
 }
-module.exports = { loadPickRouteBins };
+const loadPickRouteStops = (db, context) => loadPickRouteBins(db, { ...context, stops: true });
+module.exports = { loadPickRouteBins, loadPickRouteStops };

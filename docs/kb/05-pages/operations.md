@@ -1,7 +1,7 @@
 ---
 title: Operations (Identifizieren / Einlagern / Kommissionieren / Verpacken)
 for: [user, dev, admin]
-lastReviewed: 2026-05-18
+lastReviewed: 2026-10-12
 ---
 
 ## Zweck
@@ -69,3 +69,8 @@ Pro-Endpunkt-Doku: `docs/kb/09-api/orders.md`, `docs/kb/09-api/warehouse.md`, `d
 ## Handheld-Release 2026-10-07
 
 Der neue Pick-/Pack-Arbeitsablauf und die abweichende Desktop-Zuweisung sind in [Handheld Pick/Pack](../06-features/handheld-pick-pack.md) dokumentiert. Diese Implementierung ersetzt die frühere lokale Pick-Fortschrittsführung. Zum tatsächlichen Produktionsstatus siehe den dort verlinkten Releasebericht.
+
+
+## Mobile Pickrunden (12.10.2026)
+
+Nach jeder gebuchten Position bestimmt `nextPickRoundStop()` den nächsten BIN über Auftragsgrenzen hinweg. „Runde beenden“ bleibt unten erreichbar und gibt nach Bestätigung alle gehaltenen Restaufträge frei. Bereits gepickte Ware wird am Packplatz abgelegt; zentrale Mengen bleiben erhalten. „Problem“ überspringt die aktuelle Arbeit bis zum Rundenende. Bei „Keine weiteren Picks“ lässt sich die Runde beenden oder nach neuer Arbeit suchen. Details: [Pickrunde](../06-features/handheld-pick-pack.md).

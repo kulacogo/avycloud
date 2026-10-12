@@ -11,6 +11,7 @@ import {
   WarehouseLotsMeta,
   IdentifyPhase,
   Order,
+  PickRoundStep,
   ProductImage,
   IdentificationJob,
   ProductEnrichmentRecord,
@@ -5238,6 +5239,24 @@ export async function pausePickWork(order: Order): Promise<void> {
   });
   const result = await parseResponse(response);
   if (!response.ok) throw new Error(result?.error?.message || 'Pause konnte nicht gespeichert werden.');
+}
+export async function nextPickRoundStop(options: { roundId?: string; takeover?: boolean } = {}): Promise<PickRoundStep> {
+  const response = await fetchApi(`${BACKEND_URL}/api/orders/pick-round/next`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sessionId: getPickSessionId(), ...options }),
+  });
+  const result = await parseResponse(response);
+  if (!response.ok) throw Object.assign(new Error(result?.error?.message || 'Pickrunde konnte nicht geladen werden.'), { code: result?.error?.code });
+  return result.data;
+}
+export async function endPickRound(roundId: string): Promise<{ releasedOrders: number }> {
+  const response = await fetchApi(`${BACKEND_URL}/api/orders/pick-round/end`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sessionId: getPickSessionId(), roundId }),
+  });
+  const result = await parseResponse(response);
+  if (!response.ok) throw new Error(result?.error?.message || 'Pickrunde konnte nicht beendet werden.');
+  return result.data;
 }
 
 export const stockOutProduct = async (payload: {

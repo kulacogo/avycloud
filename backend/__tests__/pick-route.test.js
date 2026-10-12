@@ -1,7 +1,22 @@
 'use strict';
-const { rankPickCandidates, compareBins, parseBin, lastPickBin, planOrderBins } = require('../services/pick-route');
+const { rankPickCandidates, compareBins, compareBinsNear, parseBin, lastPickBin, planOrderBins, planOrderStops } = require('../services/pick-route');
 const o = (id, bins, createdAt = '2026-10-12T07:00:00Z') => ({ id, createdAt, routeBins: bins });
 const ids = (orders, anchor) => rankPickCandidates(orders, anchor).map(x => x.id);
+
+it('chooses the neighbouring shelf instead of restarting at the back of the aisle', () => {
+  const bins = ['XEG0314A', 'XEG0305A', 'XEG0204A', 'LEG0304A'];
+  expect(bins.sort((a,b) => compareBinsNear(a,b,'XEG0304A'))).toEqual(['XEG0305A', 'XEG0314A', 'XEG0204A', 'LEG0304A']);
+});
+it('plans only remaining quantities and prefers the nearby stock location', () => {
+  const order = { items: [{ id: 'a', quantity: 3 }, { id: 'b', quantity: 1 }],
+    pickWork: { lines: [{ itemId: 'a', picked: 1 }, { itemId: 'b', picked: 1 }] } };
+  const product = { id: 'p', storageBins: [{ code: 'LEG0101A', quantity: 20 }, { code: 'XEG0305A', quantity: 2 }] };
+  expect(planOrderStops(order, () => product, { nearest: true, lastBinCode: 'XEG0304A' }))
+    .toEqual([{ itemId: 'a', binCode: 'XEG0305A', quantity: 2 }]);
+});
+it('does not use the previous employee’s historical BIN as the new employee’s location', () => {
+  expect(lastPickBin({ pickWork: { lastBinCode: null, receipts: { old: { binCode: 'LEG0101A' } } } })).toBeNull();
+});
 
 describe('warehouse route across orders', () => {
   it('groups zones instead of following interleaved order arrival', () => {
