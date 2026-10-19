@@ -50,8 +50,8 @@ describe('K-Typ Identify-Ordering — Kategorie VOR K-Typ', () => {
 });
 
 describe('K-Typ Chat-Chokepoint — alle Pipelines, persistiert via Change-Card', () => {
-  it('startChatKTypEnrichment wird nach dem Produkt-Load gestartet', () => {
-    expect(identifySrc).toMatch(/const ktypEnrichHandle = startChatKTypEnrichment\(product\)/);
+  it('startChatKTypEnrichment startet nur bei angefragten Attributen', () => {
+    expect(identifySrc).toMatch(/const ktypEnrichHandle = scopeAllowsGroup\(normalizedScope, 'attributes'\) \? startChatKTypEnrichment\(product\) : null/);
   });
 
   it('attachKTypDatasheetChange laeuft in Stream- UND Sync-Zweig — MIT der User-Nachricht', () => {

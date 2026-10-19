@@ -1,6 +1,8 @@
 'use strict';
 
 const router = require('express').Router();
+const { resolveRequestScope, scopeAllowsGroup, restrictChatResult } = require('../lib/chat-scope');
+const { withChatRequest, requestUsage, runModelCall, runToolCall } = require('../lib/chat-request');
 const multer = require('multer');
 const crypto = require('crypto');
 const { requirePermission } = require('../lib/rbac');
@@ -1509,10 +1511,10 @@ async function validateChatPricing(chatResult, product) {
   let anyUnverified = false;
   for (const change of withPricing) {
     try {
-      const { pricing, verifiedCount, droppedCount, note, infraFailure } = await validatePricingProposal({
+      const { pricing, verifiedCount, droppedCount, note, infraFailure } = await runToolCall('validate_pricing', () => validatePricingProposal({
         pricing: change.pricing,
         product,
-      });
+      }));
       change.pricing = pricing;
       if (note) {
         pendingNotes.add(note);
@@ -1587,7 +1589,7 @@ async function validateChatGpsr(chatResult, product, scope = null, userMessage =
 
   try {
     const { extractGpsrFromImages, mergeLabelGpsrIntoCard } = require('../lib/gpsr-image-extract');
-    const extracted = await extractGpsrFromImages(product);
+    const extracted = await runModelCall(() => extractGpsrFromImages(product), 'gpsr-evidence');
     if (extracted && extracted.gpsr && Object.keys(extracted.gpsr).length) {
       gpsrImageSourced = true;
       let gpsrChange = changes.find((c) => c && c.gpsr && typeof c.gpsr === 'object');
@@ -1661,7 +1663,7 @@ function startChatKTypEnrichment(product) {
   const promise = (async () => {
     try {
       const { enrichKTypIfPossible } = require('../lib/ktype-enrichment');
-      await enrichKTypIfPossible(product, { reason: 'chat' });
+      await runToolCall('enrich_ktype', () => enrichKTypIfPossible(product, { reason: 'chat' }));
     } catch (err) {
       console.warn('[chat] K-Typ enrichment failed (non-blocking):', err?.message || err);
     }
@@ -1829,11 +1831,23 @@ router.post('/chat', requirePermission('ai', 'chat'), identifyLimiter, chatUploa
     }
 
     const payloadMessage = normalizedMessage || 'Bitte analysiere die angehängten Dateien.';
-    const normalizedScope = typeof scope === 'string' ? scope.trim() : null;
+    const requestScope = resolveRequestScope({ scope, message: payloadMessage });
+    const normalizedScope = requestScope.scope;
+    if (requestScope.needsClarification) {
+      const data = restrictChatResult({ message: 'Welchen Bereich soll ich bearbeiten — Titel, Preis, Beschreibung, Attribute oder ausdrücklich alles?', datasheetChanges: [], imageSuggestions: [], intent: 'info' }, requestScope);
+      if (streamMode) {
+        res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' });
+        res.write(`data: ${JSON.stringify({ type: 'result', data })}\n\n`);
+        res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
+        return res.end();
+      }
+      return res.json({ ok: true, data });
+    }
+    return await withChatRequest(requestScope, async () => {
 
     // K-Typ-Anreicherung parallel zum LLM-Call starten (alle Pipelines).
     // Ergebnis wird unten via attachKTypDatasheetChange als Change-Card angehängt.
-    const ktypEnrichHandle = startChatKTypEnrichment(product);
+    const ktypEnrichHandle = scopeAllowsGroup(normalizedScope, 'attributes') ? startChatKTypEnrichment(product) : null;
 
     if (streamMode) {
       // SSE streaming mode: write progress events as they happen
@@ -1888,6 +1902,7 @@ router.post('/chat', requirePermission('ai', 'chat'), identifyLimiter, chatUploa
             chatResult = await runProductChatV3({
               product,
               message: payloadMessage,
+              scope: normalizedScope,
               history: conversationHistory,
               attachments: runV2V3AttachmentParts,
               onProgress,
@@ -1897,6 +1912,7 @@ router.post('/chat', requirePermission('ai', 'chat'), identifyLimiter, chatUploa
             });
             pipelineUsed = 'v3';
           } catch (v3Error) {
+            if (v3Error?.code === 'CHAT_REQUEST_BUDGET') throw v3Error;
             pipelineErrors.v3 = v3Error?.message || String(v3Error);
             console.warn('[chat] V3 failed, falling back to V2:', pipelineErrors.v3);
             try { onProgress({ type: 'tool_start', tool: 'fallback_v2', error: pipelineErrors.v3 }); } catch {}
@@ -1916,6 +1932,7 @@ router.post('/chat', requirePermission('ai', 'chat'), identifyLimiter, chatUploa
             });
             pipelineUsed = 'v2';
           } catch (v2Error) {
+            if (v2Error?.code === 'CHAT_REQUEST_BUDGET') throw v2Error;
             pipelineErrors.v2 = v2Error?.message || String(v2Error);
             console.warn('[chat] V2 grounding failed, falling back to legacy:', pipelineErrors.v2);
             console.error('[chat] V2 full error:', v2Error);
@@ -1935,6 +1952,7 @@ router.post('/chat', requirePermission('ai', 'chat'), identifyLimiter, chatUploa
             });
             pipelineUsed = 'legacy';
           } catch (legacyError) {
+            if (legacyError?.code === 'CHAT_REQUEST_BUDGET') throw legacyError;
             pipelineErrors.legacy = legacyError?.message || String(legacyError);
             console.error('[chat] Legacy also failed:', pipelineErrors.legacy);
           }
@@ -1958,6 +1976,8 @@ router.post('/chat', requirePermission('ai', 'chat'), identifyLimiter, chatUploa
         }
         chatResult.pipeline = pipelineUsed;
 
+        // Nur angefragte Arbeit darf kostenpflichtige Nachprüfungen auslösen.
+        restrictChatResult(chatResult, requestScope);
         // Preis-Belege prüfen BEVOR das Ergebnis rausgeht (alle Pipelines).
         try { onProgress({ type: 'tool_start', tool: 'price_evidence_check' }); } catch {}
         await validateChatPricing(chatResult, product);
@@ -1968,6 +1988,9 @@ router.post('/chat', requirePermission('ai', 'chat'), identifyLimiter, chatUploa
 
         // K-Typ-Ergebnis (lief parallel) als Change-Card anhängen (alle Pipelines).
         await attachKTypDatasheetChange(chatResult, product, ktypEnrichHandle, normalizedMessage);
+        restrictChatResult(chatResult, requestScope);
+        chatResult.requestUsage = requestUsage();
+        console.log('[chat request] %s', JSON.stringify({ scope: normalizedScope, ...chatResult.requestUsage }));
 
         console.log('[chat] pipeline=%s model=%s product=%s', pipelineUsed, chatResult.model || chatResult.modelUsed, productId);
 
@@ -1990,7 +2013,7 @@ router.post('/chat', requirePermission('ai', 'chat'), identifyLimiter, chatUploa
         writeEvent({ type: 'done' });
       } catch (error) {
         console.error('[chat stream] Error:', error.message);
-        writeEvent({ type: 'error', message: String(error?.message || 'Unknown error').slice(0, 500) });
+        writeEvent({ type: 'error', code: error?.code, message: String(error?.message || 'Unknown error').slice(0, 500) });
       }
       return res.end();
     }
@@ -2020,6 +2043,7 @@ router.post('/chat', requirePermission('ai', 'chat'), identifyLimiter, chatUploa
         chatResult = await runProductChatV3({
           product,
           message: payloadMessage,
+          scope: normalizedScope,
           history: conversationHistory,
           attachments: Array.isArray(attachments) ? attachments : [],
           tenantId: req.user?.tenantId || null,
@@ -2028,6 +2052,7 @@ router.post('/chat', requirePermission('ai', 'chat'), identifyLimiter, chatUploa
         });
         pipelineUsed = 'v3';
       } catch (v3Error) {
+        if (v3Error?.code === 'CHAT_REQUEST_BUDGET') throw v3Error;
         pipelineErrors.v3 = v3Error?.message || String(v3Error);
         console.warn('[chat] V3 failed (sync), falling back to V2:', pipelineErrors.v3);
       }
@@ -2045,6 +2070,7 @@ router.post('/chat', requirePermission('ai', 'chat'), identifyLimiter, chatUploa
         });
         pipelineUsed = 'v2';
       } catch (v2Error) {
+        if (v2Error?.code === 'CHAT_REQUEST_BUDGET') throw v2Error;
         pipelineErrors.v2 = v2Error?.message || String(v2Error);
         console.warn('[chat] V2 grounding failed (sync), falling back to legacy:', pipelineErrors.v2);
       }
@@ -2061,6 +2087,7 @@ router.post('/chat', requirePermission('ai', 'chat'), identifyLimiter, chatUploa
         });
         pipelineUsed = 'legacy';
       } catch (legacyError) {
+        if (legacyError?.code === 'CHAT_REQUEST_BUDGET') throw legacyError;
         pipelineErrors.legacy = legacyError?.message || String(legacyError);
         console.error('[chat] Legacy also failed (sync):', pipelineErrors.legacy);
       }
@@ -2084,6 +2111,8 @@ router.post('/chat', requirePermission('ai', 'chat'), identifyLimiter, chatUploa
     }
     chatResult.pipeline = pipelineUsed;
 
+    // Nur angefragte Arbeit darf kostenpflichtige Nachprüfungen auslösen.
+    restrictChatResult(chatResult, requestScope);
     // Preis-Belege prüfen BEVOR das Ergebnis rausgeht (alle Pipelines).
     await validateChatPricing(chatResult, product);
 
@@ -2092,6 +2121,9 @@ router.post('/chat', requirePermission('ai', 'chat'), identifyLimiter, chatUploa
 
     // K-Typ-Ergebnis (lief parallel) als Change-Card anhängen (alle Pipelines).
     await attachKTypDatasheetChange(chatResult, product, ktypEnrichHandle, normalizedMessage);
+    restrictChatResult(chatResult, requestScope);
+    chatResult.requestUsage = requestUsage();
+    console.log('[chat request] %s', JSON.stringify({ scope: normalizedScope, ...chatResult.requestUsage }));
 
     console.log('[chat] pipeline=%s model=%s product=%s', pipelineUsed, chatResult.model || chatResult.modelUsed, productId);
 
@@ -2111,6 +2143,7 @@ router.post('/chat', requirePermission('ai', 'chat'), identifyLimiter, chatUploa
       pipeline: pipelineUsed,
       data: chatResult,
     });
+    });
 
   } catch (error) {
     console.error('Error in chat endpoint:', error);
@@ -2126,7 +2159,7 @@ router.post('/chat', requirePermission('ai', 'chat'), identifyLimiter, chatUploa
         ok: false,
         model: error.modelUsed,
         error: {
-          code: 500,
+          code: error?.code === 'CHAT_REQUEST_BUDGET' ? error.code : 500,
           message: details ? `Failed to process chat request (${details})` : 'Failed to process chat request',
           details: details || 'Unknown error',
         },

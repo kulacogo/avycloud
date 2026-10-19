@@ -1799,13 +1799,13 @@ function toIsoString(value) {
   return null;
 }
 
-async function getProductBinSummaryMap(productIds = [], skuToProductIdMap = new Map()) {
+async function getProductBinSummaryMap(productIds = [], skuToProductIdMap = new Map(), options = {}) {
   const filterSet =
     Array.isArray(productIds) && productIds.length
       ? new Set(productIds.map((id) => (id == null ? null : String(id))))
       : null;
 
-  const snapshot = await binsCollection.get();
+  const snapshot = options.readSnapshot ? await options.readSnapshot(binsCollection) : await binsCollection.get();
   const summaries = new Map();
 
   snapshot.forEach((doc) => {

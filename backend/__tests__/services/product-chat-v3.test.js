@@ -713,3 +713,67 @@ describe('runProductChatV3 — injected fake client', () => {
     expect(completeIdx).toBeGreaterThan(needsHumanIdx);
   });
 });
+
+describe('UX-36 V3 scope before and after model work', () => {
+  it('keeps a title request narrow even when the model proposes all fields', async () => {
+    const client = mkFakeAiClient([
+      mkFakeResponse({ functionCalls: [{ name: 'update_product_datasheet', args: { title: 'Sony WH-1000XM5 Kopfhörer', identity: { brand: 'Unbestellt' }, pricing: { sellPrice: 42 }, gpsr: { manufacturer_name: 'Unbestellt' }, attributes: [{ key: 'Farbe', value: 'Rot' }] } }] }),
+      mkFakeResponse({ text: 'Titel vorgeschlagen.' }),
+    ]);
+    const result = await runProductChatV3({ product: mkProduct(), message: 'Nur Titel verbessern', scope: 'title', aiClient: client });
+    expect(result.datasheetChanges).toHaveLength(1);
+    expect(client.__chat.sendMessage).toHaveBeenCalledTimes(1);
+    expect(result.datasheetChanges[0]).not.toHaveProperty('pricing');
+    expect(result.datasheetChanges[0]).not.toHaveProperty('gpsr');
+    expect(result.datasheetChanges[0]).not.toHaveProperty('attributes');
+    const config = client.chats.create.mock.calls[0][0].config;
+    const names = config.tools.flatMap(t => t.functionDeclarations || []).map(t => t.name);
+    expect(names).not.toContain('search_manufacturer_site');
+    expect(names).not.toContain('suggest_product_images');
+    expect(config.systemInstruction).not.toContain('MUSST du einen belegten Marktpreis');
+    const schema = config.tools.flatMap(t => t.functionDeclarations || []).find(t => t.name === 'update_product_datasheet');
+    expect(schema.parameters.properties).not.toHaveProperty('pricing');
+  });
+  it('does not execute an undeclared expensive image tool', async () => {
+    const client = mkFakeAiClient([
+      mkFakeResponse({ functionCalls: [{ name: 'suggest_product_images', args: { query: 'Unbestellt' } }] }),
+      mkFakeResponse({ functionCalls: [{ name: 'update_product_datasheet', args: { title: 'Sony Kopfhörer' } }] }),
+      mkFakeResponse({ text: 'Titel vorgeschlagen.' }),
+    ]);
+    const result = await runProductChatV3({ product: mkProduct(), message: 'Titel', scope: 'title', aiClient: client });
+    expect(result.imageSuggestions).toEqual([]);
+    expect(result.trace.toolCalls[0]).toMatchObject({ name: 'suggest_product_images', ok: false });
+  });
+});
+
+
+describe('UX-36 forced finalize and full scope', () => {
+  it('never expands a forced title finalization to descriptions or pricing', async () => {
+    const client = mkFakeAiClient([
+      mkFakeResponse({ functionCalls: [{ name: 'search_manufacturer_site', args: {} }] }),
+      mkFakeResponse({ text: 'Recherche.' }),
+      mkFakeResponse({ functionCalls: [{ name: 'update_product_datasheet', args: { title: 'Sony Kopfhörer', short_description: 'Unbestellt', pricing: { amount: 42 } } }] }),
+      mkFakeResponse({ text: 'Titel vorgeschlagen.' }),
+    ]);
+    const result = await runProductChatV3({ product: mkProduct(), message: 'Titel', scope: 'title', maxIterations: 1, aiClient: client });
+    expect(result.datasheetChanges).toHaveLength(1);
+    expect(result.datasheetChanges[0]).not.toHaveProperty('short_description');
+    expect(result.datasheetChanges[0]).not.toHaveProperty('pricing');
+  });
+  it('retains intentional full optimization and its quality rules', async () => {
+    const client = mkFakeAiClient([mkFakeResponse({ text: 'Analyse' })]);
+    await runProductChatV3({ product: mkProduct(), message: 'Alles optimieren', scope: 'datasheet', aiClient: client });
+    const config = client.chats.create.mock.calls[0][0].config;
+    expect(config.systemInstruction).toContain('SEO-BESCHREIBUNG');
+    expect(config.systemInstruction).toContain('MUSST du einen belegten Marktpreis');
+    expect(config.tools.flatMap(t => t.functionDeclarations || []).map(t => t.name)).toContain('search_manufacturer_site');
+  });
+  it('does not send an empty function schema or force edits for information questions', async () => {
+    const client = mkFakeAiClient([mkFakeResponse({ text: 'GPSR ist die Produktsicherheitsverordnung.' })]);
+    const result = await runProductChatV3({ product: mkProduct(), message: 'Was bedeutet GPSR?', scope: 'info', aiClient: client });
+    expect(result.datasheetChanges).toEqual([]);
+    const config = client.chats.create.mock.calls[0][0].config;
+    expect(config.tools.every(tool => !tool.functionDeclarations || tool.functionDeclarations.length > 0)).toBe(true);
+    expect(config.tools.flatMap(t => t.functionDeclarations || []).map(t => t.name)).not.toContain('update_product_datasheet');
+  });
+});

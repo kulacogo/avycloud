@@ -25,7 +25,8 @@ const CONTRACT = require('../lib/chat-datasheet-contract');
 const { generateImagesForProduct } = require('./image-generation');
 const { searchProductImages, lastImageSearchError } = require('../lib/image-search');
 const { buildFallbackAnswer } = require('../lib/chat-answer-fallback');
-const { buildScopeAllowMap } = require('../lib/chat-scope');
+const { buildScopeAllowMap, scopeAllowsGroup, filterChangesByScope, filterToolDeclarations, isToolAllowed } = require('../lib/chat-scope');
+const { requestPrompt, runModelCall, runToolCall } = require('../lib/chat-request');
 const { normalizeDigits, isValidGtin } = require('../lib/gtin');
 const { coerceTitleToPolicy } = require('../lib/title-policy');
 const { buildCommonPolicyText } = require('../lib/llm-policy-pack');
@@ -125,7 +126,7 @@ async function withGeminiRetry(operation, { label = 'gemini', perAttemptTimeoutM
   let lastErr = null;
   for (let attempt = 0; attempt <= delays.length; attempt++) {
     try {
-      const opPromise = Promise.resolve().then(() => operation());
+      const opPromise = Promise.resolve().then(() => runModelCall(operation, label));
       // Suppress unhandled-rejection if operation eventually settles AFTER the
       // timeout fires.
       opPromise.catch(() => {});
@@ -1002,17 +1003,17 @@ async function runProductChatV2(product, userMessage, {
     const { applyEbayTaxonomy } = require('./enrichment');
     applyEbayTaxonomy(product);
     const { enrichKTypIfPossible } = require('../lib/ktype-enrichment');
-    await enrichKTypIfPossible(product, { reason: 'chat-v2' });
+    if (scopeAllowsGroup(scope, 'attributes')) await runToolCall('enrich_ktype', () => enrichKTypIfPossible(product, { reason: 'chat-v2' }));
   } catch (e) {
     // Never block chat
   }
 
   // Title insights + product image download (parallel)
   const [titleInsights, productImageParts] = await Promise.all([
-    loadTitleInsights(product, {
+    scopeAllowsGroup(scope, 'title') ? runToolCall('search_ebay_catalog', () => loadTitleInsights(product, {
       limit: Number(process.env.CHAT_TITLE_INSIGHTS_LIMIT) || 80,
       maxTokens: Number(process.env.CHAT_TITLE_INSIGHTS_MAX_TOKENS) || 8,
-    }),
+    })) : null,
     fetchProductImageParts(product),
   ]);
   const titleHintTokens = titleInsights?.topTokens || [];
@@ -1030,9 +1031,11 @@ async function runProductChatV2(product, userMessage, {
   const baseSystemPrompt = buildSystemPromptV2(locale);
   const llmConfig = await getActiveLlmConfig('chat.product');
   const promptOverride = typeof llmConfig?.promptText === 'string' ? llmConfig.promptText : '';
-  const systemPromptText = promptOverride && llmConfig?.promptMode === 'replace'
+  const effectiveSystemPrompt = promptOverride && llmConfig?.promptMode === 'replace'
     ? promptOverride
     : [baseSystemPrompt, promptOverride].filter(Boolean).join('\n\n');
+
+  const systemPromptText = `${effectiveSystemPrompt}\n\n${requestPrompt(scope)}`;
 
   // Build Gemini tools: Google Search Grounding (+ URL Context when enhanced) + Function Declarations.
   // Since Gemini 3 Pro (Mar 2026) the three tool families can coexist in one request ("Context Circulation").
@@ -1054,18 +1057,18 @@ async function runProductChatV2(product, userMessage, {
   const supportsCirculation = supportsToolContextCirculation(modelName);
   const splitMode = !supportsCirculation && chatV2SplitGroundingEnabled();
   const functionDeclarationsTool = {
-    functionDeclarations: [
+    functionDeclarations: filterToolDeclarations([
       UPDATE_DATASHEET_DECLARATION,
       SUGGEST_IMAGES_DECLARATION,
       GENERATE_AI_IMAGES_DECLARATION,
-    ],
+    ], scope),
   };
   const tools = splitMode
-    ? [functionDeclarationsTool]
+    ? (functionDeclarationsTool.functionDeclarations.length ? [functionDeclarationsTool] : [])
     : [
       { googleSearch: {} },
       ...(enhanced ? [{ urlContext: {} }] : []),
-      functionDeclarationsTool,
+      ...(functionDeclarationsTool.functionDeclarations.length ? [functionDeclarationsTool] : []),
     ];
 
   // Combine product images + user-uploaded attachments
@@ -1204,14 +1207,15 @@ async function runProductChatV2(product, userMessage, {
         'Du bist ein Produkt-Rechercheur für einen Marktplatz-Katalog (eBay.de/Kaufland.de).',
         'Beantworte die Nutzer-Anfrage durch ECHTE Web-Recherche (Google Search). Erfinde nichts.',
         'Nenne zu JEDER zentralen Angabe die konkrete Quell-URL (Produktseite/Hersteller-Seite, keine Suchseiten).',
-        'Für Herstellerangaben (GPSR): vollständiger Firmenname, Anschrift, E-Mail UND die Impressum-/Kontakt-URL des Herstellers.',
-        'Für Preise: aktuelle Marktpreise in EUR mit den Produktseiten-URLs.',
+        scopeAllowsGroup(scope, 'gpsr') && 'Für Herstellerangaben (GPSR): vollständiger Firmenname, Anschrift, E-Mail UND die Impressum-/Kontakt-URL des Herstellers.',
+        scopeAllowsGroup(scope, 'pricing') && 'Für Preise: aktuelle Marktpreise in EUR mit den Produktseiten-URLs.',
         // Die schreibende Phase hat KEIN Web. Der Auftrag "orientiere dich an
         // echten eBay-Titeln" war dort deshalb unerfüllbar — die Titel-Referenz
         // muss hier beschafft werden, sonst kommt sie nie an.
-        'Nenne ausserdem 3-5 echte Angebotstitel desselben Produkts von ebay.de WORTWÖRTLICH (Abschnitt "EBAY-TITEL"), damit der Titel daran ausgerichtet werden kann.',
+        scopeAllowsGroup(scope, 'title') && 'Nenne ausserdem 3-5 echte Angebotstitel desselben Produkts von ebay.de WORTWÖRTLICH (Abschnitt "EBAY-TITEL"), damit der Titel daran ausgerichtet werden kann.',
         'Schlage KEINE Datenblatt-Änderungen vor — liste nur belegte Fakten und ihre Quellen sauber auf.',
-      ].join('\n');
+        requestPrompt(scope),
+      ].filter(Boolean).join('\n');
       const runResearch = async (withUrlContext) => {
         // Latenz-Budget (Prod 2026-08-04 01:29Z): Grounding + Produktbilder
         // brauchen 30-60s — das 30s-Default-Timeout würgte JEDEN Versuch ab
@@ -1337,10 +1341,18 @@ async function runProductChatV2(product, userMessage, {
         const { name, args } = call;
         let toolResult = {};
 
+        try {
+          if (!isToolAllowed(name, scope)) throw new Error('Werkzeug liegt außerhalb des angefragten Umfangs.');
+          await runToolCall(name, async () => undefined, args);
+        } catch (error) {
+          functionResponseParts.push({ functionResponse: { name, response: { error: error.message, code: error.code || 'CHAT_SCOPE_BLOCKED' } } });
+          continue;
+        }
+
         if (name === 'update_product_datasheet') {
           onProgress?.({ type: 'tool_start', tool: 'update_product_datasheet' });
           const sanitized = sanitizeDatasheetChangeV2(args || {}, product, { scope, titleHintTokens });
-          const nextChange = sanitized.change;
+          const nextChange = filterChangesByScope([sanitized.change], scope).changes[0] || {};
           if (Object.keys(nextChange).length) {
             datasheetChanges.push(nextChange);
             onProgress?.({ type: 'tool_done', tool: 'update_product_datasheet', fields: Object.keys(nextChange).length });
@@ -1459,7 +1471,7 @@ async function runProductChatV2(product, userMessage, {
 
     // Build final result
     const consolidatedChange = consolidateChanges(datasheetChanges);
-    const finalDatasheetChanges = consolidatedChange ? [consolidatedChange] : [];
+    const finalDatasheetChanges = filterChangesByScope(consolidatedChange ? [consolidatedChange] : [], scope).changes;
 
     // Resolve any assistant-proposed category to a REAL eBay categoryId before
     // the change reaches the client. Without this the "Kategorie-Korrektur" never
@@ -1468,7 +1480,7 @@ async function runProductChatV2(product, userMessage, {
     // services/category-resolver.js#resolveProposedCategoryForChanges.
     try {
       const { resolveProposedCategoryForChanges } = require('./category-resolver');
-      await resolveProposedCategoryForChanges(finalDatasheetChanges, product, { reason: 'chat_v2' });
+      if (scopeAllowsGroup(scope, 'category')) await runToolCall('resolve_category', () => resolveProposedCategoryForChanges(finalDatasheetChanges, product, { reason: 'chat_v2' }));
     } catch (catErr) {
       console.warn(`[chat-v2] category resolution skipped: ${catErr?.message || catErr}`);
     }
@@ -1505,8 +1517,8 @@ async function runProductChatV2(product, userMessage, {
 
     return {
       message: cleanMessage,
-      datasheetChanges: finalDatasheetChanges,
-      imageSuggestions,
+      datasheetChanges: filterChangesByScope(finalDatasheetChanges, scope).changes,
+      imageSuggestions: scopeAllowsGroup(scope, 'images') ? imageSuggestions : [],
       serpTrace: groundingTrace,
       ebayReadiness,
       modelUsed: modelName,

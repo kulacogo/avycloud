@@ -1,6 +1,7 @@
 const { PRODUCT_TABLE_FIELDS } = require('../lib/product-read-models');
 const { stripFinancialFields } = require('../lib/financial-access');
 const router = require('express').Router();
+const { readDisplaySnapshot } = require('../lib/display-snapshot-cache');
 const crypto = require('crypto');
 const path = require('path');
 const {
@@ -182,7 +183,7 @@ const buildSkuToProductIdMap = (products = []) => {
   return map;
 };
 
-const enrichProductsWithBinSummaries = async (products = []) => {
+const enrichProductsWithBinSummaries = async (products = [], displayTenant = null) => {
   if (!Array.isArray(products) || products.length === 0) return products;
   const productIds = products
     .map((product) => (product?.id ? String(product.id) : null))
@@ -190,7 +191,10 @@ const enrichProductsWithBinSummaries = async (products = []) => {
   if (!productIds.length) return products;
 
   const skuMap = buildSkuToProductIdMap(products);
-  const summaryMap = await getProductBinSummaryMap(productIds, skuMap);
+  const summaryMap = await getProductBinSummaryMap(productIds, skuMap, displayTenant ? {
+    readSnapshot: query => readDisplaySnapshot(displayTenant === 'default' ? query : query.where('tenantId', '==', displayTenant),
+      { tenantId: displayTenant, collection: 'warehouseBins' }),
+  } : {});
 
   return products.map((product) => {
     const key = product?.id ? String(product.id) : null;
@@ -241,18 +245,19 @@ const SHIPPED_ORDER_STATUSES = _SHIPPED_FROM_HELPER;
  * genau passender tenantId (wie die alte where-Klausel), sold zählt wie
  * bisher tenant-übergreifend (Legacy-Docs ohne tenantId inklusive).
  */
-async function buildOrderQuantityMaps(tenantId = 'default') {
+async function buildOrderQuantityMaps(tenantId = 'default', displayCache = false) {
   const reservedMap = new Map(); // normalizeSkuKey -> qty
   const soldMap = new Map();     // normalizeSkuKey -> { sold, open }
   try {
-    const snap = await firestore.collection('orders')
-      .select('omsStatus', 'status', 'items', 'tenantId')
-      .get();
+    const query = firestore.collection('orders');
+    const snap = displayCache
+      ? await readDisplaySnapshot(tenantId === 'default' ? query : query.where('tenantId', '==', tenantId), { tenantId, collection: 'orders' })
+      : await query.select('omsStatus', 'status', 'items', 'tenantId').get();
     snap.forEach((doc) => {
       const order = doc.data() || {};
       const status = (order.omsStatus || order.status || '').toLowerCase();
       const countsReserved = RESERVED_ORDER_STATUSES.has(status) && order.tenantId === tenantId;
-      const countsSold = Boolean(status) && !EXCLUDED_ORDER_STATUSES.has(status);
+      const countsSold = (!displayCache || (order.tenantId || 'default') === tenantId) && Boolean(status) && !EXCLUDED_ORDER_STATUSES.has(status);
       if (!countsReserved && !countsSold) return;
       const isShipped = SHIPPED_ORDER_STATUSES.has(status);
       const items = Array.isArray(order.items) ? order.items : [];
@@ -277,20 +282,10 @@ async function buildOrderQuantityMaps(tenantId = 'default') {
   return { reservedMap, soldMap };
 }
 
-// Kurzer In-Process-Cache: die Maps sind über konkurrierende Produktlisten-
-// Requests identisch; 30s Staleness ist für Anzeige-Spalten unkritisch.
-// Der Promise wird gecacht (nicht das Ergebnis), damit parallele Requests
-// denselben laufenden Scan teilen statt eigene zu starten.
-const ORDER_MAPS_TTL_MS = 30 * 1000;
-const _orderMapsCache = new Map(); // tenantId -> { atMs, promise }
-
+// Display-only snapshots receive Firestore deltas, including deletions.
+// Operational order/stock decisions never use this read model.
 function getOrderQuantityMapsCached(tenantId = 'default') {
-  const now = Date.now();
-  const cached = _orderMapsCache.get(tenantId);
-  if (cached && now - cached.atMs < ORDER_MAPS_TTL_MS) return cached.promise;
-  const promise = buildOrderQuantityMaps(tenantId);
-  _orderMapsCache.set(tenantId, { atMs: now, promise });
-  return promise;
+  return buildOrderQuantityMaps(tenantId, true);
 }
 
 function attachReservedAvailability(products = [], reservedMap, soldMap) {
@@ -1810,7 +1805,7 @@ router.get('/products', requirePermission('products', 'read'), async (req, res) 
       : filteredProducts;
     const hasMore = limit !== null ? offset + paginatedProducts.length < total : false;
 
-    const enrichedFiltered = await enrichProductsWithBinSummaries(paginatedProducts);
+    const enrichedFiltered = await enrichProductsWithBinSummaries(paginatedProducts, req.query?.view === 'table' ? tenantId : null);
     const withReservedFiltered = attachReservedAvailability(enrichedFiltered, reservedMap, soldMap);
     const withCompletenessFiltered = withReservedFiltered.map((p) => {
       const normalized = normalizeProductForApi(p);

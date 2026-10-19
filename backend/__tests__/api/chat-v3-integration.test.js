@@ -67,6 +67,10 @@ patchLocalModule(path.resolve(__dirname, '../../lib/chat-sessions.js'), {
 });
 
 // Now load _patchLocalModules (rbac etc.) and the route.
+const gpsrExtractSpy = vi.fn().mockResolvedValue(null);
+const ktypEnrichSpy = vi.fn().mockResolvedValue(null);
+patchLocalModule('../../lib/gpsr-image-extract', { extractGpsrFromImages: gpsrExtractSpy, mergeLabelGpsrIntoCard: () => {} });
+patchLocalModule('../../lib/ktype-enrichment', { enrichKTypIfPossible: ktypEnrichSpy, buildKTypDatasheetChange: () => null, resolveKTypForChatTurn: async () => null });
 require('./_patchLocalModules');
 const { spies: firebaseSpies } = require('./_setupMocks');
 const { createTestApp } = require('./_createApp');
@@ -254,5 +258,70 @@ describe('POST /api/chat — pipeline routing', () => {
     expect(res.status).toBe(200);
     expect(res.body.pipeline).toBe('v2');
     expect(chatV2Spy).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('UX-36 route boundary', () => {
+  beforeEach(() => {
+    resetSpies();
+    gpsrExtractSpy.mockClear(); ktypEnrichSpy.mockClear();
+    chatV3EnabledSpy.mockReturnValue(true);
+    process.env.CHAT_GROUNDING = 'true';
+  });
+  for (const stream of [false, true]) {
+    it(`passes title scope through V3 and removes foreign proposals before enrichment (${stream ? 'SSE' : 'JSON'})`, async () => {
+      chatV3Spy.mockResolvedValue({ ...V3_RESULT, datasheetChanges: [{ title: 'Gewünschter Titel', gpsr: { manufacturer_name: 'Unbestellt' }, pricing: { sellPrice: 12 }, attributes: { Farbe: 'Rot' } }] });
+      const res = await request(app).post(`/api/chat${stream ? '?stream=true' : ''}`).send({ productId: SAMPLE_PRODUCT.id, message: 'Titel verbessern. KEINE Herstelleradressen im Titel.', scope: 'title' });
+      expect(res.status).toBe(200);
+      expect(chatV3Spy.mock.calls[0][0].scope).toBe('title');
+      const data = stream ? res.text.split('\n').filter(line => line.startsWith('data: ')).map(line => JSON.parse(line.slice(6))).find(event => event.type === 'result')?.data : res.body.data;
+      expect(data.datasheetChanges).toEqual([{ title: 'Gewünschter Titel', summary: 'Titel optimieren' }]);
+      expect(data.requestScope).toMatchObject({ scope: 'title', enforced: true });
+      expect(gpsrExtractSpy).not.toHaveBeenCalled();
+      expect(ktypEnrichSpy).not.toHaveBeenCalled();
+    });
+  }
+  it('keeps the same inferred scope and budget across fallback', async () => {
+    const { runModelCall, currentRequest } = require('../../lib/chat-request');
+    chatV3Spy.mockImplementation(async () => { await runModelCall(async () => {}); throw new Error('v3 unavailable'); });
+    chatV2Spy.mockImplementation(async (_product, _message, options) => {
+      expect(options.scope).toBe('pricing');
+      expect(currentRequest().scope).toBe('pricing');
+      await runModelCall(async () => {});
+      return { ...V2_RESULT, datasheetChanges: [{ title: 'Unbestellt' }] };
+    });
+    const res = await request(app).post('/api/chat').send({ productId: SAMPLE_PRODUCT.id, message: 'Recherchiere den Marktpreis' });
+    expect(res.status).toBe(200);
+    expect(res.body.data.datasheetChanges).toEqual([]);
+    expect(res.body.data.requestUsage.modelCalls).toBe(2);
+  });
+});
+
+
+describe('UX-36 request stop and full scope', () => {
+  beforeEach(() => { resetSpies(); chatV3EnabledSpy.mockReturnValue(true); process.env.CHAT_GROUNDING = 'true'; });
+  it('does not start a fallback after the shared model budget is exhausted', async () => {
+    const { runModelCall } = require('../../lib/chat-request');
+    chatV3Spy.mockImplementation(async () => { for (let i = 0; i < 9; i++) await runModelCall(async () => ({})); });
+    const res = await request(app).post('/api/chat').send({ productId: SAMPLE_PRODUCT.id, message: 'Titel verbessern', scope: 'title' });
+    expect(res.status).toBe(500);
+    expect(res.body.error.code).toBe('CHAT_REQUEST_BUDGET');
+    expect(chatV2Spy).not.toHaveBeenCalled();
+    expect(chatLegacySpy).not.toHaveBeenCalled();
+  });
+  it('carries the same inferred scope through V3 and V2 failure into Legacy', async () => {
+    chatV3Spy.mockRejectedValue(new Error('v3 unavailable'));
+    chatV2Spy.mockRejectedValue(new Error('v2 unavailable'));
+    chatLegacySpy.mockResolvedValue({ ...V2_RESULT, datasheetChanges: [{ title: 'Gewünschter Titel', pricing: { amount: 20 }, identity: { brand: 'Unbestellt' } }] });
+    const res = await request(app).post('/api/chat').send({ productId: SAMPLE_PRODUCT.id, message: 'Verbessere den Titel' });
+    expect(chatLegacySpy.mock.calls[0][2].scope).toBe('title');
+    expect(res.body.data.datasheetChanges).toEqual([{ title: 'Gewünschter Titel', summary: 'Titel optimieren' }]);
+  });
+  it('asks about an unclear change request without spending a model call', async () => {
+    const res = await request(app).post('/api/chat').send({ productId: SAMPLE_PRODUCT.id, message: 'Mach es besser' });
+    expect(res.body.data.requestScope.needsClarification).toBe(true);
+    expect(chatV3Spy).not.toHaveBeenCalled();
+    expect(chatV2Spy).not.toHaveBeenCalled();
+    expect(chatLegacySpy).not.toHaveBeenCalled();
   });
 });

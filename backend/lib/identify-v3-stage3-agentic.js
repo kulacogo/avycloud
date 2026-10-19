@@ -571,7 +571,10 @@ async function generateProductContentAgentic({
     } });
   }, 'stage3', checkDeadline);
   const assessDraft = args => {
-    const sanitized = _sanitizeWriteArgs(args);
+    // Repair turns often contain only the requested correction. Preserve
+    // untouched researched sections; explicitly supplied sections replace them
+    // as a whole (especially GPSR: never splice different legal entities).
+    const sanitized = { ...(state.bestArgs || {}), ..._sanitizeWriteArgs(args) };
     const quality = evaluateCaptureContent(sanitized, { identity, enrichment, imageParts });
     if (quality.normalizedTitle) sanitized.title_ebay = quality.normalizedTitle;
     if (quality.normalizedHighlights) sanitized.key_features = quality.normalizedHighlights;

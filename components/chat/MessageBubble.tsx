@@ -20,6 +20,7 @@ type MessageBubbleProps = {
   role: 'user' | 'assistant';
   text: string;
   timestamp: string;
+  requestScopeLabel?: string;
   attachments?: MessageAttachment[];
   datasheetChanges?: InlineDatasheetChange[];
   onApplyDatasheetChange?: (changeId: string, change: DatasheetChange) => void | Promise<void>;
@@ -189,6 +190,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   role,
   text,
   timestamp,
+  requestScopeLabel,
   attachments = [],
   datasheetChanges = [],
   onApplyDatasheetChange,
@@ -209,6 +211,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
             : 'text-txt-primary px-1 py-1'
         }`}
       >
+        {requestScopeLabel && <p className="mb-1 text-xs font-medium text-txt-secondary">Umfang: {requestScopeLabel}</p>}
         {/* Message content */}
         {role === 'user' ? (
           <p className="whitespace-pre-line">{text}</p>

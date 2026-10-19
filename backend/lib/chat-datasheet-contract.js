@@ -79,6 +79,18 @@ const IDENTITY_FIELDS = Object.freeze([
 
 const IDENTITY_CLEARABLE = Object.freeze(['barcodes', 'ean', 'gtin', 'upc']);
 
+// Anfrageberechtigung je Kartenfeld. Dies ist kein zweites Schema: dieselbe
+// zentrale Quelle ordnet bekannte Datenblattfelder ihrem Arbeitsauftrag zu.
+const CHANGE_FIELD_SCOPES = Object.freeze({
+  title: 'title', short_description: 'description', description: 'description',
+  key_features: 'highlights', attributes: 'attributes', gpsr: 'gpsr', gpsr_evidence_check: 'gpsr', pricing: 'pricing',
+  categoryId: 'category', category_id: 'category', categoryPath: 'category', category: 'category', notes: 'notes',
+});
+const IDENTITY_FIELD_SCOPES = Object.freeze(Object.fromEntries(IDENTITY_FIELDS.map((field) => [
+  field, field === 'name' ? 'title' : ['barcodes', 'ean', 'gtin', 'upc'].includes(field) ? 'gtin' : field,
+])));
+const CHANGE_PROTOCOL_FIELDS = Object.freeze(['id', 'summary', 'confidence', 'policyIssues', 'evidence', 'source']);
+
 /**
  * Zielpfad im Produktdokument je Änderungskarten-Feld.
  * Wichtig für `mpn`: die UI liest `details.identifiers.mpn`
@@ -208,6 +220,9 @@ module.exports = {
   GPSR_PROTOCOL_FIELDS,
   IDENTITY_FIELDS,
   IDENTITY_CLEARABLE,
+  CHANGE_FIELD_SCOPES,
+  IDENTITY_FIELD_SCOPES,
+  CHANGE_PROTOCOL_FIELDS,
   IDENTITY_TARGET_PATHS,
   FIELD_LABELS,
   fieldLabel,
