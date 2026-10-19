@@ -75,3 +75,15 @@ describe('buildOrderQuantityMaps', () => {
     expect(soldMap.size).toBe(0);
   });
 });
+
+
+it('display snapshots exclude other tenants while preserving default legacy sold counts', async () => {
+  orderDocs = [
+    { tenantId: 'default', omsStatus: 'confirmed', items: [{ sku: 'SKU-A', quantity: 2 }] },
+    { omsStatus: 'shipped', items: [{ sku: 'SKU-A', quantity: 3 }] },
+    { tenantId: 'other', omsStatus: 'shipped', items: [{ sku: 'SKU-A', quantity: 99 }] },
+  ];
+  const result = await buildOrderQuantityMaps('default', true);
+  expect(result.reservedMap.get('a')).toBe(2);
+  expect(result.soldMap.get('a')).toEqual({ sold: 3, open: 2 });
+});

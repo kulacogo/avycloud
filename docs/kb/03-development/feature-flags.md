@@ -309,3 +309,10 @@ Kein weiterer Schalter: fällt die EZB aus, gilt ein datierter Notkurs (`FALLBAC
 `AGENT_SESSION_FILE` ist eine **lokale Agent-Konfiguration**, kein Cloud-Run-Flag. Sie verweist auf `~/Library/Application Support/AvyCloud Print Agent/session.json` (600, Verzeichnis 700) mit erneuerbarem Firebase-Refresh-Token. Der Installer speichert kein Passwort in der LaunchAgent-plist. Bei widerrufener Sitzung erneut lokal anmelden. Bestehende `AGENT_EMAIL`/`AGENT_PASSWORT` werden als manueller Kompatibilitätsweg weiter unterstützt, aber vom neuen Installer nicht dauerhaft abgelegt. Keine Cloud-ENV wurde geändert.
 
 Windows-Ergänzung 08.10.2026: `AGENT_DATA_DIR` setzt das lokale Zustandsverzeichnis (Windows-Default `%ProgramData%\AvyCloud Print Agent`, macOS weiterhin Application Support). `SUMATRA_PDF_PATH` bezeichnet die geprüfte Windows-Druckanwendung. Der Windows-Starter setzt beide aus seinem geschützten Installationsverzeichnis, außerdem `AGENT_SESSION_FILE` auf dessen `session.json`. Windows verwendet NTFS-ACLs für LocalService/SYSTEM/Administratoren; POSIX-Modusbits allein schützen dort keine Datei. `ProgramData` ist eine bestehende Windows-Systemvariable, keine neue Cloud-Konfiguration. Keine Änderung der Cloud-Run-ENV.
+
+
+## Anzeige-Cache (2026-10-19)
+
+| ENV | Default | Wirkung | Anker |
+|-----|---------|---------|-------|
+| `DISPLAY_SNAPSHOT_CACHE` | an | `off` deaktiviert Listener für Auftragsmengen und Lagerplatz-Zusammenfassungen in Produktlisten. Aktive Listener erhalten Firestore-Deltas einschließlich Löschungen. Maximal acht Tenant/Collection-Einträge, zwei Minuten Inaktivitätsablauf; nach Prozesspause oder Fehler frischer Read. Produktdokumente und operative Bestandsentscheidungen verwenden keinen solchen Cache. | `backend/lib/display-snapshot-cache.js`, `backend/routes/products.js` |

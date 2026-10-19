@@ -1,3 +1,11 @@
+## 19.10.2026 — KI-Kosten/Qualität, kontrollierte Auslieferung
+
+- Auftrag: mindestens 30 % Gesamtkosten sparen, Qualität/Wartezeit erhalten; Betreiber autorisiert Umsetzung und Produktion. Separater Branch `codex/ai-cost-quality-20261019` ab `d86619b`; fremde Änderungen nicht übernommen.
+- Chat-Auftragsbegrenzung inkl. Fallbackbudget und Titeltext; fertige V3-Titelkarte beendet Modellrunde. Erfassungsreparatur bewahrt nicht erneut gelieferte Entwurfsabschnitte. Anzeige-Listener ausschließlich für Aufträge/Lagerplätze, niemals operative Bestandsentscheidungen.
+- WICHTIG: voller Produktlistener im echten lesenden Test zu langsam (62,5 MB, ~56 s), daher verworfen. Bestehende Produktprojektion bleibt. Auftrags-/Lagerlistener warm <1 ms; keine belegte Endnutzer-Gesamtzeit daraus ableiten.
+- Kostenbasis 01.–18.10.: 862,86 EUR, Grounding321,33 / Firestore-Reads134,24. 30 % sind ein noch zu messendes Ziel, keine erzielte Einsparung. Vollständigkeit neuer Erfassungen weiterhin prüfen.
+- Quellen, Rollback, Grenzen: [Releasebericht](docs/releases/2026-10-19-ai-cost-quality.md). Finale Produktionsreceipts außerhalb des Repos: `/Users/oguz/Dev/avycloud-local-backups/ai-cost-quality-20261019/`. Produktionsstatus und aktiven Scope vor Eingriffen erneut lesen.
+
 ## 09.10.2026 — Windows-Diagnose: QL-1110NWB fehlt; Brief-Formatauswahl korrigiert
 
 - Bericht `AvyCloud-Druckerdiagnose-20261009.json` um 11:45 MESZ empfangen. Windows hat nur `Microsoft Print to PDF`, `DP Label` und `Brother QL-820NWB Printer`; beide physischen Queues benutzen den Brother-QL-820NWB-Treiber/WSD. **Kein QL-1110NWB/Paketdrucker eingerichtet.** Betreiber bestätigt fehlenden DHL/DPD-Drucker und zeigt dessen macOS-Einrichtung; das ersetzt keine Windows-Queue.
