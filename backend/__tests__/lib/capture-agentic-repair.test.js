@@ -51,3 +51,19 @@ describe('capture repairs inside the original research conversation', () => {
     expect(sendMessage.mock.calls[0][0].config.abortSignal.aborted).toBe(true);
   });
 });
+
+it('retains the researched draft when the repair tool returns only the corrected field', async () => {
+  vi.clearAllMocks();
+  evaluate.mockImplementation(content => ({ ok: content.title_ebay === 'Korrigiert', issues: content.title_ebay === 'Korrigiert' ? [] : ['priority_a_missing_in_title'] }));
+  const sendMessage = vi.fn()
+    .mockResolvedValueOnce({ functionCalls: [{ name: 'write_product_datasheet', args: {
+      title_ebay: 'Entwurf', description_ebay: 'Bereits recherchierter ausführlicher Text',
+      item_specifics: [{ key: 'Material', value: 'Baumwolle' }], product_source_urls: ['https://example.com/product'],
+    } }] })
+    .mockResolvedValueOnce(write('Korrigiert'));
+  const result = await generateProductContentAgentic({ aiClient: { chats: { create: () => ({ sendMessage }) } } });
+  expect(result.title_ebay).toBe('Korrigiert');
+  expect(result.description_ebay).toBe('Bereits recherchierter ausführlicher Text');
+  expect(result.item_specifics).toEqual([{ key: 'Material', value: 'Baumwolle' }]);
+  expect(result.product_source_urls).toEqual(['https://example.com/product']);
+});
