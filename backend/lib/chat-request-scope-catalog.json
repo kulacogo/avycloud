@@ -1,0 +1,47 @@
+{
+  "labels": {
+    "title": "Titel",
+    "pricing": "Preis",
+    "description": "Beschreibung",
+    "highlights": "Highlights",
+    "attributes": "Attribute",
+    "gpsr": "GPSR / Hersteller",
+    "gtin": "EAN / GTIN",
+    "images": "Bilder",
+    "category": "Kategorie",
+    "brand": "Marke",
+    "sku": "SKU",
+    "mpn": "Herstellernummer",
+    "datasheet": "Alles optimieren",
+    "info": "Antwort · keine Änderungen"
+  },
+  "topics": {
+    "title": "\\b(titel\\w*|title|produktname)\\b",
+    "pricing": "\\b(preis\\w*|marktpreis\\w*|verkaufspreis\\w*|pricing|price)\\b",
+    "description": "\\b(beschreibung\\w*|description)\\b",
+    "highlights": "\\b(highlights?|kaufargument\\w*|bullet\\s?points?|key features)\\b",
+    "attributes": "\\b(attribut\\w*|merkmal\\w*|ma[ßs]e|gewicht|material|farbe|k-?typ\\w*|hsn|tsn|fahrzeug\\w*)\\b",
+    "gpsr": "\\b(gpsr|herstellerangaben|herstelleradresse\\w*|produktsicherheit|eu-?verantwortlich\\w*|etikett\\w*|manufacturer)\\b",
+    "gtin": "\\b(ean|gtin|upc|barcode\\w*)\\b",
+    "images": "\\b(bild\\w*|foto\\w*|image\\w*)\\b",
+    "category": "\\b(kategorie\\w*|category)\\b",
+    "brand": "\\b(marke\\w*|brand)\\b",
+    "sku": "\\bsku\\b",
+    "mpn": "\\b(mpn|herstellernummer\\w*)\\b"
+  },
+  "aliases": {
+    "all": "datasheet",
+    "full": "datasheet",
+    "ean": "gtin",
+    "barcode": "gtin",
+    "barcodes": "gtin",
+    "attr": "attributes",
+    "attrs": "attributes"
+  },
+  "information": "^(?:bitte\\s+)?(?:was\\s+(?:ist|sind|bedeutet)|warum|wieso|erkl[aä]r\\w*|wie\\s+(?:funktioniert|unterscheidet))",
+  "negation": "\\b(?:keine?[nrms]?|nicht|ohne)\\b[^.!?;]*(?=[.!?;]|$)",
+  "broad": "\\b(?:alles|komplett|gesamte?[sn]?\\s+datenblatt|vollst[aä]ndig)\\b.*\\b(?:optimier\\w*|verbesser\\w*|[üu]berarbeit\\w*)|\\b(?:optimier\\w*|verbesser\\w*)\\b.*\\b(?:alles|komplett)\\b",
+  "action": "\\b(?:optimier\\w*|verbesser\\w*|[äa]nder\\w*|korrigier\\w*|mach\\w*|anpass\\w*)\\b",
+  "constraints": "\\b(?:mit|f[üu]r|von|anhand|basierend\\s+auf|auf\\s+basis|unter\\s+verwendung\\s+von)\\b[^.!?;]*(?=[.!?;]|$)",
+  "unchanged": "\\b(?:lass\\w*|halte\\w*)\\b[^.!?;]*(?:unver[aä]ndert|wie\\s+bisher)[^.!?;]*(?=[.!?;]|$)"
+}

@@ -118,3 +118,10 @@ Verweis auf `docs/kb/05-pages/` (TBD).
 ## Bekannte Issues
 
 TBD — laufende Bugs siehe `TASKS.md`.
+
+
+## Anfrageumfang (2026-10-19)
+
+Der aktuelle Scope wird an der API einmal aufgelöst und gilt über V3, V2, Legacy, Anreicherungen und finalen Vorschlag hinweg. Die Oberfläche zeigt den angefragten Bereich; unklare Änderungsaufträge erhalten vor Modellarbeit eine Rückfrage. Explizite Schnellaktionen und eindeutige freie Titel-/Preisaufträge bleiben eng, „Alles optimieren“ bleibt breit. Tool-Schema, Ausführung und Karten nutzen denselben Datenblattvertrag. Ein gemeinsames Anfragebudget begrenzt SDK-/Toolstarts auch bei Fallbacks. Native Provider-Unterqueries sind nur nachträglich zählbar; eine Euroersparnis wurde nicht gemessen.
+
+Implementierung, Abnahme und Grenzen: [Kosten-/Qualitätsrelease](../../releases/2026-10-19-ai-cost-quality.md). Bei einem gültigen Titelvorschlag beendet V3 die Modellschleife; die API begrenzt auch Antworttext und Kartenüberschrift auf den Titel. CLAUDE §16 (Übernehmen speichert, Fehler behalten die Karte) bleibt bestehen.

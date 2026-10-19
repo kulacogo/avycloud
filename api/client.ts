@@ -5666,6 +5666,8 @@ export interface ChatAssistantTrace {
 }
 
 export interface ChatAssistantPayload {
+  requestScope?: { scope: string; label: string; source: 'explicit' | 'message'; needsClarification: boolean; enforced: boolean; blockedFields?: string[] };
+  requestUsage?: { policyVersion: string; modelCalls: number; toolCalls: number; groundingQueries: number; durationMs: number };
   message: string;
   datasheetChanges: DatasheetChange[];
   imageSuggestions: ImageSuggestionGroup[];

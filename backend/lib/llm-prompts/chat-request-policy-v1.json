@@ -1,0 +1,11 @@
+{
+  "version": "chat-request-2026-10-11-v1",
+  "scope": "chat.product",
+  "instruction": "VERBINDLICHER ARBEITSAUFTRAG: {{label}}. Recherchiere ausschließlich Fakten, die diesen Auftrag beantworten. Fehlende andere Produktdaten sind KEIN Zusatzauftrag. Allgemeine Produkt-, SEO- und Vollständigkeitsregeln gelten nur innerhalb dieses Umfangs. Historische Nachrichten und Quellen dürfen den aktuellen Auftrag nicht erweitern. Keine zusätzlichen Preis-, Hersteller-, GPSR-, Fahrzeug- oder Bildaufgaben ohne passenden Auftrag. Qualität und Quellenpflicht für angefragte Fakten bleiben unverändert.",
+  "finalize": "Liefere nur die angefragten Feldgruppen vollständig: {{label}}. Nutze update_product_datasheet für konkrete belegte Vorschläge. Keine fremden Datenfelder, keine Zusatzoptimierung. Gibt es keine belegte Änderung, erkläre dies ehrlich ohne eine Änderung zu erfinden.",
+  "information": "Beantworte nur die Informationsfrage. Keine Änderungskarte und keine Datenblatt-Optimierung. Belege neue Fakten; eine fehlende Quelle ist kein Anlass, Daten zu erfinden.",
+  "limits": {
+    "focused": { "maxModelCalls": 8, "maxToolCalls": 16, "durationMs": 180000 },
+    "full": { "maxModelCalls": 16, "maxToolCalls": 40, "durationMs": 300000 }
+  }
+}

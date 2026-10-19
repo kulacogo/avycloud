@@ -10,6 +10,11 @@ import { SparklesIcon } from './icons/Icons';
 import { useI18n } from '../i18n';
 import { normalizeBarcode, isValidGtin } from '../utils/gtin';
 import { mergeIncomingDatasheetChanges } from './chatChanges';
+import { previewChatRequestScope as buildScopePreview, shouldParseUnstructuredEdits } from '../utils/chatRequestScope';
+
+import requestScopeCatalog from '../backend/lib/chat-request-scope-catalog.json';
+
+const previewChatRequestScope = (message: string, scope?: string | null) => buildScopePreview(message, scope, requestScopeCatalog);
 
 interface AssistantChatProps {
   product: Product;
@@ -41,6 +46,7 @@ type ChatMessage = {
   role: 'user' | 'assistant';
   text: string;
   timestamp: string;
+  requestScopeLabel?: string;
   attachments?: MessageAttachment[];
   datasheetChanges?: PendingChange[];
 };
@@ -938,6 +944,9 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
         isImage: draft.isImage,
       }));
 
+      const payloadMessage = trimmedInput || 'Bitte analysiere die angehängten Dateien.';
+      const scope = scopeOverride !== undefined ? scopeOverride : (predefinedMessage ? derivedScope : null);
+      const requestedScope = previewChatRequestScope(payloadMessage, scope);
       const timestamp = new Date().toISOString();
       setMessages((prev) => [
         ...prev,
@@ -946,17 +955,12 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
           role: 'user',
           text: trimmedInput || t('chat.ui.attachmentMessage'),
           timestamp,
+          requestScopeLabel: requestedScope.label,
           attachments: userAttachments,
         },
       ]);
       setInput('');
       setAttachmentDrafts([]);
-
-      const payloadMessage = trimmedInput || 'Bitte analysiere die angehängten Dateien.';
-      // Quick prompts provide an explicit scope; free-text messages should not
-      // restrict which fields Gemini is allowed to change so the user can ask
-      // for anything (e.g. "Kategorie korrigieren") without scope blocking it.
-      const scope = scopeOverride !== undefined ? scopeOverride : (predefinedMessage ? derivedScope : null);
 
       const runId = ++sendRunRef.current;
 
@@ -984,7 +988,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
         // text (which extractStructuredEdits parses). Merging both unconditionally
         // produced two identical "Übernehmen" cards for one request. Merge with
         // fallback + content dedup so each change appears exactly once.
-        const structuredEdits = extractStructuredEdits(data.message);
+        const structuredEdits = shouldParseUnstructuredEdits(data.requestScope) ? extractStructuredEdits(data.message) : [];
         const incomingChanges = mergeIncomingDatasheetChanges(data.datasheetChanges, structuredEdits);
         const linkedChanges = appendPendingChanges(incomingChanges);
         const cleanedMessage = cleanAssistantMessage(data.message);
@@ -993,6 +997,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
           role: 'assistant',
           text: cleanedMessage || t('chat.ui.newSuggestions'),
           timestamp: new Date().toISOString(),
+          requestScopeLabel: data.requestScope?.label || requestedScope.label,
           attachments: assistantAttachments,
           datasheetChanges: linkedChanges,
         };
@@ -1101,6 +1106,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
               role={msg.role}
               text={msg.text}
               timestamp={msg.timestamp}
+              requestScopeLabel={msg.requestScopeLabel}
               attachments={msg.attachments}
               datasheetChanges={msg.datasheetChanges}
               onApplyDatasheetChange={msg.datasheetChanges?.length ? handleApplyChange : undefined}
@@ -1349,6 +1355,11 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ product, onApplyDatasheet
               </button>
             ))}
           </div>
+        )}
+        {input.trim() && (
+          <p className="px-3 pb-1 text-xs text-txt-secondary" aria-live="polite">
+            Angefragter Umfang: <strong>{previewChatRequestScope(input).label}</strong>
+          </p>
         )}
         <ChatInput
           value={input}

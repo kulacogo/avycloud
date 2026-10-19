@@ -28,11 +28,11 @@ function safeString(value) {
 
 function gpsrIstThema({ scope = null, message = '' } = {}) {
   const rahmen = safeString(scope).toLowerCase();
-  if (rahmen.includes('gpsr') || rahmen.includes('datasheet')) return true;
+  if (rahmen) return require('./chat-scope').scopeAllowsGroup(rahmen, 'gpsr');
 
   const text = safeString(message);
   if (!text) return false;
-  return GPSR_THEMA_RE.test(text);
+  return GPSR_THEMA_RE.test(text.replace(/\b(?:keine?[nrms]?|nicht|ohne)\b[^.!?;]*(?=[.!?;]|$)/gi, ''));
 }
 
 module.exports = { gpsrIstThema };

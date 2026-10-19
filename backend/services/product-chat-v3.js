@@ -31,6 +31,8 @@
  */
 
 const atomicTools = require('./atomic-tools');
+const { scopeAllowsGroup, filterChangesByScope, filterToolDeclarations, isToolAllowed } = require('../lib/chat-scope');
+const { requestPrompt, runModelCall, runToolCall } = require('../lib/chat-request');
 // EINE Quelle für die Feldliste der Änderungskarte (Vorfall 2026-08-10).
 const CONTRACT = require('../lib/chat-datasheet-contract');
 // Modul-Referenz (nicht destrukturiert), damit Tests searchProductImages patchen können.
@@ -565,7 +567,7 @@ async function fetchProductImageParts(product, { purpose = 'general', report = n
 // deshalb regelwidrige Titel (z.B. Fahrzeugmodelle im Motors-Titel) und dünne
 // 2-Satz-Beschreibungen. Diese Regeln machen die deterministischen Vorgaben aus
 // dem Leitfaden (lib/cassini-category-map, lib/seo-title-builder) verbindlich.
-function buildSeoRulesBlock(product) {
+function buildSeoRulesBlock(product, scope = null) {
   const details = product?.details || {};
   const ident = product?.identification || {};
   const catId = details.categoryId || details.ebayCategoryId || null;
@@ -573,24 +575,26 @@ function buildSeoRulesBlock(product) {
   const bucket = getCassiniCategoryBucket(catId, breadcrumb);
   const pattern = getCategoryPattern(bucket);
 
-  const lines = [
+  const lines = scopeAllowsGroup(scope, 'title') ? [
     'SEO-TITEL (eBay Cassini — VERBINDLICH, max 80 Zeichen):',
     `- KATEGORIE dieses Produkts: ${bucket}. Titel-Muster für diese Kategorie: ${pattern}`,
     '- Harte Obergrenze 80 Zeichen. Nutze den Platz voll aus für Long-Tail-Keywords — aber KEINE Füllwörter (der/die/das/für/mit) und keine Selbstverständlichkeiten.',
     '- Die ERSTEN 3–5 Wörter sind CTR-entscheidend (mobile Ansicht): Marke + Produkttyp/Modell zuerst.',
     '- SONDERZEICHEN-VERBOT: kein &, !, _, keine Klammern (), kein „WOW"/„L@@K". Ein einfacher Bindestrich zur Trennung ist das Maximum. Keine EAN/GTIN/SKU im Titel.',
     '- Haupt-Keyword max. 1×; nutze Long-Tail-Variationen statt Wiederholung.',
-  ];
-  if (bucket === 'motors') {
+  ] : [];
+  if (scopeAllowsGroup(scope, 'title') && bucket === 'motors') {
     lines.push('- MOTORS-SONDERREGEL (kritisch): Führe im Titel KEINE Fahrzeugmodelle/Marken auf (z.B. NICHT „für Dodge RAM 1500", NICHT „VW Golf"). Der Titel enthält [Hersteller] [Teilename] [Einbauposition/Maß] [OEM-/OE-Referenznummer]. Die kompatiblen Fahrzeuge gehören AUSSCHLIESSLICH in die Fahrzeugverwendungsliste (K-Types), nie in den Titel. Beispiel: „Mopar Bremsscheibe Hinterachse 375mm 68237065AA".');
   }
-  lines.push(
+  if (scopeAllowsGroup(scope, 'description')) lines.push(
     '',
     'SEO-BESCHREIBUNG (short_description — VERBINDLICH):',
     '- Reiner FLIESSTEXT (keine Bullet-Points, keine Listen, kein HTML). Bullet-Points gehören ausschließlich in key_features/Highlights.',
     '- Umfang ~180–240 Wörter sichtbarer Text (NICHT 2–3 Sätze). Einzigartig formuliert (kein Lieferanten-Copy-Paste → Duplicate-Content-Strafe).',
     '- Keyword-Dichte 5–7 %: die wichtigsten Such-Keywords + deren Synonyme natürlich einweben (z.B. „Bremsscheibe" ergänzt um „Bremsscheiben", „Scheibenbremse"). Keywords, die nicht in den 80-Zeichen-Titel passten, hier verweben.',
     '- Nutzen statt reiner Merkmale („Benefits statt Features"): erkläre den konkreten Käufer-Vorteil. Präzise, professionell, keine erfundenen Specs.',
+  );
+  if (scopeAllowsGroup(scope, 'pricing')) lines.push(
     '',
     'PREIS (VERBINDLICH wenn Verkaufspreis fehlt/0):',
     '- Wenn der aktuelle Verkaufspreis (pricing.sellPrice) fehlt oder 0 ist, MUSST du einen belegten Marktpreis recherchieren und ihn als pricing.sellPrice (Zahl, EUR) VORSCHLAGEN — nicht nur als lowest_price dokumentieren. pricing.lowest_price ist reine Recherche und ändert den Angebotspreis nicht.',
@@ -631,10 +635,10 @@ function enforceSeoPoliciesV3(changes, product) {
   return changes;
 }
 
-function buildSystemPromptV3(product, { locale = 'de-DE' } = {}) {
+function buildSystemPromptV3(product, { locale = 'de-DE', scope = null } = {}) {
   const snapshot = summarizeProduct(product);
-  const toolList = atomicTools
-    .buildToolList({ includeAmazon: true, includeManufacturer: true })
+  const toolList = filterToolDeclarations(atomicTools
+    .buildToolList({ includeAmazon: true, includeManufacturer: true }), scope)
     .map((decl) => `- ${decl.name}: ${decl.description}`)
     .join('\n');
 
@@ -649,24 +653,25 @@ function buildSystemPromptV3(product, { locale = 'de-DE' } = {}) {
     '- googleSearch (native): breite Web-Recherche, Grounding Queries.',
     '- urlContext (native): konkrete URL tief lesen (bis zu 20 URLs pro Request).',
     toolList,
-    '- update_product_datasheet: PFLICHT-Finalisierung jedes Turns (siehe ARBEITSFLOW).',
-    '- suggest_product_images: führt SOFORT eine echte Bildsuche aus und liefert die gefundenen Bilder im selben Zug zurück (Feld count/found im Ergebnis). Es ist KEINE asynchrone/"laufende" Suche — sage NIE "die Suche läuft". Melde stattdessen, wie viele Bilder gefunden wurden (count). Erfinde keine URLs.',
+    isToolAllowed(WRITE_TOOL, scope) && '- update_product_datasheet: PFLICHT-Finalisierung jedes Turns (siehe ARBEITSFLOW).',
+    scopeAllowsGroup(scope, 'images') && '- suggest_product_images: führt SOFORT eine echte Bildsuche aus und liefert die gefundenen Bilder im selben Zug zurück (Feld count/found im Ergebnis). Es ist KEINE asynchrone/"laufende" Suche — sage NIE "die Suche läuft". Melde stattdessen, wie viele Bilder gefunden wurden (count). Erfinde keine URLs.',
     '',
     'ARBEITSFLOW (IMMER IN DIESER REIHENFOLGE):',
-    '0. BILD-PHASE (ZUERST): Die angehängten Produktbilder sind Fotos des ECHTEN Artikels/der Verpackung. Lies Angaben — Marke, Modell/Typnummer, Maße, Material, Leistungsdaten UND besonders Hersteller-/EU-Verantwortlichen-/GPSR-Angaben — DIREKT vom Etikett/Karton ab, BEVOR du das Web bemühst. Das Etikett ist die autoritativste Quelle.',
-    '1. RECHERCHE-PHASE: Nutze googleSearch, urlContext und die atomaren Tools (lookup_gtin, search_ebay_catalog, verify_brand, search_amazon_product, search_manufacturer_site, fetch_url_content, get_required_aspects) um Fakten über das Produkt zu sammeln und Quellen zu cross-referenzieren.',
-    '2. WRITE-PHASE (PFLICHT): Am Ende JEDES Turns MUSST du genau einmal update_product_datasheet aufrufen mit den konsolidierten Änderungsvorschlägen.',
+    (scopeAllowsGroup(scope, 'gpsr') ? '0. BILD-PHASE (ZUERST): Die angehängten Produktbilder sind Fotos des ECHTEN Artikels/der Verpackung. Lies Angaben — Marke, Modell/Typnummer, Maße, Material, Leistungsdaten UND besonders Hersteller-/EU-Verantwortlichen-/GPSR-Angaben — DIREKT vom Etikett/Karton ab, BEVOR du das Web bemühst. Das Etikett ist die autoritativste Quelle.' : '0. BILD-PHASE: Nutze sichtbare Produktbilder als Beleg für den angefragten Bereich; recherchiere keine fremden Feldgruppen.'),
+    '1. RECHERCHE-PHASE: Nutze ausschließlich die verfügbaren Tools für den angefragten Bereich und cross-referenziere Quellen.',
+    isToolAllowed(WRITE_TOOL, scope) && '2. WRITE-PHASE (PFLICHT): Am Ende JEDES Turns MUSST du genau einmal update_product_datasheet aufrufen mit den konsolidierten Änderungsvorschlägen.',
     '',
     'REGELN (nicht verhandelbar):',
-    '- update_product_datasheet ist die FINALE Aktion jedes Turns. Ohne diesen Call sieht der Nutzer keinen "Übernehmen"-Button — also muss er IMMER kommen.',
-    '- Auch wenn du keine eindeutigen neuen Fakten gefunden hast: Rufe update_product_datasheet mit leeren arrays auf und erkläre im `summary`-Feld warum (z.B. "Keine verlässlichen Quellen gefunden, bitte manuell prüfen").',
-    '- Gib KEINE finalen Produktdaten nur als Text aus — sie MÜSSEN über update_product_datasheet strukturiert zurückkommen.',
+    isToolAllowed(WRITE_TOOL, scope) && '- update_product_datasheet ist die FINALE Aktion jedes Turns. Ohne diesen Call sieht der Nutzer keinen "Übernehmen"-Button — also muss er IMMER kommen.',
+    isToolAllowed(WRITE_TOOL, scope) && '- Auch wenn du keine eindeutigen neuen Fakten gefunden hast: Rufe update_product_datasheet mit leeren arrays auf und erkläre im `summary`-Feld warum (z.B. "Keine verlässlichen Quellen gefunden, bitte manuell prüfen").',
+    isToolAllowed(WRITE_TOOL, scope) && '- Gib KEINE finalen Produktdaten nur als Text aus — sie MÜSSEN über update_product_datasheet strukturiert zurückkommen.',
     '- Jeder datasheetChanges-Eintrag sollte source/evidence-URL enthalten wenn möglich — aber NUR URLs, die du in diesem Turn tatsächlich über Tools/Suche gesehen hast. NIEMALS eine URL konstruieren oder raten; lieber Feld weglassen.',
-    '- Das Attribut "K-Typ" NIEMALS selbst setzen, schätzen oder mit Text/Platzhaltern füllen — es enthält ausschließlich numerische TecDoc-IDs und wird automatisch aus der eBay-Fahrzeugliste angereichert. Ist es leer: sag ehrlich, dass keine belegbare Zuordnung gefunden wurde, und ergänze stattdessen belegte HSN/TSN- oder OE-Nummern (die helfen der Automatik).',
-    '- PREIS-QUELLEN (STRENG): pricing.source_url muss eine konkrete Angebotsseite GENAU dieses Produkts sein (gleiche Marke, gleiches Modell, gleiche Variante/Größe/Farbe) und den angegebenen amount tatsächlich zeigen. Such-/Ergebnisseiten (ebay.de/sch, amazon.de/s, idealo-Suche, Google) sind als Quelle VERBOTEN. Bei mehreren Größen/Varianten NIE den Preis der kleinsten Variante nehmen. Kein belastbarer Beleg gefunden → source_url weglassen, confidence ≤ 0.3, und dem Nutzer ehrlich sagen, dass der Preis unbelegt ist. Das System prüft jede Quelle automatisch nach.',
+    scopeAllowsGroup(scope, 'attributes') && '- Das Attribut "K-Typ" NIEMALS selbst setzen, schätzen oder mit Text/Platzhaltern füllen — es enthält ausschließlich numerische TecDoc-IDs und wird automatisch aus der eBay-Fahrzeugliste angereichert. Ist es leer: sag ehrlich, dass keine belegbare Zuordnung gefunden wurde, und ergänze stattdessen belegte HSN/TSN- oder OE-Nummern (die helfen der Automatik).',
+    scopeAllowsGroup(scope, 'pricing') && '- PREIS-QUELLEN (STRENG): pricing.source_url muss eine konkrete Angebotsseite GENAU dieses Produkts sein (gleiche Marke, gleiches Modell, gleiche Variante/Größe/Farbe) und den angegebenen amount tatsächlich zeigen. Such-/Ergebnisseiten (ebay.de/sch, amazon.de/s, idealo-Suche, Google) sind als Quelle VERBOTEN. Bei mehreren Größen/Varianten NIE den Preis der kleinsten Variante nehmen. Kein belastbarer Beleg gefunden → source_url weglassen, confidence ≤ 0.3, und dem Nutzer ehrlich sagen, dass der Preis unbelegt ist. Das System prüft jede Quelle automatisch nach.',
     '- Research-Tools liefern structured outputs — Temperature ist 1.0 by design, aber sei konservativ bei confidence-Scores.',
     '- Cross-Referenziere mindestens 2 unabhängige Quellen bevor Du eine Behauptung übernimmst.',
     '',
+    ...(scopeAllowsGroup(scope, 'gpsr') ? [
     'GPSR (EU-Produktsicherheitsverordnung):',
     '- ETIKETT ZUERST + Rollen exakt zuordnen: Lies die Angaben vom Verpackungsfoto/Karton und setze gpsr.source = "product_image", wenn du sie dort abliest. Zuordnung strikt nach Beschriftung:',
     '  · Zeile "Manufacturer:"/"Hersteller:" → manufacturer_name + manufacturer_address (auch wenn China/CN). Das ist der ECHTE Hersteller, NICHT automatisch die Marke.',
@@ -680,15 +685,17 @@ function buildSystemPromptV3(product, { locale = 'de-DE' } = {}) {
     '- WICHTIG — Rolle erkennen, nicht am Land festmachen: Eine Firma mit Zusatz wie "(für <Marke>)", "im Auftrag von …", "i.A." ODER ein bekannter EU-Bevollmächtigter (z.B. Apex CE Specialists, eVatmaster, "… CE Specialists", "Authorized Representative") ist der EU-VERANTWORTLICHE, NICHT der Hersteller — auch wenn die Adresse in Deutschland liegt. Solche Daten gehören in eu_responsible_*, und der echte Hersteller ist die Marke aus dem "(für <Marke>)"-Zusatz (gehört in manufacturer_name).',
     '- NIEMALS EU-Verantwortlichen-Kontakt (z.B. eVatmaster, +49…) in manufacturer email/phone mischen — nur in eu_responsible_email / eu_responsible_phone.',
     '',
-    buildSeoRulesBlock(product),
+    ] : []),
+    buildSeoRulesBlock(product, scope),
     '',
     'OUTPUT-FORMAT:',
-    '- Datenblatt-Änderung → function_call update_product_datasheet (inkl. confidence 0-1 und summary).',
-    '- Info-Antworten → zuerst Text auf Deutsch, DANN trotzdem update_product_datasheet mit summary=Antwort aufrufen (leere Felder erlaubt).',
+    isToolAllowed(WRITE_TOOL, scope) && '- Datenblatt-Änderung → function_call update_product_datasheet (inkl. confidence 0-1 und summary).',
+    '- Info-Antworten → Text auf Deutsch ohne Änderungskarte.',
     '- Zitate inline als [Quelle: URL] mitgeben.',
     '',
     `SPRACHE: ${locale}`,
-  ].join('\n');
+    requestPrompt(scope),
+  ].filter(value => value !== false).join('\n');
 }
 
 // ---------------------------------------------------------------------------
@@ -703,7 +710,7 @@ async function withGeminiRetryV3(operation, { label = 'gemini-v3', perAttemptTim
   let lastErr = null;
   for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
     try {
-      const opPromise = Promise.resolve().then(() => operation());
+      const opPromise = Promise.resolve().then(() => runModelCall(operation, label));
       opPromise.catch(() => {});
       // eslint-disable-next-line no-await-in-loop
       return await Promise.race([
@@ -977,9 +984,10 @@ function existingImageKeysFor(product) {
 }
 
 async function ownExecutor(name, args, state) {
+  if (!isToolAllowed(name, state.scope)) return { ok: false, error: { code: 'CHAT_SCOPE_BLOCKED', message: 'Werkzeug liegt außerhalb des angefragten Umfangs.' } };
   if (name === 'update_product_datasheet') {
     const started = Date.now();
-    const change = sanitizeDatasheetChangeV3(args || {});
+    const change = filterChangesByScope([sanitizeDatasheetChangeV3(args || {})], state.scope).changes[0] || {};
     const hasContent = Object.keys(change).filter((k) => k !== 'summary').length > 0;
     if (!hasContent) {
       // Der Executor meldete hier früher ok:true — das Modell glaubte, die
@@ -1191,6 +1199,7 @@ async function runProductChatV3({
   userId = null,
   aiClient = null,
   modelOverride = null,
+  scope = null,
 } = {}) {
   if (!product || typeof product !== 'object') {
     throw new Error('chat-v3 failed: product is required');
@@ -1237,6 +1246,7 @@ async function runProductChatV3({
   };
 
   const state = {
+    scope,
     product,          // für suggest_product_images (echte Bildsuche)
     datasheetChanges: [],
     imageSuggestions: [],
@@ -1252,16 +1262,16 @@ async function runProductChatV3({
     throw new Error(`chat-v3 failed: unable to init Gemini client: ${err?.message || err}`);
   }
 
-  const systemPrompt = buildSystemPromptV3(product);
-  const functionDeclarations = [
+  const systemPrompt = buildSystemPromptV3(product, { scope });
+  const functionDeclarations = filterToolDeclarations([
     ...atomicTools.buildToolList({ includeAmazon: true, includeManufacturer: true }),
     UPDATE_DATASHEET_DECLARATION,
     SUGGEST_IMAGES_DECLARATION,
-  ];
+  ], scope);
   const tools = [
     { googleSearch: {} },
     { urlContext: {} },
-    { functionDeclarations },
+    ...(functionDeclarations.length ? [{ functionDeclarations }] : []),
   ];
   // Write-only toolset for FORCED finalization turns. Gemini rejects
   // functionCallingConfig.allowedFunctionNames when a native tool
@@ -1306,13 +1316,7 @@ async function runProductChatV3({
   const bildBericht = {};
   try {
     productImageParts = await fetchProductImageParts(product, {
-      // `scope` erreicht V3 erst mit dem Schnellaktions-Durchreichen vom
-      // 2026-08-28. Diese Datei muss mit UND ohne funktionieren — `typeof` auf
-      // einen nicht deklarierten Bezeichner wirft nicht, ein direkter Zugriff
-      // schon (und der Fehler landete stumm im catch: 0 Bilder statt 8).
-      purpose: gpsrIstThema({ scope: typeof scope === 'string' ? scope : null, message })
-        ? 'gpsr'
-        : 'general',
+      purpose: gpsrIstThema({ scope, message }) ? 'gpsr' : 'general',
       report: bildBericht,
     });
   } catch (imgErr) {
@@ -1332,7 +1336,7 @@ async function runProductChatV3({
   });
 
   // Build the initial user message with product images + optional attachments.
-  const userParts = [{ text: `${message}\n\n${bildLage}` }];
+  const userParts = [{ text: `${message}\n\n${bildLage}\n\n${requestPrompt(scope)}` }];
   for (const part of productImageParts) userParts.push(part);
   if (Array.isArray(attachments)) {
     for (const att of attachments) {
@@ -1405,6 +1409,8 @@ async function runProductChatV3({
 
           let result;
           try {
+            if (!isToolAllowed(callName, scope)) throw new Error('Werkzeug liegt außerhalb des angefragten Umfangs.');
+            await runToolCall(callName, async () => undefined, callArgs);
             const own = await ownExecutor(callName, callArgs, state);
             if (own) {
               result = own;
@@ -1464,6 +1470,11 @@ async function runProductChatV3({
 
       trace.iterations += 1;
 
+      // A completed title-only proposal needs no further model narration.
+      // Keep downstream validation; stop only after a usable title survived sanitization.
+      if (scope === 'title' && state.datasheetChanges.some(change =>
+        String(change.title || change.identity?.name || '').trim())) break;
+
       // Decide config for the NEXT sendMessage. If we're about to run out of
       // iterations OR the model has been doing research-only turns for too
       // long, force it to emit the datasheet write-call via mode=ANY +
@@ -1473,7 +1484,7 @@ async function runProductChatV3({
       const softForce = !trace.sawWriteCall && researchOnlyIters >= SOFT_RESEARCH_LIMIT;
       // Reine Bild-Turns NIE in einen Datenblatt-Write zwingen (siehe
       // computeImageOnlyTurn) — sonst entsteht eine sinnlose Übernehmen-Karte.
-      const forceFinalize = (atLastIter || softForce) && !computeImageOnlyTurn(trace);
+      const forceFinalize = isToolAllowed(WRITE_TOOL, scope) && (atLastIter || softForce) && !computeImageOnlyTurn(trace);
       if (forceFinalize) trace.forcedFinalizations += 1;
 
       const sendConfig = forceFinalize
@@ -1499,10 +1510,7 @@ async function runProductChatV3({
       // 2-Satz-Recap (Incident 2026-07-16, dünne Beschreibungen).
       const forcedParts = forceFinalize
         ? [{
-            text:
-              'Rufe jetzt update_product_datasheet mit VOLLSTÄNDIGEN Inhalten auf: ' +
-              'ausführliche short_description als Fließtext (mindestens 4-6 Sätze mit den recherchierten Details), ' +
-              'alle key_features und alle Attribute. KEINE Kurzfassung.',
+            text: requestPrompt(scope, { finalize: true }),
           }]
         : [];
       // eslint-disable-next-line no-await-in-loop
@@ -1535,7 +1543,7 @@ async function runProductChatV3({
     // WICHTIG (Incident 2026-07-16): NICHT auf !sawWriteCall gaten — ein
     // Write-Call, dessen Argumente die Bereinigung komplett verwarf
     // (changes=0 bei sawWrite=true), braucht den Zwangs-Retry genauso.
-    if (state.datasheetChanges.length === 0 && trace.iterations > 0 && !computeImageOnlyTurn(trace)) {
+    if (isToolAllowed(WRITE_TOOL, scope) && state.datasheetChanges.length === 0 && trace.iterations > 0 && !computeImageOnlyTurn(trace)) {
       console.warn(
         '[chat-v3] No %s call after loop — triggering ultimate fallback',
         WRITE_TOOL
@@ -1544,8 +1552,7 @@ async function runProductChatV3({
         const fallbackResponse = await withGeminiRetryV3(
           () =>
             chat.sendMessage({
-              message:
-                'Bitte rufe JETZT update_product_datasheet mit den konkreten Änderungsvorschlägen auf — mit VOLLSTÄNDIGEN Inhalten: ausführliche short_description als Fließtext (mindestens 4-6 Sätze mit den recherchierten Details), alle key_features, alle Attribute. KEINE Kurzfassung, keine 2-Satz-Beschreibung.',
+              message: requestPrompt(scope, { finalize: true }),
               config: {
                 tools: writeOnlyTools,
                 toolConfig: {
@@ -1570,7 +1577,7 @@ async function runProductChatV3({
           const callId = call.id || null;
           let result;
           try {
-            result = await ownExecutor(WRITE_TOOL, callArgs, state);
+            result = await runToolCall(WRITE_TOOL, () => ownExecutor(WRITE_TOOL, callArgs, state));
           } catch (err) {
             result = {
               ok: false,
@@ -1594,7 +1601,7 @@ async function runProductChatV3({
           // Content object (see note at the loop sendMessage above).
           try {
             // eslint-disable-next-line no-await-in-loop
-            const echoResponse = await chat.sendMessage({
+            const echoResponse = await runModelCall(() => chat.sendMessage({
               message: [
                 {
                   functionResponse: {
@@ -1604,7 +1611,7 @@ async function runProductChatV3({
                   },
                 },
               ],
-            });
+            }), 'v3-final-echo');
             // Die Echo-Response enthält die eigentliche Abschluss-Antwort des
             // Modells NACH dem Write-Result — nur den Text übernehmen, nicht
             // `response` ersetzen (mode-AUTO-Echo kann selbst functionCalls haben).
@@ -1632,6 +1639,7 @@ async function runProductChatV3({
     // BEVOR draft/crossRef/Kategorie-Resolve darauf arbeiten.
     state.datasheetChanges = consolidateDatasheetChangesV3(state.datasheetChanges);
     enforceSeoPoliciesV3(state.datasheetChanges, product);
+    state.datasheetChanges = filterChangesByScope(state.datasheetChanges, scope).changes;
 
     // Build draft from aggregated datasheetChanges (last-wins per key).
     const draft = {};
@@ -1720,15 +1728,15 @@ async function runProductChatV3({
     // services/category-resolver.js#resolveProposedCategoryForChanges.
     try {
       const { resolveProposedCategoryForChanges } = require('./category-resolver');
-      await resolveProposedCategoryForChanges(state.datasheetChanges, product, { reason: 'chat_v3' });
+      if (scopeAllowsGroup(scope, 'category')) await runToolCall('get_required_aspects', () => resolveProposedCategoryForChanges(state.datasheetChanges, product, { reason: 'chat_v3' }));
     } catch (catErr) {
       console.warn(`[chat-v3] category resolution skipped: ${catErr?.message || catErr}`);
     }
 
     return {
       message: finalAnswer || '',
-      datasheetChanges: state.datasheetChanges,
-      imageSuggestions: state.imageSuggestions,
+      datasheetChanges: filterChangesByScope(state.datasheetChanges, scope).changes,
+      imageSuggestions: scopeAllowsGroup(scope, 'images') ? state.imageSuggestions : [],
       productImagesSent,
       evidence: state.citations,
       confidence: {
@@ -1755,6 +1763,7 @@ async function runProductChatV3({
     }
     const wrapped = new Error(`chat-v3 failed: ${err?.message || String(err)}`);
     wrapped.cause = err;
+    wrapped.code = err?.code;
     wrapped.status = err?.status ?? err?.code ?? null;
     throw wrapped;
   }

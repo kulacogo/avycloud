@@ -1,17 +1,23 @@
 const { getGeminiClient } = require('../lib/gemini-client');
 // EINE Quelle für die Feldliste der Änderungskarte (Vorfall 2026-08-10).
 const CONTRACT = require('../lib/chat-datasheet-contract');
+const { parseScopeSet, buildScopeAllowMap, scopeAllowsGroup, filterChangesByScope, filterToolDeclarations, isToolAllowed, isToolCallAllowed } = require('../lib/chat-scope');
+const { requestPrompt, runToolCall, createBudgetedModel } = require('../lib/chat-request');
 const {
   serpapiToolDefinition,
   brightdataSearchToolDefinition,
   webFetchToolDefinition,
-  executeSerpapiToolCall,
-  executeWebSearchToolCall,
-  executeWebFetchToolCall,
+  executeSerpapiToolCall: rawExecuteSerpapiToolCall,
+  executeWebSearchToolCall: rawExecuteWebSearchToolCall,
+  executeWebFetchToolCall: rawExecuteWebFetchToolCall,
 } = require('./toolkit');
+const executeSerpapiToolCall = (...args) => runToolCall('serpapi_web_search', () => rawExecuteSerpapiToolCall(...args), JSON.parse(args[0]?.arguments || '{}'));
+const executeWebSearchToolCall = (...args) => runToolCall('brightdata_web_search', () => rawExecuteWebSearchToolCall(...args));
+const executeWebFetchToolCall = (...args) => runToolCall('web_fetch', () => rawExecuteWebFetchToolCall(...args));
 const { resolveModel } = require('../lib/model-select');
 const { fetchMarketingImages } = require('../lib/marketing-images');
-const { generateImagesForProduct } = require('./image-generation');
+const { generateImagesForProduct: rawGenerateImagesForProduct } = require('./image-generation');
+const generateImagesForProduct = (...args) => runToolCall('generate_ai_images', () => rawGenerateImagesForProduct(...args));
 const { normalizeDigits, isValidGtin } = require('../lib/gtin');
 const { coerceTitleToPolicy } = require('../lib/title-policy');
 const { inferTitleCategory } = require('../lib/title-policy');
@@ -142,7 +148,7 @@ async function detectIntent(message) {
       _intentScopeConfig && _intentScopeConfig.generationConfig && typeof _intentScopeConfig.generationConfig === 'object'
         ? _intentScopeConfig.generationConfig
         : {};
-    const model = genAI.getGenerativeModel({
+    const model = createBudgetedModel(genAI, {
       // INTENT_MODEL is resolved once at module load; CHAT_INTENT_MODEL (legacy) still wins if set.
       model: resolveModel(process.env.CHAT_INTENT_MODEL, 'CHAT_INTENT_MODEL', INTENT_MODEL),
       generationConfig: { ..._intentLegacy, ..._intentScopeGenCfg },
@@ -549,8 +555,8 @@ async function forceOneEvidencePass(product, userMessage, {
 
   // 4) Deterministic: force ONE update_product_datasheet tool call using evidence
   const client = await getGeminiClient();
-  const updateOnlyTools = [{ functionDeclarations: [toGeminiTool(updateDatasheetTool)] }];
-  const updateOnlyModel = client.getGenerativeModel({
+  const updateOnlyTools = [{ functionDeclarations: filterToolDeclarations([toGeminiTool(updateDatasheetTool)], scope) }];
+  const updateOnlyModel = createBudgetedModel(client, {
     model: CHAT_MODEL,
     tools: updateOnlyTools,
     toolConfig: {
@@ -564,6 +570,7 @@ async function forceOneEvidencePass(product, userMessage, {
       'You MUST call update_product_datasheet exactly once.',
       'Do not output any plain text.',
       'Use only facts you can back with the provided WEB EVIDENCE snippet.',
+      requestPrompt(scope, { finalize: true }),
       ...(notesOnly
         ? [
             'IMPORTANT: notesOnly=true. You MUST ONLY write to the top-level "notes" field (unsure/warnings).',
@@ -1735,33 +1742,6 @@ function sanitizeImageSuggestions(entry) {
     }));
 }
 
-function parseScopeSet(scope = null) {
-  const raw = safeString(scope).toLowerCase();
-  if (!raw) return new Set();
-  const out = new Set();
-  raw
-    .split(/[,\s|;]+/g)
-    .map((token) => safeString(token))
-    .filter(Boolean)
-    .forEach((tokenRaw) => {
-      const token = tokenRaw.toLowerCase();
-      if (token === 'all' || token === 'full') {
-        out.add('datasheet');
-        return;
-      }
-      if (token === 'ean' || token === 'barcode' || token === 'barcodes') {
-        out.add('gtin');
-        return;
-      }
-      if (token === 'attr' || token === 'attrs') {
-        out.add('attributes');
-        return;
-      }
-      out.add(token);
-    });
-  return out;
-}
-
 function mergeUniqueStringList(...lists) {
   const out = [];
   const seen = new Set();
@@ -1852,23 +1832,7 @@ function sanitizeDatasheetChange(entry, product, { scope = null, titleHintTokens
     return /^[A-Za-z0-9._\\-\\/]+$/.test(trimmed);
   };
 
-  const scopeSet = parseScopeSet(scope);
-  const unrestrictedScope = scopeSet.size === 0 || scopeSet.has('datasheet');
-  const scopeAllows = (...tokens) =>
-    unrestrictedScope || tokens.some((token) => scopeSet.has(String(token || '').toLowerCase()));
-  const allow = {
-    title: scopeAllows('title'),
-    brand: scopeAllows('datasheet'),
-    category: scopeAllows('category'),
-    sku: scopeAllows('datasheet'),
-    barcodes: scopeAllows('gtin'),
-    pricing: scopeAllows('pricing'),
-    description: scopeAllows('description'),
-    highlights: scopeAllows('highlights'),
-    attributes: scopeAllows('attributes'),
-    gpsr: scopeAllows('gpsr'),
-    notes: true,
-  };
+  const allow = buildScopeAllowMap(scope);
 
   if (entry.summary) result.summary = entry.summary;
   if (allow.description && typeof entry.short_description === 'string') {
@@ -2298,7 +2262,7 @@ async function runProductChat(product, userMessage, {
     }
   }
 
-  const intent = await detectIntent(userMessage || '');
+  const intent = scope ? (parseScopeSet(scope).has('info') ? 'info' : 'change') : await detectIntent(userMessage || '');
   const conversationMode = detectConversationMode(userMessage || '');
   const marketingFocus = isMarketingImageRequest(userMessage || '');
   const webOnlyImages = marketingFocus && WEB_ONLY_IMAGE_REGEX.test(userMessage || '');
@@ -2320,7 +2284,7 @@ async function runProductChat(product, userMessage, {
     Boolean(asin),
   );
 
-  if (marketingFocus) {
+  if (marketingFocus && scopeAllowsGroup(scope, 'images')) {
     const marketingResponse = await fulfillMarketingImageRequest(product, {
       // If the user asks explicitly for web-only images, do not generate fallback AI renders.
       allowGeneratedFallback: !webOnlyImages,
@@ -2337,7 +2301,7 @@ async function runProductChat(product, userMessage, {
     applyEbayTaxonomy(product);
 
     const { enrichKTypIfPossible } = require('../lib/ktype-enrichment');
-    await enrichKTypIfPossible(product, { reason: 'chat' });
+    if (scopeAllowsGroup(scope, 'attributes')) await runToolCall('enrich_ktype', () => enrichKTypIfPossible(product, { reason: 'chat' }));
   } catch (e) {
     // Never block chat due to enrichment issues.
     try {
@@ -2356,10 +2320,10 @@ async function runProductChat(product, userMessage, {
     }
   }
 
-  const titleInsights = await loadTitleInsightsForProduct(product, {
+  const titleInsights = scopeAllowsGroup(scope, 'title') ? await runToolCall('search_ebay_catalog', () => loadTitleInsightsForProduct(product, {
     limit: Math.max(10, Math.min(200, Number(process.env.CHAT_TITLE_INSIGHTS_LIMIT) || 80)),
     maxTokens: Math.max(1, Math.min(20, Number(process.env.CHAT_TITLE_INSIGHTS_MAX_TOKENS) || 8)),
-  });
+  })) : null;
   const titleHintTokens = Array.isArray(titleInsights?.topTokens) ? titleInsights.topTokens : [];
 
   const productContext = buildProductContext(product, {
@@ -2374,14 +2338,14 @@ async function runProductChat(product, userMessage, {
   const SERPAPI_ENABLED = (process.env.SERPAPI_ENABLED || '').toString().trim().toLowerCase() === 'true';
   const tools = [
     {
-      functionDeclarations: [
+      functionDeclarations: filterToolDeclarations([
         toGeminiTool(brightdataSearchToolDefinition),
         ...(SERPAPI_ENABLED ? [toGeminiTool(serpapiToolDefinition)] : []),
         toGeminiTool(webFetchToolDefinition),
         toGeminiTool(updateDatasheetTool),
         toGeminiTool(suggestImagesTool),
         toGeminiTool(generateAiImagesTool),
-      ],
+      ], scope),
     },
   ];
 
@@ -2430,13 +2394,14 @@ async function runProductChat(product, userMessage, {
   QUALITY RULES:
   - Titles MUST be searchable and ≤80 chars.
   - Key features MUST be non-duplicative and factual.
+  ${requestPrompt(scope)}
   `;
 
   // Removed: thinkingConfig not accepted by old SDK (@google/generative-ai) reliably.
   // The legacy pipeline stays on defaults; thinking-budget tuning only applies to the
   // new @google/genai-based V2/V3 services. Keeping the `enhanced` branch a no-op so
   // the CHAT_LEGACY_ENHANCED flag can be re-purposed without crashing requests.
-  const model = client.getGenerativeModel({
+  const model = createBudgetedModel(client, {
     model: modelName,
     tools: tools,
     systemInstruction: systemPromptText,
@@ -2533,6 +2498,12 @@ async function runProductChat(product, userMessage, {
       for (const call of functionCalls) {
         let toolResult = {};
         const { name, args } = call;
+
+        if (!isToolCallAllowed(name, args, scope)) {
+          functionResponses.push({ functionResponse: { name, response: { error: 'Werkzeug liegt außerhalb des angefragten Umfangs.', code: 'CHAT_SCOPE_BLOCKED' } } });
+          continue;
+        }
+        if (name === 'update_product_datasheet' || name === 'suggest_product_images') await runToolCall(name, async () => undefined);
 
         if (name === 'brightdata_web_search') {
           const cleanedArgs = args && typeof args === 'object' ? { ...args } : {};
@@ -2673,11 +2644,11 @@ async function runProductChat(product, userMessage, {
       try {
         const updateOnlyTools = [
           {
-            functionDeclarations: [toGeminiTool(updateDatasheetTool)],
+            functionDeclarations: filterToolDeclarations([toGeminiTool(updateDatasheetTool)], scope),
           },
         ];
 
-        const updateOnlyModel = client.getGenerativeModel({
+        const updateOnlyModel = createBudgetedModel(client, {
           model: modelName,
           tools: updateOnlyTools,
           toolConfig: {
@@ -2691,6 +2662,7 @@ async function runProductChat(product, userMessage, {
             'CRITICAL: You MUST call update_product_datasheet exactly once.',
             'CRITICAL: Do NOT output any plain text.',
             'If the assistant message implies NO concrete datasheet edits, call update_product_datasheet with {}.',
+            requestPrompt(scope, { finalize: true }),
           ].join('\n'),
         });
 
@@ -2867,7 +2839,7 @@ async function runProductChat(product, userMessage, {
     }
 
     const consolidatedChange = consolidateDatasheetChanges(datasheetChanges);
-    const finalDatasheetChanges = consolidatedChange ? [consolidatedChange] : [];
+    const finalDatasheetChanges = filterChangesByScope(consolidatedChange ? [consolidatedChange] : [], scope).changes;
 
     // Resolve any assistant-proposed category to a REAL eBay categoryId before the
     // change reaches the client (parity with chat-v2/v3). Runs before the readiness
@@ -2875,7 +2847,7 @@ async function runProductChat(product, userMessage, {
     // services/category-resolver.js#resolveProposedCategoryForChanges.
     try {
       const { resolveProposedCategoryForChanges } = require('./category-resolver');
-      await resolveProposedCategoryForChanges(finalDatasheetChanges, product, { reason: 'chat_legacy' });
+      if (scopeAllowsGroup(scope, 'category')) await runToolCall('resolve_category', () => resolveProposedCategoryForChanges(finalDatasheetChanges, product, { reason: 'chat_legacy' }));
     } catch (catErr) {
       console.warn(`[product-chat] category resolution skipped: ${catErr?.message || catErr}`);
     }
@@ -2919,8 +2891,8 @@ async function runProductChat(product, userMessage, {
 
     return {
       message: responseText || 'Antwort generiert.',
-      datasheetChanges: finalDatasheetChanges,
-      imageSuggestions,
+      datasheetChanges: filterChangesByScope(finalDatasheetChanges, scope).changes,
+      imageSuggestions: scopeAllowsGroup(scope, 'images') ? imageSuggestions : [],
       serpTrace,
       ebayReadiness,
       modelUsed: modelName,
