@@ -4,7 +4,7 @@
  * The order is FIXED: SKU → BIN → quantity. A scan is classified only by its
  * position in the flow and by whether it consists of digits only.
  *
- * Two incidents made this rule necessary (TASKS.md BUG-096 / BUG-097):
+ * Two failure modes this rule prevents:
  *
  * 1. Every digits-only scan counted as a quantity — even BEFORE SKU and BIN. An
  *    accidentally scanned EAN (e.g. 4006381333931) then sat in the number pad
@@ -14,8 +14,8 @@
  *
  * 2. With SKU and BIN set, scanning the next item without confirming made that
  *    scan vanish without a trace — the operator assumed it was accepted. Now
- *    the rule returns `blocked`; the UI must make that VISIBLE, otherwise it is
- *    the same bug again.
+ *    the rule returns `blocked`; the UI must make that VISIBLE, otherwise the
+ *    scan is lost again.
  *
  * The order is enforced by the `SKU` prefix: product labels always encode
  * `SKU-…` (backend/routes/products.js adds it), BIN labels never do. So a BIN
@@ -29,8 +29,7 @@
  *
  * Deliberately a pure function without React state: every combination of flow
  * state and scan is testable on its own, and later checks (e.g. "does this BIN
- * exist?", TASKS.md WH-003) build on the result instead of growing inside the
- * view's scan handler.
+ * exist?") build on the result instead of growing inside the view's scan handler.
  */
 
 /** Highest quantity that can be booked in a single stow. */
