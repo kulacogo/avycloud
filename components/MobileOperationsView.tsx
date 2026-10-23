@@ -25,6 +25,7 @@ import { useI18n } from '../i18n';
 import { compareBinCodesForPickRoute } from '../utils/warehouseRoute';
 import type { UploadGroupPayload } from '../hooks/useIdentification';
 import QuantityNumpad from './operations/QuantityNumpad';
+import { routeStowScan, isValidStowQuantity, STOW_MAX_QTY, stowStep } from '../utils/stowScan';
 import { resolveScanCaptureMode } from './scanCaptureMode';
 import {
   istEchterTastenanschlag, zaehleAnschlag, istTastenScanner, LEERER_BEWEIS,
@@ -43,6 +44,9 @@ type OpsMode = 'operations' | 'operations-identify' | 'operations-stow' | 'opera
 // nicht mehr. Eine ECHTE Wiederholung derselben Buchung verlangt neues Scannen
 // von SKU und Lagerplatz und liegt damit weit jenseits dieses Fensters.
 const DUPLICATE_STOW_WINDOW_MS = 2500;
+// How long a box pulses after a rejected stow scan. The confirm button keeps pulsing
+// until the item is booked or reset (see flagStowAttention).
+const STOW_ATTENTION_MS = 1500;
 
 /**
  * Kennung EINER Einlager-Absicht. Der Server nutzt sie als Idempotenz-Schluessel:
@@ -156,6 +160,12 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
   // welcher Platz), Fehler in Danger-Ton. Vorher lief beides durch eine Variable,
   // die immer gruen gerendert wurde — ein Fehler sah damit aus wie ein Erfolg.
   const [stowError, setStowError] = useState<string | null>(null);
+  // Shown when a scan is blocked because the current item is not confirmed yet (BUG-097).
+  const [stowHint, setStowHint] = useState<string | null>(null);
+  // Which element briefly pulses after a rejected/blocked scan: the box the flow is
+  // waiting for, or the confirm button. Cleared by a timer or the next valid scan.
+  const [stowAttention, setStowAttention] = useState<'sku' | 'bin' | 'confirm' | null>(null);
+  const stowAttentionTimerRef = useRef<number | null>(null);
   const [lastStow, setLastStow] = useState<{ sku: string; bin: string; qty: number; name: string } | null>(null);
   const [stowSubmitting, setStowSubmitting] = useState(false);
 
@@ -978,12 +988,48 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
   // mitzugeben. Ohne das buchte der verzoegerte Aufruf die Menge aus der Closure
   // vom Zeitpunkt des Scans — also die ALTE Menge. Das ist ein echter Datenfehler,
   // kein reines Doppelklick-Thema.
+  const flagStowAttention = useCallback((target: 'sku' | 'bin' | 'confirm') => {
+    if (stowAttentionTimerRef.current) window.clearTimeout(stowAttentionTimerRef.current);
+    stowAttentionTimerRef.current = null;
+    setStowAttention(target);
+    // The confirm button stays highlighted until the item is booked or reset
+    // (clearStowFeedback) — the same lifetime as the hint text.
+    if (target !== 'confirm') {
+      stowAttentionTimerRef.current = window.setTimeout(() => {
+        setStowAttention(null);
+        stowAttentionTimerRef.current = null;
+      }, STOW_ATTENTION_MS);
+    }
+    try {
+      navigator.vibrate?.(200);
+    } catch {
+      /* vibration not supported */
+    }
+  }, []);
+
+  const clearStowFeedback = useCallback(() => {
+    if (stowAttentionTimerRef.current) window.clearTimeout(stowAttentionTimerRef.current);
+    stowAttentionTimerRef.current = null;
+    setStowAttention(null);
+    setStowHint(null);
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (stowAttentionTimerRef.current) window.clearTimeout(stowAttentionTimerRef.current);
+    },
+    []
+  );
+
   const handleSubmitStow = useCallback(
     async (override?: { sku?: string; bin?: string; qty?: number }) => {
       const sku = (override?.sku ?? stowSku).trim();
       const bin = (override?.bin ?? stowBin).trim();
       const qty = Number(override?.qty ?? stowQty);
-      if (!sku || !bin || !Number.isFinite(qty) || qty <= 0) return;
+      // Previous check (no upper limit), kept for rollback — remove after rollout:
+      // if (!sku || !bin || !Number.isFinite(qty) || qty <= 0) return;
+      // BUG-096: same rule as the scan route, so no path can book 0 or more than 999.
+      if (!sku || !bin || !isValidStowQuantity(qty)) return;
 
       // Sperre 1 — In-Flight. Ein Ref, kein State: der Wagenrueclauf eines
       // Handscanners feuert mehrere Events im selben Tick, in dem ein
@@ -1048,6 +1094,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
         setStowSku('');
         setStowBin('');
         setStowQty(1);
+        clearStowFeedback();
       } catch (err: any) {
         console.error('Stow failed', err);
         setStowError(err?.message || t('ops.errors.stow'));
@@ -1057,7 +1104,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [onProductUpdate, resolveProductForStow, stowBin, stowQty, stowSku, t]
+    [onProductUpdate, resolveProductForStow, stowBin, stowQty, stowSku, t, clearStowFeedback]
   );
 
   /** Findet alle offenen Positionen, die zu Platz + Artikel passen. */
@@ -1128,6 +1175,9 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
       if (!rawTrimmed) return;
 
       if (mode === 'operations-stow') {
+        // BUG-096/097: scan routing moved to utils/stowScan.ts (strict order SKU → BIN → quantity).
+        // Previous inline logic kept below for rollback — remove after rollout.
+        /*
         const numeric = /^\d+$/;
         if (!stowSku && !numeric.test(rawTrimmed)) {
           setStowSku(rawTrimmed);
@@ -1148,6 +1198,45 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
               void handleSubmitStow({ sku: stowSku, bin: stowBin, qty: n });
             }, 0);
           }
+        }
+        return;
+        */
+        const action = routeStowScan({ sku: stowSku, bin: stowBin }, rawTrimmed);
+        switch (action.type) {
+          case 'sku':
+            setStowSku(action.value);
+            clearStowFeedback();
+            break;
+          case 'bin':
+            setStowBin(action.value);
+            clearStowFeedback();
+            break;
+          case 'quantity': {
+            const qty = action.qty;
+            setStowQty(qty);
+            clearStowFeedback();
+            // Pass quantity, SKU and BIN explicitly: the deferred call must NOT read
+            // from the closure, which does not know the quantity just scanned yet.
+            setTimeout(() => {
+              void handleSubmitStow({ sku: stowSku, bin: stowBin, qty });
+            }, 0);
+            break;
+          }
+          case 'rejected':
+            // Wrong order (BIN in the SKU slot, or a SKU in the BIN slot): pulse the
+            // box the flow is waiting for. No text — the highlight shows what to scan.
+            flagStowAttention(action.expected);
+            break;
+          case 'blocked':
+            // The current item is not confirmed — do not overwrite it, tell the worker.
+            setStowHint(t('ops.stow.confirmFirst'));
+            flagStowAttention('confirm');
+            break;
+          case 'ignore':
+          default:
+            // Silently dropped (stray number, EAN, > 999). Visible with ?scanDebug=1
+            // via the 'scan-received' log in submitScanCapture.
+            break;
         }
         return;
       }
@@ -1333,6 +1422,8 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
       pendingPickQty,
       submitPick,
       handleSubmitStow,
+      flagStowAttention,
+      clearStowFeedback,
       stowBin,
       stowQty,
       stowSku,
@@ -1931,6 +2022,15 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
 
   if (mode === 'operations-stow') {
     const showKeypad = Boolean(stowSku && stowBin);
+    // Active vs muted: only the box the flow is waiting for is shown in full contrast.
+    // A rejected scan only ever targets the current box, so the pulse adds no colour of its own.
+    const currentStowStep = stowStep({ sku: stowSku, bin: stowBin });
+    const stowBoxClass = (box: 'sku' | 'bin') =>
+      `rounded-xl bg-app-bg/60 border p-2 transition-colors ${
+        currentStowStep === box ? 'border-txt-primary' : 'border-app-border'
+      } ${stowAttention === box ? 'motion-safe:animate-pulse' : ''}`;
+    const stowBoxText = (box: 'sku' | 'bin') =>
+      currentStowStep === box ? 'text-txt-primary' : 'text-txt-muted';
     const stowProduct = stowSku ? resolveProductForStow(stowSku) : null;
     return (
       <div className="space-y-3 max-w-xl mx-auto">
@@ -1966,6 +2066,12 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
           </div>
         )}
 
+        {stowHint && (
+          <div role="status" aria-live="assertive" className="rounded-2xl border border-warning/30 bg-warning-dim p-3 text-sm font-semibold text-warning">
+            {stowHint}
+          </div>
+        )}
+
         {stowError && (
           <div role="alert" className="rounded-2xl border border-danger/30 bg-danger-dim p-3 text-sm text-danger">
             {stowError}
@@ -1975,13 +2081,14 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
         <div className="rounded-2xl border border-app-border bg-app-surface p-3 space-y-2">
           {stowProduct ? <ProductCard product={stowProduct} /> : null}
           <div className="grid grid-cols-2 gap-2 text-sm text-txt-secondary">
-            <div className="rounded-xl bg-app-bg/60 border border-app-border p-2">
-              <p className="text-[11px] uppercase tracking-widest text-txt-muted">{t('common.sku')}</p>
-              <p className="text-base font-semibold break-all">{stowSku || '—'}</p>
+            <div className={stowBoxClass('sku')} aria-current={currentStowStep === 'sku' ? 'step' : undefined}>
+              <p className={`text-[11px] uppercase tracking-widest ${stowBoxText('sku')}`}>{t('common.sku')}</p>
+              {/* 15px instead of 16px: a SKU is a 14-character code and wrapped on narrow scanners. */}
+              <p className={`text-[15px] font-semibold break-all ${stowBoxText('sku')}`}>{stowSku || '—'}</p>
             </div>
-            <div className="rounded-xl bg-app-bg/60 border border-app-border p-2">
-              <p className="text-[11px] uppercase tracking-widest text-txt-muted">{t('common.bin')}</p>
-              <p className="text-base font-semibold break-all">{stowBin || '—'}</p>
+            <div className={stowBoxClass('bin')} aria-current={currentStowStep === 'bin' ? 'step' : undefined}>
+              <p className={`text-[11px] uppercase tracking-widest ${stowBoxText('bin')}`}>{t('common.bin')}</p>
+              <p className={`text-base font-semibold break-all ${stowBoxText('bin')}`}>{stowBin || '—'}</p>
             </div>
           </div>
           {/* Zuruecksetzen steht VOR dem verankerten Block — alles, was nach
@@ -1995,6 +2102,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
               setStowBin('');
               setStowQty(1);
               setStowError(null);
+              clearStowFeedback();
             }}
             aria-label={t('common.reset')}
             className="w-full rounded-xl bg-app-surface text-txt-primary font-semibold py-2.5 border border-app-border disabled:opacity-40"
@@ -2009,6 +2117,9 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
               value={stowQty}
               onChange={setStowQty}
               min={0}
+              max={STOW_MAX_QTY}
+              rejectAboveMax
+              confirmAttention={stowAttention === 'confirm'}
               stickyBottom
               onConfirm={() => {
                 void handleSubmitStow();

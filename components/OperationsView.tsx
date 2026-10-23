@@ -18,6 +18,7 @@ import { WarehouseIcon, SyncIcon, CameraIcon } from './icons/Icons';
 import { useI18n } from '../i18n';
 import { addMediaQueryListener } from '../utils/mediaQuery';
 import { compareBinCodesForPickRoute } from '../utils/warehouseRoute';
+import { STOW_MAX_QTY } from '../utils/stowScan';
 
 interface OperationsViewProps {
   products: Product[];
@@ -1133,13 +1134,19 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                 <input
                   type="number"
                   min={1}
+                  max={STOW_MAX_QTY}
                   value={stowQuantity}
                   onChange={(e) => {
                     const val = e.target.value;
                     if (val === '') {
                       setStowQuantity('');
                     } else {
-                      setStowQuantity(Math.max(1, Number(val)));
+                      // Previous (no upper limit), kept for rollback — remove after rollout:
+                      // setStowQuantity(Math.max(1, Number(val)));
+                      // BUG-096: above 999 the input is ignored and the current value stays.
+                      const next = Math.max(1, Number(val));
+                      if (next > STOW_MAX_QTY) return;
+                      setStowQuantity(next);
                     }
                   }}
                   className="w-full bg-app-bg border border-app-border rounded-xl px-4 py-3 text-base text-txt-primary font-mono focus:ring-2 focus:ring-accent outline-none"
