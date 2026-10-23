@@ -1,52 +1,55 @@
 import type { View } from "../types";
 import { canAccessView, type PermissionCheck } from "./viewPermissions.ts";
 
-export type SidebarItem = { view: View; label: string; icon: string };
+/** `label` bleibt der deutsche Klartext, `labelKey` ist der i18n-Schlüssel für die Anzeige. */
+export type SidebarItem = { view: View; label: string; labelKey: string; icon: string };
 export type SidebarSection = {
   id: string;
   label: string;
+  /** Leer bei "main" — dieser Abschnitt hat keine Überschrift. */
+  labelKey: string;
   icon: string;
   items: SidebarItem[];
   secondaryItems: SidebarItem[];
 };
 
 const SECTIONS: SidebarSection[] = [
-  { id: "main", label: "", icon: "dashboard", items: [
-    { view: "dashboard", label: "Dashboard", icon: "dashboard" },
-    { view: "finance", label: "Finanzen", icon: "creditCard" },
+  { id: "main", label: "", labelKey: "", icon: "dashboard", items: [
+    { view: "dashboard", label: "Dashboard", labelKey: "sidebar.item.dashboard", icon: "dashboard" },
+    { view: "finance", label: "Finanzen", labelKey: "sidebar.item.finance", icon: "creditCard" },
   ], secondaryItems: [] },
-  { id: "orders", label: "Aufträge", icon: "orders", items: [
-    { view: "orders", label: "Bestellungen", icon: "orders" },
-    { view: "orders-returns", label: "Retouren", icon: "returns" },
-    { view: "orders-shipping", label: "Versand & Labels", icon: "truck" },
-    { view: "orders-invoices", label: "Rechnungen", icon: "fileText" },
-  ], secondaryItems: [{ view: "orders-settings", label: "Einstellungen", icon: "sliders" }] },
-  { id: "products", label: "Produkte", icon: "package", items: [
-    { view: "products", label: "Produktdaten", icon: "package" },
-    { view: "input", label: "Erfassen", icon: "scanLine" },
-    { view: "pricing", label: "Preise", icon: "tag" },
+  { id: "orders", label: "Aufträge", labelKey: "sidebar.section.orders", icon: "orders", items: [
+    { view: "orders", label: "Bestellungen", labelKey: "sidebar.item.orders", icon: "orders" },
+    { view: "orders-returns", label: "Retouren", labelKey: "sidebar.item.orders-returns", icon: "returns" },
+    { view: "orders-shipping", label: "Versand & Labels", labelKey: "sidebar.item.orders-shipping", icon: "truck" },
+    { view: "orders-invoices", label: "Rechnungen", labelKey: "sidebar.item.orders-invoices", icon: "fileText" },
+  ], secondaryItems: [{ view: "orders-settings", label: "Einstellungen", labelKey: "sidebar.item.orders-settings", icon: "sliders" }] },
+  { id: "products", label: "Produkte", labelKey: "sidebar.section.products", icon: "package", items: [
+    { view: "products", label: "Produktdaten", labelKey: "sidebar.item.products", icon: "package" },
+    { view: "input", label: "Erfassen", labelKey: "sidebar.item.input", icon: "scanLine" },
+    { view: "pricing", label: "Preise", labelKey: "sidebar.item.pricing", icon: "tag" },
   ], secondaryItems: [
-    { view: "duplicates", label: "Duplikate", icon: "layers" },
-    { view: "rules", label: "Regeln", icon: "settings" },
+    { view: "duplicates", label: "Duplikate", labelKey: "sidebar.item.duplicates", icon: "layers" },
+    { view: "rules", label: "Regeln", labelKey: "sidebar.item.rules", icon: "settings" },
   ] },
-  { id: "warehouse", label: "Lager", icon: "warehouse", items: [
-    { view: "inventory", label: "Inventar", icon: "warehouse" },
-    { view: "warehouse", label: "Verwaltung", icon: "mapPin" },
-  ], secondaryItems: [{ view: "warehouse-settings", label: "Einstellungen", icon: "sliders" }] },
-  { id: "marketplaces", label: "Marktplätze", icon: "store", items: [
-    { view: "marketplace-ebay", label: "eBay", icon: "shoppingBag" },
-    { view: "marketplace-kaufland", label: "Kaufland", icon: "store" },
-    { view: "marketplace-errors", label: "Listing-Fehler", icon: "fileText" },
-    { view: "shop-health", label: "Shop-Gesundheit", icon: "store" },
+  { id: "warehouse", label: "Lager", labelKey: "sidebar.section.warehouse", icon: "warehouse", items: [
+    { view: "inventory", label: "Inventar", labelKey: "sidebar.item.inventory", icon: "warehouse" },
+    { view: "warehouse", label: "Verwaltung", labelKey: "sidebar.item.warehouse", icon: "mapPin" },
+  ], secondaryItems: [{ view: "warehouse-settings", label: "Einstellungen", labelKey: "sidebar.item.warehouse-settings", icon: "sliders" }] },
+  { id: "marketplaces", label: "Marktplätze", labelKey: "sidebar.section.marketplaces", icon: "store", items: [
+    { view: "marketplace-ebay", label: "eBay", labelKey: "sidebar.item.marketplace-ebay", icon: "shoppingBag" },
+    { view: "marketplace-kaufland", label: "Kaufland", labelKey: "sidebar.item.marketplace-kaufland", icon: "store" },
+    { view: "marketplace-errors", label: "Listing-Fehler", labelKey: "sidebar.item.marketplace-errors", icon: "fileText" },
+    { view: "shop-health", label: "Shop-Gesundheit", labelKey: "sidebar.item.shop-health", icon: "store" },
   ], secondaryItems: [] },
-  { id: "settings", label: "Einstellungen", icon: "settings", items: [
-    { view: "settings-profile", label: "Persönliche Daten", icon: "user" },
-    { view: "settings", label: "Unternehmensdaten", icon: "building" },
-    { view: "settings-team", label: "Mitarbeiter & Rollen", icon: "users" },
-    { view: "integrations", label: "Integrationen", icon: "plug" },
-    { view: "settings-api", label: "API", icon: "code" },
-    { view: "settings-billing", label: "Plan & Abrechnung", icon: "creditCard" },
-    { view: "audit-log", label: "Aktivitätsprotokoll", icon: "fileText" },
+  { id: "settings", label: "Einstellungen", labelKey: "sidebar.section.settings", icon: "settings", items: [
+    { view: "settings-profile", label: "Persönliche Daten", labelKey: "sidebar.item.settings-profile", icon: "user" },
+    { view: "settings", label: "Unternehmensdaten", labelKey: "sidebar.item.settings", icon: "building" },
+    { view: "settings-team", label: "Mitarbeiter & Rollen", labelKey: "sidebar.item.settings-team", icon: "users" },
+    { view: "integrations", label: "Integrationen", labelKey: "sidebar.item.integrations", icon: "plug" },
+    { view: "settings-api", label: "API", labelKey: "sidebar.item.settings-api", icon: "code" },
+    { view: "settings-billing", label: "Plan & Abrechnung", labelKey: "sidebar.item.settings-billing", icon: "creditCard" },
+    { view: "audit-log", label: "Aktivitätsprotokoll", labelKey: "sidebar.item.audit-log", icon: "fileText" },
   ], secondaryItems: [] },
 ];
 

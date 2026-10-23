@@ -2,6 +2,7 @@ import { canAccessView } from "../utils/viewPermissions";
 
 import React from 'react';
 import { useI18n } from '../i18n';
+import { LanguageSwitcher } from './LanguageSwitcher';
 import { useAuth } from '../context/AuthContext';
 import type { View } from '../types';
 
@@ -226,6 +227,12 @@ export const Header: React.FC<HeaderProps> = ({ currentView, setView, theme, onT
                   </svg>
                 )}
               </button>
+
+              {/* Language selector */}
+              <LanguageSwitcher
+                className="flex items-center justify-center rounded-lg bg-[var(--page-bg)] border-0 border-transparent text-txt-muted hover:text-txt-primary hover:bg-app-elevated transition-all"
+                style={{ width: '2.25rem', height: '2.25rem', borderImage: 'none' }}
+              />
 
               {/* Logout — icon only */}
               <button

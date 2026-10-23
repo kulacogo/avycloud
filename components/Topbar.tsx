@@ -3,8 +3,10 @@ import { useI18n } from "../i18n";
 import { useAuth } from "../context/AuthContext";
 import { Breadcrumb, type BreadcrumbItem } from "./ui/Breadcrumb";
 import { HelpButton } from "./help/HelpButton";
+import { LanguageSwitcher } from "./LanguageSwitcher";
 import { useSystemAlerts } from "../hooks/useSystemAlerts";
 import { publishGlobalSearch } from "../utils/globalSearch";
+import { VIEW_BREADCRUMBS, viewTitleKey } from "../utils/viewTitles";
 import type { View } from "../types";
 
 interface TopbarProps {
@@ -14,77 +16,10 @@ interface TopbarProps {
   onNavigate?: (view: string) => void;
 }
 
-const VIEW_TITLES: Record<string, string> = {
-  dashboard: "Dashboard",
-  home: "Dashboard",
-  search: "Suche",
-  input: "Erfassen",
-  inventory: "Inventar",
-  products: "Produkte",
-  admin: "Admin",
-  categories: "Kategorien",
-  "ebay-listings": "eBay",
-  warehouse: "Lagerverwaltung",
-  "warehouse-settings": "Lager-Einstellungen",
-  orders: "Bestellungen",
-  "orders-returns": "Retouren",
-  "orders-shipping": "Versand & Labels",
-  "orders-invoices": "Rechnungen",
-  "orders-settings": "Auftrags-Einstellungen",
-  operations: "Operationen",
-  "operations-identify": "Operationen",
-  "operations-stow": "Operationen",
-  "operations-pick": "Operationen",
-  "operations-pack": "Operationen",
-  sheet: "Produkte",
-  "marketplace-ebay": "eBay Listings",
-  "marketplace-kaufland": "Kaufland Listings",
-  "marketplace-errors": "Listing-Fehler",
-  finance: "Finanzen",
-  integrations: "Integrationen",
-  settings: "Unternehmensdaten",
-  "settings-profile": "Persönliche Daten",
-  "settings-team": "Mitarbeiter & Rollen",
-  "settings-api": "API",
-  "settings-billing": "Plan & Abrechnung",
-  // Bis 2026-08-16 fehlten diese neun Einträge. Weil die Topbar bei einem
-  // unbekannten Schlüssel auf "Dashboard" zurückfällt, stand über der
-  // Shop-Gesundheit, dem Aktivitätsprotokoll usw. wortwörtlich "Dashboard" —
-  // die App behauptete, der Mensch sei woanders. Die Bezeichnungen sind
-  // absichtlich wortgleich mit der Seitenleiste (components/Sidebar.tsx),
-  // damit Klick und Überschrift zusammenpassen.
-  "shop-health": "Shop-Gesundheit",
-  duplicates: "Duplikate",
-  pricing: "Preise",
-  rules: "Regeln",
-  "audit-log": "Aktivitätsprotokoll",
-  "integrations-ebay": "eBay",
-  "integrations-kaufland": "Kaufland",
-  "integrations-sendcloud": "SendCloud",
-  "integrations-sevdesk": "SevDesk",
-};
-
-/* Breadcrumb structure for nested views */
-const VIEW_BREADCRUMBS: Record<string, { parent: string; parentView: string }> = {
-  "orders-returns": { parent: "Aufträge", parentView: "orders" },
-  "orders-shipping": { parent: "Aufträge", parentView: "orders" },
-  "orders-invoices": { parent: "Aufträge", parentView: "orders" },
-  "orders-settings": { parent: "Aufträge", parentView: "orders" },
-  "warehouse-settings": { parent: "Lager", parentView: "warehouse" },
-  "marketplace-ebay": { parent: "Marktplätze", parentView: "integrations" },
-  "marketplace-kaufland": { parent: "Marktplätze", parentView: "integrations" },
-  "settings-profile": { parent: "Einstellungen", parentView: "settings" },
-  "settings-team": { parent: "Einstellungen", parentView: "settings" },
-  "settings-api": { parent: "Einstellungen", parentView: "settings" },
-  "settings-billing": { parent: "Einstellungen", parentView: "settings" },
-  categories: { parent: "Produkte", parentView: "products" },
-  input: { parent: "Produkte", parentView: "products" },
-};
-
 export const Topbar: React.FC<TopbarProps> = ({ currentView, theme, onToggleTheme, onNavigate }) => {
   const { t } = useI18n();
   const { user, isAdmin, hasPermission } = useAuth();
-  const title = VIEW_TITLES[currentView] || "Dashboard";
+  const title = t(viewTitleKey(currentView));
   const breadcrumb = VIEW_BREADCRUMBS[currentView];
   const userInitial = user?.email?.charAt(0)?.toUpperCase() || "?";
 
@@ -119,10 +54,10 @@ export const Topbar: React.FC<TopbarProps> = ({ currentView, theme, onToggleThem
     const ts = Date.parse(iso);
     if (!Number.isFinite(ts)) return "—";
     const diff = Math.round((Date.now() - ts) / 1000);
-    if (diff < 60) return `${diff}s`;
-    if (diff < 3600) return `${Math.round(diff / 60)} Min`;
-    if (diff < 86400) return `${Math.round(diff / 3600)} Std`;
-    return `${Math.round(diff / 86400)} T`;
+    if (diff < 60) return t("topbar.rel.seconds", { n: diff });
+    if (diff < 3600) return t("topbar.rel.minutes", { n: Math.round(diff / 60) });
+    if (diff < 86400) return t("topbar.rel.hours", { n: Math.round(diff / 3600) });
+    return t("topbar.rel.days", { n: Math.round(diff / 86400) });
   };
 
   const [searchValue, setSearchValue] = useState("");
@@ -160,7 +95,7 @@ export const Topbar: React.FC<TopbarProps> = ({ currentView, theme, onToggleThem
           <Breadcrumb
             items={[
               {
-                label: breadcrumb.parent,
+                label: t(breadcrumb.parentKey),
                 onClick: () => {
                   window.location.hash = `#/${breadcrumb.parentView}`;
                   onNavigate?.(breadcrumb.parentView);
@@ -195,9 +130,9 @@ export const Topbar: React.FC<TopbarProps> = ({ currentView, theme, onToggleThem
             type="text"
             value={searchValue}
             onChange={(e) => setSearchValue(e.target.value)}
-            placeholder="Suche... (Ctrl+K)"
+            placeholder={t("topbar.searchShortcut")}
             className="w-full rounded-lg bg-app-elevated border border-app-border pl-9 pr-3 py-1.5 text-sm text-txt-primary placeholder:text-txt-muted focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent transition"
-            aria-label="Globale Suche"
+            aria-label={t("topbar.searchAria")}
           />
         </div>
       </form>
@@ -211,8 +146,8 @@ export const Topbar: React.FC<TopbarProps> = ({ currentView, theme, onToggleThem
           type="button"
           onClick={onToggleTheme}
           className="flex items-center justify-center w-8 h-8 rounded-md text-txt-muted hover:text-txt-primary hover:bg-app-elevated transition-colors"
-          aria-label={theme === "dark" ? "Helles Design" : "Dunkles Design"}
-          title={theme === "dark" ? "Helles Design" : "Dunkles Design"}
+          aria-label={theme === "dark" ? t("topbar.themeLight") : t("topbar.themeDark")}
+          title={theme === "dark" ? t("topbar.themeLight") : t("topbar.themeDark")}
         >
           {theme === "dark" ? (
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -225,6 +160,9 @@ export const Topbar: React.FC<TopbarProps> = ({ currentView, theme, onToggleThem
             </svg>
           )}
         </button>
+
+        {/* Language selector */}
+        <LanguageSwitcher className="flex items-center justify-center w-8 h-8 rounded-md text-txt-muted hover:text-txt-primary hover:bg-app-elevated transition-colors" />
 
         {/* Help drawer trigger */}
         <HelpButton variant="topbar" />
@@ -239,8 +177,8 @@ export const Topbar: React.FC<TopbarProps> = ({ currentView, theme, onToggleThem
                 ? "text-danger hover:bg-danger-dim"
                 : "text-txt-muted hover:text-txt-primary hover:bg-app-elevated"
             }`}
-            aria-label={alertCount && alertCount > 0 ? `${alertCount} neue Alerts` : "Benachrichtigungen"}
-            title={alertCount && alertCount > 0 ? `${alertCount} neue Alerts` : "Benachrichtigungen"}
+            aria-label={alertCount && alertCount > 0 ? t("topbar.newAlerts", { count: alertCount }) : t("topbar.notifications")}
+            title={alertCount && alertCount > 0 ? t("topbar.newAlerts", { count: alertCount }) : t("topbar.notifications")}
             aria-haspopup="true"
             aria-expanded={bellOpen}
           >
@@ -263,7 +201,7 @@ export const Topbar: React.FC<TopbarProps> = ({ currentView, theme, onToggleThem
               className="absolute right-0 top-9 z-50 w-80 rounded-xl border border-app-border bg-app-surface shadow-xl"
             >
               <div className="flex items-center justify-between border-b border-app-border px-3 py-2">
-                <h4 className="text-sm font-semibold text-txt-primary">System-Alerts</h4>
+                <h4 className="text-sm font-semibold text-txt-primary">{t("topbar.alerts.title")}</h4>
                 <button
                   type="button"
                   onClick={() => {
@@ -273,7 +211,7 @@ export const Topbar: React.FC<TopbarProps> = ({ currentView, theme, onToggleThem
                   }}
                   className="text-xs font-medium text-accent hover:underline"
                 >
-                  Alle anzeigen
+                  {t("topbar.alerts.showAll")}
                 </button>
               </div>
               <div className="max-h-72 overflow-y-auto">
@@ -282,26 +220,26 @@ export const Topbar: React.FC<TopbarProps> = ({ currentView, theme, onToggleThem
                     Unbekannte als "Alles ruhig" ausgab. */}
                 {alertError && (
                   <div className="px-3 py-5 text-center text-sm">
-                    <p className="text-warning">Alarme konnten nicht geladen werden.</p>
+                    <p className="text-warning">{t("topbar.alerts.loadError")}</p>
                     <button
                       type="button"
                       onClick={() => void refreshAlerts()}
                       className="mt-2 text-xs font-medium text-accent hover:underline"
                     >
-                      Erneut versuchen
+                      {t("topbar.alerts.retry")}
                     </button>
                   </div>
                 )}
                 {!alertError && alertCount === null && (
-                  <div className="px-3 py-6 text-center text-sm text-txt-muted">Lade…</div>
+                  <div className="px-3 py-6 text-center text-sm text-txt-muted">{t("topbar.alerts.loading")}</div>
                 )}
                 {!alertError && alertCount === 0 && (
                   <div className="px-3 py-6 text-center text-sm text-txt-muted">
-                    Keine offenen Alerts. Alles ruhig.
+                    {t("topbar.alerts.none")}
                   </div>
                 )}
                 {!alertError && alertCount !== null && alertCount > 0 && alertLatest.length === 0 && (
-                  <div className="px-3 py-6 text-center text-sm text-txt-muted">Lade…</div>
+                  <div className="px-3 py-6 text-center text-sm text-txt-muted">{t("topbar.alerts.loading")}</div>
                 )}
                 {alertLatest.map((a) => (
                   <div
@@ -318,10 +256,10 @@ export const Topbar: React.FC<TopbarProps> = ({ currentView, theme, onToggleThem
                       >
                         {a.terminalStatus?.toUpperCase()}
                       </span>
-                      <span className="text-[11px] text-txt-muted">vor {formatRel(a.createdAt)}</span>
+                      <span className="text-[11px] text-txt-muted">{t("topbar.alerts.ago", { time: formatRel(a.createdAt) })}</span>
                     </div>
                     <p className="mt-1 truncate text-xs text-txt-primary" title={a.reason}>
-                      {a.reason || "Kein Detail"}
+                      {a.reason || t("topbar.alerts.noDetail")}
                     </p>
                     {a.failureDocId && (
                       <p className="mt-0.5 font-mono text-[10px] text-txt-muted">{a.failureDocId}</p>
