@@ -18,11 +18,34 @@ export function nextQuantityFromDigit(input: {
   min: number;
   max?: number;
 }): number {
-  const { current, digit, isFirstEntry, min, max } = input;
+  const { min, max } = input;
+  return clampQuantity(rawFromDigit(input), min, max);
+}
+
+/**
+ * Would this key press exceed the maximum?
+ *
+ * For stowing (TASKS.md BUG-096): there such a key press is DISCARDED instead
+ * of being clamped to the maximum as in picking — 123 + "4" must not silently
+ * become 999 but stay 123.
+ */
+export function digitExceedsMax(input: {
+  current: number;
+  digit: number;
+  isFirstEntry: boolean;
+  max?: number;
+}): boolean {
+  const { max } = input;
+  if (typeof max !== "number" || !Number.isFinite(max)) return false;
+  return rawFromDigit(input) > max;
+}
+
+/** Value after the key press, before applying min/max. */
+function rawFromDigit(input: { current: number; digit: number; isFirstEntry: boolean }): number {
+  const { current, digit, isFirstEntry } = input;
   const base = Number.isFinite(current) ? Math.max(0, Math.floor(current)) : 0;
   const raw = isFirstEntry ? digit : Number(`${base}${digit}`);
-  const safe = Number.isFinite(raw) ? raw : 0;
-  return clampQuantity(safe, min, max);
+  return Number.isFinite(raw) ? raw : 0;
 }
 
 /**
