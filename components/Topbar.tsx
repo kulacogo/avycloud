@@ -3,6 +3,7 @@ import { useI18n } from "../i18n";
 import { useAuth } from "../context/AuthContext";
 import { Breadcrumb, type BreadcrumbItem } from "./ui/Breadcrumb";
 import { HelpButton } from "./help/HelpButton";
+import { LanguageSwitcher } from "./LanguageSwitcher";
 import { useSystemAlerts } from "../hooks/useSystemAlerts";
 import { publishGlobalSearch } from "../utils/globalSearch";
 import type { View } from "../types";
@@ -225,6 +226,9 @@ export const Topbar: React.FC<TopbarProps> = ({ currentView, theme, onToggleThem
             </svg>
           )}
         </button>
+
+        {/* Language selector */}
+        <LanguageSwitcher className="flex items-center justify-center w-8 h-8 rounded-md text-txt-muted hover:text-txt-primary hover:bg-app-elevated transition-colors" />
 
         {/* Help drawer trigger */}
         <HelpButton variant="topbar" />
