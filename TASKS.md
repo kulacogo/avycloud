@@ -212,6 +212,15 @@ Implementiert in PR #32 / `codex/handheld-team-print-20261006`. Ziel **Windows 1
   - ✅ BIN-Scanner Label + Safe Area (bereits vorher gefixt)
   - ✅ Pack-Zähler: nutzt jetzt readyToPackOrders (Orders) statt packList (Products)
   - ✅ Rote BIN: korrektes Verhalten (Error-State bei unbekanntem Scan, kein Bug)
+- [ ] **BUG-096** Stowing (handheld scanner): accidental scans produce huge quantities (P1)
+  - Root cause: `handleScannedValue` (`components/MobileOperationsView.tsx`) treated EVERY digits-only scan as a quantity — even before SKU/BIN. A scanned EAN (e.g. 4006381333931) then sat in the number pad as the quantity; no upper limit
+  - Fix: scan rule as a pure function `utils/stowScan.ts routeStowScan()`; a quantity only once SKU+BIN are set, at most 3 digits, 1–999 (`STOW_MAX_QTY`), otherwise silently ignored. Number pad and desktop quantity field ignore input above 999
+  - Branch: `fix/stow-quantity-cap-confirm`
+- [ ] **BUG-097** Stowing (handheld scanner): an unconfirmed item gets lost (P1)
+  - Root cause: with SKU+BIN set, scanning the next item without confirming made `handleScannedValue` drop the scan without a trace — the operator assumed it was accepted
+  - Fix: the scan is blocked, visible hint "Erst Menge bestätigen oder Zurücksetzen." + vibration + the confirm button pulses; nothing is overwritten
+  - Order enforced by the `SKU` prefix (product labels always encode `SKU-…`, no BIN starts with `SKU`): a BIN in the SKU slot or a SKU in the BIN slot is rejected and the expected box pulses (no text). Active step shown in full contrast, other boxes muted (`stowStep()`)
+  - Branch: `fix/stow-quantity-cap-confirm`
 
 ## OMS Audit — Sprint-Block 10
 
@@ -257,6 +266,7 @@ Implementiert in PR #32 / `codex/handheld-team-print-20261006`. Ziel **Windows 1
 | MPD-001 | Multi-Produkt aus Single Image | P1 | ✅ done (Gemini Detection, Hint-Injection, StepGrouping Single-Image-Modus, 15 Tests) |
 | ADDR-001 | Empfänger-Adresslabel 62×29mm aus Bestellliste | P1 | **Claude Code Prompt ready** (`docs/prompts/feat-address-labels-62x29.md`) |
 | WH-002 | Child-BINs / Container | P1 | **Claude Code Prompt ready** (`docs/prompts/feat-warehouse-child-bins.md`) |
+| WH-003 | Stowing: check the BIN live at scan time — the app calls `GET /api/warehouse/bins/:code` (exists, 404 = unknown) right after the BIN scan and shows "BIN unknown" instead of failing only at booking. No backend change needed; do not cache a BIN list on the device (goes stale). Builds on `routeStowScan` (BUG-096/097). Optional: the 999 cap server-side too in `POST /api/warehouse/stock-in` (existing route → only with explicit approval; first confirm that >999 never happens legitimately) | P2 | open, after BUG-096/097 |
 
 ## Erledigt am 2026-04-06 (15 Commits)
 
