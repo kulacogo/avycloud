@@ -6,6 +6,7 @@ import {
 import { roleDisplayName } from "./admin/roleCatalog";
 import React, { useState, useCallback, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
+import { useI18n } from "../i18n";
 import type { View } from "../types";
 
 export type { View };
@@ -239,6 +240,7 @@ export const Sidebar: React.FC<SidebarProps> = (props) => {
 
 const SidebarContent: React.FC<SidebarProps & { storageKey: string }> = ({ currentView, setView, storageKey }) => {
   const { user, logout, hasPermission, rbac } = useAuth();
+  const { t } = useI18n();
   const [preferences, setPreferences] = useState(() => initializeSidebarPreferences(readSidebarPreferences(browserStorage(), storageKey), currentView));
   const collapsed = preferences.collapsed;
   const setCollapsed = (value: boolean) => setPreferences(prev => ({ ...prev, collapsed: value }));
@@ -262,6 +264,7 @@ const SidebarContent: React.FC<SidebarProps & { storageKey: string }> = ({ curre
   const sections = getSidebarSections(hasPermission);
   const renderLink = (item: SidebarItem) => {
     const active = isSidebarItemActive(currentView, item.view);
+    const label = t(item.labelKey);
     return (
       <a
         key={item.view}
@@ -271,12 +274,12 @@ const SidebarContent: React.FC<SidebarProps & { storageKey: string }> = ({ curre
           collapsed ? "justify-center px-0 py-2.5 mx-1" : "px-3 py-[9px]"
         } ${active ? "bg-accent/[0.08] text-accent" : "text-txt-secondary hover:bg-app-elevated hover:text-txt-primary"}`}
         aria-current={active ? "page" : undefined}
-        aria-label={item.label}
-        title={collapsed ? item.label : undefined}
+        aria-label={label}
+        title={collapsed ? label : undefined}
       >
         {active && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-accent" aria-hidden="true" />}
         <span className={active ? "text-accent" : "text-txt-muted"}>{icons[item.icon as keyof typeof icons]}</span>
-        {!collapsed && <span>{item.label}</span>}
+        {!collapsed && <span>{label}</span>}
       </a>
     );
   };
@@ -306,7 +309,7 @@ const SidebarContent: React.FC<SidebarProps & { storageKey: string }> = ({ curre
             type="button"
             onClick={() => setCollapsed(true)}
             className="p-1 rounded-md text-txt-muted hover:text-txt-primary hover:bg-app-elevated transition-colors"
-            aria-label="Sidebar einklappen"
+            aria-label={t("sidebar.collapse")}
           >
             {icons.chevronLeft}
           </button>
@@ -320,7 +323,7 @@ const SidebarContent: React.FC<SidebarProps & { storageKey: string }> = ({ curre
             type="button"
             onClick={() => setCollapsed(false)}
             className="p-1 rounded-md text-txt-muted hover:text-txt-primary hover:bg-app-elevated transition-colors"
-            aria-label="Sidebar ausklappen"
+            aria-label={t("sidebar.expand")}
           >
             {icons.chevronRight}
           </button>
@@ -328,7 +331,7 @@ const SidebarContent: React.FC<SidebarProps & { storageKey: string }> = ({ curre
       )}
 
       {/* Navigation: one disclosure per work area, with remembered personal choices. */}
-      <nav aria-label="Hauptnavigation" className="flex-1 overflow-y-auto px-2 py-1">
+      <nav aria-label={t("sidebar.mainNav")} className="flex-1 overflow-y-auto px-2 py-1">
         {sections.map((section) => {
           if (section.id === "main") return <div key={section.id} className="mb-3">{section.items.map(renderLink)}</div>;
           const open = sectionIsOpen(section, preferences, currentView, sections);
@@ -337,6 +340,7 @@ const SidebarContent: React.FC<SidebarProps & { storageKey: string }> = ({ curre
           const moreOpen = preferences.sections[moreId]
             ?? section.secondaryItems.some(item => isSidebarItemActive(currentView, item.view));
           const contentId = `sidebar-${section.id}`;
+          const sectionLabel = t(section.labelKey);
           return (
             <div key={section.id} className="mb-1">
               <button
@@ -348,14 +352,14 @@ const SidebarContent: React.FC<SidebarProps & { storageKey: string }> = ({ curre
                 }}
                 aria-expanded={!collapsed && open}
                 aria-controls={contentId}
-                aria-label={section.label}
-                title={collapsed ? section.label : undefined}
+                aria-label={sectionLabel}
+                title={collapsed ? sectionLabel : undefined}
                 className={`w-full flex items-center rounded-lg py-2.5 text-[13px] font-semibold transition-colors hover:bg-app-elevated focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${collapsed ? "justify-center" : "gap-2.5 px-3"} ${active ? "text-accent" : "text-txt-secondary"}`}
               >
                 {icons[section.icon as keyof typeof icons]}
                 {!collapsed && <>
-                  <span className="flex-1 text-left">{section.label}</span>
-                  {active && !open && <span className="w-1.5 h-1.5 rounded-full bg-accent" aria-label="Enthält die aktuelle Seite" />}
+                  <span className="flex-1 text-left">{sectionLabel}</span>
+                  {active && !open && <span className="w-1.5 h-1.5 rounded-full bg-accent" aria-label={t("sidebar.containsCurrent")} />}
                   <span className={`text-txt-muted transition-transform ${open ? "" : "-rotate-90"}`}>{icons.chevronDown}</span>
                 </>}
               </button>
@@ -366,11 +370,11 @@ const SidebarContent: React.FC<SidebarProps & { storageKey: string }> = ({ curre
                     type="button"
                     aria-expanded={moreOpen}
                     aria-controls={`${contentId}-more`}
-                    aria-label={`Weitere Funktionen: ${section.label}`}
+                    aria-label={t("sidebar.moreFor", { section: sectionLabel })}
                     onClick={() => setSectionOpen(moreId, !moreOpen)}
                     className="w-full flex items-center justify-between gap-1 px-3 py-2 text-xs text-txt-muted hover:text-txt-primary rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
                   >
-                    <span>Weitere Funktionen</span>
+                    <span>{t("sidebar.more")}</span>
                     <span className={`transition-transform ${moreOpen ? "" : "-rotate-90"}`}>{icons.chevronDown}</span>
                   </button>
                   <div id={`${contentId}-more`} hidden={!moreOpen}>{section.secondaryItems.map(renderLink)}</div>
@@ -391,14 +395,14 @@ const SidebarContent: React.FC<SidebarProps & { storageKey: string }> = ({ curre
             <>
               <div className="flex-1 min-w-0">
                 <div className="text-xs font-semibold text-txt-primary truncate">{userName}</div>
-                <div className="text-[10px] text-txt-muted truncate">{rbac?.roles?.[0] ? roleDisplayName(rbac.roles[0]) : "Kein Zugriffsprofil"}</div>
+                <div className="text-[10px] text-txt-muted truncate">{rbac?.roles?.[0] ? roleDisplayName(rbac.roles[0]) : t("sidebar.noRole")}</div>
               </div>
               <button
                 type="button"
                 onClick={() => logout()}
                 className="p-1.5 rounded-md text-txt-muted hover:text-danger hover:bg-app-elevated transition-colors"
-                aria-label="Abmelden"
-                title="Abmelden"
+                aria-label={t("sidebar.logout")}
+                title={t("sidebar.logout")}
               >
                 <svg
                   width="16"
