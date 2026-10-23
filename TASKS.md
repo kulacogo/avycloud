@@ -212,15 +212,15 @@ Implementiert in PR #32 / `codex/handheld-team-print-20261006`. Ziel **Windows 1
   - ✅ BIN-Scanner Label + Safe Area (bereits vorher gefixt)
   - ✅ Pack-Zähler: nutzt jetzt readyToPackOrders (Orders) statt packList (Products)
   - ✅ Rote BIN: korrektes Verhalten (Error-State bei unbekanntem Scan, kein Bug)
-- [ ] **BUG-096** Stowing (handheld scanner): accidental scans produce huge quantities (P1)
+- [x] **BUG-096** Stowing (handheld scanner): accidental scans produce huge quantities (P1)
   - Root cause: `handleScannedValue` (`components/MobileOperationsView.tsx`) treated EVERY digits-only scan as a quantity — even before SKU/BIN. A scanned EAN (e.g. 4006381333931) then sat in the number pad as the quantity; no upper limit
   - Fix: scan rule as a pure function `utils/stowScan.ts routeStowScan()`; a quantity only once SKU+BIN are set, at most 3 digits, 1–999 (`STOW_MAX_QTY`), otherwise silently ignored. Number pad and desktop quantity field ignore input above 999
-  - Branch: `fix/stow-quantity-cap-confirm`
-- [ ] **BUG-097** Stowing (handheld scanner): an unconfirmed item gets lost (P1)
+  - ✅ Fixed in PR #41 (2026-10-23), verified on a handheld scanner
+- [x] **BUG-097** Stowing (handheld scanner): an unconfirmed item gets lost (P1)
   - Root cause: with SKU+BIN set, scanning the next item without confirming made `handleScannedValue` drop the scan without a trace — the operator assumed it was accepted
   - Fix: the scan is blocked, visible hint "Erst Menge bestätigen oder Zurücksetzen." + vibration + the confirm button pulses; nothing is overwritten
   - Order enforced by the `SKU` prefix (product labels always encode `SKU-…`, no BIN starts with `SKU`): a BIN in the SKU slot or a SKU in the BIN slot is rejected and the expected box pulses (no text). Active step shown in full contrast, other boxes muted (`stowStep()`)
-  - Branch: `fix/stow-quantity-cap-confirm`
+  - ✅ Fixed in PR #41 (2026-10-23), verified on a handheld scanner
 
 ## OMS Audit — Sprint-Block 10
 
