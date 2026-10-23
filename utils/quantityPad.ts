@@ -25,7 +25,7 @@ export function nextQuantityFromDigit(input: {
 /**
  * Would this key press exceed the maximum?
  *
- * For stowing (TASKS.md BUG-096): there such a key press is DISCARDED instead
+ * For stowing: there such a key press is DISCARDED instead
  * of being clamped to the maximum as in picking — 123 + "4" must not silently
  * become 999 but stay 123.
  */

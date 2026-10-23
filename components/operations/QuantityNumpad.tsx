@@ -19,13 +19,13 @@ type QuantityNumpadProps = {
   stickyBottom?: boolean;
   /**
    * Ignore a key press that would go above `max` instead of clamping to it.
-   * Used by stowing (TASKS.md BUG-096): 123 + "4" stays 123 rather than
+   * Used by stowing: 123 + "4" stays 123 rather than
    * silently becoming the maximum. Picking keeps the clamp behaviour.
    */
   rejectAboveMax?: boolean;
   /**
    * Briefly draw attention to the confirm button — stowing sets this when a
-   * further code is scanned before the current item is confirmed (BUG-097).
+   * further code is scanned before the current item is confirmed.
    */
   confirmAttention?: boolean;
 };

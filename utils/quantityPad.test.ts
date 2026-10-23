@@ -136,7 +136,7 @@ describe("isReplacingEntry", () => {
 });
 
 // ---------------------------------------------------------------------------
-// BUG-096 (2026-10-23): stowing discards key presses above the maximum
+// Stowing discards key presses above the maximum
 // ---------------------------------------------------------------------------
 
 describe("digitExceedsMax", () => {

@@ -160,7 +160,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
   // welcher Platz), Fehler in Danger-Ton. Vorher lief beides durch eine Variable,
   // die immer gruen gerendert wurde — ein Fehler sah damit aus wie ein Erfolg.
   const [stowError, setStowError] = useState<string | null>(null);
-  // Shown when a scan is blocked because the current item is not confirmed yet (BUG-097).
+  // Shown when a scan is blocked because the current item is not confirmed yet.
   const [stowHint, setStowHint] = useState<string | null>(null);
   // Which element briefly pulses after a rejected/blocked scan: the box the flow is
   // waiting for, or the confirm button. Cleared by a timer or the next valid scan.
@@ -1026,9 +1026,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
       const sku = (override?.sku ?? stowSku).trim();
       const bin = (override?.bin ?? stowBin).trim();
       const qty = Number(override?.qty ?? stowQty);
-      // Previous check (no upper limit), kept for rollback — remove after rollout:
-      // if (!sku || !bin || !Number.isFinite(qty) || qty <= 0) return;
-      // BUG-096: same rule as the scan route, so no path can book 0 or more than 999.
+      // Same rule as the scan route, so no path can book 0 or more than the maximum.
       if (!sku || !bin || !isValidStowQuantity(qty)) return;
 
       // Sperre 1 — In-Flight. Ein Ref, kein State: der Wagenrueclauf eines
@@ -1175,32 +1173,7 @@ const MobileOperationsView: React.FC<MobileOperationsViewProps> = ({
       if (!rawTrimmed) return;
 
       if (mode === 'operations-stow') {
-        // BUG-096/097: scan routing moved to utils/stowScan.ts (strict order SKU → BIN → quantity).
-        // Previous inline logic kept below for rollback — remove after rollout.
-        /*
-        const numeric = /^\d+$/;
-        if (!stowSku && !numeric.test(rawTrimmed)) {
-          setStowSku(rawTrimmed);
-          return;
-        }
-        if (stowSku && !stowBin && !numeric.test(rawTrimmed)) {
-          setStowBin(rawTrimmed);
-          return;
-        }
-        if (numeric.test(rawTrimmed)) {
-          const n = Number(rawTrimmed);
-          if (Number.isFinite(n) && n > 0) {
-            setStowQty(n);
-            // Menge, SKU und Platz explizit mitgeben. Der verzoegerte Aufruf darf
-            // NICHT aus der Closure lesen — die kennt die eben gescannte Menge
-            // noch nicht und wuerde die vorherige buchen.
-            setTimeout(() => {
-              void handleSubmitStow({ sku: stowSku, bin: stowBin, qty: n });
-            }, 0);
-          }
-        }
-        return;
-        */
+        // Strict order SKU → BIN → quantity; the rule lives in utils/stowScan.ts.
         const action = routeStowScan({ sku: stowSku, bin: stowBin }, rawTrimmed);
         switch (action.type) {
           case 'sku':

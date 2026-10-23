@@ -1,9 +1,9 @@
 /**
  * Stowing on the handheld scanner: fixed order SKU → BIN → quantity.
  *
- * Covers both incidents from TASKS.md:
- *  - BUG-096: an accidentally scanned EAN became the quantity
- *  - BUG-097: the scan of the next item vanished without a trace
+ * Covers both failure modes:
+ *  - an accidentally scanned EAN became the quantity
+ *  - the scan of the next item vanished without a trace
  */
 import { describe, test } from "node:test";
 import assert from "node:assert";
@@ -83,7 +83,7 @@ describe("stowStep", () => {
   });
 });
 
-describe("routeStowScan — BUG-096: numbers do not become a quantity while SKU/BIN are missing", () => {
+describe("routeStowScan — numbers do not become a quantity while SKU/BIN are missing", () => {
   test("EAN before the SKU is ignored", () => {
     assert.deepStrictEqual(routeStowScan(EMPTY, "4006381333931"), { type: "ignore" });
   });
@@ -124,7 +124,7 @@ describe("routeStowScan — quantity after SKU and BIN", () => {
   });
 });
 
-describe("routeStowScan — BUG-097: an unconfirmed item stays in place", () => {
+describe("routeStowScan — an unconfirmed item stays in place", () => {
   test("text scan with SKU and BIN set is blocked", () => {
     assert.deepStrictEqual(routeStowScan(READY, "SKU-9999999999"), { type: "blocked" });
   });

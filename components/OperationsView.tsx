@@ -1141,9 +1141,7 @@ export const OperationsView: React.FC<OperationsViewProps> = ({ products, onProd
                     if (val === '') {
                       setStowQuantity('');
                     } else {
-                      // Previous (no upper limit), kept for rollback — remove after rollout:
-                      // setStowQuantity(Math.max(1, Number(val)));
-                      // BUG-096: above 999 the input is ignored and the current value stays.
+                      // Above the stow maximum the input is ignored and the current value stays.
                       const next = Math.max(1, Number(val));
                       if (next > STOW_MAX_QTY) return;
                       setStowQuantity(next);
