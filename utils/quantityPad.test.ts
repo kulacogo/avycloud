@@ -1,6 +1,6 @@
 import { describe, test } from "node:test";
 import assert from "node:assert";
-import { nextQuantityFromDigit, isReplacingEntry } from "./quantityPad.ts";
+import { nextQuantityFromDigit, isReplacingEntry, digitExceedsMax } from "./quantityPad.ts";
 
 /**
  * Der Ziffernblock im mobilen Einlagern startet auf 1. Bis 2026-08-15 hängte
@@ -132,5 +132,32 @@ describe("isReplacingEntry", () => {
     tippe(1);
     tippe(1);
     assert.strictEqual(current, 11);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// BUG-096 (2026-10-23): stowing discards key presses above the maximum
+// ---------------------------------------------------------------------------
+
+describe("digitExceedsMax", () => {
+  test("fourth digit above 999 is detected", () => {
+    assert.strictEqual(digitExceedsMax({ current: 123, digit: 4, isFirstEntry: false, max: 999 }), true);
+  });
+
+  test("exactly 999 is allowed", () => {
+    assert.strictEqual(digitExceedsMax({ current: 99, digit: 9, isFirstEntry: false, max: 999 }), false);
+  });
+
+  test("first tap replaces — a single digit never exceeds 999", () => {
+    assert.strictEqual(digitExceedsMax({ current: 999, digit: 5, isFirstEntry: true, max: 999 }), false);
+  });
+
+  test("without a maximum nothing is exceeded", () => {
+    assert.strictEqual(digitExceedsMax({ current: 123456, digit: 7, isFirstEntry: false }), false);
+  });
+
+  test("computes like nextQuantityFromDigit — decimal and NaN as starting value", () => {
+    assert.strictEqual(digitExceedsMax({ current: 99.7, digit: 9, isFirstEntry: false, max: 999 }), false);
+    assert.strictEqual(digitExceedsMax({ current: Number.NaN, digit: 7, isFirstEntry: false, max: 5 }), true);
   });
 });

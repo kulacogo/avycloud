@@ -1,6 +1,6 @@
 import React from "react";
 import { useI18n } from "../../i18n";
-import { nextQuantityFromDigit, clampQuantity, isReplacingEntry } from "../../utils/quantityPad";
+import { nextQuantityFromDigit, clampQuantity, isReplacingEntry, digitExceedsMax } from "../../utils/quantityPad";
 
 type QuantityNumpadProps = {
   value: number;
@@ -17,6 +17,17 @@ type QuantityNumpadProps = {
    * App.tsx ist ein begrenzter Scroll-Container, deshalb wirkt `sticky` dort.
    */
   stickyBottom?: boolean;
+  /**
+   * Ignore a key press that would go above `max` instead of clamping to it.
+   * Used by stowing (TASKS.md BUG-096): 123 + "4" stays 123 rather than
+   * silently becoming the maximum. Picking keeps the clamp behaviour.
+   */
+  rejectAboveMax?: boolean;
+  /**
+   * Briefly draw attention to the confirm button — stowing sets this when a
+   * further code is scanned before the current item is confirmed (BUG-097).
+   */
+  confirmAttention?: boolean;
 };
 
 const QuantityNumpad: React.FC<QuantityNumpadProps> = ({
@@ -29,6 +40,8 @@ const QuantityNumpad: React.FC<QuantityNumpadProps> = ({
   confirmLabel,
   confirmDisabled,
   stickyBottom = false,
+  rejectAboveMax = false,
+  confirmAttention = false,
 }) => {
   const { t } = useI18n();
   const safeValue = Number.isFinite(value) ? value : 0;
@@ -69,6 +82,7 @@ const QuantityNumpad: React.FC<QuantityNumpadProps> = ({
       current: safeValue,
       hasTyped: hasTypedRef.current,
     });
+    if (rejectAboveMax && digitExceedsMax({ current: safeValue, digit, isFirstEntry, max })) return;
     emit(nextQuantityFromDigit({ current: safeValue, digit, isFirstEntry, min, max }));
   };
 
@@ -160,7 +174,9 @@ const QuantityNumpad: React.FC<QuantityNumpadProps> = ({
           type="button"
           onClick={onConfirm}
           disabled={Boolean(confirmDisabled)}
-          className="w-full flex items-center justify-center rounded-xl bg-success-dim text-success font-semibold h-[clamp(2.5rem,5.6dvh,3rem)] disabled:opacity-40"
+          className={`w-full flex items-center justify-center rounded-xl bg-success-dim text-success font-semibold h-[clamp(2.5rem,5.6dvh,3rem)] disabled:opacity-40 ${
+            confirmAttention ? "ring-2 ring-txt-primary motion-safe:animate-pulse" : ""
+          }`}
         >
           {confirmLabel || t("ops.pick.submit")}
         </button>

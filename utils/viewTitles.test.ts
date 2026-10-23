@@ -1,9 +1,8 @@
 import { getSidebarSections } from "./sidebarNavigation.ts";
 import { ALLOWED_VIEWS } from "./viewPermissions.ts";
+import { VIEW_TITLE_KEYS } from "./viewTitles.ts";
 import { describe, test } from "node:test";
 import assert from "node:assert";
-import fs from "node:fs";
-import path from "node:path";
 
 /**
  * Jede erreichbare Ansicht braucht einen Seitennamen in der Topbar.
@@ -22,29 +21,12 @@ import path from "node:path";
  * deshalb braucht es diesen Test.
  */
 
-const ROOT = path.resolve(import.meta.dirname, "..");
-
-function block(src: string, startPattern: RegExp): string {
-  const m = startPattern.exec(src);
-  assert.ok(m, `Block nicht gefunden: ${startPattern}`);
-  const from = src.indexOf("{", m!.index);
-  let depth = 0;
-  for (let i = from; i < src.length; i++) {
-    if (src[i] === "{") depth++;
-    else if (src[i] === "}") {
-      depth--;
-      if (depth === 0) return src.slice(from, i);
-    }
-  }
-  throw new Error("Blockende nicht gefunden");
-}
-
 function allowedViews(): Set<string> { return new Set(ALLOWED_VIEWS); }
 
+// The title map moved from components/Topbar.tsx (VIEW_TITLES) to utils/viewTitles.ts
+// (VIEW_TITLE_KEYS, i18n keys) on 2026-10-23 — read it directly instead of parsing source.
 function viewTitles(): Set<string> {
-  const src = fs.readFileSync(path.join(ROOT, "components/Topbar.tsx"), "utf8");
-  const body = block(src, /const VIEW_TITLES[^=]*=/);
-  return new Set(Array.from(body.matchAll(/^\s*"?([a-z0-9-]+)"?:/gm)).map((x) => x[1]));
+  return new Set(Object.keys(VIEW_TITLE_KEYS));
 }
 
 /** Ansichten, die aus der Seitenleiste heraus anklickbar sind. */
